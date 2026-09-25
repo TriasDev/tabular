@@ -46,16 +46,7 @@ jobs:
         run: dotnet build TriasDev.Tabular.slnx --no-restore --configuration Release
 
       - name: Test (net8.0 and net10.0)
-        run: >-
-          dotnet test --solution TriasDev.Tabular.slnx --no-build --configuration Release
-          --coverlet --coverlet-output-format cobertura --results-directory ./test-results
-
-      - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          files: './test-results/coverage.cobertura.*.xml'
-          fail_ci_if_error: false
+        run: dotnet test --solution TriasDev.Tabular.slnx --no-build --configuration Release
 
   lint:
     name: Code Quality
