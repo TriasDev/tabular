@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The whole test host runs without named cultures, as it would in a slim container image. The
+       main suite cannot: it exercises de-DE and en-US readings directly. -->
+  <PropertyGroup>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
+  </ItemGroup>
+
+</Project>

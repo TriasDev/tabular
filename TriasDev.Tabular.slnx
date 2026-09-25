@@ -10,6 +10,7 @@
     <Project Path="src/TriasDev.Tabular/TriasDev.Tabular.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/TriasDev.Tabular.InvariantGlobalizationTests/TriasDev.Tabular.InvariantGlobalizationTests.csproj" />
     <Project Path="tests/TriasDev.Tabular.Tests/TriasDev.Tabular.Tests.csproj" />
   </Folder>
 </Solution>

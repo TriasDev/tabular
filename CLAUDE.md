@@ -105,6 +105,10 @@ under `src/TriasDev.Tabular` still group the code by layer:
 
 ## Tests
 
+`tests/TriasDev.Tabular.InvariantGlobalizationTests` runs its whole host with `InvariantGlobalization`
+(as a slim container would), so the core flow is pinned where no named culture exists; the main suite
+depends on de-DE and en-US and cannot run that way.
+
 Fixtures are built from raw bytes and raw OOXML (`Fixtures/XlsxPackage.cs`, `*GoldenFixtures.cs`)
 rather than through a writer, because the cases worth pinning are ones well-behaved writers never
 emit. Tests use only the public API (there is no `InternalsVisibleTo`).

@@ -182,8 +182,9 @@ fails the whole pass instead of skipping it.
 ### The suite assumes the German and English cultures exist
 Under `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` the library degrades as the guide describes — named
 cultures are left out of analysis, a plan naming one is refused as `mapping.unknown-culture` — but
-about seventy tests exercise de-DE and en-US readings directly and fail there by design. A CI leg in
-invariant mode should run a subset that does not depend on them.
+about seventy tests exercise de-DE and en-US readings directly and fail there by design. The core
+flow under invariant mode is pinned instead by `tests/TriasDev.Tabular.InvariantGlobalizationTests`,
+whose whole test host runs with `InvariantGlobalization` — so the main suite need not.
 
 ### One error code is asserted nowhere
 `value.min-length`. The codes are a frontend's translation contract; swapping two of them leaves the
