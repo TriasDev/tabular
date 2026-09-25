@@ -48,19 +48,19 @@ public static class MappingPlanValidator
         {
             if (!fields.ContainsKey(binding.TargetFieldName))
             {
-                faults.Add(BindingFault("mapping.unknown-field", binding));
+                faults.Add(BindingFault(ErrorCodes.Mapping.UnknownField, binding));
 
                 continue;
             }
 
             if (!bound.Add(binding.TargetFieldName))
             {
-                faults.Add(BindingFault("mapping.duplicate-binding", binding));
+                faults.Add(BindingFault(ErrorCodes.Mapping.DuplicateBinding, binding));
             }
 
             if (binding.SourceColumnIndex < 0)
             {
-                faults.Add(BindingFault("mapping.invalid-column", binding));
+                faults.Add(BindingFault(ErrorCodes.Mapping.InvalidColumn, binding));
             }
         }
 
@@ -79,7 +79,7 @@ public static class MappingPlanValidator
         foreach (TargetField field in schema.Fields
             .Where(f => f.Required && f.Group is null && !bound.Contains(f.Name)))
         {
-            faults.Add(new MappingFault { Code = "mapping.required-field-unmapped", TargetFieldName = field.Name });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.RequiredFieldUnmapped, TargetFieldName = field.Name });
         }
     }
 
@@ -95,7 +95,7 @@ public static class MappingPlanValidator
             .GroupBy(f => f.Group!, StringComparer.Ordinal)
             .Where(group => !group.Any(f => bound.Contains(f.Name))))
         {
-            faults.Add(new MappingFault { Code = "mapping.required-group-unmapped", TargetFieldName = group.Key });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.RequiredGroupUnmapped, TargetFieldName = group.Key });
         }
     }
 
@@ -104,17 +104,17 @@ public static class MappingPlanValidator
     {
         if (plan.HeaderRowIndex < 0)
         {
-            faults.Add(new MappingFault { Code = "mapping.invalid-header-row" });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.InvalidHeaderRow });
         }
 
         if (plan.SheetIndex < 0)
         {
-            faults.Add(new MappingFault { Code = "mapping.invalid-sheet" });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.InvalidSheet });
         }
 
         if (plan.Culture is { Length: > 0 } culture && !IsKnownCulture(culture))
         {
-            faults.Add(new MappingFault { Code = "mapping.unknown-culture" });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.UnknownCulture });
         }
     }
 

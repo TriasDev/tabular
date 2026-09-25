@@ -35,7 +35,7 @@ public abstract record FieldConstraint
     public sealed record ExactLength(int Length) : FieldConstraint
     {
         /// <inheritdoc />
-        public override string Code => "value.exact-length";
+        public override string Code => ErrorCodes.Value.ExactLength;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => value.Text?.Length == Length;
@@ -45,7 +45,7 @@ public abstract record FieldConstraint
     public sealed record MinLength(int Length) : FieldConstraint
     {
         /// <inheritdoc />
-        public override string Code => "value.min-length";
+        public override string Code => ErrorCodes.Value.MinLength;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => value.Text?.Length >= Length;
@@ -55,7 +55,7 @@ public abstract record FieldConstraint
     public sealed record MaxLength(int Length) : FieldConstraint
     {
         /// <inheritdoc />
-        public override string Code => "value.max-length";
+        public override string Code => ErrorCodes.Value.MaxLength;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => value.Text?.Length <= Length;
@@ -67,7 +67,7 @@ public abstract record FieldConstraint
     public sealed record MinValue(decimal Value) : FieldConstraint
     {
         /// <inheritdoc />
-        public override string Code => "value.out-of-range";
+        public override string Code => ErrorCodes.Value.OutOfRange;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => IsNumber(value) && value.Number >= Value;
@@ -79,7 +79,7 @@ public abstract record FieldConstraint
     public sealed record MaxValue(decimal Value) : FieldConstraint
     {
         /// <inheritdoc />
-        public override string Code => "value.out-of-range";
+        public override string Code => ErrorCodes.Value.OutOfRange;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => IsNumber(value) && value.Number <= Value;
@@ -115,7 +115,7 @@ public abstract record FieldConstraint
         }
 
         /// <inheritdoc />
-        public override string Code => "value.not-allowed";
+        public override string Code => ErrorCodes.Value.NotAllowed;
 
         /// <summary>How many values are allowed.</summary>
         public int Count => _allowed.Count;
@@ -156,7 +156,7 @@ public abstract record FieldConstraint
         public string Expression { get; }
 
         /// <inheritdoc />
-        public override string Code => "value.pattern";
+        public override string Code => ErrorCodes.Value.Pattern;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value)
@@ -216,8 +216,6 @@ public abstract record FieldConstraint
     /// </remarks>
     public sealed record Rule : FieldConstraint
     {
-        private static readonly string[] ReservedPrefixes = ["value.", "mapping.", "group.", "structure.", "format.", "limit."];
-
         private readonly Func<MappedValue, bool> _predicate;
 
         /// <summary>Creates a rule from a predicate over the field's value.</summary>
@@ -228,7 +226,7 @@ public abstract record FieldConstraint
             ArgumentException.ThrowIfNullOrWhiteSpace(code);
             ArgumentNullException.ThrowIfNull(predicate);
 
-            if (ReservedPrefixes.Any(prefix => code.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            if (ErrorCodes.IsReserved(code))
             {
                 throw new ArgumentException(
                     $"The code '{code}' uses a prefix the library's own error codes use; choose another.",

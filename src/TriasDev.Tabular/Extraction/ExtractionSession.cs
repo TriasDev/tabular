@@ -319,7 +319,7 @@ public sealed class ExtractionSession : IDisposable
                 // and failing here would refuse a row for the language it happens not to be in.
                 if (field.Required && field.Group is null)
                 {
-                    Fail(binding, "value.required", null);
+                    Fail(binding, ErrorCodes.Value.Required, null);
                 }
 
                 continue;
@@ -327,7 +327,7 @@ public sealed class ExtractionSession : IDisposable
 
             if (!ValueReading.TryRead(cell, text, field.Type, _culture, out MappedValue value))
             {
-                Fail(binding, "value.type-mismatch", text);
+                Fail(binding, ErrorCodes.Value.TypeMismatch, text);
                 continue;
             }
 
@@ -374,7 +374,7 @@ public sealed class ExtractionSession : IDisposable
                     RowNumber = CurrentRowNumber,
                     SourceColumnIndex = group.SourceColumnIndex,
                     TargetFieldName = group.Name,
-                    Code = "group.required",
+                    Code = ErrorCodes.Group.Required,
                     RawValue = null,
                 });
             }

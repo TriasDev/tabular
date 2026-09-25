@@ -65,7 +65,7 @@ public sealed record PrecheckResult(bool CanImport, IReadOnlyList<PrecheckFindin
 public static class MappingPrecheck
 {
     /// <summary>Four findings answer the one uniqueness question, each for a different reason.</summary>
-    private const string NotUnique = "value.not-unique";
+    private const string NotUnique = ErrorCodes.Value.NotUnique;
 
     /// <summary>Checks a mapping against a profile.</summary>
     /// <param name="plan">What a person decided in a mapping screen.</param>
@@ -86,7 +86,7 @@ public static class MappingPrecheck
                 [
                     new PrecheckFinding
                     {
-                        Code = "mapping.invalid-sheet",
+                        Code = ErrorCodes.Mapping.InvalidSheet,
                         Severity = PrecheckSeverity.Blocking,
                         TargetFieldName = string.Empty,
                         SourceColumnIndex = -1,
@@ -105,7 +105,7 @@ public static class MappingPrecheck
                 [
                     new PrecheckFinding
                     {
-                        Code = "mapping.unknown-culture",
+                        Code = ErrorCodes.Mapping.UnknownCulture,
                         Severity = PrecheckSeverity.Blocking,
                         TargetFieldName = string.Empty,
                         SourceColumnIndex = -1,
@@ -128,7 +128,7 @@ public static class MappingPrecheck
         {
             findings.Add(new PrecheckFinding
             {
-                Code = "mapping.stale-profile",
+                Code = ErrorCodes.Mapping.StaleProfile,
                 Severity = PrecheckSeverity.Undetermined,
                 TargetFieldName = string.Empty,
                 SourceColumnIndex = -1,
@@ -151,7 +151,7 @@ public static class MappingPrecheck
             {
                 findings.Add(new PrecheckFinding
                 {
-                    Code = "mapping.invalid-column",
+                    Code = ErrorCodes.Mapping.InvalidColumn,
                     Severity = PrecheckSeverity.Blocking,
                     TargetFieldName = field.Name,
                     SourceColumnIndex = binding.SourceColumnIndex,
@@ -224,7 +224,7 @@ public static class MappingPrecheck
 
             findings.Add(new PrecheckFinding
             {
-                Code = "group.required",
+                Code = ErrorCodes.Group.Required,
                 Severity = PrecheckSeverity.Blocking,
                 TargetFieldName = group.Key,
                 SourceColumnIndex = bound[0].Index,
@@ -298,7 +298,7 @@ public static class MappingPrecheck
         if (everyValueIsNothing)
         {
             add(
-                "value.required",
+                ErrorCodes.Value.Required,
                 PrecheckSeverity.Blocking,
                 "Every value in this column is one of the spellings of nothing the mapping "
                 + "declares, so no row carries a value for a field that requires one.",
@@ -307,7 +307,7 @@ public static class MappingPrecheck
         else if (facts.EmptyCount > 0)
         {
             add(
-                "value.required",
+                ErrorCodes.Value.Required,
                 PrecheckSeverity.Warning,
                 $"{Describe(facts.EmptyCount, binding, sheet, plan)} leave this column empty and "
                 + "the field is required.",
@@ -659,7 +659,7 @@ public static class MappingPrecheck
         }
 
         add(
-            "mapping.header-changed",
+            ErrorCodes.Mapping.HeaderChanged,
             PrecheckSeverity.Blocking,
             $"This column was mapped as '{binding.SourceHeader}' and now reads '{facts.Header}'. "
             + "The import will refuse the file.",
@@ -698,7 +698,7 @@ public static class MappingPrecheck
         if (counts is null)
         {
             add(
-                "value.type-mismatch",
+                ErrorCodes.Value.TypeMismatch,
                 PrecheckSeverity.Undetermined,
                 $"The file was not profiled under {name}, so this could not be judged.",
                 null);
@@ -723,7 +723,7 @@ public static class MappingPrecheck
         }
 
         add(
-            "value.type-mismatch",
+            ErrorCodes.Value.TypeMismatch,
             readable == 0 ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
             $"{failing} of {facts.NonEmptyCount} values do not read as "
             + $"{field.Type.ToString().ToLowerInvariant()} under {name}."

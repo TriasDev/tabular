@@ -45,13 +45,13 @@ public abstract class TabularException : Exception
 public sealed class TabularFormatException : TabularException
 {
     /// <summary>A format this library does not read: .xls, .xlsb, .ods, a binary file, a zip that is no workbook.</summary>
-    public const string Unsupported = "format.unsupported";
+    public const string Unsupported = ErrorCodes.Format.Unsupported;
 
     /// <summary>A package or part that is damaged: a broken zip, malformed XML, a part that is referenced but missing.</summary>
-    public const string Corrupt = "format.corrupt";
+    public const string Corrupt = ErrorCodes.Format.Corrupt;
 
     /// <summary>A part that ends before its markup does: a clipped upload, or sizes that lie.</summary>
-    public const string Truncated = "format.truncated";
+    public const string Truncated = ErrorCodes.Format.Truncated;
 
     /// <summary>Creates the exception.</summary>
     /// <param name="code">One of <see cref="Unsupported"/>, <see cref="Corrupt"/>, <see cref="Truncated"/>.</param>
@@ -72,7 +72,7 @@ public sealed class TabularFormatException : TabularException
 public sealed class TabularLimitException : TabularException
 {
     /// <summary>The code every instance carries.</summary>
-    public const string Exceeded = "limit.exceeded";
+    public const string Exceeded = ErrorCodes.Limit.Exceeded;
 
     /// <summary>Creates the exception.</summary>
     /// <param name="limit">Which bound, by the name of the option that sets it, e.g. <c>MaxSharedStrings</c>.</param>
@@ -104,13 +104,13 @@ public sealed class TabularLimitException : TabularException
 public sealed class TabularStructureException : TabularException
 {
     /// <summary>The plan names a sheet the file does not have.</summary>
-    public const string SheetMissing = "structure.sheet-missing";
+    public const string SheetMissing = ErrorCodes.Structure.SheetMissing;
 
     /// <summary>The sheet ends before the row the plan names as the header.</summary>
-    public const string HeaderRowMissing = "structure.header-row-missing";
+    public const string HeaderRowMissing = ErrorCodes.Structure.HeaderRowMissing;
 
     /// <summary>A mapped column's header is not the one the mapping recorded.</summary>
-    public const string HeaderChanged = "structure.header-changed";
+    public const string HeaderChanged = ErrorCodes.Structure.HeaderChanged;
 
     /// <summary>Creates the exception.</summary>
     public TabularStructureException(string code, string message)
@@ -136,7 +136,7 @@ public sealed class TabularStructureException : TabularException
 public sealed class MappingPlanException : TabularException
 {
     /// <summary>The code every instance carries; the individual faults carry their own.</summary>
-    public const string Invalid = "mapping.invalid-plan";
+    public const string Invalid = ErrorCodes.Mapping.InvalidPlan;
 
     /// <summary>Creates the exception.</summary>
     public MappingPlanException(IReadOnlyList<MappingFault> faults)
