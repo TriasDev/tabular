@@ -39,21 +39,40 @@ public static class TabularFile
     }
 
     /// <summary>Opens a cursor over a file of whichever kind it turns out to be.</summary>
-    /// <param name="stream">The file. Must be seekable.</param>
+    /// <param name="stream">
+    /// The file. Must be seekable. Closed with the cursor, or when opening fails, unless
+    /// <see cref="TabularOpenOptions.LeaveOpen"/> says otherwise.
+    /// </param>
     /// <param name="name">What to call it; a csv file's single sheet takes this name.</param>
-    /// <param name="leaveOpen">Whether disposing the cursor leaves the stream open.</param>
+    /// <param name="options">The cursor options for either kind, or null for the defaults.</param>
+    /// <param name="cancellationToken">Stops the opening, which reads the file's head or directory.</param>
     public static ITabularCursor Open(
         Stream stream,
         string name,
-        bool leaveOpen = false,
+        TabularOpenOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(stream);
+        TabularOpenOptions effective = options ?? TabularOpenOptions.Default;
 
-        // Opening a workbook is not free — the package's parts are enumerated and its style table is
-        // read before a single row is available — so the token belongs here as much as on a read.
-        return Detect(stream) == TabularFormat.Xlsx
-            ? new XlsxCursor(stream, leaveOpen: leaveOpen, cancellationToken: cancellationToken)
-            : new CsvCursor(stream, name, leaveOpen: leaveOpen);
+        try
+        {
+            ArgumentException.ThrowIfNullOrEmpty(name);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Opening a workbook is not free — the package's parts are enumerated and its style
+            // table is read before a single row is available — so the token belongs here as much as
+            // on a read.
+            return Detect(stream) == TabularFormat.Xlsx
+                ? new XlsxCursor(stream, effective.Xlsx, effective.LeaveOpen, cancellationToken)
+                : new CsvCursor(stream, name, effective.Csv, effective.LeaveOpen, cancellationToken);
+        }
+        catch when (!effective.LeaveOpen)
+        {
+            // The cursors close the stream on their own failures; this covers the ones before a
+            // cursor exists. Disposing a stream twice is harmless.
+            stream.Dispose();
+            throw;
+        }
     }
 }

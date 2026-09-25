@@ -59,7 +59,11 @@ public static class TabularImporter
     /// What a caller normally wants. The cursor exists so that the layers underneath can be reached,
     /// not so that everybody has to construct one and then hand it over untouched.
     /// </remarks>
-    /// <param name="stream">The file. Must be seekable; the run closes it.</param>
+    /// <param name="stream">
+    /// The file. Must be seekable. Closed with the run — or when the call fails, before or after
+    /// opening it — unless <see cref="TabularOpenOptions.LeaveOpen"/> in
+    /// <see cref="ImportOptions.Open"/> says otherwise.
+    /// </param>
     /// <param name="name">What to call it; a csv file's single sheet takes this name.</param>
     /// <param name="plan">What a person decided in a mapping screen.</param>
     /// <param name="schema">The fields to fill, declared with <see cref="ImportField"/>.</param>
@@ -76,24 +80,23 @@ public static class TabularImporter
         ImportOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(mapper);
-        ArgumentNullException.ThrowIfNull(schema);
-
+        ArgumentNullException.ThrowIfNull(stream);
         ImportOptions effective = options ?? ImportOptions.Default;
 
-        // Before the file is touched. A mapping that does not fit its schema is a fault of the
-        // mapping, and answering it costs nothing — whereas opening the file reads its head to
-        // detect the dialect, or its whole central directory to open the package. The contract says
-        // no stream is opened for a plan that cannot work, and this is what makes that true when the
-        // caller hands over a stream rather than a cursor.
-        IReadOnlyList<MappingFault> faults = MappingPlanValidator.Validate(plan, schema);
-
-        if (faults.Count > 0)
+        try
         {
-            throw new MappingPlanException(faults);
+            ArgumentNullException.ThrowIfNull(mapper);
+            ArgumentNullException.ThrowIfNull(schema);
+            Validate(plan, schema);
+        }
+        catch when (!effective.Open.LeaveOpen)
+        {
+            // One rule for a stream handed over: closed on every path unless the caller said not to.
+            stream.Dispose();
+            throw;
         }
 
-        ITabularCursor cursor = TabularFile.Open(stream, name, cancellationToken: cancellationToken);
+        ITabularCursor cursor = TabularFile.Open(stream, name, effective.Open, cancellationToken);
 
         try
         {
@@ -110,6 +113,21 @@ public static class TabularImporter
         {
             cursor.Dispose();
             throw;
+        }
+    }
+
+    private static void Validate(MappingPlan plan, TargetSchema schema)
+    {
+        // Before the file is touched. A mapping that does not fit its schema is a fault of the
+        // mapping, and answering it costs nothing — whereas opening the file reads its head to
+        // detect the dialect, or its whole central directory to open the package. The contract says
+        // no stream is opened for a plan that cannot work, and this is what makes that true when the
+        // caller hands over a stream rather than a cursor.
+        IReadOnlyList<MappingFault> faults = MappingPlanValidator.Validate(plan, schema);
+
+        if (faults.Count > 0)
+        {
+            throw new MappingPlanException(faults);
         }
     }
 }
@@ -361,7 +379,6 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
         }
 
         _disposed = true;
-        _session.Dispose();
         _owned?.Dispose();
     }
 }

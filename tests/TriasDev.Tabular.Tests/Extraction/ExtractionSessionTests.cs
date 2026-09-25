@@ -48,7 +48,7 @@ public sealed class ExtractionSessionTests
     {
         using MemoryStream stream = new(Utf8NoBom.GetBytes(text), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
-        using ExtractionSession session = TabularExtractor.Start(cursor, plan ?? Plan(), schema ?? Schema, options);
+        ExtractionSession session = TabularExtractor.Start(cursor, plan ?? Plan(), schema ?? Schema, options);
 
         List<string?[]> values = [];
         List<RowError> errors = [];
@@ -280,7 +280,7 @@ public sealed class ExtractionSessionTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes(text.ToString()), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
         using CancellationTokenSource cancellation = new();
-        using ExtractionSession session = TabularExtractor.Start(
+        ExtractionSession session = TabularExtractor.Start(
             cursor,
             Plan(),
             Schema,

@@ -16,7 +16,7 @@ namespace TriasDev.Tabular;
 /// entity, which is how silent corruption starts.
 /// </para>
 /// </remarks>
-public sealed class ExtractionSession : IDisposable
+public sealed class ExtractionSession
 {
     private readonly ITabularCursor _cursor;
     private readonly MappingPlan _plan;
@@ -29,7 +29,6 @@ public sealed class ExtractionSession : IDisposable
     private readonly RequiredGroup[] _requiredGroups;
     private readonly List<RowError> _errors = [];
 
-    private bool _disposed;
     private bool _finished;
 
     /// <summary>
@@ -141,8 +140,6 @@ public sealed class ExtractionSession : IDisposable
     /// </remarks>
     public bool ReadRow()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
         if (_finished)
         {
             return false;
@@ -444,15 +441,4 @@ public sealed class ExtractionSession : IDisposable
         int Position,
         TargetField Field,
         HashSet<string> EmptyEquivalents);
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-    }
 }

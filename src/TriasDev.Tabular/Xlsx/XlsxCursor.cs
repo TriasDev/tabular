@@ -94,7 +94,10 @@ public sealed class XlsxCursor : ITabularCursor
     /// <summary>Opens a cursor over a workbook and positions it on the first sheet.</summary>
     /// <param name="stream">The package.</param>
     /// <param name="options">Reading options, or null for the defaults.</param>
-    /// <param name="leaveOpen">Whether disposing the cursor leaves the stream open.</param>
+    /// <param name="leaveOpen">
+    /// Whether the stream stays open once the cursor is disposed, or once opening it fails.
+    /// </param>
+    /// <param name="cancellationToken">Stops the opening, which reads the package's directory and metadata.</param>
     /// <exception cref="TabularFormatException">
     /// The stream is not a readable workbook, or is one in a format this library does not read.
     /// </exception>
@@ -114,11 +117,22 @@ public sealed class XlsxCursor : ITabularCursor
         {
             _package = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen);
         }
-        catch (InvalidDataException broken)
+        catch (Exception failed)
         {
+            // Nothing owns the stream yet — the archive that would have closed it was never made.
+            if (!leaveOpen)
+            {
+                stream.Dispose();
+            }
+
             // The zip itself is damaged — no central directory, entries that contradict it. The BCL
             // reports that with its own type; the library's is the one a caller catches.
-            throw NotWellFormed(broken);
+            if (failed is InvalidDataException broken)
+            {
+                throw NotWellFormed(broken);
+            }
+
+            throw;
         }
 
         try

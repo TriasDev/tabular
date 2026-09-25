@@ -426,6 +426,21 @@ exception.
 - **Count distinct values beyond its budget.** Past it, a column reports a lower bound and an
   undetermined uniqueness — an explicit "not determined" rather than a confident wrong number.
 
+## Who closes the stream
+
+One rule at every entry point: a stream handed over is closed — when the cursor or run is disposed,
+and also when the call fails — unless the caller asked for it to stay open.
+
+| Entry point | Closes the stream | Keep it open with |
+|---|---|---|
+| `new CsvCursor(stream, …)`, `new XlsxCursor(stream, …)` | on `Dispose`, or on a failed open | `leaveOpen: true` |
+| `TabularFile.Open(stream, …)` | on `Dispose`, or on a failed open | `TabularOpenOptions.LeaveOpen` |
+| `TabularImporter.Import(stream, …)` | on `Dispose` of the run, or when the call throws (a refused plan included) | `ImportOptions.Open.LeaveOpen` |
+| `TabularImporter.Import(cursor, …)`, `TabularAnalyzer.Analyze`, `TabularExtractor.Start` | never — the cursor is the caller's | — |
+
+`TabularOpenOptions` also carries the csv and xlsx cursor options, so ceilings can be changed without
+giving up format detection.
+
 ## Cancellation
 
 `ReadRow` takes a `CancellationToken`, and the analyzer and importer hand theirs down rather than

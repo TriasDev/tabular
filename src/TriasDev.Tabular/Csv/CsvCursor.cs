@@ -60,15 +60,33 @@ public sealed class CsvCursor : ITabularCursor
     /// <param name="stream">The file. Must be seekable when the dialect is to be detected.</param>
     /// <param name="sheetName">What to call the file's single sheet, normally the file's name.</param>
     /// <param name="options">Reading options, or null for the defaults.</param>
-    /// <param name="leaveOpen">Whether disposing the cursor leaves the stream open.</param>
-    public CsvCursor(Stream stream, string sheetName, CsvCursorOptions? options = null, bool leaveOpen = false)
+    /// <param name="leaveOpen">
+    /// Whether the stream stays open once the cursor is disposed, or once opening it fails.
+    /// </param>
+    /// <param name="cancellationToken">Stops the opening, which reads the file's head to detect the dialect.</param>
+    public CsvCursor(
+        Stream stream,
+        string sheetName,
+        CsvCursorOptions? options = null,
+        bool leaveOpen = false,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
-        ArgumentException.ThrowIfNullOrEmpty(sheetName);
 
         _stream = stream;
         _options = options ?? CsvCursorOptions.Default;
-        Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options);
+
+        try
+        {
+            ArgumentException.ThrowIfNullOrEmpty(sheetName);
+            cancellationToken.ThrowIfCancellationRequested();
+            Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options);
+        }
+        catch when (!leaveOpen)
+        {
+            stream.Dispose();
+            throw;
+        }
 
         _reader = new StreamReader(
             stream,

@@ -19,6 +19,12 @@ public sealed record ImportOptions
 
     /// <summary>How the file is read underneath.</summary>
     public ExtractionOptions Extraction { get; init; } = ExtractionOptions.Default;
+
+    /// <summary>
+    /// How a file handed over as a stream is opened, and whether it is left open afterwards.
+    /// </summary>
+    /// <remarks>Ignored by a run over a cursor, which the caller opened and closes.</remarks>
+    public TabularOpenOptions Open { get; init; } = TabularOpenOptions.Default;
 }
 
 /// <summary>How much of a field the file actually filled.</summary>

@@ -334,7 +334,7 @@ public sealed class HostileInputTests
 
         using MemoryStream stream = new(content, writable: false);
         using XlsxCursor cursor = new(stream);
-        using ExtractionSession session = TabularExtractor.Start(cursor, plan, schema, cancellationToken: TestContext.Current.CancellationToken);
+        ExtractionSession session = TabularExtractor.Start(cursor, plan, schema, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(session.ReadRow());
         Assert.True(session.CurrentRowHasErrors);

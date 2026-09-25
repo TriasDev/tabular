@@ -104,9 +104,6 @@ either.
 **Matters as soon as** a caller puts a date range in a schema. Fix by comparing per type and by
 refusing the combination in the validator.
 
-### `ExtractionSession` implements `IDisposable` and owns nothing
-`Dispose` sets a flag. It reads as ownership of the cursor, which it does not have.
-
 ### `TabularAnalyzer` casts to `CsvCursor` to read the dialect
 The whole argument for `ITabularCursor` is that an implementation can be swapped. Swap it and
 `FileProfile.Dialect` silently becomes null while the format still says csv. The dialect belongs on
@@ -193,10 +190,6 @@ size.** It was fixed for the shared string table, which has both, and left stand
 siblings.
 
 **Matters when** somebody sends a file built to do this. An ordinary export cannot reach it.
-
-### The stream is not disposed if the archive fails to open
-If `ZipArchive`'s constructor throws — the common case for a non-workbook upload — the caller's stream
-is not disposed even when `leaveOpen` is false.
 
 ### A sheet whose part is missing aborts the analysis
 `MoveToSheet` throws rather than returning false, so a workbook declaring a sheet whose part is absent
