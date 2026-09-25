@@ -258,8 +258,14 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     /// </remarks>
     public IEnumerable<ImportChunk<T>> InChunks(int size, CancellationToken cancellationToken = default)
     {
+        // Checked here rather than in the iterator, which would only run on the first MoveNext.
         ArgumentOutOfRangeException.ThrowIfLessThan(size, 1);
 
+        return Chunks(size, cancellationToken);
+    }
+
+    private IEnumerable<ImportChunk<T>> Chunks(int size, CancellationToken cancellationToken)
+    {
         List<T> items = new(size);
         List<RowError> errors = [];
         int first = 0;

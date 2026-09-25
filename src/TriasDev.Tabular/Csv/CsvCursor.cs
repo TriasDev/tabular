@@ -135,7 +135,11 @@ public sealed class CsvCursor : ITabularCursor
 
     /// <inheritdoc />
     /// <remarks>A csv file has exactly one sheet, so only index zero exists.</remarks>
-    public bool MoveToSheet(int index) => index == 0;
+    public bool MoveToSheet(int index)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return index == 0;
+    }
 
     /// <inheritdoc />
     public bool ReadRow(CancellationToken cancellationToken = default)

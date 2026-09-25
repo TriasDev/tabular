@@ -21,19 +21,19 @@ public static class ImportField
 {
     /// <summary>A field holding text.</summary>
     public static TextField Text(string name) =>
-        new() { Name = name, Type = ColumnType.Text };
+        new() { Name = Named(name), Type = ColumnType.Text };
 
     /// <summary>A field holding whole numbers.</summary>
     public static IntegerField Integer(string name) =>
-        new() { Name = name, Type = ColumnType.Integer };
+        new() { Name = Named(name), Type = ColumnType.Integer };
 
     /// <summary>A field holding numbers with a fractional part.</summary>
     public static DecimalField Decimal(string name) =>
-        new() { Name = name, Type = ColumnType.Decimal };
+        new() { Name = Named(name), Type = ColumnType.Decimal };
 
     /// <summary>A field holding dates.</summary>
     public static DateField Date(string name) =>
-        new() { Name = name, Type = ColumnType.Date };
+        new() { Name = Named(name), Type = ColumnType.Date };
 
     /// <summary>
     /// One field a file may say in several languages, one column per language.
@@ -51,7 +51,18 @@ public static class ImportField
 
     /// <summary>A field holding true or false.</summary>
     public static BooleanField Boolean(string name) =>
-        new() { Name = name, Type = ColumnType.Boolean };
+        new() { Name = Named(name), Type = ColumnType.Boolean };
+
+    /// <summary>A field's name, refused when it cannot address anything.</summary>
+    /// <remarks>
+    /// A binding and a row find a field by its name, so an empty one would be accepted here and then
+    /// fail somewhere much further from the line that declared it.
+    /// </remarks>
+    private static string Named(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return name;
+    }
 }
 
 /// <summary>A field whose values are text.</summary>
