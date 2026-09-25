@@ -495,6 +495,9 @@ file reports about a hundred times; a file of twenty thousand rows, read in mill
 twice. With no length to measure, the row interval alone decides. `Progress<T>` posts each report to
 the context it was created on; an `IProgress<T>` of your own is called on the analysing thread.
 
+A console progress bar with Ctrl+C cancellation, runnable:
+[`samples/TriasDev.Tabular.Samples.Progress`](../samples/TriasDev.Tabular.Samples.Progress).
+
 ## Cultures
 
 Every text value is tried under each culture in `AnalysisOptions.Cultures`, by default

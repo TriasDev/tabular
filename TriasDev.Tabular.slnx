@@ -6,6 +6,7 @@
   <Folder Name="/samples/">
     <Project Path="samples/TriasDev.Tabular.Samples.Import/TriasDev.Tabular.Samples.Import.csproj" />
     <Project Path="samples/TriasDev.Tabular.Samples.Profile/TriasDev.Tabular.Samples.Profile.csproj" />
+    <Project Path="samples/TriasDev.Tabular.Samples.Progress/TriasDev.Tabular.Samples.Progress.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/TriasDev.Tabular/TriasDev.Tabular.csproj" />
