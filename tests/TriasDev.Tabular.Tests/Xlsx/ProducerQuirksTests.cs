@@ -94,4 +94,72 @@ public sealed class ProducerQuirksTests
 
         Assert.Equal(new string?[] { "shared" }, Assert.Single(ReadAll(content)));
     }
+
+    private static readonly string OneCell =
+        """<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row>""";
+
+    [Fact]
+    public void ReadsAPackageWhoseEntryNamesUseBackslashes()
+    {
+        // Some Windows tools write zip entry names as xl\workbook.xml. The format does not define
+        // them, readers are expected to accept them, and matching names literally found no workbook.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", OneCell)
+            .WithPartNaming(path => path.Replace('/', '\\'))
+            .Build();
+
+        Assert.Equal(new string?[] { "a" }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
+    public void FindsTheWorkbookThroughThePackageRelationshipsWhereverItIs()
+    {
+        // The package's own relationships say where the workbook is; xl/ is only where Excel puts
+        // it. A producer that writes it at the root was refused with "xl/workbook.xml is missing".
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", OneCell)
+            .WithSharedStrings("""<si><t>unused</t></si>""")
+            .WithWorkbookFolder(string.Empty)
+            .Build();
+
+        Assert.Equal(new string?[] { "a" }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
+    public void LeavesOutASheetThatHoldsNoCells()
+    {
+        // A macro or dialog sheet is declared beside the worksheets and has no worksheet part. It was
+        // offered as a sheet, and moving to it failed the cursor for good.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Data", OneCell)
+            .WithSheetDeclarations("""<sheet name="Module" sheetId="9" r:id=""/>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.Equal("Data", Assert.Single(cursor.Sheets).Name);
+    }
+
+    [Fact]
+    public void FollowsSheetRelationshipsDeclaredInTheStrictNamespace()
+    {
+        // Strict OOXML declares r:id in another namespace. Missing it sent every sheet to the
+        // conventional path, which a strict producer need not use — here the parts are named
+        // otherwise, so only the relationships lead to them.
+        byte[] content = new XlsxPackage()
+            .WithSheet("First", """<row r="1"><c r="A1" t="inlineStr"><is><t>first</t></is></c></row>""")
+            .WithSheet("Second", """<row r="1"><c r="A1" t="inlineStr"><is><t>second</t></is></c></row>""")
+            .WithStrictRelationshipNamespace()
+            .WithSheetPartNames(number => $"worksheets/data{number}.xml")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.Equal(["First", "Second"], cursor.Sheets.Select(s => s.Name));
+        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("second", cursor.CurrentRow[0].AsText());
+    }
 }

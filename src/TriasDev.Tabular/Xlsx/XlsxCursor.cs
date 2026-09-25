@@ -33,17 +33,20 @@ public sealed class XlsxCursor : ITabularCursor
     /// </remarks>
     private const int MaxColumns = 16_384;
 
-    private const string WorkbookPart = "xl/workbook.xml";
-    private const string WorkbookRelationshipsPart = "xl/_rels/workbook.xml.rels";
-    private const string StylesPart = "xl/styles.xml";
-    private const string SharedStringsPart = "xl/sharedStrings.xml";
+    /// <summary>Where the workbook part is when the package's own relationships do not say.</summary>
+    private const string ConventionalWorkbookPart = "xl/workbook.xml";
+
+    private const string PackageRelationshipsPart = "_rels/.rels";
 
     /// <summary>
-    /// The relationship namespace the format defines. A fixed identifier from the specification, not
-    /// an address: nothing is ever fetched from it.
+    /// The relationship namespaces the format defines — transitional, and the strict variant's. Fixed
+    /// identifiers from the specification, not addresses: nothing is ever fetched from them.
     /// </summary>
     private const string RelationshipNamespace =
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+    private const string StrictRelationshipNamespace =
+        "http://purl.oclc.org/ooxml/officeDocument/relationships";
 
     private readonly ZipArchive _package;
 
@@ -57,6 +60,8 @@ public sealed class XlsxCursor : ITabularCursor
     /// corrupt file rather than a naming difference.
     /// </remarks>
     private readonly Dictionary<string, ZipArchiveEntry> _parts;
+    private readonly string _sharedStringsPath = string.Empty;
+    private readonly string _stylesPath = string.Empty;
     private readonly bool _date1904;
     private readonly bool[] _styleIsDate;
     private readonly string[] _sheetPaths;
@@ -110,14 +115,30 @@ public sealed class XlsxCursor : ITabularCursor
                         $"The package holds more than the {effective.MaxPackageEntries} parts allowed.");
                 }
 
-                _parts.TryAdd(entry.FullName, entry);
+                _parts.TryAdd(PackagePath(entry.FullName), entry);
             }
 
             GuardExpansion(_package, effective.MaxUncompressedBytes);
 
-            Dictionary<string, string> relationships = ReadRelationships(cancellationToken);
+            // Found through the package's relationships, as the format specifies, rather than at
+            // the paths Excel happens to use: other producers put the workbook at the root of the
+            // package, and name their parts differently.
+            string workbookPath = ReadRelationships(PackageRelationshipsPart, string.Empty, cancellationToken)
+                .Values
+                .FirstOrDefault(r => r.Type.EndsWith("/officeDocument", StringComparison.Ordinal))
+                .Path is { Length: > 0 } declared
+                    ? declared
+                    : ConventionalWorkbookPart;
+
+            string folder = FolderOf(workbookPath);
+            Dictionary<string, Relationship> relationships =
+                ReadRelationships(RelationshipsPartOf(workbookPath), folder, cancellationToken);
+
+            _sharedStringsPath = PathOfType(relationships, "/sharedStrings") ?? folder + "sharedStrings.xml";
+            _stylesPath = PathOfType(relationships, "/styles") ?? folder + "styles.xml";
+
             (List<SheetInfo> sheets, List<string> paths, bool date1904) =
-                ReadWorkbook(relationships, cancellationToken);
+                ReadWorkbook(workbookPath, folder, relationships, cancellationToken);
 
             if (sheets.Count == 0)
             {
@@ -137,6 +158,62 @@ public sealed class XlsxCursor : ITabularCursor
             throw;
         }
     }
+
+    /// <summary>
+    /// A part's name as a path inside the package: forward slashes, no leading one.
+    /// </summary>
+    /// <remarks>
+    /// Some Windows tools write entry names with backslashes, which the zip format does not define
+    /// but readers are expected to accept; matching them literally left such a workbook unreadable.
+    /// </remarks>
+    private static string PackagePath(string name) => name.Replace('\\', '/').TrimStart('/');
+
+    /// <summary>The folder a part sits in, with its trailing slash, or empty at the root.</summary>
+    private static string FolderOf(string path) =>
+        path.LastIndexOf('/') is int slash and >= 0 ? path[..(slash + 1)] : string.Empty;
+
+    /// <summary>Where a part's own relationships are kept: <c>folder/_rels/name.rels</c>.</summary>
+    private static string RelationshipsPartOf(string path) =>
+        $"{FolderOf(path)}_rels/{path[FolderOf(path).Length..]}.rels";
+
+    /// <summary>
+    /// Resolves a relationship target against the folder of the part that declared it.
+    /// </summary>
+    /// <remarks>
+    /// Absolute when it starts with a slash, relative otherwise — and relative means <c>../</c> and
+    /// <c>./</c> are honoured, which a target such as <c>../worksheets/sheet1.xml</c> needs.
+    /// </remarks>
+    private static string Resolve(string folder, string target)
+    {
+        string normalised = target.Replace('\\', '/');
+        string combined = normalised.StartsWith('/') ? normalised : folder + normalised;
+
+        List<string> segments = [];
+
+        foreach (string segment in combined.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment == "..")
+            {
+                if (segments.Count > 0)
+                {
+                    segments.RemoveAt(segments.Count - 1);
+                }
+            }
+            else if (segment != ".")
+            {
+                segments.Add(segment);
+            }
+        }
+
+        return string.Join('/', segments);
+    }
+
+    /// <summary>The target of the first relationship of a type, by the type's last segment.</summary>
+    private static string? PathOfType(Dictionary<string, Relationship> relationships, string typeSuffix) =>
+        relationships.Values.FirstOrDefault(r => r.Type.EndsWith(typeSuffix, StringComparison.Ordinal)).Path;
+
+    /// <summary>One relationship: its type, and the part it points at, resolved.</summary>
+    private readonly record struct Relationship(string Type, string Path);
 
     /// <summary>Finds a part by name, without regard to case.</summary>
     private ZipArchiveEntry? Part(string name) =>
@@ -597,7 +674,7 @@ public sealed class XlsxCursor : ITabularCursor
 
     private string[] ReadSharedStrings(CancellationToken cancellationToken)
     {
-        ZipArchiveEntry? part = Part(SharedStringsPart);
+        ZipArchiveEntry? part = Part(_sharedStringsPath);
 
         if (part is null)
         {
@@ -761,11 +838,15 @@ public sealed class XlsxCursor : ITabularCursor
         }
     }
 
-    private Dictionary<string, string> ReadRelationships(CancellationToken cancellationToken)
+    /// <summary>Reads a relationships part, resolving each target against the folder it belongs to.</summary>
+    private Dictionary<string, Relationship> ReadRelationships(
+        string partPath,
+        string folder,
+        CancellationToken cancellationToken)
     {
-        Dictionary<string, string> map = new(StringComparer.Ordinal);
+        Dictionary<string, Relationship> map = new(StringComparer.Ordinal);
         int sinceCheck = 0;
-        ZipArchiveEntry? part = Part(WorkbookRelationshipsPart);
+        ZipArchiveEntry? part = Part(partPath);
 
         if (part is null)
         {
@@ -791,27 +872,34 @@ public sealed class XlsxCursor : ITabularCursor
             string? id = reader.GetAttribute("Id");
             string? target = reader.GetAttribute("Target");
 
-            if (id is not null && target is not null)
+            // An external target — a linked workbook, a hyperlink — names nothing inside this package.
+            if (id is null || target is null || reader.GetAttribute("TargetMode") == "External")
             {
-                if (map.Count >= _options.MaxRelationships)
-                {
-                    throw new InvalidDataException(
-                        $"The workbook declares more than the {_options.MaxRelationships} relationships allowed.");
-                }
-
-                map[id] = Bounded(target, "relationship target");
+                continue;
             }
+
+            if (map.Count >= _options.MaxRelationships)
+            {
+                throw new InvalidDataException(
+                    $"A relationships part declares more than the {_options.MaxRelationships} relationships allowed.");
+            }
+
+            map[id] = new Relationship(
+                Bounded(reader.GetAttribute("Type") ?? string.Empty, "relationship type"),
+                Resolve(folder, Bounded(target, "relationship target")));
         }
 
         return map;
     }
 
     private (List<SheetInfo> Sheets, List<string> Paths, bool Date1904) ReadWorkbook(
-        Dictionary<string, string> relationships,
+        string workbookPath,
+        string folder,
+        Dictionary<string, Relationship> relationships,
         CancellationToken cancellationToken)
     {
-        ZipArchiveEntry part = Part(WorkbookPart)
-            ?? throw new InvalidDataException("The package is not a workbook: xl/workbook.xml is missing.");
+        ZipArchiveEntry part = Part(workbookPath)
+            ?? throw new InvalidDataException($"The package is not a workbook: {workbookPath} is missing.");
 
         List<SheetInfo> sheets = [];
         int sinceCheck = 0;
@@ -841,26 +929,53 @@ public sealed class XlsxCursor : ITabularCursor
             }
             else if (reader.LocalName == "sheet")
             {
-                AddSheet(reader, relationships, sheets, paths);
+                AddSheet(reader, folder, relationships, sheets, paths);
             }
         }
 
         return (sheets, paths, date1904);
     }
 
-    /// <summary>Records one <c>&lt;sheet&gt;</c> element: its name, and the part that holds it.</summary>
+    /// <summary>
+    /// Records one <c>&lt;sheet&gt;</c> element — its name, and the part that holds it — if it is a
+    /// sheet of cells.
+    /// </summary>
+    /// <remarks>
+    /// A chart sheet, a macro sheet or a dialog sheet is declared in the same list and holds no cells,
+    /// so it is left out rather than offered as an empty table. A sheet whose relationship is missing
+    /// falls back to the conventional path, but only where a part is actually there.
+    /// </remarks>
     private void AddSheet(
         XmlReader reader,
-        Dictionary<string, string> relationships,
+        string folder,
+        Dictionary<string, Relationship> relationships,
         List<SheetInfo> sheets,
         List<string> paths)
     {
         string name = reader.GetAttribute("name") ?? $"Sheet{sheets.Count + 1}";
-        string? id = reader.GetAttribute("id", RelationshipNamespace);
+        string? id = reader.GetAttribute("id", RelationshipNamespace)
+            ?? reader.GetAttribute("id", StrictRelationshipNamespace);
 
-        string target = id is not null && relationships.TryGetValue(id, out string? mapped)
-            ? mapped
-            : $"worksheets/sheet{sheets.Count + 1}.xml";
+        string target;
+
+        if (id is { Length: > 0 } && relationships.TryGetValue(id, out Relationship related))
+        {
+            if (!related.Type.EndsWith("/worksheet", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            target = related.Path;
+        }
+        else
+        {
+            target = $"{folder}worksheets/sheet{sheets.Count + 1}.xml";
+
+            if (Part(target) is null)
+            {
+                return;
+            }
+        }
 
         if (sheets.Count >= _options.MaxSheets)
         {
@@ -869,7 +984,7 @@ public sealed class XlsxCursor : ITabularCursor
         }
 
         sheets.Add(new SheetInfo { Index = sheets.Count, Name = Bounded(name, "sheet name") });
-        paths.Add(NormalisePart(Bounded(target, "sheet target")));
+        paths.Add(target);
     }
 
     /// <summary>
@@ -890,10 +1005,6 @@ public sealed class XlsxCursor : ITabularCursor
         return value;
     }
 
-    /// <summary>Turns a relationship target into a path inside the package.</summary>
-    private static string NormalisePart(string target) =>
-        target.StartsWith('/') ? target.TrimStart('/') : $"xl/{target}";
-
     /// <summary>
     /// Builds, per style index, whether that style renders its number as a date.
     /// </summary>
@@ -904,7 +1015,7 @@ public sealed class XlsxCursor : ITabularCursor
     /// </remarks>
     private bool[] ReadDateStyles(CancellationToken cancellationToken)
     {
-        ZipArchiveEntry? part = Part(StylesPart);
+        ZipArchiveEntry? part = Part(_stylesPath);
 
         if (part is null)
         {

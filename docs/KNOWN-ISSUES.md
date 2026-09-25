@@ -46,11 +46,10 @@ The schema type is `xsd:boolean`, which also permits `"true"`/`"false"` and `"0"
 long spelling produces a boolean read as false, or a 1904 workbook read as 1900 — the latter is a
 four-year error.
 
-### Parts are found by path, not through relationships
-`xl/workbook.xml`, `xl/styles.xml` and `xl/sharedStrings.xml` are located by their conventional names
-rather than by following the package relationships, which is what the format actually specifies. It
-works for every producer seen so far. `NormalisePart` also does no percent-decoding and does not
-resolve `../`.
+### Relationship targets are not percent-decoded
+Parts are found through the package relationships, and targets are resolved against their folder,
+`../` included. A target that percent-encodes its name (`sheet%201.xml`) is not decoded, so it is
+looked up literally and not found. No producer seen writes one.
 
 ### A whitespace-only string is dropped one way and kept the other
 A shared string of spaces without `xml:space="preserve"` is dropped, because that path reads with

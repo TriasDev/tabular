@@ -20,6 +20,10 @@ internal sealed class XlsxPackage
     private string? _stylesXml;
     private bool _date1904;
     private Func<string, string> _partNaming = path => path;
+    private string _folder = "xl/";
+    private Func<int, string> _sheetPart = number => $"worksheets/sheet{number}.xml";
+    private string _extraSheetsXml = string.Empty;
+    private string _relationshipNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
     /// <summary>Adds a worksheet whose <c>&lt;sheetData&gt;</c> children are supplied verbatim.</summary>
     public XlsxPackage WithSheet(string name, string rowsXml)
@@ -50,6 +54,43 @@ internal sealed class XlsxPackage
     }
 
     /// <summary>
+    /// Puts the workbook and its parts in another folder — <c>""</c> for the package root — and points
+    /// the package's relationships at it.
+    /// </summary>
+    public XlsxPackage WithWorkbookFolder(string folder)
+    {
+        _folder = folder;
+        return this;
+    }
+
+    /// <summary>
+    /// Appends raw <c>&lt;sheet&gt;</c> declarations after the worksheets, for sheets that have no
+    /// worksheet part — a macro sheet, a chart sheet.
+    /// </summary>
+    public XlsxPackage WithSheetDeclarations(string sheetsXml)
+    {
+        _extraSheetsXml = sheetsXml;
+        return this;
+    }
+
+    /// <summary>
+    /// Names the worksheet parts, relative to the workbook's folder, so they can only be found
+    /// through the relationships.
+    /// </summary>
+    public XlsxPackage WithSheetPartNames(Func<int, string> name)
+    {
+        _sheetPart = name;
+        return this;
+    }
+
+    /// <summary>Declares the workbook's <c>r:id</c> attributes in the strict variant's namespace.</summary>
+    public XlsxPackage WithStrictRelationshipNamespace()
+    {
+        _relationshipNamespace = "http://purl.oclc.org/ooxml/officeDocument/relationships";
+        return this;
+    }
+
+    /// <summary>
     /// Rewrites every part's path, so a package can be built the way a non-Microsoft producer writes
     /// one.
     /// </summary>
@@ -72,22 +113,22 @@ internal sealed class XlsxPackage
         {
             Write(zip, _partNaming("[Content_Types].xml"), ContentTypes());
             Write(zip, _partNaming("_rels/.rels"), RootRelationships());
-            Write(zip, _partNaming("xl/workbook.xml"), Workbook());
-            Write(zip, _partNaming("xl/_rels/workbook.xml.rels"), WorkbookRelationships());
+            Write(zip, _partNaming($"{_folder}workbook.xml"), Workbook());
+            Write(zip, _partNaming($"{_folder}_rels/workbook.xml.rels"), WorkbookRelationships());
 
             for (int i = 0; i < _sheets.Count; i++)
             {
-                Write(zip, _partNaming($"xl/worksheets/sheet{i + 1}.xml"), Worksheet(_sheets[i].RowsXml));
+                Write(zip, _partNaming($"{_folder}{_sheetPart(i + 1)}"), Worksheet(_sheets[i].RowsXml));
             }
 
             if (_sharedStringsXml is not null)
             {
-                Write(zip, _partNaming("xl/sharedStrings.xml"), SharedStrings(_sharedStringsXml));
+                Write(zip, _partNaming($"{_folder}sharedStrings.xml"), SharedStrings(_sharedStringsXml));
             }
 
             if (_stylesXml is not null)
             {
-                Write(zip, _partNaming("xl/styles.xml"), _stylesXml);
+                Write(zip, _partNaming($"{_folder}styles.xml"), _stylesXml);
             }
         }
 
@@ -108,34 +149,34 @@ internal sealed class XlsxPackage
         sb.Append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">""");
         sb.Append("""<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>""");
         sb.Append("""<Default Extension="xml" ContentType="application/xml"/>""");
-        sb.Append("""<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>""");
+        sb.Append($"""<Override PartName="/{_folder}workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>""");
 
         for (int i = 0; i < _sheets.Count; i++)
         {
-            sb.Append($"""<Override PartName="/xl/worksheets/sheet{i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>""");
+            sb.Append($"""<Override PartName="/{_folder}{_sheetPart(i + 1)}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>""");
         }
 
         if (_sharedStringsXml is not null)
         {
-            sb.Append("""<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>""");
+            sb.Append($"""<Override PartName="/{_folder}sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>""");
         }
 
         if (_stylesXml is not null)
         {
-            sb.Append("""<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>""");
+            sb.Append($"""<Override PartName="/{_folder}styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>""");
         }
 
         sb.Append("</Types>");
         return sb.ToString();
     }
 
-    private static string RootRelationships() =>
-        """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""";
+    private string RootRelationships() =>
+        $"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="{_folder}workbook.xml"/></Relationships>""";
 
     private string Workbook()
     {
         StringBuilder sb = new();
-        sb.Append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""");
+        sb.Append($"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="{_relationshipNamespace}">""");
 
         if (_date1904)
         {
@@ -147,6 +188,7 @@ internal sealed class XlsxPackage
         {
             sb.Append($"""<sheet name="{Escape(_sheets[i].Name)}" sheetId="{i + 1}" r:id="rId{i + 1}"/>""");
         }
+        sb.Append(_extraSheetsXml);
         sb.Append("</sheets></workbook>");
         return sb.ToString();
     }
@@ -158,7 +200,7 @@ internal sealed class XlsxPackage
 
         for (int i = 0; i < _sheets.Count; i++)
         {
-            sb.Append($"""<Relationship Id="rId{i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{i + 1}.xml"/>""");
+            sb.Append($"""<Relationship Id="rId{i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="{_sheetPart(i + 1)}"/>""");
         }
 
         int next = _sheets.Count + 1;
