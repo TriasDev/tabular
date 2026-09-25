@@ -334,6 +334,11 @@ public sealed class XlsxCursor : ITabularCursor
         CurrentRowNumber = 0;
         _cellCount = 0;
 
+        // A fault is about a position inside a sheet. A sheet opened from its start has none, so the
+        // cursor can go on from here; keeping the fault made MoveToSheet return true and the next read
+        // refuse with "cannot continue".
+        _faulted = false;
+
         return true;
     }
 

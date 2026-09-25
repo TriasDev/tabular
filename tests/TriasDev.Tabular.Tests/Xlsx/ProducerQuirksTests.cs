@@ -341,4 +341,24 @@ public sealed class ProducerQuirksTests
 
         Assert.Equal(2, ReadAll(content).Count);
     }
+
+    [Fact]
+    public void ReadsAnotherSheetAfterOneFailed()
+    {
+        // MoveToSheet reopened the sheet from its start and returned true, and then ReadRow refused
+        // with "cannot continue" — the fault outlived the position it was about.
+        byte[] content = new XlsxPackage()
+            .WithRawSheet("Broken", SheetOpen + """<row r="1"><c r="A1" t="inlineStr"><is><t>x""")
+            .WithSheet("Good", OneCell)
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+
+        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("a", cursor.CurrentRow[0].AsText());
+    }
 }
