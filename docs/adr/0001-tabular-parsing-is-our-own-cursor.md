@@ -81,7 +81,7 @@ clean input, `Sylvan.Data.Csv`, cannot open the file at all.
 
 **These numbers are frozen at the decision, not maintained.** They compare the alternatives against
 the prototype this decision was taken on, which is what an ADR is for. The reader has moved a long
-way since — see the table in the library's README, which is the one kept current.
+way since — see [benchmarks](../benchmarks.md) and the [guide](../guide.md), which are kept current.
 
 Only survivors were measured. `ms` is wall clock, `allocated` is total managed allocation, `peak` is
 peak resident set.

@@ -119,8 +119,8 @@ explained — "this is not the file you mapped" — is an English sentence. A ca
 its own problem-details type has to parse prose.
 
 ### Two exception types for one kind of fault
-The README says an unreadable file raises `TabularStructureException`; the cursors raise
-`InvalidDataException`. A caller following the README catches the wrong one.
+The guide says an unreadable file raises `TabularStructureException`; the cursors raise
+`InvalidDataException`. A caller following the guide catches the wrong one.
 
 ### `ExtractionSession` implements `IDisposable` and owns nothing
 `Dispose` sets a flag. It reads as ownership of the cursor, which it does not have.
@@ -242,10 +242,6 @@ suite green.
 
 The count used to be wrong in both halves at once — it said four of nineteen when it was two of
 twenty — so the catalog itself is now pinned by `ErrorCodeCatalogTests` rather than described here.
-
-### The README's error-code catalog has no drift guard
-Rule 20 in `CLAUDE.md` establishes the pattern for exactly this — a snapshot document verified by a
-test.
 
 ### The typed fast paths in extraction are untested end to end
 Every extraction test uses `CsvCursor`, which emits only text and empty cells. The branches that take

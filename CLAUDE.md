@@ -27,6 +27,11 @@ the repository; set `TABULAR_FIXTURES` to their folder and `TABULAR_FILES` to a 
 of file names in it — without both it measures nothing. It runs
 every measurement in a child process on purpose, so peak working set is not shared between candidates.
 
+`benchmarks/TriasDev.Tabular.Comparison` reads the same fixtures with Sylvan, Sep, CsvHelper,
+ExcelDataReader, MiniExcel, the Open XML SDK, ClosedXML, NPOI and EPPlus (same variables, plus
+`TABULAR_RUNS`, `TABULAR_READERS`); it is the only project allowed third-party parsing packages, and
+only versions free for commercial use are committed (EPPlus 4.5.3.3, NPOI 2.7.6).
+
 There is no separate lint step: Roslynator, Sonar and the .NET analyzers run as part of the build.
 `CS8509` (non-exhaustive switch) is an error everywhere, `CS8600` additionally in the library.
 
@@ -73,14 +78,14 @@ Namespaces map to folders under `src/TriasDev.Tabular`:
 - **No package references in the library.** `TabularIndependenceTests` checks the *resolved* graph
   (`obj/project.assets.json`) against a list of parsing libraries (Sylvan, ExcelDataReader, CsvHelper,
   OpenXml, …). Analyzers are fine; anything else is a decision for an ADR, not a convenience.
-- **Error codes, never messages.** Row errors carry codes like `value.required`. The README's
-  "Error codes" table is checked against string literals in `src/` by `ErrorCodeCatalogTests` in both
+- **Error codes, never messages.** Row errors carry codes like `value.required`. The "Error codes"
+  table in `docs/guide.md` is checked against string literals in `src/` by `ErrorCodeCatalogTests` in both
   directions — adding, renaming or removing a code means updating that table.
 - **Rows are views.** `CurrentRow`, `CurrentValues` and `ImportRow` (a `ref struct`) point at reused
   buffers; do not introduce per-row allocations on the read path.
 - **The precheck must judge a value exactly as extraction would read it** — same reader, same cell
   kind, same culture, trimmed. Past bugs came from the two halves disagreeing.
-- **Every collection that grows with the file has a ceiling** (see the "Bounds" table in the README).
+- **Every collection that grows with the file has a ceiling** (see the "Bounds" table in `docs/guide.md`).
   Hostile-input tests pin these; a new structure read from a file needs its own bound.
 - **Cancellation is passed into `ReadRow`**, not only checked between rows, because single reads can
   be expensive on hostile files.
@@ -99,10 +104,12 @@ project compiles those files by link, so moving or deleting them breaks the benc
 
 ## Docs to consult
 
-- `README.md` — the behavioural contract, error-code table, bounds and performance numbers
+- `README.md` — the short front page: what the library does, a quick start, headline numbers
+- `docs/guide.md` — the behavioural contract, error-code table, bounds and the library's own performance numbers
+- `docs/benchmarks.md` — the comparison with other csv/xlsx libraries (`benchmarks/TriasDev.Tabular.Comparison`)
 - `docs/KNOWN-ISSUES.md` — review findings deliberately left unfixed, with when each would matter
 - `docs/IDEAS.md` — extensions the design allows that nobody has asked for yet
-- `docs/adr/0001-…` — why the parsing is our own; its measurements are frozen, the README's are live
+- `docs/adr/0001-…` — why the parsing is our own; its measurements are frozen, the guide's and benchmarks' are live
 
 Code comments and XML docs in this repository explain *why*, often at length; match that when
 changing behaviour.

@@ -8,10 +8,10 @@ using Xunit;
 namespace TriasDev.Tabular.Tests;
 
 /// <summary>
-/// The error codes are a frontend's translation contract, and the README's table is where a frontend
+/// The error codes are a frontend's translation contract, and the guide's table is where a frontend
 /// reads them. Nothing kept the two in step, and the register that said so watched the drift happen
 /// twice in the branch that recorded it — a code added, asserted, given a requirement, described in
-/// the README's own prose, and left out of the README's table.
+/// the guide's own prose, and left out of the guide's table.
 /// </summary>
 public sealed class ErrorCodeCatalogTests
 {
@@ -33,7 +33,7 @@ public sealed class ErrorCodeCatalogTests
 
         Assert.True(
             missing.Length == 0,
-            "The README's error-code table is missing: " + string.Join(", ", missing));
+            "The guide's error-code table is missing: " + string.Join(", ", missing));
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class ErrorCodeCatalogTests
 
         Assert.True(
             invented.Length == 0,
-            "The README's error-code table names codes nothing emits: " + string.Join(", ", invented));
+            "The guide's error-code table names codes nothing emits: " + string.Join(", ", invented));
     }
 
     /// <summary>Every code the library's own sources contain as a literal.</summary>
@@ -70,14 +70,14 @@ public sealed class ErrorCodeCatalogTests
         return codes;
     }
 
-    /// <summary>Every code named in the README's error-code table.</summary>
+    /// <summary>Every code named in the error-code table of docs/guide.md.</summary>
     private static HashSet<string> Documented()
     {
-        string readme = File.ReadAllText(Path.Combine(RepositoryRoot(), "README.md"));
+        string readme = File.ReadAllText(Path.Combine(RepositoryRoot(), "docs", "guide.md"));
 
         int start = readme.IndexOf("## Error codes", StringComparison.Ordinal);
 
-        Assert.True(start >= 0, "The README has no error-code section.");
+        Assert.True(start >= 0, "The guide has no error-code section.");
 
         int end = readme.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
         string section = end < 0 ? readme[start..] : readme[start..end];

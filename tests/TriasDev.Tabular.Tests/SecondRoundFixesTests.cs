@@ -258,7 +258,7 @@ public sealed class SecondRoundFixesTests
     public void ShipsTheDefaultsTheDocumentsPromise()
     {
         // The ceilings are tested through small overrides, which proves the mechanism and says
-        // nothing about what actually ships. These numbers are quoted in the README's bounds table
+        // nothing about what actually ships. These numbers are quoted in the guide's bounds table
         // and reasoned about in the options' own remarks, so a silent change to one of them would
         // make those documents wrong with nothing to notice.
         XlsxCursorOptions xlsx = XlsxCursorOptions.Default;

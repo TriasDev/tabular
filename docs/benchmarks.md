@@ -109,6 +109,28 @@ This is the file the library's design was decided on (see [ADR-0001](adr/0001-ta
 A reader that is fast on clean input and silently loses records on dirty input is fast at producing
 a wrong import.
 
+## Analysis
+
+None of the libraries above profiles a file; TriasDev.Tabular does, and it is what the library is
+for. Analysis reads every row and, for every column, counts empties and distinct values, measures
+lengths and ranges, tries each value under every configured culture and records where the values
+that do not fit stand — then ranks type suggestions from those facts.
+
+That costs more than reading, and the cost depends on the format: a workbook's numbers and dates
+arrive already typed, while every csv value is text and is tried under each culture.
+
+| File | Rows | Read | Full analysis | Rows per second | Peak memory |
+|---|--:|--:|--:|--:|--:|
+| 100k-row workbook, 8.6 MB | 100,000 | 0.87 s | 1.6 s | 62,000 | 107 MB |
+| 1M-row workbook, 101 MB | 1,000,000 | 4.6 s | 7.8 s | 128,000 | 180 MB |
+| 3M-row csv, 364 MB | 3,000,000 | 2.4 s | 14.9 s | 201,000 | 134 MB |
+| 5M-row csv, 572 MB | 5,127,959 | 4.2 s | 24.6 s | 209,000 | 131 MB |
+
+All files have 17 columns. Measured with `benchmarks/TriasDev.Tabular.Benchmarks` on the same machine
+and day, best of two runs; the peak stays flat because analysis keeps counts and a bounded set of
+values per column, never the rows. How far analysis could be made faster, and at what price to what
+it reports, is in the [guide](guide.md#if-analysis-ever-needs-to-be-faster).
+
 ## Reproducing
 
 The fixtures are not in the repository. Point the comparison project at a folder of your own files:
