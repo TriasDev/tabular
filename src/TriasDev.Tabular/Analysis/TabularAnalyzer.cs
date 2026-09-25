@@ -136,7 +136,7 @@ public sealed class TabularAnalyzer
         return new FileProfile
         {
             Format = cursor.Format,
-            Dialect = (cursor as CsvCursor)?.Dialect,
+            Dialect = cursor.Dialect,
             Sheets = sheets,
             Diagnostics = cursor.Diagnostics,
         };

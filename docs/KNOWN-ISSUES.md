@@ -104,11 +104,6 @@ either.
 **Matters as soon as** a caller puts a date range in a schema. Fix by comparing per type and by
 refusing the combination in the validator.
 
-### `TabularAnalyzer` casts to `CsvCursor` to read the dialect
-The whole argument for `ITabularCursor` is that an implementation can be swapped. Swap it and
-`FileProfile.Dialect` silently becomes null while the format still says csv. The dialect belongs on
-the interface.
-
 ### `CsvCursor.MoveToSheet` does not rewind
 The interface documents "positions before its first row"; the csv implementation returns `index == 0`
 and stays where it is. Analysing and then extracting through one cursor instance reads a csv from

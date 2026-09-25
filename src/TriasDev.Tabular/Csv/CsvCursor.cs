@@ -102,6 +102,9 @@ public sealed class CsvCursor : ITabularCursor
     public CsvDialect Dialect { get; }
 
     /// <inheritdoc />
+    CsvDialect? ITabularCursor.Dialect => Dialect;
+
+    /// <inheritdoc />
     public TabularFormat Format => TabularFormat.Csv;
 
     /// <inheritdoc />

@@ -1,3 +1,5 @@
+using TriasDev.Tabular.Csv;
+
 namespace TriasDev.Tabular;
 
 /// <summary>
@@ -69,4 +71,13 @@ public interface ITabularCursor : IDisposable
     /// than per row. A cursor that cannot say leaves the default.
     /// </remarks>
     double? ReadFraction => null;
+
+    /// <summary>
+    /// How a delimited file is encoded and punctuated, or null for a format that has no dialect.
+    /// </summary>
+    /// <remarks>
+    /// On the interface so that a cursor wrapping another — to log, to count — can pass it on, and
+    /// the profile still says how the file was read.
+    /// </remarks>
+    CsvDialect? Dialect => null;
 }
