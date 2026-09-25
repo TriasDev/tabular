@@ -562,6 +562,11 @@ Peak memory stays flat as files grow: the 572 MB csv is read in 53 MB, and a wor
 rows in 129 MB. Bytes per cell rises on smaller workbooks because the shared string table is read
 once and amortised over fewer cells.
 
+All of it is measured on .NET 10. On .NET 8 the same code reads and imports the 572 MB csv about 15%
+slower and analyses it 5–18% slower (import 6.05 s against 5.25–5.32 s; analysis 23.7–23.9 s against
+20.1–22.9 s, the widest net10 run being noise), with the same allocations — the runtime's own gains,
+not a different code path. Behaviour is identical on both; the test suite runs on each.
+
 **That table is the reader, not the analysis.** Profiling costs more than reading, and how much more
 depends on the format: a workbook's numbers and dates arrive already typed and are never parsed,
 while every value in a csv is text and is tried under each culture in the options.
