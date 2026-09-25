@@ -697,8 +697,12 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
             {
+                // AppendText leaves the reader on the node after the element's content, which the
+                // loop must look at rather than skip. An empty <t/> has no content: the reader has
+                // not moved, and not advancing past it read the same element forever — any workbook
+                // holding an empty shared string hung its first read.
+                advance = reader.IsEmptyElement;
                 AppendText(reader, text, chunk, maxChars, cancellationToken);
-                advance = false;
             }
         }
 
