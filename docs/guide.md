@@ -180,6 +180,12 @@ a rule spanning two fields is invisible to facts about one.
 uploader's — whether half an import beats none depends on what is being imported, and only whoever
 declared the target knows.
 
+Under `AllOrNothing` the precheck blocks on any finding it is sure of, and the run itself stops at
+the first row that fails (`Summary.StoppedEarly`). `All()` then returns no items, only the error, and
+the batch from `InChunks` that holds the failure carries no items. What a streaming run cannot do is
+take back batches it handed out before the failure: a caller writing batch by batch commits once, at
+the end, or rolls back.
+
 ### Two rules a caller must know
 
 **Rows are views, not copies.** `ImportRow`, `CurrentRow` and `CurrentValues` look at memory that is

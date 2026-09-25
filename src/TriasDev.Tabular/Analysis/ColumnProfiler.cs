@@ -360,7 +360,7 @@ public sealed class ColumnProfiler
             // not a number under any of them, and most columns of a real export are exactly that:
             // streets, cities, descriptions. Skipping the attempt loses nothing, because such a value
             // contributes zero to every numeric count either way.
-            bool grouped = CouldBeNumeric(text) && HasWellFormedGroups(text);
+            bool grouped = CouldBeNumeric(text) && NumberReading.HasWellFormedGroups(text, _culture.NumberFormat);
 
             if (grouped
                 && long.TryParse(text, NumberStyles.Integer | NumberStyles.AllowThousands, _culture, out long whole))
@@ -424,40 +424,6 @@ public sealed class ColumnProfiler
             }
 
             return digit;
-        }
-
-        /// <summary>
-        /// Whether every group separator in the value is followed by exactly three digits.
-        /// </summary>
-        /// <remarks>
-        /// .NET does not check group sizes, so under a German reading <c>19.99</c> parses as the
-        /// integer 1,999 and <c>31.12.2023</c> as 31,122,023. A column of American decimals was then
-        /// proposed as German whole numbers, at full confidence, ahead of the reading that was right.
-        /// </remarks>
-        private bool HasWellFormedGroups(string text)
-        {
-            string separator = _culture.NumberFormat.NumberGroupSeparator;
-
-            if (separator.Length == 0 || !text.Contains(separator, StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            string decimalSeparator = _culture.NumberFormat.NumberDecimalSeparator;
-            int decimalAt = text.IndexOf(decimalSeparator, StringComparison.Ordinal);
-            string integerPart = decimalAt >= 0 ? text[..decimalAt] : text;
-
-            string[] groups = integerPart.Split(separator);
-
-            for (int i = 1; i < groups.Length; i++)
-            {
-                if (groups[i].Length != 3)
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
 
         private void Widen(decimal value)

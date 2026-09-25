@@ -140,6 +140,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     private readonly ITabularCursor? _owned;
 
     private readonly int[] _filled;
+    private readonly bool _allOrNothing;
     private readonly List<ImportPreviewRow> _preview = [];
     private bool _read;
     private bool _disposed;
@@ -159,6 +160,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
         _options = options;
         _owned = owned;
         _filled = new int[_fields.Length];
+        _allOrNothing = schema.Policy == ImportPolicy.AllOrNothing;
     }
 
     /// <summary>What the run amounted to. Complete once it has been read out.</summary>
@@ -253,6 +255,13 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
                 items.Add(outcome.Value!);
             }
 
+            // Under AllOrNothing a failure ends the run, and the batch it falls in carries no items:
+            // batches before it were handed out already, and are the caller's to roll back.
+            if (_allOrNothing && errors.Count > 0)
+            {
+                items.Clear();
+            }
+
             if (items.Count >= size)
             {
                 yield return new ImportChunk<T>([.. items], [.. errors], first, last);
@@ -300,7 +309,9 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
             items.Add(outcome.Value!);
         }
 
-        return new ImportResult<T>(items, errors, Summary);
+        // Nothing unless everything: the run stopped at the first failure, and what came before it
+        // is not a partial result to keep.
+        return new ImportResult<T>(_allOrNothing && errors.Count > 0 ? [] : items, errors, Summary);
     }
 
     private ImportOutcome<T> Current()

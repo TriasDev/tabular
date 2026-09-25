@@ -36,6 +36,12 @@ public sealed class ExtractionSession : IDisposable
     private bool _disposed;
     private bool _finished;
 
+    /// <summary>
+    /// How many failing rows end the run: the options' tolerance, or one when the schema says a
+    /// partial import is no import at all.
+    /// </summary>
+    private readonly int _errorLimit;
+
     internal ExtractionSession(
         ITabularCursor cursor,
         MappingPlan plan,
@@ -46,6 +52,7 @@ public sealed class ExtractionSession : IDisposable
         _cursor = cursor;
         _plan = plan;
         _options = options;
+        _errorLimit = schema.Policy == ImportPolicy.AllOrNothing ? 1 : options.MaxErrorRows;
         _cancellationToken = cancellationToken;
         _culture = plan.Culture is { Length: > 0 } name
             ? CultureInfo.GetCultureInfo(name)
@@ -179,7 +186,7 @@ public sealed class ExtractionSession : IDisposable
                 Summary.RowsFailed++;
                 Summary.ErrorCount += _errors.Count;
 
-                if (Summary.RowsFailed >= _options.MaxErrorRows)
+                if (Summary.RowsFailed >= _errorLimit)
                 {
                     Summary.StoppedEarly = true;
                     _finished = true;
