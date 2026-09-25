@@ -17,6 +17,12 @@ Reviewed 2026-08-26, before the library moved to its own repository.
 
 ## Correctness at the edges
 
+### A pair of lone quotes joins the records between them
+A field that is a lone `"` opens a quoted field; another in a later line closes it, and the record
+reads on as one. That is valid RFC 4180 — a quoted field spanning lines — so no repair fires and
+nothing is counted. The 5M-row malformed fixture has nine lines joined this way into six records.
+Telling it from a genuine multi-line field takes a heuristic: #20.
+
 ### A `numFmt` inside `<dxfs>` can overwrite a cell format
 Number formats are collected from anywhere in `styles.xml`. Differential formats — used by
 conditional formatting — live in `<dxfs>` and carry their own ids. One colliding with a custom id
@@ -218,7 +224,7 @@ and `ExtractionSessionTests` cancels after a row rather than before the first.
 Recorded so they are not re-raised as findings.
 
 - **Synchronous throughout.** Parsing is processor work over a buffered stream, and a row cannot be a
-  `ReadOnlySpan<T>` and be awaited at once. See the design document.
+  `ReadOnlySpan<T>` and be awaited at once. See the remarks on `ITabularCursor`.
 - **No comment syntax in csv.** The format does not define one. Add it if the files we receive use it.
 - **The header is the first row.** No heuristic looks elsewhere; `MappingPlan.HeaderRowIndex` is where
   a user says otherwise.

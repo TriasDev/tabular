@@ -15,7 +15,7 @@
 root = true
 
 # Line endings and charset must agree with .gitattributes ("* text=auto eol=lf"),
-# otherwise `dotnet format whitespace` rewrites every file on every run. See #1128.
+# otherwise `dotnet format whitespace` rewrites every file on every run.
 [*]
 charset                  = utf-8
 end_of_line              = lf

@@ -139,8 +139,11 @@ the fixtures are what say whether we did. That is the real cost of this decision
 tests rather than in dependencies.
 
 **On csv the choice costs nothing and gains resilience.** Our cursor is the fastest survivor on the
-malformed 572 MB file and holds the smallest peak of any candidate on both csv fixtures. Encoding and
-delimiter detection would have been ours in any case: none of the csv libraries offers either.
+malformed 572 MB file and holds the smallest peak of any candidate on both csv fixtures. Encoding
+detection with a Windows-1252 fallback would have been ours in any case. *(Corrected after the
+decision: this sentence first said no csv library detects the delimiter either, which is wrong —
+Sep detects the separator by default and CsvHelper offers `DetectDelimiter`. The decision does not
+rest on it.)*
 
 **On xlsx the choice costs speed, and the figure is honest.** Sylvan.Data.Excel is roughly twice as
 fast and allocates a twentieth of what our prototype does. Two causes are known and already planned

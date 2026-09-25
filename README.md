@@ -96,18 +96,18 @@ ISO dates read the same under any culture, so none is claimed. Reproduce it with
 | 100k-row workbook (8.6 MB) | **0.8 s, 96 MB peak** | Sylvan.Data.Excel: 2.1 s, 95 MB | EPPlus 3.0 s / 502 MB · NPOI 5.6 s / 1.7 GB |
 
 **Correct on dirty csv, where fast readers go quietly wrong.** On a 5M-row export with malformed
-quoting:
+quoting — 5,127,969 lines, one record each:
 
 | | Time | Peak | Rows read |
 |---|--:|--:|---|
-| **TriasDev.Tabular** | 3.9 s | **51 MB** | **all 5,127,960** — 38 repairs reported |
-| CsvHelper | 3.5 s | 71 MB | 39,222 records lost, no warning |
-| Sep | 4.6 s | 208 MB | 2,282,475 records lost, no warning |
+| **TriasDev.Tabular** | 3.9 s | **51 MB** | **5,127,960** — 38 repairs reported; 9 lines joined by quote pairs ([#20](https://github.com/TriasDev/tabular/issues/20)) |
+| CsvHelper | 3.5 s | 71 MB | 39,231 records merged into others, no warning |
+| Sep | 4.6 s | 208 MB | 2,282,484 records merged into others, no warning |
 | Sylvan.Data.Csv | — | — | throws |
 
 On clean csv the field is close: Sep is fastest (1.1 s for 3M rows), TriasDev.Tabular reads the same
-file in 2.2 s with the same 50 MB peak — and detects the delimiter and encoding the others must be
-told.
+file in 2.2 s with the same 50 MB peak, its own delimiter and encoding detection included — the
+comparison hands every other reader the delimiter.
 
 **And it tells you what is in the file**, which none of them does — a full profile of every column,
 over every row, with memory that stays flat:

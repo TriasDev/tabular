@@ -5,8 +5,9 @@ large files on the same machine under the same harness.
 
 **In short:** on workbooks it is the fastest reader measured, with a peak memory in the same band as
 the other streaming readers and a fraction of what the object-model libraries need. On clean csv it
-is in the middle of a field that is close together. On a malformed csv it is the only reader that
-recovers every record and says what it repaired.
+is in the middle of a field that is close together. On a malformed csv it loses far fewer records
+than any other reader — 9 lines of 5,127,969, against tens of thousands and millions — and says what
+it repaired.
 
 ## What the numbers mean
 
@@ -100,10 +101,19 @@ are never closed.
 
 | Library | Version | Time | Peak memory | Rows read | Result |
 |---|---|--:|--:|--:|---|
-| **TriasDev.Tabular** | 0.1.0 | 3.87 s | **51 MB** | **5,127,960** | every record; 38 unterminated quotes repaired and reported |
-| CsvHelper | 33.1.0 | 3.51 s | 71 MB | 5,088,738 | 39,222 records merged into others, no warning — with its default settings too, its bad-data callback is never called |
-| Sep | 0.17.1 | 4.56 s | 208 MB | 2,845,485 | 2,282,475 records merged into others, no warning |
+| **TriasDev.Tabular** | 0.1.0 | 3.87 s | **51 MB** | **5,127,960** | 38 unterminated quotes repaired and reported; 9 lines joined into 6 records by quote pairs, without a warning (#20) |
+| CsvHelper | 33.1.0 | 3.51 s | 71 MB | 5,088,738 | 39,231 records merged into others, no warning — with its default settings too, its bad-data callback is never called |
+| Sep | 0.17.1 | 4.56 s | 208 MB | 2,845,485 | 2,282,484 records merged into others, no warning |
 | Sylvan.Data.Csv | 1.4.4 | — | — | — | throws: a delimiter, newline or EOF was expected after a closing quote |
+
+**Ground truth.** The file has 5,127,969 lines, and every one of them has exactly 17 fields when split
+on the delimiter without regard to quotes — so there is one record per line, 5,127,969 including the
+header. The counts above are measured against that. TriasDev.Tabular joins nine of those lines into
+six records: in each, a field that is a lone quote opens a quoted field and another lone quote in
+the same column of a later line closes it. That is valid RFC 4180 — a quoted field spanning lines —
+so no repair fires; telling it from a real multi-line field takes a heuristic, tracked in
+[#20](https://github.com/TriasDev/tabular/issues/20). An earlier version of this page said "every
+record"; it was checked against our own count rather than against the file.
 
 This is the file the library's design was decided on (see [ADR-0001](adr/0001-tabular-parsing-is-our-own-cursor.md)).
 A reader that is fast on clean input and silently loses records on dirty input is fast at producing
@@ -118,6 +128,10 @@ that do not fit stand — then ranks type suggestions from those facts.
 
 That costs more than reading, and the cost depends on the format: a workbook's numbers and dates
 arrive already typed, while every csv value is text and is tried under each culture.
+
+The *Read* column comes from the library's own benchmark project (one process per reading, best of
+two), not from the comparison above — which is why the million-row workbook reads in 4.6 s here and
+4.30 s there. Different harness, different run; each table is consistent within itself.
 
 | File | Rows | Read | Full analysis | Rows per second | Peak memory |
 |---|--:|--:|--:|--:|--:|
