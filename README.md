@@ -134,6 +134,8 @@ Method, every library and every number: [docs/benchmarks.md](docs/benchmarks.md)
 - **Survive hostile input** — malformed quoting is repaired and counted, every structure read from a
   file has a ceiling (zip expansion, shared strings, columns, field length), and every read honours
   cancellation, including inside a single long read.
+- **Report progress** — a fraction of the file taken from the bytes read, about once per percent on
+  large files, so a progress bar needs no second pass to count rows.
 
 ## Quick start
 

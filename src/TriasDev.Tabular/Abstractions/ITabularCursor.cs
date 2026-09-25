@@ -59,4 +59,14 @@ public interface ITabularCursor : IDisposable
 
     /// <summary>What had to be repaired so far.</summary>
     CursorDiagnostics Diagnostics { get; }
+
+    /// <summary>
+    /// Roughly how much of the file has been read, from 0 to 1, or null where it cannot be known.
+    /// </summary>
+    /// <remarks>
+    /// Measured from what the reader has consumed — a csv's stream position against its length, a
+    /// workbook's worksheet bytes against their total — so it moves in steps of a read buffer rather
+    /// than per row. A cursor that cannot say leaves the default.
+    /// </remarks>
+    double? ReadFraction => null;
 }

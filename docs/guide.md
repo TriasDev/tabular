@@ -381,6 +381,29 @@ cannot reach a thread that is inside such a call.
 The token is checked on a stride rather than per character, because the check is cheap but not free
 and a row is normally over in a few hundred characters.
 
+## Progress
+
+Analysis of a multi-million-row file takes seconds to tens of seconds, and a screen waiting on it
+wants to say how far it has got:
+
+```csharp
+IProgress<AnalysisProgress> progress = new Progress<AnalysisProgress>(p =>
+    Console.WriteLine($"{p.SheetName}: {p.RowsRead:N0} rows, {p.Fraction:P0}"));
+
+FileProfile profile = new TabularAnalyzer().Analyze(cursor, progress, cancellationToken);
+```
+
+The fraction is taken from how much of the file the reader has consumed — a csv's stream position
+against its length, a workbook's worksheet bytes against their total, which the package directory
+states up front — so nothing reads the file twice to have a denominator. It is exactly 1 in the final
+report, which has `IsComplete` set; where the stream has no length it is null until then.
+
+Reports go out when the fraction has moved by `AnalysisOptions.ProgressStep` (1% by default) **and**
+at least `ProgressInterval` data rows (10,000) have passed since the last one. A five-million-row
+file reports about a hundred times; a file of twenty thousand rows, read in milliseconds, once or
+twice. With no length to measure, the row interval alone decides. `Progress<T>` posts each report to
+the context it was created on; an `IProgress<T>` of your own is called on the analysing thread.
+
 ## Bounds
 
 | | Default | Why |

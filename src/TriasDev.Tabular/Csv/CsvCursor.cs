@@ -25,6 +25,7 @@ public sealed class CsvCursor : ITabularCursor
     private const int BufferSize = 64 * 1024;
 
     private readonly StreamReader _reader;
+    private readonly Stream _stream;
     private readonly CsvCursorOptions _options;
     private readonly char[] _buffer = new char[BufferSize];
     private readonly StringBuilder _field = new();
@@ -67,6 +68,7 @@ public sealed class CsvCursor : ITabularCursor
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentException.ThrowIfNullOrEmpty(sheetName);
 
+        _stream = stream;
         _options = options ?? CsvCursorOptions.Default;
         Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options.DialectProbeBytes);
 
@@ -97,6 +99,16 @@ public sealed class CsvCursor : ITabularCursor
 
     /// <inheritdoc />
     public CursorDiagnostics Diagnostics { get; } = new();
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The stream's position runs ahead of the rows by up to one read buffer, which is as close as a
+    /// progress bar needs. A stream that cannot seek has no length to measure against.
+    /// </remarks>
+    public double? ReadFraction =>
+        _stream.CanSeek && _stream.Length > 0
+            ? Math.Min(1d, _stream.Position / (double)_stream.Length)
+            : null;
 
     /// <inheritdoc />
     public ReadOnlySpan<RawCell> CurrentRow => _cells.AsSpan(0, _cellCount);

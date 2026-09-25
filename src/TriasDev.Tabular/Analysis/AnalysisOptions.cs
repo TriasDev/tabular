@@ -104,4 +104,19 @@ public sealed record AnalysisOptions
     /// the profile and the mapping disagree.
     /// </remarks>
     public int HeaderRowIndex { get; init; }
+
+    /// <summary>The fewest data rows between two progress reports.</summary>
+    /// <remarks>
+    /// A floor under <see cref="ProgressStep"/>: a percent of a twenty-thousand-row file is two
+    /// hundred rows, and a hundred reports for a file read in milliseconds tell nobody anything. Where
+    /// the file's size is unknown, this alone decides. Only used when a caller asks for progress.
+    /// </remarks>
+    public int ProgressInterval { get; init; } = 10_000;
+
+    /// <summary>How far the read fraction must move before the next progress report.</summary>
+    /// <remarks>
+    /// One percent by default, so a file of five million rows reports about a hundred times rather
+    /// than five hundred. Zero reports on the row interval alone.
+    /// </remarks>
+    public double ProgressStep { get; init; } = 0.01;
 }

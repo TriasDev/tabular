@@ -71,6 +71,11 @@ public sealed class XlsxCursor : ITabularCursor
     private readonly bool[] _styleIsDate;
     private readonly string[] _sheetPaths;
 
+    /// <summary>Each worksheet's uncompressed size, from the package directory, for the read fraction.</summary>
+    private readonly long[] _sheetBytes = [];
+    private readonly long _totalSheetBytes;
+    private CountingStream? _sheetCounter;
+
     private readonly StringBuilder _inlineText = new();
     private readonly XlsxCursorOptions _options;
 
@@ -152,6 +157,8 @@ public sealed class XlsxCursor : ITabularCursor
 
             Sheets = sheets;
             _sheetPaths = [.. paths];
+            _sheetBytes = [.. paths.Select(path => Part(path)?.Length ?? 0)];
+            _totalSheetBytes = _sheetBytes.Sum();
             _date1904 = date1904;
             _styleIsDate = ReadDateStyles(cancellationToken);
 
@@ -244,6 +251,31 @@ public sealed class XlsxCursor : ITabularCursor
     public CursorDiagnostics Diagnostics { get; } = new();
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The worksheets' uncompressed bytes read so far, in sheet order, against their total — sizes
+    /// the package directory states before anything is read, so nothing is counted in advance.
+    /// </remarks>
+    public double? ReadFraction
+    {
+        get
+        {
+            if (_totalSheetBytes <= 0)
+            {
+                return null;
+            }
+
+            long before = 0;
+
+            for (int i = 0; i < CurrentSheetIndex && i < _sheetBytes.Length; i++)
+            {
+                before += _sheetBytes[i];
+            }
+
+            return Math.Min(1d, (before + (_sheetCounter?.BytesRead ?? 0)) / (double)_totalSheetBytes);
+        }
+    }
+
+    /// <inheritdoc />
     public ReadOnlySpan<RawCell> CurrentRow => _cells.AsSpan(0, _cellCount);
 
     /// <inheritdoc />
@@ -271,7 +303,7 @@ public sealed class XlsxCursor : ITabularCursor
             throw new InvalidDataException($"The worksheet part {_sheetPaths[index]} is missing.");
         }
 
-        _sheetStream = entry.Open();
+        _sheetStream = _sheetCounter = new CountingStream(entry.Open());
 
         // The sheet is read by a scanner rather than by XmlReader, and only the sheet: the other
         // parts are small and read once, while this one carries every cell. XmlReader has no
@@ -1349,6 +1381,7 @@ public sealed class XlsxCursor : ITabularCursor
         _sheetScanner = null;
         _sheetStream?.Dispose();
         _sheetStream = null;
+        _sheetCounter = null;
     }
 
     /// <inheritdoc />
@@ -1362,5 +1395,59 @@ public sealed class XlsxCursor : ITabularCursor
         _disposed = true;
         CloseSheet();
         _package.Dispose();
+    }
+
+    /// <summary>A read-only pass-through that counts the bytes read from it.</summary>
+    private sealed class CountingStream(Stream inner) : Stream
+    {
+        public long BytesRead { get; private set; }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            int read = inner.Read(buffer, offset, count);
+            BytesRead += read;
+            return read;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            int read = inner.Read(buffer);
+            BytesRead += read;
+            return read;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }

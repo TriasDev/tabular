@@ -27,9 +27,26 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
     /// <summary>Reads every sheet of an open cursor and profiles every column of each.</summary>
     /// <param name="cursor">A cursor positioned at the start of the file.</param>
     /// <param name="cancellationToken">Stops the pass.</param>
-    public FileProfile Analyze(ITabularCursor cursor, CancellationToken cancellationToken = default)
+    public FileProfile Analyze(ITabularCursor cursor, CancellationToken cancellationToken = default) =>
+        Analyze(cursor, progress: null, cancellationToken);
+
+    /// <summary>Analyses every sheet of a file, reporting how far it has got as it goes.</summary>
+    /// <param name="cursor">The file, opened.</param>
+    /// <param name="progress">
+    /// Told every <see cref="AnalysisOptions.ProgressInterval"/> data rows and once when done, on the
+    /// analysing thread; null to report nothing. <see cref="Progress{T}"/> posts each report to the
+    /// context it was created on, which suits a UI; an implementation of its own receives them
+    /// synchronously.
+    /// </param>
+    /// <param name="cancellationToken">Stops the analysis, including inside a single read.</param>
+    public FileProfile Analyze(
+        ITabularCursor cursor,
+        IProgress<AnalysisProgress>? progress,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(cursor);
+
+        ProgressReporter reporter = new(progress, cursor, _options.ProgressInterval, _options.ProgressStep);
 
         // One budget for the file, not one per column: the alternative multiplies the ceiling by the
         // column count, and a column holding few distinct values would reserve room it never uses.
@@ -46,8 +63,10 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
                 continue;
             }
 
-            sheets.Add(AnalyzeSheet(cursor, sheet, budget, cancellationToken));
+            sheets.Add(AnalyzeSheet(cursor, sheet, budget, reporter, cancellationToken));
         }
+
+        reporter.Complete();
 
         return new FileProfile
         {
@@ -62,6 +81,7 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
         ITabularCursor cursor,
         SheetInfo sheet,
         DistinctBudget budget,
+        ProgressReporter reporter,
         CancellationToken cancellationToken)
     {
         List<ColumnProfiler> profilers = [];
@@ -106,6 +126,7 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
 
             rowCount++;
             AcceptRow(row, cursor.CurrentRowNumber, rowCount, profilers, budget);
+            reporter.Row(sheet);
         }
 
         return BuildProfile(sheet, rowCount, profilers);
@@ -192,5 +213,74 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
         {
             profilers.Add(new ColumnProfiler(i, header[i].AsText() ?? string.Empty, budget, _options));
         }
+    }
+
+    /// <summary>Counts data rows across sheets and tells the caller on the stride it asked for.</summary>
+    /// <remarks>
+    /// A report goes out once at least <c>interval</c> rows have passed since the last one and the
+    /// read fraction has moved by <c>step</c>. Past the interval the fraction is looked at every tenth
+    /// of it rather than on every row. The row path is one null check when nobody is listening.
+    /// </remarks>
+    private sealed class ProgressReporter(
+        IProgress<AnalysisProgress>? progress,
+        ITabularCursor cursor,
+        int interval,
+        double step)
+    {
+        private readonly int _interval = Math.Max(1, interval);
+        private readonly int _checkEvery = Math.Max(1, Math.Max(1, interval) / 10);
+        private long _rows;
+        private int _sinceReport;
+        private double _lastFraction;
+        private SheetInfo? _sheet;
+
+        public void Row(SheetInfo sheet)
+        {
+            if (progress is null)
+            {
+                return;
+            }
+
+            _sheet = sheet;
+            _rows++;
+
+            if (++_sinceReport < _interval || (_sinceReport - _interval) % _checkEvery != 0)
+            {
+                return;
+            }
+
+            double? fraction = cursor.ReadFraction;
+
+            // Without a size there is no percentage to step by; the interval alone decides.
+            if (step > 0 && fraction is { } known && known - _lastFraction < step)
+            {
+                return;
+            }
+
+            _lastFraction = fraction ?? _lastFraction;
+            _sinceReport = 0;
+            progress.Report(Build(fraction, isComplete: false));
+        }
+
+        public void Complete()
+        {
+            if (progress is null)
+            {
+                return;
+            }
+
+            _sheet ??= cursor.Sheets.Count > 0 ? cursor.Sheets[^1] : null;
+            progress.Report(Build(1d, isComplete: true));
+        }
+
+        private AnalysisProgress Build(double? fraction, bool isComplete) => new()
+        {
+            SheetIndex = _sheet?.Index ?? 0,
+            SheetName = _sheet?.Name ?? string.Empty,
+            SheetCount = cursor.Sheets.Count,
+            RowsRead = _rows,
+            Fraction = fraction,
+            IsComplete = isComplete,
+        };
     }
 }
