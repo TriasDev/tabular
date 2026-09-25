@@ -70,7 +70,7 @@ public sealed class CsvCursor : ITabularCursor
 
         _stream = stream;
         _options = options ?? CsvCursorOptions.Default;
-        Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options.DialectProbeBytes);
+        Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options);
 
         _reader = new StreamReader(
             stream,

@@ -20,9 +20,11 @@ public static class CsvDialectDetector
     /// Reads the head of a seekable stream, decides the dialect, and leaves the stream where it found
     /// it.
     /// </summary>
-    public static CsvDialect Detect(Stream stream, int probeBytes)
+    public static CsvDialect Detect(Stream stream, CsvCursorOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(stream);
+
+        int probeBytes = (options ?? CsvCursorOptions.Default).DialectProbeBytes;
 
         if (!stream.CanSeek)
         {

@@ -20,7 +20,7 @@ namespace TriasDev.Tabular.Analysis;
 /// of those counts to whoever asks for it.
 /// </para>
 /// </remarks>
-public sealed class ColumnProfiler
+internal sealed class ColumnProfiler
 {
     private readonly AnalysisOptions _options;
     private readonly DistinctBudget _budget;

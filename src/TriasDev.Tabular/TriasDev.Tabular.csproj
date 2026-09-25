@@ -3,4 +3,10 @@
     <WarningsAsErrors>$(WarningsAsErrors);CS8600</WarningsAsErrors>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- The profiler, the distinct budget and the hypothesis builder are internal, and their tests
+         are worth keeping at that level. -->
+    <InternalsVisibleTo Include="TriasDev.Tabular.Tests" />
+  </ItemGroup>
+
 </Project>

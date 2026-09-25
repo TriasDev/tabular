@@ -10,7 +10,7 @@ namespace TriasDev.Tabular.Analysis;
 /// the set holds 64-bit hashes rather than strings, and this object caps how many of them the whole
 /// file may keep.
 /// </remarks>
-public sealed class DistinctBudget
+internal sealed class DistinctBudget
 {
     private readonly int _capacity;
     private int _used;

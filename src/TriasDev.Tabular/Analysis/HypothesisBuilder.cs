@@ -9,7 +9,7 @@ namespace TriasDev.Tabular.Analysis;
 /// A pure function from facts to suggestions. It never sees a file, never reads a value, and holds
 /// no state, which is what lets the whole of it be pinned as a table.
 /// </remarks>
-public static class HypothesisBuilder
+internal static class HypothesisBuilder
 {
     /// <summary>
     /// Ranks the readings a column will bear, most convincing first.
