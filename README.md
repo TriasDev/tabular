@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/TriasDev/tabular/main/assets/icon-128.png" alt="" width="64" height="64" align="right">
+
 # TriasDev.Tabular
 
 **Fast, low-memory reading of large Excel and CSV files for .NET — with no dependencies.**
