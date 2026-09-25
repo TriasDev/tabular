@@ -3,16 +3,17 @@ using System.Globalization;
 namespace TriasDev.Tabular;
 
 /// <summary>How much weight a finding carries.</summary>
+/// <remarks>Declared in rising order, so severities compare and sort as they read.</remarks>
 public enum PrecheckSeverity
 {
+    /// <summary>The facts cannot settle it, and only reading the file will.</summary>
+    Undetermined = 0,
+
     /// <summary>Some rows will fail; the rest can still be imported.</summary>
-    Warning,
+    Warning = 1,
 
     /// <summary>The file cannot be imported through this mapping at all.</summary>
-    Blocking,
-
-    /// <summary>The facts cannot settle it, and only reading the file will.</summary>
-    Undetermined,
+    Blocking = 2,
 }
 
 /// <summary>Something the measurements say about a mapping, before the file is read again.</summary>
@@ -183,7 +184,7 @@ public static class MappingPrecheck
 
         return new PrecheckResult(
             !blocked,
-            [.. findings.OrderByDescending(f => f.Severity == PrecheckSeverity.Blocking)
+            [.. findings.OrderByDescending(f => f.Severity)
                        .ThenByDescending(f => f.AffectedRows ?? 0)]);
     }
 
