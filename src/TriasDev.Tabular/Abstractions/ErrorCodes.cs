@@ -99,6 +99,9 @@ public static class ErrorCodes
 
         /// <summary><c>structure.sheet-missing</c></summary>
         public const string SheetMissing = "structure.sheet-missing";
+
+        /// <summary><c>structure.sheet-changed</c></summary>
+        public const string SheetChanged = "structure.sheet-changed";
     }
 
     /// <summary>A file this library does not read, or cannot — TabularFormatException.</summary>

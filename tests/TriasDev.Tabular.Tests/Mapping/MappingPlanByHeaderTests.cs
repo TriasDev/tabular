@@ -70,6 +70,7 @@ public sealed class MappingPlanByHeaderTests
         Assert.Equal(sheet.Index, plan.SheetIndex);
         Assert.Equal(1, plan.HeaderRowIndex);
         Assert.Equal("de-DE", plan.Culture);
+        Assert.Equal((sheet.Name, sheet.Source), (plan.SheetName, plan.SheetSource));
         Assert.Equal("amount", Assert.Single(plan.Bindings).SourceHeader);
     }
 

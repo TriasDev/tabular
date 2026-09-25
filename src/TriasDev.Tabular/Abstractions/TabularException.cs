@@ -106,6 +106,9 @@ public sealed class TabularStructureException : TabularException
     /// <summary>The plan names a sheet the file does not have.</summary>
     public const string SheetMissing = ErrorCodes.Structure.SheetMissing;
 
+    /// <summary>The sheet at the plan's index is not the one the plan recorded.</summary>
+    public const string SheetChanged = ErrorCodes.Structure.SheetChanged;
+
     /// <summary>The sheet ends before the row the plan names as the header.</summary>
     public const string HeaderRowMissing = ErrorCodes.Structure.HeaderRowMissing;
 

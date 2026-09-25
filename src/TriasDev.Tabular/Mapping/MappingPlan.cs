@@ -9,6 +9,25 @@ public sealed record MappingPlan
     public int SheetIndex { get; init; }
 
     /// <summary>
+    /// The name of the sheet the plan was built for, checked against the sheet found at
+    /// <see cref="SheetIndex"/>; null leaves it unchecked.
+    /// </summary>
+    /// <remarks>
+    /// A checksum, as <see cref="ColumnBinding.SourceHeader"/> is for a column. An index says where,
+    /// not what: a workbook whose tabs were reordered, or an archive whose entries were written in
+    /// another order, puts a different sheet there, and importing it would load the wrong data under
+    /// the right headers.
+    /// </remarks>
+    public string? SheetName { get; init; }
+
+    /// <summary>
+    /// The source of the sheet the plan was built for — its path inside an archive — checked like
+    /// <see cref="SheetName"/>; null leaves it unchecked.
+    /// </summary>
+    /// <remarks>Two workbooks in one archive may both hold a <c>Sheet1</c>; this tells them apart.</remarks>
+    public string? SheetSource { get; init; }
+
+    /// <summary>
     /// Which spreadsheet row carries the headers, zero-based: 2 is the row a person calls row 3.
     /// Counted as <see cref="AnalysisOptions.HeaderRowIndex"/> counts it.
     /// </summary>
@@ -98,6 +117,8 @@ public sealed record MappingPlan
             SheetIndex = sheet.Index,
             HeaderRowIndex = sheet.HeaderRowIndex,
             Culture = culture,
+            SheetName = sheet.Name,
+            SheetSource = sheet.Source,
             Bindings = bindings,
         };
     }

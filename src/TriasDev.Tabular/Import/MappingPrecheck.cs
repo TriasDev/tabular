@@ -123,7 +123,7 @@ public static class MappingPrecheck
         // measured is reported — and this is undetermined rather than blocking, because the file is
         // very likely fine and it is the profile that is stale. Analysing it again under the chosen
         // row is what settles it.
-        bool stale = sheet.HeaderRowIndex != plan.HeaderRowIndex;
+        bool stale = IsStale(plan, sheet);
 
         if (stale)
         {
@@ -133,9 +133,12 @@ public static class MappingPrecheck
                 Severity = PrecheckSeverity.Undetermined,
                 TargetFieldName = string.Empty,
                 SourceColumnIndex = -1,
-                Detail = $"The file was analysed with row {sheet.HeaderRowIndex} as the header and the "
-                    + $"mapping names row {plan.HeaderRowIndex}, so nothing measured about the values "
-                    + "applies. Analyse it again to have those checked.",
+                Detail = sheet.HeaderRowIndex != plan.HeaderRowIndex
+                    ? $"The file was analysed with row {sheet.HeaderRowIndex} as the header and the "
+                        + $"mapping names row {plan.HeaderRowIndex}, so nothing measured about the values "
+                        + "applies. Analyse it again to have those checked."
+                    : $"The profile's sheet at index {plan.SheetIndex} is not the one the mapping was built "
+                        + "for, so nothing measured about it applies.",
             });
         }
 
@@ -187,6 +190,15 @@ public static class MappingPrecheck
             [.. findings.OrderByDescending(f => f.Severity)
                        .ThenByDescending(f => f.AffectedRows ?? 0)]);
     }
+
+    /// <summary>
+    /// Whether the profile describes something other than what the plan was built for: another header
+    /// row, or — where the plan recorded one — another sheet.
+    /// </summary>
+    private static bool IsStale(MappingPlan plan, SheetProfile sheet) =>
+        sheet.HeaderRowIndex != plan.HeaderRowIndex
+        || (plan.SheetName is not null && !string.Equals(plan.SheetName, sheet.Name, StringComparison.Ordinal))
+        || (plan.SheetSource is not null && !string.Equals(plan.SheetSource, sheet.Source, StringComparison.Ordinal));
 
     /// <summary>
     /// Judges what a group asks of a row, as far as facts about single columns can reach.

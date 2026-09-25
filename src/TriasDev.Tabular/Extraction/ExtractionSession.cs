@@ -219,6 +219,9 @@ public sealed class ExtractionSession
             };
         }
 
+        // Safe: MoveToSheet returned true, so the index exists.
+        VerifySheet(_cursor.Sheets[_plan.SheetIndex]);
+
         // The header is the first row at or below the spreadsheet row the plan names — by the row's
         // own number, as the analyzer counts it, not by how many rows the file happens to write.
         do
@@ -236,6 +239,29 @@ public sealed class ExtractionSession
         while (_cursor.CurrentRowNumber <= _plan.HeaderRowIndex);
 
         VerifyHeaders(_cursor.CurrentRow);
+    }
+
+    /// <summary>
+    /// Checks the sheet at the plan's index against the one the plan recorded, where it recorded one.
+    /// </summary>
+    /// <remarks>
+    /// Ordinal, as headers are compared: "Orders" and "orders" are different tabs in a workbook that
+    /// has both, and guessing which was meant is what this check exists to stop.
+    /// </remarks>
+    private void VerifySheet(SheetInfo sheet)
+    {
+        bool nameChanged = _plan.SheetName is not null && !string.Equals(_plan.SheetName, sheet.Name, StringComparison.Ordinal);
+        bool sourceChanged = _plan.SheetSource is not null && !string.Equals(_plan.SheetSource, sheet.Source, StringComparison.Ordinal);
+
+        if (nameChanged || sourceChanged)
+        {
+            throw new TabularStructureException(
+                TabularStructureException.SheetChanged,
+                $"The sheet at index {_plan.SheetIndex} is not the one the plan was built for.")
+            {
+                SheetIndex = _plan.SheetIndex,
+            };
+        }
     }
 
     /// <summary>

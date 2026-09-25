@@ -391,7 +391,7 @@ from them.
 | `mapping.stale-profile` | The profile was measured against a different header row |
 | `mapping.header-changed` | The column's header is not the one the mapping recorded |
 | `mapping.invalid-plan` | `MappingPlanException`: the plan does not fit its schema; its `Faults` carry the codes above |
-| `structure.sheet-missing`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
+| `structure.sheet-missing`, `structure.sheet-changed`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
 | `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .ods, binary), or damaged, or cut off |
 | `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
 
