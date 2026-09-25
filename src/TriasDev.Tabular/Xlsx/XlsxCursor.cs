@@ -48,6 +48,11 @@ public sealed class XlsxCursor : ITabularCursor
     private const string StrictRelationshipNamespace =
         "http://purl.oclc.org/ooxml/officeDocument/relationships";
 
+    /// <summary>SpreadsheetML's own namespace, transitional and strict — identifiers, never fetched.</summary>
+    private const string SpreadsheetNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+    private const string StrictSpreadsheetNamespace = "http://purl.oclc.org/ooxml/spreadsheetml/main";
+
     private readonly ZipArchive _package;
 
     /// <summary>
@@ -211,6 +216,10 @@ public sealed class XlsxCursor : ITabularCursor
     /// <summary>The target of the first relationship of a type, by the type's last segment.</summary>
     private static string? PathOfType(Dictionary<string, Relationship> relationships, string typeSuffix) =>
         relationships.Values.FirstOrDefault(r => r.Type.EndsWith(typeSuffix, StringComparison.Ordinal)).Path;
+
+    /// <summary>Whether a namespace is SpreadsheetML's own, transitional or strict.</summary>
+    private static bool IsSpreadsheetNamespace(string uri) =>
+        uri is SpreadsheetNamespace or StrictSpreadsheetNamespace;
 
     /// <summary>One relationship: its type, and the part it points at, resolved.</summary>
     private readonly record struct Relationship(string Type, string Path);
@@ -522,6 +531,7 @@ public sealed class XlsxCursor : ITabularCursor
 
         _inlineText.Clear();
         bool inText = false;
+        bool inPhonetic = false;            // inside <rPh>, whose text is a reading aid, not the value
         int sinceCheck = 0;
 
         while (scanner.Read())
@@ -541,10 +551,12 @@ public sealed class XlsxCursor : ITabularCursor
 
                 case XmlNodeKind.EndElement:
                     inText &= !scanner.Name.SequenceEqual("t");
+                    inPhonetic &= !scanner.Name.SequenceEqual("rPh");
                     break;
 
                 case XmlNodeKind.Element:
-                    inText = scanner.Name.SequenceEqual("t") && !scanner.IsEmptyElement;
+                    inPhonetic |= scanner.Name.SequenceEqual("rPh") && !scanner.IsEmptyElement;
+                    inText = !inPhonetic && scanner.Name.SequenceEqual("t") && !scanner.IsEmptyElement;
                     break;
 
                 case XmlNodeKind.Text when inText:
@@ -765,25 +777,50 @@ public sealed class XlsxCursor : ITabularCursor
                 break;
             }
 
-            advance = true;
-
             if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "si")
             {
                 break;
             }
 
-            if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
-            {
+            advance = reader.NodeType != XmlNodeType.Element
+                || ReadItemElement(reader, text, chunk, maxChars, cancellationToken);
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// Takes what one element inside <c>&lt;si&gt;</c> contributes, and says whether the loop should
+    /// advance past where it leaves the reader.
+    /// </summary>
+    private static bool ReadItemElement(
+        XmlReader reader,
+        StringBuilder text,
+        char[] chunk,
+        int maxChars,
+        CancellationToken cancellationToken)
+    {
+        switch (reader.LocalName)
+        {
+            case "rPh":
+                // The phonetic guide — furigana over Japanese text — is a rendering aid, not part of
+                // the value; its <t> would otherwise be appended to the text it annotates. Skip
+                // leaves the reader on the node after it, which the loop must look at.
+                reader.Skip();
+                return false;
+
+            case "t":
                 // AppendText leaves the reader on the node after the element's content, which the
                 // loop must look at rather than skip. An empty <t/> has no content: the reader has
                 // not moved, and not advancing past it read the same element forever — any workbook
                 // holding an empty shared string hung its first read.
-                advance = reader.IsEmptyElement;
+                bool empty = reader.IsEmptyElement;
                 AppendText(reader, text, chunk, maxChars, cancellationToken);
-            }
-        }
+                return empty;
 
-        return text.ToString();
+            default:
+                return true;
+        }
     }
 
     /// <summary>
@@ -922,7 +959,10 @@ public sealed class XlsxCursor : ITabularCursor
                 continue;
             }
 
-            if (reader.LocalName == "workbookPr")
+            // The workbook's own properties, not an extension's: Excel 2013 and later also write
+            // <x15:workbookPr chartTrackingRefBase="1"/>, and reading that one as well reset a
+            // 1904 workbook to the 1900 epoch — every date four years and a day early.
+            if (reader.LocalName == "workbookPr" && IsSpreadsheetNamespace(reader.NamespaceURI))
             {
                 string? value = reader.GetAttribute("date1904");
                 date1904 = value is "1" or "true";
@@ -1123,8 +1163,12 @@ public sealed class XlsxCursor : ITabularCursor
     }
 
     /// <summary>The number format identifiers the specification reserves for dates and times.</summary>
+    /// <remarks>
+    /// 14–22 and 45–47 everywhere, and 27–36 and 50–58 for the East Asian locales, which a workbook
+    /// saved by a Japanese, Chinese or Korean Excel uses without declaring a format code.
+    /// </remarks>
     private static bool IsBuiltInDateFormat(int numFmtId) =>
-        numFmtId is (>= 14 and <= 22) or (>= 45 and <= 47);
+        numFmtId is (>= 14 and <= 22) or (>= 27 and <= 36) or (>= 45 and <= 47) or (>= 50 and <= 58);
 
     /// <summary>
     /// Decides whether a custom format code renders a date, by looking for date tokens outside the
@@ -1223,7 +1267,10 @@ public sealed class XlsxCursor : ITabularCursor
             days = serial;
         }
 
-        double ticks = days * TimeSpan.TicksPerDay;
+        // Rounded to the millisecond, which is all a serial date carries. The fraction for 16:00 is
+        // stored a hair below its true value, and truncating the ticks read it as 15:59:59.999.
+        double ticks = Math.Round(days * TimeSpan.TicksPerDay / TimeSpan.TicksPerMillisecond)
+            * TimeSpan.TicksPerMillisecond;
 
         if (ticks < (DateTime.MinValue - epoch).Ticks || ticks > (DateTime.MaxValue - epoch).Ticks)
         {

@@ -1,3 +1,4 @@
+using TriasDev.Tabular.Abstractions;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 
@@ -161,5 +162,93 @@ public sealed class ProducerQuirksTests
         Assert.True(cursor.MoveToSheet(1));
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.Equal("second", cursor.CurrentRow[0].AsText());
+    }
+
+    /// <summary>A stylesheet whose second cell format is the given number format.</summary>
+    private static string StylesWithFormat(int numFmtId) =>
+        $"""<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="{numFmtId}" applyNumberFormat="1"/></cellXfs></styleSheet>""";
+
+    private static RawCellSummary ReadFirstCell(byte[] content)
+    {
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+
+        RawCell cell = cursor.CurrentRow[0];
+        return new RawCellSummary(cell.Kind, cell.Kind == RawCellKind.Date ? cell.Date : null, cell.AsText());
+    }
+
+    private readonly record struct RawCellSummary(RawCellKind Kind, DateTime? Date, string? Text);
+
+    [Fact]
+    public void KeepsThe1904EpochWhenAnExtensionElementSharesItsName()
+    {
+        // Excel 2013 and later add <x15:workbookPr chartTrackingRefBase="1"/> in an extension list.
+        // Its local name is the same, and reading it as the workbook's own properties reset the epoch
+        // to 1900: every date in a 1904 workbook came out four years and a day early.
+        byte[] content = new XlsxPackage()
+            .WithDate1904()
+            .WithWorkbookTail("""<extLst><ext uri="{B58B0392-4F1F-4190-BB64-5DF3571DCE5F}" xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"><x15:workbookPr chartTrackingRefBase="1"/></ext></extLst>""")
+            .WithStyles(StylesWithFormat(14))
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="1"><v>43708</v></c></row>""")
+            .Build();
+
+        Assert.Equal(new DateTime(2023, 9, 1, 0, 0, 0, DateTimeKind.Unspecified), ReadFirstCell(content).Date);
+    }
+
+    [Fact]
+    public void RoundsASerialDateToTheMillisecondExcelKeeps()
+    {
+        // 16:00 exactly is stored as 41655.666666666664, a hair below the true fraction. Truncating
+        // the ticks read it as 15:59:59.999, which every other reader and Excel itself show as 16:00.
+        byte[] content = new XlsxPackage()
+            .WithStyles(StylesWithFormat(22))
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="1"><v>41655.666666666664</v></c></row>""")
+            .Build();
+
+        Assert.Equal(new DateTime(2014, 1, 16, 16, 0, 0, DateTimeKind.Unspecified), ReadFirstCell(content).Date);
+    }
+
+    [Theory]
+    [InlineData(27)]
+    [InlineData(31)]
+    [InlineData(36)]
+    [InlineData(50)]
+    [InlineData(55)]
+    [InlineData(58)]
+    public void ReadsTheEastAsianBuiltInDateFormatsAsDates(int numFmtId)
+    {
+        // The specification reserves 27–36 and 50–58 for dates in East Asian locales; a workbook
+        // saved by a Japanese, Chinese or Korean Excel uses them without declaring a format code.
+        byte[] content = new XlsxPackage()
+            .WithStyles(StylesWithFormat(numFmtId))
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="1"><v>44211</v></c></row>""")
+            .Build();
+
+        Assert.Equal(new DateTime(2021, 1, 15, 0, 0, 0, DateTimeKind.Unspecified), ReadFirstCell(content).Date);
+    }
+
+    [Fact]
+    public void LeavesThePhoneticGuideOutOfASharedString()
+    {
+        // <rPh> carries the reading of the text above it — furigana — as a rendering aid, not as
+        // part of the value. Concatenating it turned 漢字 into 漢字かんじ.
+        byte[] content = new XlsxPackage()
+            .WithSharedStrings("""<si><t>漢字</t><rPh sb="0" eb="2"><t>かんじ</t></rPh><phoneticPr fontId="1"/></si>""")
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="s"><v>0</v></c></row>""")
+            .Build();
+
+        Assert.Equal("漢字", ReadFirstCell(content).Text);
+    }
+
+    [Fact]
+    public void LeavesThePhoneticGuideOutOfAnInlineString()
+    {
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="inlineStr"><is><t>漢字</t><rPh sb="0" eb="2"><t>かんじ</t></rPh></is></c></row>""")
+            .Build();
+
+        Assert.Equal("漢字", ReadFirstCell(content).Text);
     }
 }

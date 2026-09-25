@@ -23,6 +23,7 @@ internal sealed class XlsxPackage
     private string _folder = "xl/";
     private Func<int, string> _sheetPart = number => $"worksheets/sheet{number}.xml";
     private string _extraSheetsXml = string.Empty;
+    private string _workbookTailXml = string.Empty;
     private string _relationshipNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
     /// <summary>Adds a worksheet whose <c>&lt;sheetData&gt;</c> children are supplied verbatim.</summary>
@@ -80,6 +81,13 @@ internal sealed class XlsxPackage
     public XlsxPackage WithSheetPartNames(Func<int, string> name)
     {
         _sheetPart = name;
+        return this;
+    }
+
+    /// <summary>Appends raw markup to the workbook part after its sheet list — an extension list, say.</summary>
+    public XlsxPackage WithWorkbookTail(string xml)
+    {
+        _workbookTailXml = xml;
         return this;
     }
 
@@ -189,7 +197,9 @@ internal sealed class XlsxPackage
             sb.Append($"""<sheet name="{Escape(_sheets[i].Name)}" sheetId="{i + 1}" r:id="rId{i + 1}"/>""");
         }
         sb.Append(_extraSheetsXml);
-        sb.Append("</sheets></workbook>");
+        sb.Append("</sheets>");
+        sb.Append(_workbookTailXml);
+        sb.Append("</workbook>");
         return sb.ToString();
     }
 

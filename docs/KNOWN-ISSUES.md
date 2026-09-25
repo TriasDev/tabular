@@ -17,14 +17,6 @@ Reviewed 2026-08-26, before the library moved to its own repository.
 
 ## Correctness at the edges
 
-### The `<rPh>` phonetic guide is concatenated into the value
-Both the shared-string and inline-string paths append every `<t>` descendant, and per ECMA-376
-§18.4.6 the text inside `<rPh>` is a rendering aid, not the cell's value. A Japanese workbook where a
-name carries a reading yields the name with its reading appended to it, instead of the name.
-
-**Matters when** a customer uploads a file produced by a Japanese Excel. Fix by skipping the `<rPh>`
-and `<phoneticPr>` subtrees.
-
 ### A `numFmt` inside `<dxfs>` can overwrite a cell format
 Number formats are collected from anywhere in `styles.xml`. Differential formats — used by
 conditional formatting — live in `<dxfs>` and carry their own ids. One colliding with a custom id
