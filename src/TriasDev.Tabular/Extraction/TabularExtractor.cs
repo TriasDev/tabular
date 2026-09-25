@@ -44,6 +44,6 @@ public static class TabularExtractor
             throw new MappingPlanException(faults);
         }
 
-        return new ExtractionSession(cursor, plan, schema, options ?? ExtractionOptions.Default, cancellationToken);
+        return new ExtractionSession(cursor, plan, schema, (options ?? ExtractionOptions.Default).Checked(), cancellationToken);
     }
 }

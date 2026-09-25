@@ -78,6 +78,7 @@ public sealed class CsvCursor : ITabularCursor
 
         try
         {
+            _options.Checked();
             ArgumentException.ThrowIfNullOrEmpty(sheetName);
             cancellationToken.ThrowIfCancellationRequested();
             Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options);

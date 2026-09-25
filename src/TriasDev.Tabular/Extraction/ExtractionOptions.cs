@@ -21,4 +21,10 @@ public sealed record ExtractionOptions
     /// anything is written.
     /// </summary>
     public bool ValidateOnly { get; init; }
+
+    internal ExtractionOptions Checked()
+    {
+        OptionChecks.AtLeast(MaxErrorRows, 1, nameof(ExtractionOptions), nameof(MaxErrorRows));
+        return this;
+    }
 }

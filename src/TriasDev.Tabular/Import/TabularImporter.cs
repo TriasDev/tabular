@@ -43,7 +43,7 @@ public static class TabularImporter
         ArgumentNullException.ThrowIfNull(mapper);
         ArgumentNullException.ThrowIfNull(schema);
 
-        ImportOptions effective = options ?? ImportOptions.Default;
+        ImportOptions effective = (options ?? ImportOptions.Default).Checked();
 
         ExtractionSession session = TabularExtractor.Start(
             cursor,
@@ -93,6 +93,7 @@ public static class TabularImporter
         {
             ArgumentNullException.ThrowIfNull(mapper);
             ArgumentNullException.ThrowIfNull(schema);
+            effective.Checked();
             Validate(plan, schema);
         }
         catch when (!effective.Open.LeaveOpen)

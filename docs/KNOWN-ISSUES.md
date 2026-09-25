@@ -143,19 +143,6 @@ A caller who knows only the delimiter must also supply the encoding, losing dete
 is no per-property override, no line-ending member, and the quote character is hard-coded with no
 provenance.
 
-### Options records validate nothing
-Zero and negative values are accepted for every bound. `MaxErrorRows = 0` stops after the first
-failing row; a negative probe size throws from inside a constructor; an unknown culture name in
-`AnalysisOptions.Cultures` throws from deep inside a pass.
-
-### Implementation types are public
-`ColumnProfiler`, `DistinctBudget` and `CsvDialectDetector.Detect` are on the public surface with no
-caller. They become API a later refactor cannot move.
-
----
-
-## Resource bounds that are narrower than they look
-
 ### The package ceiling counts bytes off the wire, not memory
 `MaxUncompressedBytes` sums the entries' declared sizes. Text decoded to UTF-16 doubles, and a buffer
 that grows to hold a token peaks at three times its content. The scanner buffer and the csv field
@@ -215,22 +202,6 @@ a workbook's own number, date and boolean are never exercised.
 The library never touches `CurrentCulture` and the suite passes under German and Turkish locales, but
 nothing would *fail* if a `_culture` argument were dropped. On a US runner that regression is
 invisible.
-
-### The test project builds with warnings, and nobody counts them any more
-Mostly `xUnit1051`, which arrived when `ReadRow` gained a cancellation-token overload and every
-existing call in a test stopped passing one, plus `CS8631` from `Assert.Equal` binding to the span
-overload. The library itself is at two, `S3236` and `S3267`.
-
-No number here, deliberately. This entry carried one for four revisions and was wrong in all four —
-twice from an incremental build, which reports only what it rebuilt, once because a commit added an
-overload to a method every test calls, and once because the figure was already stale in the commit
-whose subject was *re-measure what was claimed*. A count in prose is a claim that ages badly and
-nothing checks. Run it instead:
-
-```
-dotnet build tests/TriasDev.Tabular.Tests/TriasDev.Tabular.Tests.csproj -c Debug --no-incremental \
-  | grep -oE '[^/]+\.cs\([0-9]+,[0-9]+\): warning [A-Za-z0-9]+' | sort -u | wc -l
-```
 
 ### Assorted weak tests
 Several tests assert less than their names claim — the delimiter-consistency tests never reach the

@@ -62,4 +62,13 @@ public sealed record CsvCursorOptions
     /// </para>
     /// </remarks>
     public int MaxColumns { get; init; } = 16_384;
+
+    internal CsvCursorOptions Checked()
+    {
+        OptionChecks.AtLeast(MaxQuotedFieldLines, 0, nameof(CsvCursorOptions), nameof(MaxQuotedFieldLines));
+        OptionChecks.AtLeast(MaxFieldChars, 1, nameof(CsvCursorOptions), nameof(MaxFieldChars));
+        OptionChecks.AtLeast(DialectProbeBytes, 1, nameof(CsvCursorOptions), nameof(DialectProbeBytes));
+        OptionChecks.AtLeast(MaxColumns, 1, nameof(CsvCursorOptions), nameof(MaxColumns));
+        return this;
+    }
 }

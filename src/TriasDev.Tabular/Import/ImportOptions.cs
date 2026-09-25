@@ -25,6 +25,13 @@ public sealed record ImportOptions
     /// </summary>
     /// <remarks>Ignored by a run over a cursor, which the caller opened and closes.</remarks>
     public TabularOpenOptions Open { get; init; } = TabularOpenOptions.Default;
+
+    internal ImportOptions Checked()
+    {
+        OptionChecks.AtLeast(PreviewRows, 0, nameof(ImportOptions), nameof(PreviewRows));
+        Extraction.Checked();
+        return this;
+    }
 }
 
 /// <summary>How much of a field the file actually filled.</summary>

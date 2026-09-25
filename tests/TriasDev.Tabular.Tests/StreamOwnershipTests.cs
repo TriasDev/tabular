@@ -106,7 +106,7 @@ public sealed class StreamOwnershipTests
         TabularOpenOptions options = new()
         {
             Csv = new CsvCursorOptions { MaxColumns = 1 },
-            Xlsx = new XlsxCursorOptions { MaxSheets = 0 },
+            Xlsx = new XlsxCursorOptions { MaxSheets = 1 },
         };
 
         using (ITabularCursor csv = TabularFile.Open(new MemoryStream(Csv), "t.csv", options, TestContext.Current.CancellationToken))
@@ -114,7 +114,10 @@ public sealed class StreamOwnershipTests
             Assert.Throws<TabularLimitException>(() => csv.ReadRow(TestContext.Current.CancellationToken));
         }
 
-        byte[] workbook = new XlsxPackage().WithSheet("S", """<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row>""").Build();
+        byte[] workbook = new XlsxPackage()
+            .WithSheet("S1", """<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row>""")
+            .WithSheet("S2", """<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row>""")
+            .Build();
 
         Assert.Throws<TabularLimitException>(() => TabularFile.Open(new MemoryStream(workbook), "w.xlsx", options, TestContext.Current.CancellationToken));
     }

@@ -115,6 +115,7 @@ public sealed class XlsxCursor : ITabularCursor
 
         try
         {
+            effective.Checked();
             _package = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen);
         }
         catch (Exception failed)

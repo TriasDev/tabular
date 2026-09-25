@@ -127,4 +127,18 @@ public sealed record XlsxCursorOptions
     /// shared-string paths.
     /// </remarks>
     public int MaxValueChars { get; init; } = 16 * 1024 * 1024;
+
+    internal XlsxCursorOptions Checked()
+    {
+        OptionChecks.AtLeast(MaxUncompressedBytes, 1, nameof(XlsxCursorOptions), nameof(MaxUncompressedBytes));
+        OptionChecks.AtLeast(MaxSharedStrings, 0, nameof(XlsxCursorOptions), nameof(MaxSharedStrings));
+        OptionChecks.AtLeast(MaxSharedStringChars, 0, nameof(XlsxCursorOptions), nameof(MaxSharedStringChars));
+        OptionChecks.AtLeast(MaxPackageEntries, 1, nameof(XlsxCursorOptions), nameof(MaxPackageEntries));
+        OptionChecks.AtLeast(MaxSheets, 1, nameof(XlsxCursorOptions), nameof(MaxSheets));
+        OptionChecks.AtLeast(MaxMetadataChars, 1, nameof(XlsxCursorOptions), nameof(MaxMetadataChars));
+        OptionChecks.AtLeast(MaxRelationships, 1, nameof(XlsxCursorOptions), nameof(MaxRelationships));
+        OptionChecks.AtLeast(MaxCellFormats, 0, nameof(XlsxCursorOptions), nameof(MaxCellFormats));
+        OptionChecks.AtLeast(MaxValueChars, 1, nameof(XlsxCursorOptions), nameof(MaxValueChars));
+        return this;
+    }
 }

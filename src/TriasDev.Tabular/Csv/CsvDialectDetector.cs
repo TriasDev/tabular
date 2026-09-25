@@ -24,7 +24,7 @@ public static class CsvDialectDetector
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        int probeBytes = (options ?? CsvCursorOptions.Default).DialectProbeBytes;
+        int probeBytes = (options ?? CsvCursorOptions.Default).Checked().DialectProbeBytes;
 
         if (!stream.CanSeek)
         {

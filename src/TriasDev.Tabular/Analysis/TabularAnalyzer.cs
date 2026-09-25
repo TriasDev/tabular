@@ -48,14 +48,14 @@ public sealed class TabularAnalyzer
             throw new ArgumentException("At least one culture is needed; \"\" is the invariant one.", nameof(options));
         }
 
-        AtLeast(options.DistinctTrackingBudget, 0, nameof(AnalysisOptions.DistinctTrackingBudget));
-        AtLeast(options.RetainedDistinctValues, 0, nameof(AnalysisOptions.RetainedDistinctValues));
-        AtLeast(options.HeaderRowIndex, 0, nameof(AnalysisOptions.HeaderRowIndex));
-        AtLeast(options.OutlierSampleSize, 0, nameof(AnalysisOptions.OutlierSampleSize));
-        AtLeast(options.FrequencySampleSize, 0, nameof(AnalysisOptions.FrequencySampleSize));
-        AtLeast(options.ReportedSampleSize, 0, nameof(AnalysisOptions.ReportedSampleSize));
-        AtLeast(options.FirstValueSampleSize, 0, nameof(AnalysisOptions.FirstValueSampleSize));
-        AtLeast(options.ProgressInterval, 1, nameof(AnalysisOptions.ProgressInterval));
+        OptionChecks.AtLeast(options.DistinctTrackingBudget, 0, nameof(AnalysisOptions), nameof(AnalysisOptions.DistinctTrackingBudget));
+        OptionChecks.AtLeast(options.RetainedDistinctValues, 0, nameof(AnalysisOptions), nameof(AnalysisOptions.RetainedDistinctValues));
+        OptionChecks.AtLeast(options.HeaderRowIndex, 0, nameof(AnalysisOptions), nameof(AnalysisOptions.HeaderRowIndex));
+        OptionChecks.AtLeast(options.OutlierSampleSize, 0, nameof(AnalysisOptions), nameof(AnalysisOptions.OutlierSampleSize));
+        OptionChecks.AtLeast(options.FrequencySampleSize, 0, nameof(AnalysisOptions), nameof(AnalysisOptions.FrequencySampleSize));
+        OptionChecks.AtLeast(options.ReportedSampleSize, 0, nameof(AnalysisOptions), nameof(AnalysisOptions.ReportedSampleSize));
+        OptionChecks.AtLeast(options.FirstValueSampleSize, 0, nameof(AnalysisOptions), nameof(AnalysisOptions.FirstValueSampleSize));
+        OptionChecks.AtLeast(options.ProgressInterval, 1, nameof(AnalysisOptions), nameof(AnalysisOptions.ProgressInterval));
 
         if (options.MinimumHypothesisConfidence is < 0 or > 1 || double.IsNaN(options.MinimumHypothesisConfidence))
         {
@@ -78,16 +78,6 @@ public sealed class TabularAnalyzer
         return available.Count == options.Cultures.Count ? options : options with { Cultures = available };
     }
 
-    private static void AtLeast(int value, int minimum, string option)
-    {
-        if (value < minimum)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(option),
-                value,
-                $"AnalysisOptions.{option} must be at least {minimum}.");
-        }
-    }
 
     /// <summary>Reads every sheet of an open cursor and profiles every column of each.</summary>
     /// <param name="cursor">A cursor positioned at the start of the file.</param>
