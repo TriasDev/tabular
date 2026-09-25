@@ -41,6 +41,16 @@ public static class CsvDialectDetector
         // turns every umlaut into two characters.
         ReadOnlySpan<byte> head = TrimIncompleteSequence(probe.AsSpan(0, read));
 
+        // Every file that is not a zip arrives here, so this is where a file that is not csv at all
+        // has to be told apart from one that is — or it is profiled as columns of mojibake and
+        // reported as a successful analysis.
+        if (head.StartsWith(CompoundFileSignature))
+        {
+            throw new InvalidDataException(
+                "This is a legacy Excel workbook (.xls) or an Excel file protected with a password; "
+                + "neither is supported. Save it as .xlsx without a password, or as .csv.");
+        }
+
         (Encoding encoding, DialectSource encodingSource) = DetectEncoding(head);
 
         // The probe may end mid-character, and decoding a partial one would fail on the tail rather
@@ -93,9 +103,64 @@ public static class CsvDialectDetector
             return (Encoding.BigEndianUnicode, DialectSource.ByteOrderMark);
         }
 
+        // No text encoding the library reads puts a NUL byte in a csv — except UTF-16, which writes
+        // one beside every ASCII character, and which some "Unicode text" exports write without its
+        // mark. NUL bytes in any number anywhere else say the file is not text at all: compressed or
+        // binary data carries one in every few hundred bytes. A stray one in a text export does not
+        // make it binary, so a handful is tolerated.
+        int nulls = head.Count((byte)0);
+
+        if (nulls >= 4 && nulls * 1000L >= head.Length)
+        {
+            return Utf16WithoutMark(head) is { } utf16
+                ? (utf16, DialectSource.Detected)
+                : throw new InvalidDataException(
+                    "The file is not text: it holds NUL bytes, which a csv file does not. It may be a "
+                    + "binary document (a PDF, an image, an archive) uploaded as a table.");
+        }
+
         return IsValidUtf8(head)
             ? (new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), DialectSource.Detected)
             : (Windows1252Encoding.Instance, DialectSource.Fallback);
+    }
+
+    /// <summary>The OLE2 compound-file signature: a .xls workbook, or an encrypted .xlsx.</summary>
+    private static ReadOnlySpan<byte> CompoundFileSignature => [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+
+    /// <summary>
+    /// UTF-16 without a byte order mark, recognised by where its NUL bytes stand: beside ASCII
+    /// characters, so in the odd positions for little-endian and the even ones for big-endian.
+    /// </summary>
+    private static UnicodeEncoding? Utf16WithoutMark(ReadOnlySpan<byte> head)
+    {
+        int pairs = Math.Min(head.Length, 8192) / 2;
+
+        if (pairs == 0)
+        {
+            return null;
+        }
+
+        int evenZeros = 0;
+        int oddZeros = 0;
+
+        for (int i = 0; i < pairs; i++)
+        {
+            evenZeros += head[2 * i] == 0 ? 1 : 0;
+            oddZeros += head[(2 * i) + 1] == 0 ? 1 : 0;
+        }
+
+        // Mostly zero on one side, almost never on the other.
+        if (oddZeros * 2 >= pairs && evenZeros * 20 < pairs)
+        {
+            return new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
+        }
+
+        if (evenZeros * 2 >= pairs && oddZeros * 20 < pairs)
+        {
+            return new UnicodeEncoding(bigEndian: true, byteOrderMark: false);
+        }
+
+        return null;
     }
 
     /// <summary>

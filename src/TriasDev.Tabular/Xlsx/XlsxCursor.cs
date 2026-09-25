@@ -1034,8 +1034,10 @@ public sealed class XlsxCursor : ITabularCursor
         Dictionary<string, Relationship> relationships,
         CancellationToken cancellationToken)
     {
-        ZipArchiveEntry part = Part(workbookPath)
-            ?? throw new InvalidDataException($"The package is not a workbook: {workbookPath} is missing.");
+        // A binary workbook names its part workbook.bin; reading that as XML would report it as a
+        // malformed workbook rather than as the format it is.
+        ZipArchiveEntry part = (workbookPath.EndsWith(".bin", StringComparison.OrdinalIgnoreCase) ? null : Part(workbookPath))
+            ?? throw NotAWorkbook(workbookPath);
 
         List<SheetInfo> sheets = [];
         int sinceCheck = 0;
@@ -1073,6 +1075,33 @@ public sealed class XlsxCursor : ITabularCursor
         }
 
         return (sheets, paths, date1904);
+    }
+
+    /// <summary>
+    /// Says what a zip that holds no workbook part is instead, where that can be told.
+    /// </summary>
+    private InvalidDataException NotAWorkbook(string workbookPath)
+    {
+        if (Part("mimetype") is { } mimetype)
+        {
+            using StreamReader reader = new(mimetype.Open());
+            char[] head = new char[64];
+            int read = reader.ReadBlock(head, 0, head.Length);
+
+            if (head.AsSpan(0, read).StartsWith("application/vnd.oasis.opendocument", StringComparison.Ordinal))
+            {
+                return new InvalidDataException(
+                    "This is an OpenDocument file (.ods), which is not supported yet. Save it as .xlsx or .csv.");
+            }
+        }
+
+        if (workbookPath.EndsWith(".bin", StringComparison.OrdinalIgnoreCase) || Part("xl/workbook.bin") is not null)
+        {
+            return new InvalidDataException(
+                "This is a binary Excel workbook (.xlsb), which is not supported. Save it as .xlsx or .csv.");
+        }
+
+        return new InvalidDataException($"The package is not a workbook: {workbookPath} is missing.");
     }
 
     /// <summary>
