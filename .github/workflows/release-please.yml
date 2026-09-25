@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # Keeps a release pull request open with the next version and its changelog, from Conventional
+  # Commit titles. Merging that pull request tags the release — and only then does publish run.
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    if: needs.release-please.outputs.release_created == 'true'
+    needs: release-please
+    runs-on: ubuntu-latest
+    # Required reviewers on this environment gate the push to nuget.org behind a manual approval.
+    environment: nuget
+    # Trusted Publishing: nuget.org exchanges this job's OIDC token for a key that lives an hour.
+    # No long-lived API key is stored anywhere.
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      VERSION: ${{ needs.release-please.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build TriasDev.Tabular.slnx --configuration Release -p:Version=${{ env.VERSION }}
+
+      - name: Run tests (net8.0 and net10.0)
+        run: |
+          dotnet test tests/TriasDev.Tabular.Tests --configuration Release --no-build \
+            --logger "trx;LogFilePrefix=results" --results-directory ./test-results
+
+      - name: Verify tests ran on every target
+        run: |
+          shopt -s nullglob
+          files=(./test-results/*.trx)
+          if [ "${#files[@]}" -lt 2 ]; then
+            echo "::error::Expected a result file per target framework, found ${#files[@]}"
+            exit 1
+          fi
+          for f in "${files[@]}"; do ./.github/scripts/verify-test-results.sh "$f"; done
+
+      - name: Pack
+        run: |
+          dotnet pack src/TriasDev.Tabular/TriasDev.Tabular.csproj --configuration Release --no-build \
+            -p:Version=${{ env.VERSION }} --output ./artifacts
+
+      # The policy on nuget.org names this repository, this workflow file and the nuget environment;
+      # NUGET_USER is the nuget.org profile name that owns the policy, not an email address.
+      - name: NuGet login (Trusted Publishing)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      # Pushing the .nupkg pushes the .snupkg beside it to the symbol server as well.
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
+
+      - name: Summary
+        run: |
+          {
+            echo "## NuGet release"
+            echo ""
+            echo "| Key | Value |"
+            echo "|-----|-------|"
+            echo "| **Package** | \`TriasDev.Tabular\` |"
+            echo "| **Version** | \`${{ env.VERSION }}\` |"
+            echo "| **Tag** | \`${{ needs.release-please.outputs.tag_name }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

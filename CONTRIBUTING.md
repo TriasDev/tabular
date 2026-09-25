@@ -112,6 +112,21 @@ with the test that pins it.
 - No customer data in fixtures, issues or commits — build the smallest synthetic file that shows the
   case, from raw bytes if needed (`Fixtures/XlsxPackage.cs`).
 
+## Releasing
+
+Releases are cut by [release-please](https://github.com/googleapis/release-please) from Conventional
+Commit titles:
+
+1. Every push to `main` updates an open pull request, "chore(main): release x.y.z", with the next
+   version (in `VersionPrefix`, `src/Directory.Build.props`) and the `CHANGELOG.md` entry.
+2. Before merging it, move the lines of `PublicAPI.Unshipped.txt` into `PublicAPI.Shipped.txt` in that
+   pull request — what ships is what the next version must stay compatible with.
+3. Merging it tags the release and creates the GitHub release. The `publish` job then waits for an
+   approval on the `nuget` environment, and pushes the package and its symbols to nuget.org through
+   Trusted Publishing — no API key is stored anywhere.
+4. After the first release: remove `release-as` from `release-please-config.json`, and set
+   `PackageValidationBaselineVersion` to the released version so package validation compares against it.
+
 ## Docs to consult
 
 - `README.md` — the short front page: what the library does, a quick start, headline numbers
