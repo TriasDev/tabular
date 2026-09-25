@@ -65,7 +65,7 @@ using FileStream file = File.OpenRead(path);
 using CsvCursor cursor = new(file, Path.GetFileName(path));
 
 FileProfile profile = new TabularAnalyzer().Analyze(cursor);
-// hand `profile` to a UI; get a MappingPlan back
+// hand `profile` to a mapping screen, or build the plan from the headers (below)
 ```
 
 ```csharp
@@ -88,6 +88,15 @@ static Customer Build(ImportRow row) => new()
     Country   = row[Fields.Country],
     SignedOn  = row[Fields.Signed],
 };
+```
+
+The plan says which column feeds which field. A mapping screen builds it from the profile; where the
+columns are named after the fields, `MappingPlan.ByHeader` builds it without one — headers compared
+ignoring case, spaces and `_ - .`, or by a rule of your own (a synonym list, say). Unmatched fields stay
+unbound, for `MappingPlanValidator` to report if they are required.
+
+```csharp
+MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], Schema, culture: "de-DE");
 ```
 
 ```csharp
