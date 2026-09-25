@@ -34,7 +34,7 @@ internal sealed class ColumnProfiler
 
     /// <summary>The numeric reading of the current value under each culture, reused across twins.</summary>
     private readonly NumberRead[] _numberReads;
-    private readonly HashSet<ulong> _distinctHashes = [];
+    private readonly UInt64Set _distinctHashes = new();
     private readonly Dictionary<string, int> _frequencies = new(StringComparer.Ordinal);
     private readonly List<string> _firstValues = [];
     private readonly List<string> _distinctValues = [];
