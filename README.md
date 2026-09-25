@@ -2,6 +2,11 @@
 
 # TriasDev.Tabular
 
+[![NuGet](https://img.shields.io/nuget/v/TriasDev.Tabular.svg)](https://www.nuget.org/packages/TriasDev.Tabular/)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/TriasDev/tabular/ci.yml?branch=main)](https://github.com/TriasDev/tabular/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TriasDev/tabular/blob/main/LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-8%20%7C%2010-purple)](https://dotnet.microsoft.com/download)
+
 **Fast, low-memory reading of large Excel and CSV files for .NET — with no dependencies.**
 
 Hand it a file and it tells you what is in it: every column's type, emptiness, uniqueness, value
@@ -146,6 +151,10 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
   large files, so a progress bar needs no second pass to count rows.
 
 ## Quick start
+
+```bash
+dotnet add package TriasDev.Tabular
+```
 
 ```csharp
 using TriasDev.Tabular;
