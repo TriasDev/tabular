@@ -36,10 +36,16 @@ internal static class DateReading
     {
         date = default;
 
-        return LooksLikeOne(text)
-            && TryParseAsWritten(text, culture, DateTimeStyles.NoCurrentDateDefault, out date)
-            && date.Year != 1;
+        return LooksLikeOne(text) && TryReadShaped(text, culture, out date);
     }
+
+    /// <summary>
+    /// <see cref="TryRead"/> for a value already known to pass <see cref="LooksLikeOne"/> — so that a
+    /// caller trying several cultures asks that culture-free question once, not once per culture.
+    /// </summary>
+    public static bool TryReadShaped(string text, CultureInfo culture, out DateTime date) =>
+        TryParseAsWritten(text, culture, DateTimeStyles.NoCurrentDateDefault, out date)
+        && date.Year != 1;
 
     /// <summary>
     /// Parses a date and time as the clock time it states, setting aside any zone it carries.
@@ -94,7 +100,7 @@ internal static class DateReading
     /// takes both. A colon admits a time of day so that the parse can happen and the year check can
     /// refuse it, which is more honest than never looking.
     /// </remarks>
-    private static bool LooksLikeOne(string text)
+    public static bool LooksLikeOne(string text)
     {
         if (text.Contains(':', StringComparison.Ordinal))
         {

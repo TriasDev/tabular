@@ -131,9 +131,14 @@ internal sealed class ColumnProfiler
             _booleanCount++;
         }
 
+        // Culture-free questions, asked once here rather than once per culture below: whether the
+        // value could be a number at all, and whether it has the shape of a date.
+        bool couldBeNumeric = CultureAccumulator.CouldBeNumeric(text);
+        bool couldBeDate = DateReading.LooksLikeOne(text);
+
         foreach (CultureAccumulator culture in _cultures)
         {
-            culture.AcceptText(text, rowNumber);
+            culture.AcceptText(text, rowNumber, couldBeNumeric, couldBeDate);
         }
     }
 
@@ -352,13 +357,16 @@ internal sealed class ColumnProfiler
             Widen(value);
         }
 
-        public void AcceptText(string text, int rowNumber)
+        /// <param name="couldBeNumeric">
+        /// Whether the value could be a number under any culture, asked once by the caller: a value
+        /// holding a letter is not, and most columns of a real export are exactly that — streets,
+        /// cities, descriptions. Skipping the attempt loses nothing, because such a value contributes
+        /// zero to every numeric count either way.
+        /// </param>
+        /// <param name="couldBeDate">Whether the value has the shape of a date, asked once by the caller.</param>
+        public void AcceptText(string text, int rowNumber, bool couldBeNumeric, bool couldBeDate)
         {
-            // Asked once, before three cultures are asked to parse it. A value holding a letter is
-            // not a number under any of them, and most columns of a real export are exactly that:
-            // streets, cities, descriptions. Skipping the attempt loses nothing, because such a value
-            // contributes zero to every numeric count either way.
-            bool grouped = CouldBeNumeric(text) && NumberReading.HasWellFormedGroups(text, _culture.NumberFormat);
+            bool grouped = couldBeNumeric && NumberReading.HasWellFormedGroups(text, _culture.NumberFormat);
 
             if (grouped
                 && long.TryParse(text, NumberStyles.Integer | NumberStyles.AllowThousands, _culture, out long whole))
@@ -376,7 +384,7 @@ internal sealed class ColumnProfiler
                 _numericOutliers.Add(new ValueLocation { RowNumber = rowNumber, RawValue = text });
             }
 
-            if (DateReading.TryRead(text, _culture, out DateTime date))
+            if (couldBeDate && DateReading.TryReadShaped(text, _culture, out DateTime date))
             {
                 _date++;
                 Widen(date);
@@ -399,7 +407,7 @@ internal sealed class ColumnProfiler
         /// cells in a text-heavy file, which is where the cost of analysing a csv sits — every value
         /// there is text, while a workbook's numbers arrive already typed and are never parsed at all.
         /// </remarks>
-        private static bool CouldBeNumeric(string text)
+        public static bool CouldBeNumeric(string text)
         {
             bool digit = false;
 
