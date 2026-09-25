@@ -3,11 +3,6 @@
 ## 0.1.0 (2026-09-25)
 
 
-### ⚠ BREAKING CHANGES
-
-* one exception hierarchy with a code on every instance
-* one namespace for the workflow
-
 ### Features
 
 * **benchmarks:** a synthetic fixture generator, so the published numbers can be reproduced ([c913bd2](https://github.com/TriasDev/tabular/commit/c913bd2ef70bf70cdf93c1a5d77f900a5f4a2a55))
