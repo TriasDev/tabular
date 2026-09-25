@@ -666,18 +666,19 @@ public static class MappingPrecheck
             return;                             // anything reads as text
         }
 
-        // A workbook that declares its own types has already answered this.
+        // A workbook's own types are counted by kind in every culture's figures — a native number as
+        // an integer or a decimal, a native date as a date — so they are judged by the same arithmetic
+        // as text. Returning early for them, on the view that the file "had already answered", let a
+        // column of numbers mapped to a date field pass here and then fail every row of the import.
         int declared = Native(facts, Abstractions.RawCellKind.Number)
             + Native(facts, Abstractions.RawCellKind.Date)
             + Native(facts, Abstractions.RawCellKind.Boolean);
 
-        if (declared == facts.NonEmptyCount)
-        {
-            return;
-        }
-
         string name = string.IsNullOrEmpty(culture) ? "invariant" : culture;
-        CultureParseCounts? counts = facts.ParseCounts.FirstOrDefault(c => c.Culture == name);
+        CultureParseCounts? counts = facts.ParseCounts.FirstOrDefault(c => c.Culture == name)
+            // Native values read the same under every culture, so any culture's figures answer for a
+            // column made of nothing else.
+            ?? (declared == facts.NonEmptyCount ? facts.ParseCounts.FirstOrDefault() : null);
 
         if (counts is null)
         {

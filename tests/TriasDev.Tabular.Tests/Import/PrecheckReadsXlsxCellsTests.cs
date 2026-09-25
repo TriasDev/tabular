@@ -72,6 +72,47 @@ public sealed class PrecheckReadsXlsxCellsTests
         Assert.True(result.CanImport);
     }
 
+    [Theory]
+    [InlineData("date")]
+    [InlineData("boolean")]
+    public void RefusesAWorkbooksOwnNumbersMappedToAFieldTheyCannotFill(string kind)
+    {
+        // A column of native numbers "had already answered" the type question, so the precheck said
+        // nothing — and then every row of the import failed as a type mismatch.
+        TargetField field = kind == "date" ? ImportField.Date("v2") : ImportField.Boolean("v2");
+        TargetSchema schema = new() { Fields = [field] };
+
+        PrecheckResult result = MappingPrecheck.Check(Plan("v2"), schema, Profile("45123", "45124"));
+
+        Assert.False(result.CanImport);
+        Assert.Equal(PrecheckSeverity.Blocking, Assert.Single(result.Findings, f => f.Code == "value.type-mismatch").Severity);
+    }
+
+    [Fact]
+    public void WarnsAboutAWorkbooksOwnFractionsMappedToAWholeNumberField()
+    {
+        TargetSchema schema = new() { Fields = [ImportField.Integer("count")] };
+
+        PrecheckResult result = MappingPrecheck.Check(Plan("count"), schema, Profile("1", "2", "2.5"));
+
+        PrecheckFinding finding = Assert.Single(result.Findings, f => f.Code == "value.type-mismatch");
+        Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
+        Assert.Equal(1, finding.AffectedRows);
+    }
+
+    [Fact]
+    public void JudgesAWorkbooksOwnValuesUnderACultureThatWasNotProfiled()
+    {
+        // Native cells do not depend on a culture, so a plan's culture outside the profiled set does
+        // not make them "undetermined".
+        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount")] };
+
+        PrecheckResult result = MappingPrecheck.Check(Plan("amount") with { Culture = "fr-FR" }, schema, Profile("1.5", "2"));
+
+        Assert.True(result.CanImport);
+        Assert.Empty(result.Findings);
+    }
+
     private static MappingPlan Plan(string field) =>
         new()
         {
