@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local working notes that never leave this machine (analyses of private projects and the like).
+/local/
