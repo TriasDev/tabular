@@ -82,7 +82,7 @@ public sealed record TextField : TargetField
     public TextField AllowedValues(IEnumerable<string> values, bool ignoreCase = false) =>
         With(new FieldConstraint.AllowedValues(values, ignoreCase));
 
-    /// <summary>The value must match this pattern.</summary>
+    /// <summary>The whole value must match this pattern; see <see cref="FieldConstraint.Pattern"/>.</summary>
     public TextField Matching(string pattern) => With(new FieldConstraint.Pattern(pattern));
 
     /// <summary>Adds a rule of the caller's own, reported under its code when a value fails it.</summary>

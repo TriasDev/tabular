@@ -131,11 +131,18 @@ public abstract record FieldConstraint
         public override bool IsSatisfiedBy(in MappedValue value) => value.Text is not null && _allowed.Contains(value.Text);
     }
 
-    /// <summary>The value must match this pattern.</summary>
+    /// <summary>The whole value must match this pattern.</summary>
     /// <remarks>
+    /// <para>
+    /// Anchored at both ends, as an HTML <c>pattern</c> is: <c>[A-Z]{2}</c> accepts <c>DE</c> and not
+    /// <c>xxDE123</c>. A rule about a value that passed anything containing a match would be a rule
+    /// in name only. Anchors written into the pattern still work.
+    /// </para>
+    /// <para>
     /// Bounded in time, and compiled without backtracking. A pattern arrives as data from a calling
     /// domain and is applied to every row of a file a user chose; a pattern that can be made to run
     /// away would turn one upload into an outage.
+    /// </para>
     /// </remarks>
     public sealed record Pattern : FieldConstraint
     {
@@ -149,7 +156,7 @@ public abstract record FieldConstraint
             ArgumentException.ThrowIfNullOrEmpty(expression);
 
             Expression = expression;
-            _expression = Build(expression);
+            _expression = Build($@"\A(?:{expression})\z");
         }
 
         /// <summary>The pattern as it was given.</summary>

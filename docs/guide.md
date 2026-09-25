@@ -383,7 +383,7 @@ from them.
 | `value.out-of-range` | A minimum or maximum |
 | `value.not-allowed` | Outside the allowed set |
 | `value.not-unique` | The column repeats a value, and the field identifies a record |
-| `value.pattern` | Did not match the pattern |
+| `value.pattern` | Did not match the pattern (as a whole: patterns are anchored at both ends) |
 | `group.required` | A row carries none of a group's variants |
 | `mapping.unknown-field`, `mapping.duplicate-binding`, `mapping.required-field-unmapped`, `mapping.required-group-unmapped` | A plan that does not fit its schema |
 | `mapping.invalid-column`, `mapping.invalid-header-row`, `mapping.invalid-sheet`, `mapping.unknown-culture` | A plan that is malformed |

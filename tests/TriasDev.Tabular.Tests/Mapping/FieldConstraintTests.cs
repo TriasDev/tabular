@@ -66,6 +66,30 @@ public sealed class FieldConstraintTests
         Assert.False(constraint.IsSatisfiedBy(MappedValue.FromText("De1")));
     }
 
+    [Theory]
+    [InlineData("DE", true)]
+    [InlineData("xxDE123", false)]
+    [InlineData("DE\n", false)]
+    [InlineData("DEU", false)]
+    public void APatternMustMatchTheWholeValue(string value, bool satisfied)
+    {
+        // A rule for a value, as an HTML pattern is: "[A-Z]{2}" used to accept any value that merely
+        // contained two capitals somewhere.
+        FieldConstraint.Pattern constraint = new("[A-Z]{2}");
+
+        Assert.Equal(satisfied, constraint.IsSatisfiedBy(MappedValue.FromText(value)));
+        Assert.Equal("[A-Z]{2}", constraint.Expression);
+    }
+
+    [Fact]
+    public void AnAnchoredPatternMeansWhatItSaid()
+    {
+        FieldConstraint constraint = new FieldConstraint.Pattern("^(DE|AT)$|^CH$");
+
+        Assert.True(constraint.IsSatisfiedBy(MappedValue.FromText("CH")));
+        Assert.False(constraint.IsSatisfiedBy(MappedValue.FromText("DECH")));
+    }
+
     [Fact]
     public void APatternThatCouldRunAwayFailsTheValueRatherThanTheRun()
     {
