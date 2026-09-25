@@ -108,7 +108,7 @@ quoting — 5,127,969 lines, one record each:
 
 | | Time | Peak | Rows read |
 |---|--:|--:|---|
-| **TriasDev.Tabular** | 3.9 s | **51 MB** | **5,127,960** — 38 repairs reported; 9 lines joined by quote pairs ([#20](https://github.com/TriasDev/tabular/issues/20)) |
+| **TriasDev.Tabular** | 3.9 s | **51 MB** | **all 5,127,969** — 49 repairs reported |
 | CsvHelper | 3.5 s | 71 MB | 39,231 records merged into others, no warning |
 | Sep | 4.6 s | 208 MB | 2,282,484 records merged into others, no warning |
 | Sylvan.Data.Csv | — | — | throws |
@@ -214,8 +214,8 @@ Stated here so they are found before they are hit:
 - **Cultures.** Analysis tries `""` (invariant), `de-DE` and `en-US` by default — set
   `AnalysisOptions.Cultures` for files from elsewhere. Under invariant globalization (slim container
   images) only the invariant culture exists, and a plan naming another is refused.
-- **Multi-line quoted csv fields** are bounded (four lines by default), and a pair of lone quotes can
-  join records ([#20](https://github.com/TriasDev/tabular/issues/20)).
+- **Multi-line quoted csv fields** are bounded (four lines by default). A quote that spans lines and
+  closes within less than a whole record is taken at its word, as RFC 4180 says.
 
 ## Stability
 

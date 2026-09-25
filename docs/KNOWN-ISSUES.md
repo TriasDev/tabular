@@ -12,11 +12,17 @@ an entry is the best reason to fix it.
 
 ## Correctness at the edges
 
-### A pair of lone quotes joins the records between them
-A field that is a lone `"` opens a quoted field; another in a later line closes it, and the record
-reads on as one. That is valid RFC 4180 — a quoted field spanning lines — so no repair fires and
-nothing is counted. The 5M-row malformed fixture has nine lines joined this way into six records.
-Telling it from a genuine multi-line field takes a heuristic: #20.
+### A stray quote that closes within less than a record joins two lines
+A quote that opens a field and is closed by another quote on a later line is read as one field
+spanning lines, as RFC 4180 says. When that field holds a whole record's worth of delimiters it is
+read as the records it is instead, and counted in `RecoveredStrayQuotes` (#20). When it holds fewer —
+a quote left open in the last column and closed by a quoted field early in the next line — the two
+lines stay joined: telling that from a genuine multi-line note in the last column is not possible
+from the text. The repair is also off for tables narrower than five columns, where a record's worth
+of delimiters is few enough for a note to reach.
+
+**Matters when** a producer leaves quotes open in the last column of a wide table. The real-world
+5M-row fixture has none; the synthetic one writes a few on purpose.
 
 ### A `numFmt` inside `<dxfs>` can overwrite a cell format
 Number formats are collected from anywhere in `styles.xml`. Differential formats — used by

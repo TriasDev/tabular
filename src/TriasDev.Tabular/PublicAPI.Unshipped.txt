@@ -1012,3 +1012,4 @@ virtual TriasDev.Tabular.TargetField.PrintMembers(System.Text.StringBuilder! bui
 ~override TriasDev.Tabular.ValueFrequency.ToString() -> string
 ~override TriasDev.Tabular.ValueLocation.Equals(object obj) -> bool
 ~override TriasDev.Tabular.ValueLocation.ToString() -> string
+TriasDev.Tabular.CursorDiagnostics.RecoveredStrayQuotes.get -> int

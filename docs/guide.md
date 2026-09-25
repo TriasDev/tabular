@@ -71,6 +71,13 @@ So the reader recovers — and counts what it recovered in `CursorDiagnostics`. 
 indistinguishable from correct reading, and *that* is the defect: left unbounded, those 302 quotes
 swallow about 39,000 records without a word.
 
+Two repairs, both counted. A quote left open is abandoned once its field passes four lines
+(`RecoveredUnterminatedQuotes`), or when the file ends inside it. A quote that *is* closed, but whose
+field spans lines and holds a whole record's worth of delimiters, was never a quote either — a lone
+`"` opening in one line and another closing it in a later one — and the records inside it are read
+as records (`RecoveredStrayQuotes`). Genuine multi-line values, which hold a delimiter or two at most,
+are left alone.
+
 ## What it deliberately does not do
 
 - **Guess where the header is.** The first row is the header. A guess that is usually right produces
@@ -565,7 +572,7 @@ reading, best of two runs.
 | 8.6 MB workbook, dense | 100,001 | 1,700,017 | 0.87 s | 61 MB | 38 B | 96 MB |
 | 101 MB workbook | 1,000,001 | 17,000,017 | 4.6 s | 326 MB | 20 B | 129 MB |
 | 364 MB csv | 3,000,001 | 51,000,017 | 2.4 s | 1,567 MB | 32 B | 53 MB |
-| 572 MB csv, malformed | 5,127,960 | 87,175,320 | 4.2 s | 2,742 MB | 33 B | 53 MB |
+| 572 MB csv, malformed | 5,127,969 | 87,175,473 | 4.2 s | 2,742 MB | 33 B | 53 MB |
 
 The comparison with other libraries (docs/benchmarks.md) measures the same reads through a different
 harness and run — 4.30 s for the million-row workbook against 4.6 s here — so quote each table's

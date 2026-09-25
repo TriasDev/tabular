@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace TriasDev.Tabular.Csv;
@@ -27,6 +28,9 @@ public sealed class CsvCursor : ITabularCursor
     private readonly CsvCursorOptions _options;
     private readonly char[] _buffer = new char[BufferSize];
     private readonly StringBuilder _field = new();
+
+    /// <summary>The first record's width, which says how many delimiters a whole record holds.</summary>
+    private int _recordColumns;
 
     /// <summary>
     /// Characters put back to be read again, which is how a record is re-parsed after an
@@ -153,7 +157,14 @@ public sealed class CsvCursor : ITabularCursor
 
         try
         {
-            return ReadRowCore(cancellationToken);
+            bool read = ReadRowCore(cancellationToken);
+
+            if (read && _recordColumns == 0)
+            {
+                _recordColumns = _cellCount;
+            }
+
+            return read;
         }
         catch
         {
@@ -205,6 +216,20 @@ public sealed class CsvCursor : ITabularCursor
                     // The file ended inside a quoted field. Nothing to recover towards, so the text
                     // gathered so far is the value.
                     Diagnostics.RecoveredUnterminatedQuotes++;
+
+                    // Unless it spans lines: then the quote swallowed the records after it, and they
+                    // are replayed as records, with the quote as an ordinary character — as when the
+                    // line bound trips. Keeping it as one value joined every record to the end.
+                    if (quotedLines > 0)
+                    {
+                        ReplayQuotedField();
+                        inQuotes = false;
+                        fieldWasQuoted = false;
+                        atFieldStart = true;
+                        suppressQuote = true;
+                        quotedLines = 0;
+                        continue;
+                    }
                 }
 
                 if (!anythingSeen && _field.Length == 0 && _cellCount == 0)
@@ -238,9 +263,7 @@ public sealed class CsvCursor : ITabularCursor
                     // itself as an ordinary character, and read the records that were hiding inside
                     // it.
                     Diagnostics.RecoveredUnterminatedQuotes++;
-                    PushBack(Dialect.Quote + _quotedRaw.ToString());
-                    _quotedRaw.Clear();
-                    _field.Clear();
+                    ReplayQuotedField();
                     inQuotes = false;
                     fieldWasQuoted = false;
                     atFieldStart = true;
@@ -272,6 +295,20 @@ public sealed class CsvCursor : ITabularCursor
                 // Anything else closes the field. What follows is appended as ordinary text, which is
                 // what makes `"C" Road` read as `C Road` instead of failing the file.
                 inQuotes = false;
+
+                // A field that spanned lines and holds a whole record's worth of delimiters is not a
+                // multi-line value: it is a lone quote opening, another closing, and the records
+                // between them (#20). Replayed with the opening quote as an ordinary character.
+                if (quotedLines > 0 && HoldsAWholeRecord())
+                {
+                    Diagnostics.RecoveredStrayQuotes++;
+                    ReplayQuotedField();
+                    fieldWasQuoted = false;
+                    atFieldStart = true;
+                    suppressQuote = true;
+                    quotedLines = 0;
+                }
+
                 continue;
             }
 
@@ -339,6 +376,49 @@ public sealed class CsvCursor : ITabularCursor
         }
 
         _field.Append(c);
+    }
+
+    /// <summary>
+    /// Puts back everything a quoted field swallowed, its opening quote first, to be read again as
+    /// ordinary characters.
+    /// </summary>
+    /// <remarks>
+    /// Out of line on purpose: three places replay, all rare, and the per-character loop runs faster
+    /// when it does not carry their code.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void ReplayQuotedField()
+    {
+        PushBack(Dialect.Quote + _quotedRaw.ToString());
+        _quotedRaw.Clear();
+        _field.Clear();
+    }
+
+    /// <summary>
+    /// Whether the quoted field just closed holds as many delimiters as a whole record does.
+    /// </summary>
+    /// <remarks>
+    /// Asked only of a field that spanned lines, which is rare, so the scan costs nothing on the
+    /// ordinary path. A genuine multi-line value — an address, a note — holds a delimiter or two at
+    /// most; one holding a record's worth is records. Off for tables narrower than five columns,
+    /// where "a record's worth" is two or three delimiters, which a note reaches by accident — the
+    /// exports this happens to are wide.
+    /// </remarks>
+    private bool HoldsAWholeRecord()
+    {
+        if (_recordColumns < 5)
+        {
+            return false;
+        }
+
+        int delimiters = 0;
+
+        foreach (ReadOnlyMemory<char> chunk in _field.GetChunks())
+        {
+            delimiters += chunk.Span.Count(Dialect.Delimiter);
+        }
+
+        return delimiters >= _recordColumns - 1;
     }
 
     private void CompleteField(bool wasQuoted)

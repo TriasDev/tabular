@@ -21,6 +21,18 @@ public sealed class CursorDiagnostics
     /// </remarks>
     public int RecoveredUnterminatedQuotes { get; internal set; }
 
+    /// <summary>
+    /// Quotes that opened a field spanning lines which held a whole record's worth of delimiters —
+    /// read as ordinary characters instead, so the records inside were not joined into one field.
+    /// </summary>
+    /// <remarks>
+    /// A field that is a lone quote (an inch or ditto mark) opens a quoted field, and the same value
+    /// in the same column of a later line closes it. By RFC 4180 that is one field spanning lines;
+    /// by the data it is two records and the lines between. Nine lines of a 5.1 million-row export
+    /// were joined this way before this repair existed.
+    /// </remarks>
+    public int RecoveredStrayQuotes { get; internal set; }
+
     /// <summary>True when nothing had to be repaired.</summary>
     /// <remarks>
     /// It reports on repairs, not on tidiness. A ragged row is not a repair — the row is reported at
@@ -28,14 +40,19 @@ public sealed class CursorDiagnostics
     /// counted them here and never assigned the counter, which made "clean" mean less than a caller
     /// would have taken it to mean.
     /// </remarks>
-    public bool IsClean => RecoveredUnterminatedQuotes == 0;
+    public bool IsClean => RecoveredUnterminatedQuotes == 0 && RecoveredStrayQuotes == 0;
 
     /// <summary>A copy that stops counting, for a result that must stay as it was read.</summary>
-    internal CursorDiagnostics Snapshot() => new() { RecoveredUnterminatedQuotes = RecoveredUnterminatedQuotes };
+    internal CursorDiagnostics Snapshot() => new()
+    {
+        RecoveredUnterminatedQuotes = RecoveredUnterminatedQuotes,
+        RecoveredStrayQuotes = RecoveredStrayQuotes,
+    };
 
     /// <summary>What was repaired since <paramref name="earlier"/> was taken — one sheet's share.</summary>
     internal CursorDiagnostics Since(CursorDiagnostics earlier) => new()
     {
         RecoveredUnterminatedQuotes = RecoveredUnterminatedQuotes - earlier.RecoveredUnterminatedQuotes,
+        RecoveredStrayQuotes = RecoveredStrayQuotes - earlier.RecoveredStrayQuotes,
     };
 }
