@@ -96,7 +96,7 @@ public sealed class CsvCursor : ITabularCursor
             BufferSize,
             leaveOpen);
 
-        Sheets = [new SheetInfo { Index = 0, Name = sheetName }];
+        Sheets = [new SheetInfo { Index = 0, Name = sheetName, Format = TabularFormat.Csv }];
     }
 
     /// <summary>How this file is encoded and punctuated, and how that was decided.</summary>

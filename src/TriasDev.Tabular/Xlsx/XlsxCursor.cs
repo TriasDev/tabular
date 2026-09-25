@@ -1185,7 +1185,7 @@ public sealed class XlsxCursor : ITabularCursor
                 $"The workbook declares more than the {_options.MaxSheets} sheets allowed.");
         }
 
-        sheets.Add(new SheetInfo { Index = sheets.Count, Name = Bounded(name, "sheet name") });
+        sheets.Add(new SheetInfo { Index = sheets.Count, Name = Bounded(name, "sheet name"), Format = TabularFormat.Xlsx });
         paths.Add(target);
     }
 
