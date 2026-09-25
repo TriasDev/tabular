@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
+  </ItemGroup>
+
+</Project>

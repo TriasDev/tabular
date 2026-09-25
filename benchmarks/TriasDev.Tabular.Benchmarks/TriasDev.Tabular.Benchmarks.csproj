@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!-- Spike only. The candidates live in the test project because the correctness gate is a test;
+       linking the sources here rather than referencing that project keeps the benchmark free of
+       xunit and of every test fixture. This block goes away with the losers once the ADR records a
+       winner. -->
+  <ItemGroup>
+    <Compile Include="..\..\tests\TriasDev.Tabular.Tests\Spike\*Candidate.cs" Link="Spike\%(Filename)%(Extension)" />
+    <Compile Include="..\..\tests\TriasDev.Tabular.Tests\Spike\CellNormalization.cs" Link="Spike\CellNormalization.cs" />
+    <Compile Include="..\..\tests\TriasDev.Tabular.Tests\Spike\SpikeDialect.cs" Link="Spike\SpikeDialect.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
+  </ItemGroup>
+
+</Project>

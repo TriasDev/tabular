@@ -1,0 +1,64 @@
+name: SonarQube
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Secrets are not handed to workflows triggered from forks, so this runs on main only.
+
+permissions:
+  contents: read
+
+env:
+  SONAR_PROJECT_KEY: TriasDev_tabular_293cb7e5-3ebf-474c-aef7-6eb96d81b0f7
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  analyze:
+    name: Build, test and analyze
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Sonar needs the history to attribute new code
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Install SonarQube scanner
+        run: dotnet tool install dotnet-sonarscanner --tool-path ./.sonar/scanner
+
+      - name: Build, test and analyze
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          ./.sonar/scanner/dotnet-sonarscanner begin \
+            /k:"$SONAR_PROJECT_KEY" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.host.url="$SONAR_HOST_URL" \
+            /d:sonar.sourceEncoding=UTF-8 \
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
+            /d:sonar.coverage.exclusions="benchmarks/**,tests/**"
+
+          dotnet build TriasDev.Tabular.slnx --configuration Release
+          dotnet test TriasDev.Tabular.slnx --configuration Release --no-build \
+            --collect:"XPlat Code Coverage;Format=opencover"
+
+          ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
+      - name: Summary
+        run: |
+          echo "## SonarQube" >> "$GITHUB_STEP_SUMMARY"
+          echo "Analysis submitted for \`$SONAR_PROJECT_KEY\` at commit \`${GITHUB_SHA::7}\`." >> "$GITHUB_STEP_SUMMARY"

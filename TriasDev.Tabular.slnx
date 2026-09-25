@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/TriasDev.Tabular.Benchmarks/TriasDev.Tabular.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/TriasDev.Tabular/TriasDev.Tabular.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TriasDev.Tabular.Tests/TriasDev.Tabular.Tests.csproj" />
+  </Folder>
+</Solution>

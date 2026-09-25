@@ -1,0 +1,180 @@
+using TriasDev.Tabular.Abstractions;
+using TriasDev.Tabular.Csv;
+
+namespace TriasDev.Tabular.Analysis;
+
+/// <summary>
+/// Reads a file through and reports what is in it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Stateless and stream-based. It keeps nothing between calls, so analysing a file and later
+/// extracting from it are two independent reads of it; a caller that wants to keep the profile while
+/// a user builds a mapping stores it itself.
+/// </para>
+/// <para>
+/// The header is the sheet's first row unless <see cref="AnalysisOptions.HeaderRowIndex"/> says
+/// otherwise, and nothing goes looking for it: a guess that is right most of the time produces a
+/// wrong answer nobody checks. A file whose header is not the first row is analysed again under the
+/// right number, because everything above the header was measured as data — and a profile carries
+/// the row it used, so a mapping naming a different one can be told that its facts do not apply.
+/// </para>
+/// </remarks>
+public sealed class TabularAnalyzer(AnalysisOptions? options = null)
+{
+    private readonly AnalysisOptions _options = options ?? AnalysisOptions.Default;
+
+    /// <summary>Reads every sheet of an open cursor and profiles every column of each.</summary>
+    /// <param name="cursor">A cursor positioned at the start of the file.</param>
+    /// <param name="cancellationToken">Stops the pass.</param>
+    public FileProfile Analyze(ITabularCursor cursor, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        // One budget for the file, not one per column: the alternative multiplies the ceiling by the
+        // column count, and a column holding few distinct values would reserve room it never uses.
+        DistinctBudget budget = new(_options.DistinctTrackingBudget);
+
+        List<SheetProfile> sheets = [];
+
+        foreach (SheetInfo sheet in cursor.Sheets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!cursor.MoveToSheet(sheet.Index))
+            {
+                continue;
+            }
+
+            sheets.Add(AnalyzeSheet(cursor, sheet, budget, cancellationToken));
+        }
+
+        return new FileProfile
+        {
+            Format = cursor.Format,
+            Dialect = (cursor as CsvCursor)?.Dialect,
+            Sheets = sheets,
+            Diagnostics = cursor.Diagnostics,
+        };
+    }
+
+    private SheetProfile AnalyzeSheet(
+        ITabularCursor cursor,
+        SheetInfo sheet,
+        DistinctBudget budget,
+        CancellationToken cancellationToken)
+    {
+        List<ColumnProfiler> profilers = [];
+        int rowCount = 0;
+        bool headerRead = false;
+        int rowsSeen = 0;
+
+        // Handed down, not only checked here. The check between rows cannot interrupt a single read
+        // that is loading a shared string table, which is the one that takes the time.
+        while (cursor.ReadRow(cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!headerRead)
+            {
+                // Everything above the header is skipped, not measured. A title line counted as data
+                // puts its own text into the column's lengths and types, and the mapping is then
+                // judged against a value no row holds.
+                if (rowsSeen++ < _options.HeaderRowIndex)
+                {
+                    continue;
+                }
+
+                headerRead = true;
+                ReadHeader(cursor.CurrentRow, profilers, budget);
+                continue;
+            }
+
+            ReadOnlySpan<RawCell> row = cursor.CurrentRow;
+
+            // A row with nothing in it is not a row. A spreadsheet accumulates them below its data as
+            // a matter of course, and counting them makes every fact about the file describe the
+            // padding as much as the content: a full column reads as mostly empty, a required field
+            // looks half unfilled, and a rule about the values is judged against rows holding none.
+            //
+            // Extraction already skips them, so counting them here made the profile disagree with the
+            // run it exists to predict — the more expensive half of the mistake.
+            if (IsBlank(row))
+            {
+                continue;
+            }
+
+            rowCount++;
+
+            // A row may be wider than the header. Its extra values are still values, and a column
+            // that exists only below the header is worth reporting rather than dropping.
+            while (profilers.Count < row.Length)
+            {
+                ColumnProfiler late = new(profilers.Count, string.Empty, budget, _options);
+
+                // Given the rows it missed, as empties. Without this its counts do not add up to the
+                // sheet's — a column appearing in the last of a thousand rows reported one value and
+                // no empties — and every verdict derived from an empty count silently inherited that:
+                // "no row leaves this column empty" was read as "every row carries a value".
+                late.AcceptEmpties(rowCount - 1);
+
+                profilers.Add(late);
+            }
+
+            for (int i = 0; i < profilers.Count; i++)
+            {
+                profilers[i].Accept(i < row.Length ? row[i] : RawCell.Empty, cursor.CurrentRowNumber);
+            }
+        }
+
+        List<ColumnProfile> columns = [];
+
+        foreach (ColumnProfiler profiler in profilers)
+        {
+            ColumnFacts facts = profiler.ToFacts();
+            columns.Add(new ColumnProfile
+            {
+                Facts = facts,
+                Hypotheses = HypothesisBuilder.Build(facts, _options.MinimumHypothesisConfidence),
+            });
+        }
+
+        return new SheetProfile
+        {
+            Index = sheet.Index,
+            Name = sheet.Name,
+            RowCount = rowCount,
+            Columns = columns,
+            HeaderRowIndex = _options.HeaderRowIndex,
+        };
+    }
+
+    /// <summary>Whether the row holds no value in any column.</summary>
+    private static bool IsBlank(ReadOnlySpan<RawCell> row)
+    {
+        for (int i = 0; i < row.Length; i++)
+        {
+            if (!row[i].IsEmpty)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Takes the header row as the column headers.
+    /// </summary>
+    /// <remarks>
+    /// A header cell may be empty and two may be identical, both of which real files contain. Neither
+    /// is corrected: the column keeps its position, which is what a mapping addresses it by.
+    /// </remarks>
+    private void ReadHeader(ReadOnlySpan<RawCell> header, List<ColumnProfiler> profilers, DistinctBudget budget)
+    {
+        for (int i = 0; i < header.Length; i++)
+        {
+            profilers.Add(new ColumnProfiler(i, header[i].AsText() ?? string.Empty, budget, _options));
+        }
+    }
+}

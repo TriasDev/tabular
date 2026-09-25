@@ -1,0 +1,6 @@
+# https://help.github.com/en/articles/dealing-with-line-endings
+# "text=auto" converts line endings to LF when checking in to the repository.
+# "eol=crlf" converts line endings to CR/LF when checking out to the local machine.
+* text=auto eol=lf
+*.{cmd,[cC][mM][dD]} text eol=crlf
+*.{bat,[bB][aA][tT]} text eol=crlf
