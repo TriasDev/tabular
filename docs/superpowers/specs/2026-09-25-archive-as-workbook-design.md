@@ -95,9 +95,11 @@ public string? SheetSource { get; init; }
 ```
 
 When set, extraction compares them with the sheet found at `SheetIndex` and refuses a mismatch as
-`structure.sheet-changed` (new code, a `TabularStructureException`); the precheck reports it as
-`mapping.stale-profile`. `MappingPlan.ByHeader` fills both from the `SheetProfile`. Null means "not
-checked", so a hand-written plan keeps working.
+`structure.sheet-changed` (new code, a `TabularStructureException`); the precheck blocks such a plan
+with the same code and judges nothing else, because analysing again would find the same other sheet
+there. `MappingPlan.ByHeader` fills both from the `SheetProfile` — except a plain csv's name, which is
+whatever name the caller passed in, not a fact of the file. Null means "not checked", so a
+hand-written plan keeps working.
 
 Addressing a sheet by name instead of index stays an idea (docs/IDEAS.md).
 

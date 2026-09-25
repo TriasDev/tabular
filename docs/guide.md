@@ -108,7 +108,9 @@ MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], Schema, culture: "de-
 
 A plan built by `ByHeader` also records the sheet's name and source. Extraction checks them against
 the sheet at the plan's index and refuses another one (`structure.sheet-changed`), so a workbook whose
-tabs were reordered is not imported from the wrong tab. A plan written by hand can leave them null.
+tabs were reordered is not imported from the wrong tab; the precheck blocks such a plan with the same
+code. A plain csv's name is not recorded — it is whatever name the caller passed in, and the file
+has one sheet anyway. A plan written by hand can leave both null.
 
 ```csharp
 using FileStream file = File.OpenRead(path);

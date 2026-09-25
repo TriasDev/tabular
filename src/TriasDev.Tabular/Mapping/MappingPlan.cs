@@ -117,7 +117,10 @@ public sealed record MappingPlan
             SheetIndex = sheet.Index,
             HeaderRowIndex = sheet.HeaderRowIndex,
             Culture = culture,
-            SheetName = sheet.Name,
+            // A plain csv's name is the one its caller passed in, not something the file says, so
+            // recording it would refuse the same file opened under another name. Its only sheet is
+            // index 0, which already identifies it.
+            SheetName = sheet.Format == TabularFormat.Csv && sheet.Source is null ? null : sheet.Name,
             SheetSource = sheet.Source,
             Bindings = bindings,
         };

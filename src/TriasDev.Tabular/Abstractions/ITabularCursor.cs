@@ -59,7 +59,12 @@ public interface ITabularCursor : IDisposable
     /// </summary>
     int CurrentRowNumber { get; }
 
-    /// <summary>What had to be repaired so far.</summary>
+    /// <summary>What had to be repaired so far, across every sheet read.</summary>
+    /// <remarks>
+    /// Cumulative for the cursor's life and never reset by <see cref="MoveToSheet"/>: analysis takes a
+    /// sheet's share as the difference between two readings, and the file's total as the last one.
+    /// A cursor that returned only its current sheet's counts would make that total wrong.
+    /// </remarks>
     CursorDiagnostics Diagnostics { get; }
 
     /// <summary>

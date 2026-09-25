@@ -96,6 +96,25 @@ public static class MappingPrecheck
                 ]);
         }
 
+        // Another sheet stands where the plan was built: the import is certain to refuse it, and
+        // analysing again would find the same sheet there, so this blocks rather than being left
+        // undetermined — and nothing is judged against columns that belong to another sheet.
+        if (IsAnotherSheet(plan, sheet))
+        {
+            return new PrecheckResult(
+                false,
+                [
+                    new PrecheckFinding
+                    {
+                        Code = ErrorCodes.Structure.SheetChanged,
+                        Severity = PrecheckSeverity.Blocking,
+                        TargetFieldName = string.Empty,
+                        SourceColumnIndex = -1,
+                        Detail = $"The sheet at index {plan.SheetIndex} is not the one the mapping was built for.",
+                    },
+                ]);
+        }
+
         // A culture the runtime does not have — any named one, under invariant globalization — cannot
         // read a value, so nothing about the values can be judged; the import would refuse the plan
         // on the same grounds.
@@ -123,7 +142,7 @@ public static class MappingPrecheck
         // measured is reported — and this is undetermined rather than blocking, because the file is
         // very likely fine and it is the profile that is stale. Analysing it again under the chosen
         // row is what settles it.
-        bool stale = IsStale(plan, sheet);
+        bool stale = sheet.HeaderRowIndex != plan.HeaderRowIndex;
 
         if (stale)
         {
@@ -133,12 +152,9 @@ public static class MappingPrecheck
                 Severity = PrecheckSeverity.Undetermined,
                 TargetFieldName = string.Empty,
                 SourceColumnIndex = -1,
-                Detail = sheet.HeaderRowIndex != plan.HeaderRowIndex
-                    ? $"The file was analysed with row {sheet.HeaderRowIndex} as the header and the "
-                        + $"mapping names row {plan.HeaderRowIndex}, so nothing measured about the values "
-                        + "applies. Analyse it again to have those checked."
-                    : $"The profile's sheet at index {plan.SheetIndex} is not the one the mapping was built "
-                        + "for, so nothing measured about it applies.",
+                Detail = $"The file was analysed with row {sheet.HeaderRowIndex} as the header and the "
+                    + $"mapping names row {plan.HeaderRowIndex}, so nothing measured about the values "
+                    + "applies. Analyse it again to have those checked.",
             });
         }
 
@@ -192,12 +208,11 @@ public static class MappingPrecheck
     }
 
     /// <summary>
-    /// Whether the profile describes something other than what the plan was built for: another header
-    /// row, or — where the plan recorded one — another sheet.
+    /// Whether the sheet at the plan's index is not the one the plan recorded, judged as extraction
+    /// judges it.
     /// </summary>
-    private static bool IsStale(MappingPlan plan, SheetProfile sheet) =>
-        sheet.HeaderRowIndex != plan.HeaderRowIndex
-        || (plan.SheetName is not null && !string.Equals(plan.SheetName, sheet.Name, StringComparison.Ordinal))
+    private static bool IsAnotherSheet(MappingPlan plan, SheetProfile sheet) =>
+        (plan.SheetName is not null && !string.Equals(plan.SheetName, sheet.Name, StringComparison.Ordinal))
         || (plan.SheetSource is not null && !string.Equals(plan.SheetSource, sheet.Source, StringComparison.Ordinal));
 
     /// <summary>

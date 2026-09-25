@@ -97,14 +97,18 @@ public sealed class SheetIdentityTests
     }
 
     [Fact]
-    public void ThePrecheckCallsAPlanForAnotherSheetStale()
+    public void ThePrecheckBlocksAPlanForAnotherSheet()
     {
+        // Not "undetermined": analysing the file again finds the same other sheet there, and the
+        // import is certain to refuse it. Nothing about the columns is judged — they belong to a
+        // sheet the plan was not built for.
         using XlsxCursor cursor = Workbook();
         FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         PrecheckResult result = MappingPrecheck.Check(Plan("Returns", sheetIndex: 0), Schema, profile);
 
-        PrecheckFinding finding = Assert.Single(result.Findings, f => f.Code == ErrorCodes.Mapping.StaleProfile);
-        Assert.Equal(PrecheckSeverity.Undetermined, finding.Severity);
+        PrecheckFinding finding = Assert.Single(result.Findings);
+        Assert.Equal((ErrorCodes.Structure.SheetChanged, PrecheckSeverity.Blocking), (finding.Code, finding.Severity));
+        Assert.False(result.CanImport);
     }
 }

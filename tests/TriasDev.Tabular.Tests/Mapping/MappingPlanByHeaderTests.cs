@@ -70,8 +70,41 @@ public sealed class MappingPlanByHeaderTests
         Assert.Equal(sheet.Index, plan.SheetIndex);
         Assert.Equal(1, plan.HeaderRowIndex);
         Assert.Equal("de-DE", plan.Culture);
-        Assert.Equal((sheet.Name, sheet.Source), (plan.SheetName, plan.SheetSource));
         Assert.Equal("amount", Assert.Single(plan.Bindings).SourceHeader);
+    }
+
+    [Fact]
+    public void RecordsAWorkbookSheetItWasBuiltFor()
+    {
+        byte[] workbook = new Fixtures.XlsxPackage()
+            .WithSheet("Orders", """<row r="1"><c r="A1" t="inlineStr"><is><t>name</t></is></c></row>""")
+            .Build();
+        using TriasDev.Tabular.Xlsx.XlsxCursor cursor = new(new MemoryStream(workbook), cancellationToken: TestContext.Current.CancellationToken);
+        SheetProfile sheet = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
+
+        MappingPlan plan = MappingPlan.ByHeader(sheet, new TargetSchema { Fields = [ImportField.Text("name")] });
+
+        Assert.Equal(("Orders", (string?)null), (plan.SheetName, plan.SheetSource));
+    }
+
+    [Fact]
+    public void LeavesAPlainCsvsNameUnrecordedSoARenamedUploadStillImports()
+    {
+        // A plain csv's sheet name is whatever name the caller passed in, not something the file
+        // says: an upload analysed as "Kunden.csv" and imported from its stored blob name is the same
+        // file. Its only sheet is index 0, which already says which one.
+        SheetProfile sheet = Sheet("name;x\na;b\n");
+        TextField name = ImportField.Text("name");
+        TargetSchema schema = new() { Fields = [name] };
+
+        MappingPlan plan = MappingPlan.ByHeader(sheet, schema);
+
+        Assert.Null(plan.SheetName);
+
+        using CsvCursor stored = new(new MemoryStream(Utf8NoBom.GetBytes("name;x\na;b\n")), "3f2a.tmp");
+        using ImportRun<string?> run = TabularImporter.Import(stored, plan, schema, row => row[name], cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(["a"], run.All(cancellationToken: TestContext.Current.CancellationToken).Items);
     }
 
     [Fact]
