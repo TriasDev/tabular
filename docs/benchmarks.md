@@ -147,7 +147,30 @@ it reports, is in the [guide](guide.md#if-analysis-ever-needs-to-be-faster).
 
 ## Reproducing
 
-The fixtures are not in the repository. Point the comparison project at a folder of your own files:
+The real-world fixtures are not public. `benchmarks/TriasDev.Tabular.FixtureGenerator` writes
+synthetic files of the same shape — 17 columns, the same row counts, and in the malformed csv the same
+kinds of quoting defect in similar proportions — deterministically, so every run writes the same bytes:
+
+```bash
+dotnet run -c Release --project benchmarks/TriasDev.Tabular.FixtureGenerator -- /tmp/fixtures   # optional scale, e.g. 0.1
+```
+
+It writes `workbook-100k.xlsx` (9 MB), `workbook-1m.xlsx` (91 MB), `clean-3m.csv` (338 MB) and
+`malformed-5m.csv` (578 MB). On them, TriasDev.Tabular alone (the benchmark project below, same
+machine as above, 2026-09-25):
+
+| File | Read | Peak | Full analysis | Peak |
+|---|--:|--:|--:|--:|
+| workbook-100k.xlsx | 0.80 s | 65 MB | 1.27 s | 81 MB |
+| workbook-1m.xlsx | 3.89 s | 66 MB | 7.05 s | 151 MB |
+| clean-3m.csv | 2.51 s | 52 MB | 11.8 s | 135 MB |
+| malformed-5m.csv | 5.71 s | 53 MB | 22.2 s | 135 MB |
+
+Same shape, not the same bytes, so expect figures close to the real-file tables rather than equal to
+them. The malformed file reproduces [#20](https://github.com/TriasDev/tabular/issues/20) as well: it
+has 5,127,969 lines and reads as 5,127,945 rows, with 310 unterminated quotes repaired.
+
+Point the comparison project at those files, or at a folder of your own:
 
 ```bash
 TABULAR_FIXTURES=/path/to/files \

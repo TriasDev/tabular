@@ -19,6 +19,9 @@ the repository; set `TABULAR_FIXTURES` to their folder and `TABULAR_FILES` to a 
 of file names in it — without both it measures nothing. It runs
 every measurement in a child process on purpose, so peak working set is not shared between candidates.
 
+No large files at hand? `benchmarks/TriasDev.Tabular.FixtureGenerator <folder> [scale]` writes
+synthetic ones of the published shape — see "Reproducing" in `docs/benchmarks.md`.
+
 `benchmarks/TriasDev.Tabular.Comparison` reads the same fixtures with Sylvan, Sep, CsvHelper,
 ExcelDataReader, MiniExcel, the Open XML SDK, ClosedXML, NPOI and EPPlus (same variables, plus
 `TABULAR_RUNS`, `TABULAR_READERS`); it is the only project allowed third-party parsing packages, and
