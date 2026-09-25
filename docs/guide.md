@@ -516,6 +516,7 @@ German amounts such as `1.234,50` cannot be read as numbers in that mode.
 | Distinct tracking | 2,000,000 values | Exact counting costs memory in proportion; the budget is per file, not per column |
 | Retained distinct values | 1,000 per column | Enough to judge a column of codes against a reference set; a column with more is not one |
 | Error rows | 1,000 | A wrong mapping fails every row, and the thousand-and-first error says nothing the first did not |
+| Rows per sheet | 2,147,483,647 (csv), 1,048,576 (xlsx) | Row numbers and counts are `int`: the workbook format stops at a million rows, and a csv that long is some 100 GB |
 
 Getting these right took three attempts, and the pattern of the mistakes is worth more than the
 numbers. The package budget counts bytes a part expands to, which is not what those bytes become in
