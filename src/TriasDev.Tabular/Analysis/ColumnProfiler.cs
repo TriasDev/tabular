@@ -38,7 +38,11 @@ internal sealed class ColumnProfiler
     private readonly Dictionary<string, int> _frequencies = new(StringComparer.Ordinal);
     private readonly List<string> _firstValues = [];
     private readonly List<string> _distinctValues = [];
-    private readonly Dictionary<RawCellKind, int> _nativeKinds = [];
+    /// <summary>How many cells of each kind, indexed by the kind — counted on every cell, so an array.</summary>
+    private readonly int[] _nativeKinds = new int[Enum.GetValues<RawCellKind>().Length];
+
+    /// <summary>The kinds in the order they were first seen, which is the order the facts report them in.</summary>
+    private readonly List<RawCellKind> _kindsSeen = [];
 
     private int _emptyCount;
     private int _nonEmptyCount;
@@ -90,13 +94,13 @@ internal sealed class ColumnProfiler
         }
 
         _emptyCount += count;
-        _nativeKinds[RawCellKind.Empty] = _nativeKinds.GetValueOrDefault(RawCellKind.Empty) + count;
+        Count(RawCellKind.Empty, count);
     }
 
     /// <summary>Takes one row's value for this column.</summary>
     public void Accept(in RawCell cell, int rowNumber)
     {
-        Count(_nativeKinds, cell.Kind);
+        Count(cell.Kind, 1);
 
         if (cell.IsEmpty)
         {
@@ -193,7 +197,7 @@ internal sealed class ColumnProfiler
             MaxNumeric = best.MaxNumeric,
             MinDate = best.MinDate,
             MaxDate = best.MaxDate,
-            NativeKinds = new Dictionary<RawCellKind, int>(_nativeKinds),
+            NativeKinds = _kindsSeen.ToDictionary(kind => kind, kind => _nativeKinds[(int)kind]),
             DistinctCount = _distinctHashes.Count,
             DistinctCountIsExact = _distinctIsExact,
             IsUnique = Unique(),
@@ -326,8 +330,15 @@ internal sealed class ColumnProfiler
             .Take(_options.ReportedSampleSize)
             .Select(pair => new ValueFrequency { Value = pair.Key, Count = pair.Value })];
 
-    private static void Count(Dictionary<RawCellKind, int> counts, RawCellKind kind) =>
-        counts[kind] = counts.TryGetValue(kind, out int seen) ? seen + 1 : 1;
+    private void Count(RawCellKind kind, int count)
+    {
+        if (_nativeKinds[(int)kind] == 0)
+        {
+            _kindsSeen.Add(kind);
+        }
+
+        _nativeKinds[(int)kind] += count;
+    }
 
     /// <summary>One culture's running totals for a column.</summary>
     private sealed class CultureAccumulator(string name, int outlierLimit)
