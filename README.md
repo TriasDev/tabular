@@ -10,6 +10,82 @@ column they came from.
 It reads multi-million-row files in seconds while its memory stays flat as the files grow, and it is
 built on the base class library alone: no third-party packages.
 
+## In one look
+
+A csv file, as someone might export it — German number format, a date column with a stray value,
+an empty amount:
+
+```text
+id;name;country;signed_on;amount;active
+1001;Contoso Ltd;DE;2024-01-15;1.250,00;true
+1002;Fabrikam GmbH;AT;2024-02-03;980,50;true
+1003;Northwind;CH;2024-02-29;12.400,75;false
+1004;Tailspin AG;DE;2024-03-11;;true
+1005;Adventure Works;US;n/a;3.100,00;true
+1006;Wide World Importers;US;2024-04-02;45.000,00;false
+```
+
+What analysis reports about it (abridged — the full profile also carries counts under every
+culture, samples and distinct values):
+
+```jsonc
+{
+  "format": "csv", "delimiter": ";", "encoding": "utf-8", "rows": 6,
+  "columns": [
+    {
+      "name": "id",
+      "type": "integer",
+      "confidence": 1,
+      "alsoFits": ["decimal", "text"],
+      "empty": 0,
+      "distinct": 6,
+      "unique": true,
+      "min": 1001,
+      "max": 1006
+    },
+    {
+      "name": "signed_on",
+      "type": "date",
+      "confidence": 0.83,
+      "outliers": [{"row": 6, "value": "n/a"}],
+      "alsoFits": ["text"],
+      "empty": 0,
+      "distinct": 6,
+      "unique": true,
+      "min": "2024-01-15",
+      "max": "2024-04-02"
+    },
+    {
+      "name": "amount",
+      "type": "decimal",
+      "culture": "de-DE",
+      "confidence": 1,
+      "alsoFits": ["text"],
+      "empty": 1,
+      "distinct": 5,
+      "unique": false,
+      "min": 980.50,
+      "max": 45000.00
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "confidence": 1,
+      "alsoFits": ["text"],
+      "empty": 0,
+      "distinct": 2,
+      "unique": false
+    }
+    // name and country: text, 6 and 4 distinct values
+  ]
+}
+```
+
+`signed_on` is a date column in five rows of six, and the one that is not is named with its row.
+`amount` reads only under German conventions, so the culture is part of the answer; `id` and the
+ISO dates read the same under any culture, so none is claimed. Reproduce it with
+`dotnet run --project samples/TriasDev.Tabular.Samples.Profile -- samples/customers.csv`.
+
 ## Why
 
 **The fastest xlsx reader we measured**, and in the same memory band as the other streaming readers:

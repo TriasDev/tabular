@@ -1,0 +1,7 @@
+id;name;country;signed_on;amount;active
+1001;Contoso Ltd;DE;2024-01-15;1.250,00;true
+1002;Fabrikam GmbH;AT;2024-02-03;980,50;true
+1003;Northwind;CH;2024-02-29;12.400,75;false
+1004;Tailspin AG;DE;2024-03-11;;true
+1005;Adventure Works;US;n/a;3.100,00;true
+1006;Wide World Importers;US;2024-04-02;45.000,00;false
