@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -58,6 +59,12 @@ public sealed class CsvCursor : ITabularCursor
     /// <summary>The raw text consumed since the current quoted field opened, kept so it can be replayed.</summary>
     private readonly StringBuilder _quotedRaw = new();
 
+    /// <summary>
+    /// The characters that end a run of ordinary text outside quotes: the delimiter, the quote and
+    /// the two line-ending characters. Everything between two of them is field content.
+    /// </summary>
+    private readonly SearchValues<char> _specials;
+
     private RawCell[] _cells = new RawCell[16];
     private int _cellCount;
     private int _bufferLength;
@@ -92,6 +99,7 @@ public sealed class CsvCursor : ITabularCursor
             ArgumentException.ThrowIfNullOrEmpty(sheetName);
             cancellationToken.ThrowIfCancellationRequested();
             Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options);
+            _specials = SearchValues.Create($"{Dialect.Delimiter}{Dialect.Quote}\r\n");
         }
         catch when (!leaveOpen)
         {
@@ -216,6 +224,32 @@ public sealed class CsvCursor : ITabularCursor
             {
                 sinceCheck = 0;
                 cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            // Outside quotes, ordinary text runs to the next delimiter, quote or line ending, and none
+            // of it needs a decision: taken as one span, found by a vectorised search, rather than a
+            // character at a time. Only straight from the buffer — nothing peeked, nothing replayed —
+            // so everything the state machine below decides still goes through it unchanged.
+            if (!inQuotes && _peeked < 0 && _pushbackPosition >= _pushback.Count && _bufferPosition < _bufferLength)
+            {
+                ReadOnlySpan<char> ahead = _buffer.AsSpan(_bufferPosition, _bufferLength - _bufferPosition);
+                int run = ahead.IndexOfAny(_specials);
+
+                if (run != 0)
+                {
+                    if (run < 0)
+                    {
+                        run = ahead.Length;
+                    }
+
+                    AppendRunToField(ahead[..run]);
+                    _bufferPosition += run;
+                    sinceCheck += run;
+                    atFieldStart = false;
+                    anythingSeen = true;
+                    suppressQuote = false;
+                    continue;
+                }
             }
 
             int next = ReadChar();
@@ -393,6 +427,18 @@ public sealed class CsvCursor : ITabularCursor
     /// held twice while a quoted field is open — once as the value and once as the raw text kept for
     /// a possible replay.
     /// </remarks>
+    /// <summary>Adds a run of ordinary text to the field being built, under the same ceiling.</summary>
+    private void AppendRunToField(ReadOnlySpan<char> run)
+    {
+        if (_field.Length + run.Length > _options.MaxFieldChars)
+        {
+            throw new TabularLimitException(nameof(CsvCursorOptions.MaxFieldChars), _options.MaxFieldChars,
+                $"A field exceeds the {_options.MaxFieldChars} characters allowed.");
+        }
+
+        _field.Append(run);
+    }
+
     private void AppendToField(char c)
     {
         if (_field.Length >= _options.MaxFieldChars)
