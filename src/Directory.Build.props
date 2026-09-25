@@ -49,6 +49,8 @@
        validation checks the targets agree with each other, and — once a version ships — against it. -->
   <PropertyGroup>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <!-- The last published version; bump it after each release. -->
+    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
     <!-- RS0026/RS0027 are overload-design advice. The overloads that trip them are deliberate: a
          cancellation token last and optional, beside an overload that takes progress. -->
     <NoWarn>$(NoWarn);RS0026;RS0027</NoWarn>
