@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/TriasDev.Tabular.Benchmarks/TriasDev.Tabular.Benchmarks.csproj" />
+    <Project Path="benchmarks/TriasDev.Tabular.Comparison/TriasDev.Tabular.Comparison.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/TriasDev.Tabular/TriasDev.Tabular.csproj" />

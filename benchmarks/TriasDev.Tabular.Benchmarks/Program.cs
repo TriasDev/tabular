@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.InteropServices;
 
 using TriasDev.Tabular.Abstractions;
 using TriasDev.Tabular.Analysis;
+using TriasDev.Tabular.Benchmarks.Shared;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Xlsx;
 using TriasDev.Tabular.Tests.Spike;
@@ -267,7 +267,7 @@ public static class Program
             LibraryCsvCursor.Repairs.ToString(CultureInfo.InvariantCulture),
             clock.Elapsed.TotalMilliseconds.ToString("F0", CultureInfo.InvariantCulture),
             GC.GetTotalAllocatedBytes(precise: true).ToString(CultureInfo.InvariantCulture),
-            PeakResidentBytes().ToString(CultureInfo.InvariantCulture),
+            PeakMemory.ResidentBytes().ToString(CultureInfo.InvariantCulture),
             rows.ToString(CultureInfo.InvariantCulture),
             cells.ToString(CultureInfo.InvariantCulture),
             nonEmpty.ToString(CultureInfo.InvariantCulture),
@@ -275,60 +275,6 @@ public static class Program
             GC.CollectionCount(2).ToString(CultureInfo.InvariantCulture)));
 
         return 0;
-    }
-
-    /// <summary>
-    /// Peak resident memory of this process, in bytes.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="Process.PeakWorkingSet64"/> is populated on Windows and returns zero on macOS, so
-    /// on Unix the number comes from <c>getrusage</c> instead. The unit of <c>ru_maxrss</c> differs
-    /// between the two Unixes it matters on — bytes on macOS, kilobytes on Linux — which is a trap
-    /// worth naming rather than discovering through a result that is off by a factor of a thousand.
-    /// </remarks>
-    private static long PeakResidentBytes()
-    {
-        long reported = Process.GetCurrentProcess().PeakWorkingSet64;
-
-        if (reported > 0)
-        {
-            return reported;
-        }
-
-        if (getrusage(RUSAGE_SELF, out RUsage usage) != 0)
-        {
-            return 0;
-        }
-
-        return OperatingSystem.IsMacOS() ? usage.MaxResidentSetSize : usage.MaxResidentSetSize * 1024;
-    }
-
-    private const int RUSAGE_SELF = 0;
-
-    [DllImport("libc", SetLastError = true)]
-    private static extern int getrusage(int who, out RUsage usage);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RUsage
-    {
-        public long UserSeconds;
-        public long UserMicroseconds;
-        public long SystemSeconds;
-        public long SystemMicroseconds;
-        public long MaxResidentSetSize;
-        private readonly long _integralSharedMemory;
-        private readonly long _integralUnsharedData;
-        private readonly long _integralUnsharedStack;
-        private readonly long _pageReclaims;
-        private readonly long _pageFaults;
-        private readonly long _swaps;
-        private readonly long _blockInputOperations;
-        private readonly long _blockOutputOperations;
-        private readonly long _messagesSent;
-        private readonly long _messagesReceived;
-        private readonly long _signalsReceived;
-        private readonly long _voluntaryContextSwitches;
-        private readonly long _involuntaryContextSwitches;
     }
 
     private static string Extension(string path) =>
