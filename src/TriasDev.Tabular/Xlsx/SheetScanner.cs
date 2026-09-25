@@ -92,6 +92,18 @@ internal sealed class SheetScanner : IDisposable
     /// <summary>The current element's local name.</summary>
     public ReadOnlySpan<char> Name => _buffer.AsSpan(_nameStart, _nameLength);
 
+    /// <summary>
+    /// Whether the current text node may go on after it: markup that is not a tag — a comment, a
+    /// processing instruction, CDATA — follows it directly, or the buffer ends before saying.
+    /// </summary>
+    /// <remarks>
+    /// Answered from what is already buffered and never by reading more, so <see cref="Value"/>
+    /// stays where it is. At a buffer boundary it answers yes, and the caller's careful path settles
+    /// it: a false yes costs a copy, a false no would cut a value short.
+    /// </remarks>
+    public bool MayContinueText =>
+        _position + 1 >= _length || (_buffer[_position] == '<' && _buffer[_position + 1] is '!' or '?');
+
     /// <summary>The current text node's content, with entities resolved.</summary>
     public ReadOnlySpan<char> Value =>
         _valueIsDecoded ? _decoded.AsSpan(0, _decodedLength) : _buffer.AsSpan(_valueStart, _valueLength);

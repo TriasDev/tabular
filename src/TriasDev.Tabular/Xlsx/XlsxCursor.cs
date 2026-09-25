@@ -81,6 +81,9 @@ public sealed class XlsxCursor : ITabularCursor
     private bool _sheetEnded;
 
     private readonly StringBuilder _inlineText = new();
+
+    /// <summary>A cell value split across text nodes, assembled — reused, like the inline text.</summary>
+    private readonly StringBuilder _valueText = new();
     private readonly XlsxCursorOptions _options;
 
     private string[]? _sharedStrings;
@@ -604,7 +607,11 @@ public sealed class XlsxCursor : ITabularCursor
             return RawCell.Empty;
         }
 
-        ReadOnlySpan<char> text = scanner.Value;
+        // One character's look on the ordinary path. A value interrupted by a comment or a CDATA
+        // section is several text nodes, and taking only the first read "4<!-- -->2" as 4.
+        ReadOnlySpan<char> text = scanner.MayContinueText
+            ? AssembleValue(scanner, cancellationToken)
+            : scanner.Value;
 
         switch (type)
         {
@@ -645,6 +652,34 @@ public sealed class XlsxCursor : ITabularCursor
         return dateStyle && TryFromSerial(value, _date1904, out DateTime date)
             ? RawCell.FromDate(date)
             : RawCell.FromNumber(value);
+    }
+
+    /// <summary>
+    /// Joins a value's text nodes up to the end of its element, which it consumes.
+    /// </summary>
+    private ReadOnlySpan<char> AssembleValue(SheetScanner scanner, CancellationToken cancellationToken)
+    {
+        _valueText.Clear().Append(scanner.Value);
+        int sinceCheck = 0;
+
+        while (scanner.Read() && scanner.Kind == XmlNodeKind.Text)
+        {
+            if (++sinceCheck >= 4_096)
+            {
+                sinceCheck = 0;
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            _valueText.Append(scanner.Value);
+
+            if (_valueText.Length > _options.MaxValueChars)
+            {
+                throw new TabularLimitException(nameof(XlsxCursorOptions.MaxValueChars), _options.MaxValueChars,
+                    $"A cell value exceeds the {_options.MaxValueChars} characters allowed.");
+            }
+        }
+
+        return _valueText.ToString();
     }
 
     /// <summary>
