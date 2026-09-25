@@ -13,8 +13,8 @@ completely â€” the questions it answers are falsified by a single row anywhere â
 underneath is not an implementation detail. It was chosen by measurement, behind three gates taken in
 order: licence, correctness, speed.
 
-The measurements below come from `tests/TriasDev.Tabular.Tests/Spike` and
-`benchmarks/TriasDev.Tabular.Benchmarks`, run on 2026-08-24 against sixteen golden fixtures and against
+The measurements below come from `tests/TriasDev.Tabular.Tests/Spike` (since removed; the candidates
+remain in git history) and `benchmarks/TriasDev.Tabular.Benchmarks`, run on 2026-08-24 against sixteen golden fixtures and against
 four large real-world files of 17 columns each, from one hundred thousand to five million rows. Every timing ran in its own child process, because
 peak resident memory only ever rises within a process and would otherwise credit each candidate with
 the greediest earlier one's peak.

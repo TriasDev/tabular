@@ -3,7 +3,7 @@ using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 using Xunit;
 
-namespace TriasDev.Tabular.Tests.Spike;
+namespace TriasDev.Tabular.Tests;
 
 /// <summary>
 /// Holds the reader to the sixteen behaviours the fixtures pin.

@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Tests.Spike;
+namespace TriasDev.Tabular.Benchmarks;
 
 /// <summary>Which formats a candidate is in the race for.</summary>
 [Flags]

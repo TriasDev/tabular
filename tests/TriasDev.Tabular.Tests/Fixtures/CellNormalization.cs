@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TriasDev.Tabular.Tests.Spike;
+namespace TriasDev.Tabular.Tests.Fixtures;
 
 /// <summary>
 /// Reduces what a parser returns to one comparable text form.

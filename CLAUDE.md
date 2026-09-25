@@ -111,10 +111,12 @@ depends on de-DE and en-US and cannot run that way.
 
 Fixtures are built from raw bytes and raw OOXML (`Fixtures/XlsxPackage.cs`, `*GoldenFixtures.cs`)
 rather than through a writer, because the cases worth pinning are ones well-behaved writers never
-emit. Tests use only the public API (there is no `InternalsVisibleTo`).
+emit. Tests go through the public API; `InternalsVisibleTo` exists for the few units that are internal
+by design (`ColumnProfiler`, `HypothesisBuilder`, `Windows1252Encoding`, a diagnostics counter) —
+not a licence to test implementation details elsewhere.
 
-`tests/TriasDev.Tabular.Tests/Spike/` holds the parser candidates from the ADR spike. The benchmark
-project compiles those files by link, so moving or deleting them breaks the benchmark build.
+`GoldenFixtureTests` holds both cursors to the golden fixtures. The parser candidates from the
+ADR-0001 spike were removed once the decision was recorded; they remain in git history.
 
 ## Docs to consult
 

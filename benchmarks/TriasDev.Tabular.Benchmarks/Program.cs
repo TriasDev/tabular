@@ -4,7 +4,6 @@ using System.Globalization;
 using TriasDev.Tabular.Benchmarks.Shared;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Xlsx;
-using TriasDev.Tabular.Tests.Spike;
 
 namespace TriasDev.Tabular.Benchmarks;
 
@@ -41,8 +40,6 @@ public static class Program
 
     private static IReadOnlyList<IParserCandidate> Candidates =>
     [
-        new BclXlsxCandidate(),
-        new BclCsvCandidate(),
         new LibraryCsvCursor(),
         new LibraryXlsxCursor(),
         new LibraryXlsxCursorCellsOnly(),
