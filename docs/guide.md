@@ -437,6 +437,20 @@ file reports about a hundred times; a file of twenty thousand rows, read in mill
 twice. With no length to measure, the row interval alone decides. `Progress<T>` posts each report to
 the context it was created on; an `IProgress<T>` of your own is called on the analysing thread.
 
+## Cultures
+
+Every text value is tried under each culture in `AnalysisOptions.Cultures`, by default
+`["", "de-DE", "en-US"]` — invariant, German and US conventions — and the ranked hypotheses name the
+culture that read a column. The default leans towards the files this library was first written for;
+a caller whose files come from elsewhere should list its own (`["", "fr-FR"]`). An unknown name is
+refused when the analyzer is created.
+
+Under invariant globalization (`InvariantGlobalization` / `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`,
+common in slim container images) only the invariant culture exists. Analysis then leaves the named
+cultures out instead of failing — the profile's `ParseCounts` show which cultures were used — and a
+mapping that names one is refused by the validator and the precheck as `mapping.unknown-culture`.
+German amounts such as `1.234,50` cannot be read as numbers in that mode.
+
 ## Bounds
 
 | | Default | Why |

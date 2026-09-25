@@ -220,12 +220,11 @@ fails the whole pass instead of skipping it.
 
 ## Coverage
 
-### ICU is an undeclared hard dependency
-Under `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` a large share of the suite fails:
-analysing any file throws from the
-profiler's constructor. Common runtime images ship ICU, so this rarely bites — but the library cannot
-pin `InvariantGlobalization` or `PredefinedCulturesOnly` for its host, so the host's image decides and
-not the code.
+### The suite assumes the German and English cultures exist
+Under `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` the library degrades as the guide describes — named
+cultures are left out of analysis, a plan naming one is refused as `mapping.unknown-culture` — but
+about seventy tests exercise de-DE and en-US readings directly and fail there by design. A CI leg in
+invariant mode should run a subset that does not depend on them.
 
 ### One error code is asserted nowhere
 `value.min-length`. The codes are a frontend's translation contract; swapping two of them leaves the

@@ -1,3 +1,4 @@
+using System.Globalization;
 using TriasDev.Tabular.Abstractions;
 using TriasDev.Tabular.Csv;
 
@@ -20,9 +21,75 @@ namespace TriasDev.Tabular.Analysis;
 /// the row it used, so a mapping naming a different one can be told that its facts do not apply.
 /// </para>
 /// </remarks>
-public sealed class TabularAnalyzer(AnalysisOptions? options = null)
+public sealed class TabularAnalyzer
 {
-    private readonly AnalysisOptions _options = options ?? AnalysisOptions.Default;
+    private readonly AnalysisOptions _options;
+
+    /// <summary>Creates an analyzer.</summary>
+    /// <param name="options">How to profile, or null for the defaults.</param>
+    /// <exception cref="ArgumentException">An option is out of range, or names an unknown culture.</exception>
+    public TabularAnalyzer(AnalysisOptions? options = null)
+    {
+        _options = Prepare(options ?? AnalysisOptions.Default);
+    }
+
+    /// <summary>
+    /// Checks the options once, here, rather than letting a bad one surface deep inside a run.
+    /// </summary>
+    /// <remarks>
+    /// Cultures are resolved as well. Under invariant globalization — a common setting for slim
+    /// container images — only the invariant culture exists; the default list's de-DE and en-US are
+    /// then left out rather than failing every analysis, and the profile's parse counts show which
+    /// cultures were used. Outside that mode an unknown name is a mistake and is refused.
+    /// </remarks>
+    private static AnalysisOptions Prepare(AnalysisOptions options)
+    {
+        if (options.Cultures is null || options.Cultures.Count == 0)
+        {
+            throw new ArgumentException("At least one culture is needed; \"\" is the invariant one.", nameof(options));
+        }
+
+        AtLeast(options.DistinctTrackingBudget, 0, nameof(AnalysisOptions.DistinctTrackingBudget));
+        AtLeast(options.RetainedDistinctValues, 0, nameof(AnalysisOptions.RetainedDistinctValues));
+        AtLeast(options.HeaderRowIndex, 0, nameof(AnalysisOptions.HeaderRowIndex));
+        AtLeast(options.OutlierSampleSize, 0, nameof(AnalysisOptions.OutlierSampleSize));
+        AtLeast(options.FrequencySampleSize, 0, nameof(AnalysisOptions.FrequencySampleSize));
+        AtLeast(options.ReportedSampleSize, 0, nameof(AnalysisOptions.ReportedSampleSize));
+        AtLeast(options.FirstValueSampleSize, 0, nameof(AnalysisOptions.FirstValueSampleSize));
+        AtLeast(options.ProgressInterval, 1, nameof(AnalysisOptions.ProgressInterval));
+
+        if (options.MinimumHypothesisConfidence is < 0 or > 1 || double.IsNaN(options.MinimumHypothesisConfidence))
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "MinimumHypothesisConfidence must be between 0 and 1.");
+        }
+
+        if (options.ProgressStep is < 0 or > 1 || double.IsNaN(options.ProgressStep))
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "ProgressStep must be between 0 and 1.");
+        }
+
+        if (!CultureCatalog.InvariantGlobalization
+            && options.Cultures.FirstOrDefault(name => !CultureCatalog.TryGet(name, out _)) is { } unknown)
+        {
+            throw new ArgumentException($"The culture '{unknown}' is not known to this runtime.", nameof(options));
+        }
+
+        IReadOnlyList<string> available = CultureCatalog.Available(options.Cultures);
+
+        return available.Count == options.Cultures.Count ? options : options with { Cultures = available };
+    }
+
+    private static void AtLeast(int value, int minimum, string option)
+    {
+        if (value < minimum)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(option),
+                value,
+                $"AnalysisOptions.{option} must be at least {minimum}.");
+        }
+    }
+
 
     /// <summary>Reads every sheet of an open cursor and profiles every column of each.</summary>
     /// <param name="cursor">A cursor positioned at the start of the file.</param>

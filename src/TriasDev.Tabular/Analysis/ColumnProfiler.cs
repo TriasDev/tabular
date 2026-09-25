@@ -48,7 +48,7 @@ public sealed class ColumnProfiler
         Header = header ?? string.Empty;
         _budget = budget;
         _options = options ?? AnalysisOptions.Default;
-        _cultures = [.. _options.Cultures.Select(name => new CultureAccumulator(name, _options.OutlierSampleSize))];
+        _cultures = [.. CultureCatalog.Available(_options.Cultures).Select(name => new CultureAccumulator(name, _options.OutlierSampleSize))];
     }
 
     /// <summary>The column's position, zero-based.</summary>

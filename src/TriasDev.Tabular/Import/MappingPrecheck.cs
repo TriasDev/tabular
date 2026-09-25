@@ -99,6 +99,25 @@ public static class MappingPrecheck
                 ]);
         }
 
+        // A culture the runtime does not have — any named one, under invariant globalization — cannot
+        // read a value, so nothing about the values can be judged; the import would refuse the plan
+        // on the same grounds.
+        if (!CultureCatalog.TryGet(plan.Culture, out _))
+        {
+            return new PrecheckResult(
+                false,
+                [
+                    new PrecheckFinding
+                    {
+                        Code = "mapping.unknown-culture",
+                        Severity = PrecheckSeverity.Blocking,
+                        TargetFieldName = string.Empty,
+                        SourceColumnIndex = -1,
+                        Detail = $"The culture '{plan.Culture}' is not available on this runtime.",
+                    },
+                ]);
+        }
+
         Dictionary<string, TargetField> fields = SchemaFields.ByName(schema);
         List<PrecheckFinding> findings = [];
 
