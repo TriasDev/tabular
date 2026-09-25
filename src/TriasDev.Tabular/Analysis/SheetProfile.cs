@@ -1,3 +1,5 @@
+using TriasDev.Tabular.Csv;
+
 namespace TriasDev.Tabular;
 
 /// <summary>What is known about one sheet.</summary>
@@ -8,6 +10,25 @@ public sealed record SheetProfile
 
     /// <summary>The sheet's name, or the file's for a csv.</summary>
     public required string Name { get; init; }
+
+    /// <summary>The format of the file the sheet was read from.</summary>
+    public required TabularFormat Format { get; init; }
+
+    /// <summary>Where inside an archive the sheet's file lies, or null for a plain file.</summary>
+    public string? Source { get; init; }
+
+    /// <summary>
+    /// How the sheet's file was punctuated and encoded, and how that was decided. Null for a
+    /// workbook sheet.
+    /// </summary>
+    /// <remarks>
+    /// On the sheet rather than the file because an archive holds several csv files, each detected
+    /// on its own — one in UTF-8 with semicolons beside one in Windows-1252 with commas.
+    /// </remarks>
+    public CsvDialect? Dialect { get; init; }
+
+    /// <summary>What the reader had to repair while reading this sheet.</summary>
+    public required CursorDiagnostics Diagnostics { get; init; }
 
     /// <summary>
     /// Rows of data, not counting the header.

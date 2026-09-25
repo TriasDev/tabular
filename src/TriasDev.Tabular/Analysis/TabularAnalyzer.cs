@@ -118,7 +118,15 @@ public sealed class TabularAnalyzer
                 continue;
             }
 
-            sheets.Add(AnalyzeSheet(cursor, sheet, budget, reporter, cancellationToken));
+            // A sheet's repairs are what the counter gained while it was read; the cursor's counter
+            // runs across the whole file.
+            CursorDiagnostics before = cursor.Diagnostics.Snapshot();
+
+            sheets.Add(AnalyzeSheet(cursor, sheet, budget, reporter, cancellationToken) with
+            {
+                Dialect = cursor.Dialect,
+                Diagnostics = cursor.Diagnostics.Since(before),
+            });
         }
 
         reporter.Complete();
@@ -126,9 +134,8 @@ public sealed class TabularAnalyzer
         return new FileProfile
         {
             Format = cursor.Format,
-            Dialect = cursor.Dialect,
             Sheets = sheets,
-            Diagnostics = cursor.Diagnostics,
+            Diagnostics = cursor.Diagnostics.Snapshot(),
         };
     }
 
@@ -236,6 +243,9 @@ public sealed class TabularAnalyzer
         {
             Index = sheet.Index,
             Name = sheet.Name,
+            Format = sheet.Format,
+            Source = sheet.Source,
+            Diagnostics = new CursorDiagnostics(),
             RowCount = rowCount,
             Columns = columns,
             HeaderRowIndex = _options.HeaderRowIndex,

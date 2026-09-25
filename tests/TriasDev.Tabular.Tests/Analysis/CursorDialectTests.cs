@@ -44,6 +44,6 @@ public sealed class CursorDialectTests
 
         FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(';', profile.Dialect?.Delimiter);
+        Assert.Equal(';', profile.Sheets[0].Dialect?.Delimiter);
     }
 }

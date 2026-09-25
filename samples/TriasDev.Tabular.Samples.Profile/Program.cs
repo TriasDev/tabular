@@ -22,8 +22,8 @@ SheetProfile sheet = profile.Sheets[0];
 var summary = new
 {
     format = profile.Format,
-    delimiter = profile.Dialect?.Delimiter.ToString(),
-    encoding = profile.Dialect?.Encoding.WebName,
+    delimiter = profile.Sheets[0].Dialect?.Delimiter.ToString(),
+    encoding = profile.Sheets[0].Dialect?.Encoding.WebName,
     rows = sheet.RowCount,
     columns = sheet.Columns.Select(column =>
     {

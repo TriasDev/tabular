@@ -1,5 +1,3 @@
-using TriasDev.Tabular.Csv;
-
 namespace TriasDev.Tabular;
 
 /// <summary>
@@ -12,15 +10,13 @@ namespace TriasDev.Tabular;
 /// </remarks>
 public sealed record FileProfile
 {
-    /// <summary>What kind of file this was.</summary>
+    /// <summary>What kind of file this was — the container, for an archive; each sheet says its own.</summary>
     public required TabularFormat Format { get; init; }
-
-    /// <summary>How the file was punctuated and encoded, and how that was decided. Null for a workbook.</summary>
-    public CsvDialect? Dialect { get; init; }
 
     /// <summary>One entry per sheet, in file order.</summary>
     public required IReadOnlyList<SheetProfile> Sheets { get; init; }
 
-    /// <summary>What the reader had to repair to get through the file.</summary>
+    /// <summary>What the reader had to repair to get through the file, every sheet together.</summary>
+    /// <remarks>Taken when the pass ended: reading the cursor on does not change it.</remarks>
     public required CursorDiagnostics Diagnostics { get; init; }
 }

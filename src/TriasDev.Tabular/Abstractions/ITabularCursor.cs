@@ -73,7 +73,8 @@ public interface ITabularCursor : IDisposable
     double? ReadFraction => null;
 
     /// <summary>
-    /// How a delimited file is encoded and punctuated, or null for a format that has no dialect.
+    /// How the current sheet's file is encoded and punctuated, or null where it has no dialect — a
+    /// workbook sheet.
     /// </summary>
     /// <remarks>
     /// On the interface so that a cursor wrapping another — to log, to count — can pass it on, and

@@ -48,9 +48,10 @@ public sealed class TabularAnalyzerTests
 
         Assert.Equal(TabularFormat.Csv, profile.Format);
         Assert.Equal("export.csv", Assert.Single(profile.Sheets).Name);
-        Assert.NotNull(profile.Dialect);
-        Assert.Equal(';', profile.Dialect.Delimiter);
-        Assert.Equal(DialectSource.Detected, profile.Dialect.DelimiterSource);
+        CsvDialect? dialect = profile.Sheets[0].Dialect;
+        Assert.NotNull(dialect);
+        Assert.Equal(';', dialect.Delimiter);
+        Assert.Equal(DialectSource.Detected, dialect.DelimiterSource);
     }
 
     [Fact]
@@ -100,7 +101,7 @@ public sealed class TabularAnalyzerTests
         FileProfile profile = AnalyzeXlsx(content);
 
         Assert.Equal(TabularFormat.Xlsx, profile.Format);
-        Assert.Null(profile.Dialect);
+        Assert.All(profile.Sheets, s => Assert.Null(s.Dialect));
         Assert.Equal(2, profile.Sheets.Count);
         Assert.Equal("First", profile.Sheets[0].Name);
         Assert.Equal(1, profile.Sheets[0].RowCount);

@@ -29,4 +29,13 @@ public sealed class CursorDiagnostics
     /// would have taken it to mean.
     /// </remarks>
     public bool IsClean => RecoveredUnterminatedQuotes == 0;
+
+    /// <summary>A copy that stops counting, for a result that must stay as it was read.</summary>
+    internal CursorDiagnostics Snapshot() => new() { RecoveredUnterminatedQuotes = RecoveredUnterminatedQuotes };
+
+    /// <summary>What was repaired since <paramref name="earlier"/> was taken — one sheet's share.</summary>
+    internal CursorDiagnostics Since(CursorDiagnostics earlier) => new()
+    {
+        RecoveredUnterminatedQuotes = RecoveredUnterminatedQuotes - earlier.RecoveredUnterminatedQuotes,
+    };
 }
