@@ -413,20 +413,20 @@ call the count exact; not zero, and a collision undercounts.
 
 ## Performance
 
-**This table is the living one.** Measured 2026-08-25, one process per reading, on the branch as it
-stands.
+**This table is the living one.** Measured 2026-09-25 with the benchmark project: one process per
+reading, best of two runs.
 
 | Fixture | Rows | Cells | Time | Allocated | Per cell | Peak |
 |---|--:|--:|--:|--:|--:|--:|
-| 72 KB workbook | 10,759 | 17,340 | 0.07 s | 1 MB | 39 B | 58 MB |
-| 8.6 MB workbook | 8,569 | 154,242 | 0.18 s | 10 MB | 66 B | 65 MB |
-| 8.6 MB workbook, dense | 100,001 | 1,700,017 | 0.84 s | 112 MB | 69 B | 90 MB |
-| 101 MB workbook | 1,000,001 | 17,000,017 | 4.5 s | 468 MB | 29 B | 127 MB |
-| 364 MB csv | 3,000,001 | 51,000,017 | 2.5 s | 1,567 MB | 32 B | 54 MB |
-| 572 MB csv, malformed | 5,127,960 | 87,175,320 | 4.0 s | 2,742 MB | 33 B | 54 MB |
+| 72 KB workbook | 10,759 | 17,340 | 0.07 s | 1 MB | 39 B | 57 MB |
+| 8.6 MB workbook, dense | 100,001 | 1,700,017 | 0.87 s | 61 MB | 38 B | 96 MB |
+| 101 MB workbook | 1,000,001 | 17,000,017 | 4.6 s | 326 MB | 20 B | 129 MB |
+| 364 MB csv | 3,000,001 | 51,000,017 | 2.4 s | 1,567 MB | 32 B | 53 MB |
+| 572 MB csv, malformed | 5,127,960 | 87,175,320 | 4.2 s | 2,742 MB | 33 B | 53 MB |
 
-Bytes per cell rises on smaller files because the shared string table is read once and amortised over
-fewer cells.
+Peak memory stays flat as files grow: the 572 MB csv is read in 53 MB, and a workbook of a million
+rows in 129 MB. Bytes per cell rises on smaller workbooks because the shared string table is read
+once and amortised over fewer cells.
 
 **That table is the reader, not the analysis.** Profiling costs more than reading, and how much more
 depends on the format: a workbook's numbers and dates arrive already typed and are never parsed,
@@ -434,10 +434,10 @@ while every value in a csv is text and is tried under each culture in the option
 
 | Fixture | Read | Full analysis |
 |---|--:|--:|
-| 8.6 MB workbook, 154k cells | 0.18 s | 0.32 s |
-| 8.6 MB workbook, 1.7M cells | 0.85 s | 1.5 s |
-| 101 MB workbook, 17M cells | 4.5 s | 8.1 s |
-| 364 MB csv, 51M cells | 2.5 s | 15.3 s |
+| 8.6 MB workbook, 1.7M cells | 0.87 s | 1.6 s |
+| 101 MB workbook, 17M cells | 4.6 s | 7.8 s |
+| 364 MB csv, 51M cells | 2.4 s | 14.9 s |
+| 572 MB csv, 87M cells | 4.2 s | 24.6 s |
 
 At ten thousand rows — the size of a typical upload through a mapping screen — analysis is around a
 third of a second, so none of this is a constraint there. The larger figures are quoted for batch
