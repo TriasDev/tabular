@@ -311,6 +311,10 @@ internal sealed class SheetScanner : IDisposable
         return true;
     }
 
+    /// <summary>Whether an attribute is one the cursor asks for: <c>r</c>, <c>t</c> or <c>s</c>.</summary>
+    private bool IsKept(int nameStart, int nameLength) =>
+        nameLength == 1 && _buffer[nameStart] is ('r' or 't' or 's');
+
     [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high",
         Justification = "A per-character scan over every tag of the worksheet. The nested loops are the tokenizer itself; a helper per step adds a call per character on the hottest path of xlsx reading.")]
     private void ReadAttributes(int from, int to)
@@ -365,20 +369,23 @@ internal sealed class SheetScanner : IDisposable
                 i++;
             }
 
-            if (_attributeCount >= MaxAttributes)
+            // Only the attributes the cursor reads are kept — `r`, `t` and `s`, which are never
+            // prefixed. Keeping every attribute up to a ceiling refused whole workbooks over
+            // extension elements that carry twenty and more (sparkline groups do), and dropping the
+            // ones past it would have read t="s" behind sixteen others as a number. Kept by name, a
+            // cell's type survives any number of attributes it has no use for.
+            if (IsKept(nameStart, nameLength))
             {
-                // Refused, not dropped. Silently ignoring the seventeenth attribute is how a cell
-                // carrying t="s" behind sixteen junk attributes reads as a number instead of a
-                // shared string — no exception, no diagnostic, and a value quietly of the wrong
-                // kind. This method's own reason for existing is stopping exactly that outcome one
-                // level up.
-                throw new InvalidDataException(
-                    $"An element carries more than the {MaxAttributes} attributes the reader keeps.");
-            }
+                if (_attributeCount >= MaxAttributes)
+                {
+                    // Only a hostile element repeats these; refused rather than truncated, so a
+                    // value is never read under the wrong one.
+                    throw new InvalidDataException(
+                        $"An element repeats its r, t or s attribute more than {MaxAttributes} times.");
+                }
 
-            // Prefixed attribute names keep their prefix: a sheet has none worth resolving, and the
-            // cursor asks for `r`, `t` and `s`, which are never prefixed.
-            _attributes[_attributeCount++] = (nameStart, nameLength, valueStart, i - valueStart);
+                _attributes[_attributeCount++] = (nameStart, nameLength, valueStart, i - valueStart);
+            }
 
             i++;                            // past the closing quote
         }

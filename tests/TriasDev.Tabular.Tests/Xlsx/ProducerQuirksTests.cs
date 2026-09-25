@@ -65,4 +65,33 @@ public sealed class ProducerQuirksTests
         Assert.True(string.IsNullOrEmpty(row[1]));
         Assert.Equal("b", row[2]);
     }
+
+    [Fact]
+    public void ReadsASheetWhoseMarkupCarriesElementsWithManyAttributes()
+    {
+        // Sparkline groups and other extension elements carry twenty attributes and more. The
+        // scanner kept every attribute of every element up to sixteen and refused the sheet past
+        // that, so a workbook with sparklines could not be read at all.
+        byte[] content = new XlsxPackage()
+            .WithSheet(
+                "Sheet1",
+                """<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row><ext x1="1" x2="1" x3="1" x4="1" x5="1" x6="1" x7="1" x8="1" x9="1" x10="1" x11="1" x12="1" x13="1" x14="1" x15="1" x16="1" x17="1" x18="1" x19="1" x20="1"/>""")
+            .Build();
+
+        Assert.Equal(new string?[] { "a" }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
+    public void ReadsACellsTypeBehindAttributesItHasNoUseFor()
+    {
+        // The reason the ceiling was a refusal rather than a truncation: dropping the seventeenth
+        // attribute would read t="s" behind sixteen others as a number. Keeping only the attributes
+        // the cursor reads — r, t and s — keeps that from happening at any count.
+        byte[] content = new XlsxPackage()
+            .WithSharedStrings("""<si><t>shared</t></si>""")
+            .WithSheet("Sheet1", """<row r="1"><c x1="1" x2="1" x3="1" x4="1" x5="1" x6="1" x7="1" x8="1" x9="1" x10="1" x11="1" x12="1" x13="1" x14="1" x15="1" x16="1" x17="1" x18="1" x19="1" x20="1" r="A1" t="s"><v>0</v></c></row>""")
+            .Build();
+
+        Assert.Equal(new string?[] { "shared" }, Assert.Single(ReadAll(content)));
+    }
 }
