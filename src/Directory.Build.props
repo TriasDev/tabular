@@ -2,6 +2,13 @@
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
+  <!-- The two LTS releases. net8 is where many consumers still are; net10 is where the performance
+       numbers are measured. Benchmarks and samples stay on net10 alone. -->
+  <PropertyGroup>
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+
   <!-- Held at zero warnings. A newly published advisory stays a warning, so it cannot break a build
        nobody changed. -->
   <PropertyGroup>

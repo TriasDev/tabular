@@ -182,7 +182,7 @@ imports — is described in the [guide](docs/guide.md#using-it).
 
 ## Requirements
 
-.NET 10. Support for .NET 8 is planned.
+.NET 8 or .NET 10 — the package targets both LTS releases. The numbers above are measured on .NET 10.
 
 ## License
 

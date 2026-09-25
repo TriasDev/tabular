@@ -113,7 +113,7 @@ public sealed class SecondRoundFixesTests
     {
         // The outer stride stops advancing the moment a row is entered, so a row of four hundred
         // million elements this reader ignores ran for five seconds with nothing able to stop it.
-        string noise = string.Concat(Enumerable.Repeat("<z/>", 20_000));
+        string noise = Incompressible("z", 20_000);
 
         byte[] package = new XlsxPackage()
             .WithSheet("Sheet1", $"<row>{noise}<c t=\"inlineStr\"><is><t>a</t></is></c></row>")
@@ -135,7 +135,7 @@ public sealed class SecondRoundFixesTests
         // The value ceiling bounds text, and this loop can run without producing any: an element
         // carrying nothing costs nothing to write and no budget measures it. The token was being
         // dropped at the call site.
-        string runs = string.Concat(Enumerable.Repeat("<t/>", 20_000));
+        string runs = Incompressible("t", 20_000);
 
         byte[] package = new XlsxPackage()
             .WithSheet("Sheet1", $"<row><c t=\"inlineStr\"><is>{runs}</is></c></row>")
@@ -149,6 +149,30 @@ public sealed class SecondRoundFixesTests
         stream.Arm();
 
         Assert.Throws<OperationCanceledException>(() => cursor.ReadRow(source.Token));
+    }
+
+    /// <summary>
+    /// Empty elements whose only content is an attribute of random digits, so the sheet does not
+    /// deflate to almost nothing.
+    /// </summary>
+    /// <remarks>
+    /// The token is armed on compressed bytes. A run of identical elements compresses to a few
+    /// hundred bytes, which the archive reads before the row begins — and whether that happens
+    /// depended on the runtime's zlib: net8 read it all up front and these tests never saw a
+    /// cancellation. Random attribute values keep the compressed part large, so it is still being
+    /// read while the loop runs, on any runtime. Seeded, so every run builds the same file.
+    /// </remarks>
+    private static string Incompressible(string element, int count)
+    {
+        Random random = new(20260925);
+        StringBuilder xml = new(count * 24);
+
+        for (int i = 0; i < count; i++)
+        {
+            xml.Append('<').Append(element).Append(" q=\"").Append(random.NextInt64()).Append("\"/>");
+        }
+
+        return xml.ToString();
     }
 
     // -- A malformed reference is refused, not placed --------------------------------------------
