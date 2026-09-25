@@ -138,18 +138,25 @@ public sealed class ExtractionSession
     /// spreadsheet accumulates such rows below its data as a matter of course, and calling them
     /// failures would bury the real ones.
     /// </remarks>
-    public bool ReadRow()
+    /// <param name="cancellationToken">
+    /// Stops this read. The token the session was started with stops it too.
+    /// </param>
+    public bool ReadRow(CancellationToken cancellationToken = default)
     {
         if (_finished)
         {
             return false;
         }
 
-        while (_cursor.ReadRow(_cancellationToken))
+        // The cursor takes one token; the call's, when it has one. The session's is checked below.
+        CancellationToken read = cancellationToken.CanBeCanceled ? cancellationToken : _cancellationToken;
+
+        while (_cursor.ReadRow(read))
         {
             // Checked per row rather than per file: a run over five million rows that cannot be
             // stopped is a run that holds a request open long after anyone stopped waiting for it.
             _cancellationToken.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
 
             Summary.RowsRead++;
             CurrentRowNumber = _cursor.CurrentRowNumber;

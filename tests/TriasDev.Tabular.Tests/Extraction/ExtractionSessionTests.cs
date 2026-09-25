@@ -286,10 +286,10 @@ public sealed class ExtractionSessionTests
             Schema,
             cancellationToken: cancellation.Token);
 
-        session.ReadRow();
+        session.ReadRow(TestContext.Current.CancellationToken);
         cancellation.Cancel();
 
-        Assert.Throws<OperationCanceledException>(() => session.ReadRow());
+        Assert.Throws<OperationCanceledException>(() => session.ReadRow(TestContext.Current.CancellationToken));
     }
 
     [Fact]

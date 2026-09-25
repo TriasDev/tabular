@@ -215,7 +215,7 @@ public sealed class SecondRoundFixesTests
             schema,
             row => row[schema.Fields[0] as DateField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
 
-        run.All();
+        run.All(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, run.Summary.RowsProduced);
         Assert.Equal(1, run.Summary.RowsFailed);

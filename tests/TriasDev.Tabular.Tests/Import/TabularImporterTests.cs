@@ -78,7 +78,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            ImportResult<Company> result = run.All();
+            ImportResult<Company> result = run.All(cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(2, result.Items.Count);
             Assert.Empty(result.Errors);
@@ -114,7 +114,7 @@ public sealed class TabularImporterTests
             reordered,
             Build, cancellationToken: TestContext.Current.CancellationToken);
 
-        Company only = Assert.Single(run.All().Items);
+        Company only = Assert.Single(run.All(cancellationToken: TestContext.Current.CancellationToken).Items);
 
         Assert.Equal("DEU", only.Code);
         Assert.Equal(1234.56m, only.Amount);
@@ -135,7 +135,7 @@ public sealed class TabularImporterTests
             Schema,
             row => row[stranger]!, cancellationToken: TestContext.Current.CancellationToken);
 
-        ArgumentException error = Assert.Throws<ArgumentException>(() => run.All());
+        ArgumentException error = Assert.Throws<ArgumentException>(() => run.All(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("nonsense", error.Message, StringComparison.Ordinal);
         Assert.Contains("code", error.Message, StringComparison.Ordinal);
@@ -168,7 +168,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            Company only = Assert.Single(run.All().Items);
+            Company only = Assert.Single(run.All(cancellationToken: TestContext.Current.CancellationToken).Items);
 
             Assert.Null(only.Amount);
             Assert.Null(only.Signed);
@@ -191,7 +191,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            List<ImportChunk<Company>> chunks = [.. run.InChunks(100)];
+            List<ImportChunk<Company>> chunks = [.. run.InChunks(100, TestContext.Current.CancellationToken)];
 
             Assert.Equal(3, chunks.Count);
             Assert.Equal(100, chunks[0].Items.Count);
@@ -216,7 +216,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            List<ImportChunk<Company>> chunks = [.. run.InChunks(10)];
+            List<ImportChunk<Company>> chunks = [.. run.InChunks(10, TestContext.Current.CancellationToken)];
 
             Assert.Contains(chunks, c => c.Errors.Count == 1);
             Assert.Equal(19, chunks.Sum(c => c.Items.Count));
@@ -230,7 +230,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            ImportChunk<Company> only = Assert.Single(run.InChunks(100));
+            ImportChunk<Company> only = Assert.Single(run.InChunks(100, TestContext.Current.CancellationToken));
 
             Assert.Empty(only.Items);
             Assert.Single(only.Errors);
@@ -251,7 +251,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => run.All(limit: 10));
+            InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => run.All(limit: 10, cancellationToken: TestContext.Current.CancellationToken));
 
             Assert.Contains("InChunks", error.Message, StringComparison.Ordinal);
         }
@@ -266,7 +266,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            ImportResult<Company> result = run.All();
+            ImportResult<Company> result = run.All(cancellationToken: TestContext.Current.CancellationToken);
             ExtractionSummary summary = result.Summary;
 
             Assert.Equal(3, summary.RowsRead);
@@ -283,9 +283,9 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            run.All();
+            run.All(cancellationToken: TestContext.Current.CancellationToken);
 
-            Assert.Throws<InvalidOperationException>(() => run.All());
+            Assert.Throws<InvalidOperationException>(() => run.All(cancellationToken: TestContext.Current.CancellationToken));
         }
     }
 
@@ -305,7 +305,7 @@ public sealed class TabularImporterTests
             Schema,
             Build, cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal("Acme", Assert.Single(run.All().Items).Name);
+        Assert.Equal("Acme", Assert.Single(run.All(cancellationToken: TestContext.Current.CancellationToken).Items).Name);
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class TabularImporterTests
             Schema,
             Build, cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal("Acme", Assert.Single(run.All().Items).Name);
+        Assert.Equal("Acme", Assert.Single(run.All(cancellationToken: TestContext.Current.CancellationToken).Items).Name);
     }
 
     [Fact]
@@ -339,7 +339,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            run.All();
+            run.All(cancellationToken: TestContext.Current.CancellationToken);
 
             FieldCoverage name = run.Coverage.Single(c => c.Field == "name");
             FieldCoverage amount = run.Coverage.Single(c => c.Field == "amount");
@@ -362,7 +362,7 @@ public sealed class TabularImporterTests
 
         using (cursor)
         {
-            run.All();
+            run.All(cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Empty(run.Preview);
         }
@@ -387,7 +387,7 @@ public sealed class TabularImporterTests
             Build,
             new ImportOptions { PreviewRows = 3 }, cancellationToken: TestContext.Current.CancellationToken);
 
-        run.All();
+        run.All(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(3, run.Preview.Count);
         Assert.Equal(2, run.Preview[0].RowNumber);
@@ -409,7 +409,7 @@ public sealed class TabularImporterTests
             _ => throw new InvalidOperationException("the mapper is wrong"),
             cancellationToken: TestContext.Current.CancellationToken);
 
-        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => run.All());
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => run.All(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("the mapper is wrong", error.Message);
     }

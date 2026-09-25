@@ -27,7 +27,10 @@ public static class TabularImporter
     /// <param name="schema">The fields to fill, declared with <see cref="ImportField"/>.</param>
     /// <param name="mapper">Turns one validated row into an item.</param>
     /// <param name="options">Run options, or null for the defaults.</param>
-    /// <param name="cancellationToken">Stops the run, checked as each row is read.</param>
+    /// <param name="cancellationToken">
+    /// Stops the run: the opening and positioning done here, and every read after it. A read can
+    /// take a token of its own as well.
+    /// </param>
     /// <typeparam name="T">What the mapper builds.</typeparam>
     public static ImportRun<T> Import<T>(
         ITabularCursor cursor,
@@ -69,7 +72,10 @@ public static class TabularImporter
     /// <param name="schema">The fields to fill, declared with <see cref="ImportField"/>.</param>
     /// <param name="mapper">Turns one validated row into an item.</param>
     /// <param name="options">Run options, or null for the defaults.</param>
-    /// <param name="cancellationToken">Stops the run, checked as each row is read.</param>
+    /// <param name="cancellationToken">
+    /// Stops the run: the opening and positioning done here, and every read after it. A read can
+    /// take a token of its own as well.
+    /// </param>
     /// <typeparam name="T">What the mapper builds.</typeparam>
     public static ImportRun<T> Import<T>(
         Stream stream,
@@ -212,8 +218,14 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     /// </summary>
     public IReadOnlyList<ImportPreviewRow> Preview => _preview;
 
+    /// <summary>Reads the file one row at a time; the run's own token stops it.</summary>
+    public IEnumerator<ImportOutcome<T>> GetEnumerator() => Rows().GetEnumerator();
+
     /// <summary>Reads the file one row at a time.</summary>
-    public IEnumerator<ImportOutcome<T>> GetEnumerator()
+    /// <param name="cancellationToken">
+    /// Stops the read. The token the run was started with stops it too.
+    /// </param>
+    public IEnumerable<ImportOutcome<T>> Rows(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -224,7 +236,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
 
         _read = true;
 
-        while (_session.ReadRow())
+        while (_session.ReadRow(cancellationToken))
         {
             // The mapper is called from a separate method because an iterator may not hold a
             // ref struct across a yield, and ImportRow is one on purpose.
@@ -236,11 +248,14 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     /// Reads the file in batches, for a caller that writes in batches.
     /// </summary>
     /// <param name="size">How many built items a batch holds at most.</param>
+    /// <param name="cancellationToken">
+    /// Stops the read. The token the run was started with stops it too.
+    /// </param>
     /// <remarks>
     /// A batch closes when it has <paramref name="size"/> items, so a run of nothing but failures
     /// still reports them — at the end, in a final batch carrying no items.
     /// </remarks>
-    public IEnumerable<ImportChunk<T>> InChunks(int size)
+    public IEnumerable<ImportChunk<T>> InChunks(int size, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(size, 1);
 
@@ -249,7 +264,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
         int first = 0;
         int last = 0;
 
-        foreach (ImportOutcome<T> outcome in this)
+        foreach (ImportOutcome<T> outcome in Rows(cancellationToken))
         {
             if (first == 0)
             {
@@ -296,14 +311,17 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     /// How many items may be held. Exceeding it fails the run rather than the host: a convenience
     /// that quietly consumes a machine is not a convenience.
     /// </param>
-    public ImportResult<T> All(int limit = 100_000)
+    /// <param name="cancellationToken">
+    /// Stops the read. The token the run was started with stops it too.
+    /// </param>
+    public ImportResult<T> All(int limit = 100_000, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
         List<T> items = [];
         List<RowError> errors = [];
 
-        foreach (ImportOutcome<T> outcome in this)
+        foreach (ImportOutcome<T> outcome in Rows(cancellationToken))
         {
             if (outcome.HasErrors)
             {

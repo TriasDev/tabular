@@ -336,7 +336,7 @@ public sealed class HostileInputTests
         using XlsxCursor cursor = new(stream);
         ExtractionSession session = TabularExtractor.Start(cursor, plan, schema, cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.True(session.ReadRow());
+        Assert.True(session.ReadRow(TestContext.Current.CancellationToken));
         Assert.True(session.CurrentRowHasErrors);
         Assert.Equal("value.type-mismatch", Assert.Single(session.CurrentErrors).Code);
     }

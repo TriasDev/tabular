@@ -368,7 +368,7 @@ public sealed class ReviewFixesTests
             schema,
             row => row[schema.Fields[0] as TextField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
 
-        run.All();
+        run.All(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, run.Summary.RowsProduced);
         Assert.Equal(2, run.Summary.RowsSkipped);
@@ -394,7 +394,7 @@ public sealed class ReviewFixesTests
             schema,
             row => row[schema.Fields[0] as TextField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
 
-        run.All();
+        run.All(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, run.Summary.RowsWithNothingMapped);
     }

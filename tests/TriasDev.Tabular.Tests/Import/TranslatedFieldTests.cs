@@ -43,7 +43,7 @@ public sealed class TranslatedFieldTests
                 return row.RowNumber;
             });
 
-        run.All();
+        run.All(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(titles);
         Assert.Equal("Security Organization", titles["en"]);
@@ -65,7 +65,7 @@ public sealed class TranslatedFieldTests
                 return row.RowNumber;
             });
 
-        run.All();
+        run.All(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(["de"], titles!.Keys);
     }
@@ -158,7 +158,7 @@ public sealed class TranslatedFieldTests
             "id;title_en;title_de\nS1;One;Eins\nS2;Two;\n",
             row => row.RowNumber);
 
-        run.All();
+        run.All(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, run.Coverage.Single(c => c.Field == "title.en").Filled);
         Assert.Equal(1, run.Coverage.Single(c => c.Field == "title.de").Filled);

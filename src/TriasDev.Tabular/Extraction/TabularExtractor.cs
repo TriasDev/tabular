@@ -18,7 +18,10 @@ public static class TabularExtractor
     /// <param name="plan">What a user decided.</param>
     /// <param name="schema">What the caller wants filled.</param>
     /// <param name="options">Run options, or null for the defaults.</param>
-    /// <param name="cancellationToken">Stops the run, checked as each row is read.</param>
+    /// <param name="cancellationToken">
+    /// Stops the run: the positioning done here, and every read after it. A read can take a token
+    /// of its own as well.
+    /// </param>
     /// <exception cref="MappingPlanException">The plan does not fit the schema.</exception>
     /// <exception cref="TabularStructureException">The file is not the one the plan was built against.</exception>
     public static ExtractionSession Start(
