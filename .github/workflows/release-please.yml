@@ -65,8 +65,8 @@ jobs:
 
       - name: Run tests (net8.0 and net10.0)
         run: |
-          dotnet test tests/TriasDev.Tabular.Tests --configuration Release --no-build \
-            --logger "trx;LogFilePrefix=results" --results-directory ./test-results
+          dotnet test --project tests/TriasDev.Tabular.Tests --configuration Release --no-build \
+            --report-xunit-trx --results-directory ./test-results
 
       - name: Verify tests ran on every target
         run: |

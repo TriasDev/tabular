@@ -51,12 +51,12 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="$SONAR_HOST_URL" \
             /d:sonar.sourceEncoding=UTF-8 \
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
+            /d:sonar.cs.opencover.reportsPaths="test-results/coverage.opencover.*.xml" \
             /d:sonar.coverage.exclusions="benchmarks/**,tests/**"
 
           dotnet build TriasDev.Tabular.slnx --configuration Release
-          dotnet test TriasDev.Tabular.slnx --configuration Release --no-build \
-            --collect:"XPlat Code Coverage;Format=opencover"
+          dotnet test --solution TriasDev.Tabular.slnx --configuration Release --no-build \
+            --coverlet --coverlet-output-format opencover --results-directory ./test-results
 
           ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 

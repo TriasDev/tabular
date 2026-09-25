@@ -16,11 +16,6 @@ updates:
       # licence terms, and a bump would change that silently. Decide by hand.
       - dependency-name: "EPPlus"
       - dependency-name: "NPOI"
-      # xunit v4 requires Microsoft.Testing.Platform — a migration, tracked in #27.
-      - dependency-name: "xunit.v3"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "xunit.runner.visualstudio"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

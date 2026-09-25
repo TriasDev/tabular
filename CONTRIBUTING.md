@@ -8,9 +8,10 @@ through [SECURITY.md](SECURITY.md), not public issues.
 
 ```bash
 dotnet build TriasDev.Tabular.slnx
-dotnet test TriasDev.Tabular.slnx
-dotnet test tests/TriasDev.Tabular.Tests --filter "FullyQualifiedName~CsvCursorTests"   # one class
-dotnet test tests/TriasDev.Tabular.Tests --filter "FullyQualifiedName~CsvCursorTests.SomeTest"
+dotnet test --solution TriasDev.Tabular.slnx
+dotnet test --project tests/TriasDev.Tabular.Tests --filter "FullyQualifiedName~CsvCursorTests"   # one class
+dotnet test --project tests/TriasDev.Tabular.Tests --filter-method "*CsvCursorTests.SomeTest"
+dotnet test --project tests/TriasDev.Tabular.Tests --framework net8.0                            # one target
 dotnet pack TriasDev.Tabular.slnx -c Release   # produces only TriasDev.Tabular.nupkg
 ```
 

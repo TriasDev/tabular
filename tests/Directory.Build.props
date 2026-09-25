@@ -19,20 +19,17 @@
   <!-- What every test project runs on. -->
 
   <PropertyGroup>
-    <XunitV3Version>3.2.2</XunitV3Version>
+    <XunitV3Version>4.0.1</XunitV3Version>
+    <!-- A test project is an executable under Microsoft.Testing.Platform. -->
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <!-- Microsoft.Testing.Platform: xunit v3 builds each test project into an executable that `dotnet
+       test` runs directly (global.json opts in). Coverage comes from coverlet's platform extension,
+       which writes both the opencover report SonarQube reads and the cobertura one Codecov does. -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="xunit.v3" Version="$(XunitV3Version)" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="10.0.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="coverlet.MTP" Version="10.0.1" />
   </ItemGroup>
 
 </Project>
