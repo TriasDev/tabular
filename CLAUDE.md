@@ -81,8 +81,8 @@ under `src/TriasDev.Tabular` still group the code by layer:
   (`obj/project.assets.json`) against a list of parsing libraries (Sylvan, ExcelDataReader, CsvHelper,
   OpenXml, …). Analyzers are fine; anything else is a decision for an ADR, not a convenience.
 - **Error codes, never messages.** Row errors carry codes like `value.required`. The "Error codes"
-  table in `docs/guide.md` is checked against string literals in `src/` by `ErrorCodeCatalogTests` in both
-  directions — adding, renaming or removing a code means updating that table.
+  table in `docs/guide.md` is checked against the `ErrorCodes` constants by `ErrorCodeCatalogTests` in
+  both directions — adding, renaming or removing a code means updating both.
 - **Rows are views.** `CurrentRow`, `CurrentValues` and `ImportRow` (a `ref struct`) point at reused
   buffers; do not introduce per-row allocations on the read path.
 - **The precheck must judge a value exactly as extraction would read it** — same reader, same cell
@@ -90,10 +90,16 @@ under `src/TriasDev.Tabular` still group the code by layer:
 - **Every collection that grows with the file has a ceiling** (see the "Bounds" table in `docs/guide.md`).
   Hostile-input tests pin these; a new structure read from a file needs its own bound.
 - **Cancellation is passed into `ReadRow`**, not only checked between rows, because single reads can
-  be expensive on hostile files.
-- Whole-run faults are `TabularStructureException`; unreadable files and exceeded bounds are
-  `InvalidDataException` (a known inconsistency, see `docs/KNOWN-ISSUES.md`). Per-row problems are
+  be expensive on hostile files. Every reading operation takes a token as its last parameter; the
+  token given to `Start`/`Import` still applies to the whole run.
+- **A stream handed over is closed on every path**, failures included, unless the caller asked for
+  `leaveOpen`. New entry points follow the same rule.
+- **Options are checked where they are handed over** (`OptionChecks`), never discovered mid-read.
+- Every library exception derives from `TabularException` and carries a code: `TabularFormatException`
+  (unreadable/unsupported), `TabularLimitException` (a bound), `TabularStructureException` (whole-run),
+  `MappingPlanException`. `ArgumentException` is for programmer errors only. Per-row problems are
   `RowError`s, and a row is either values or errors, never both.
+- **The invariant culture is `""`** everywhere — profile, hypotheses and plan.
 
 ## Tests
 
