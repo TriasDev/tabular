@@ -30,7 +30,7 @@ id;name;country;signed_on;amount;active
 ```
 
 What analysis reports about it — the output of
-[`samples/TriasDev.Tabular.Samples.Profile`](samples/TriasDev.Tabular.Samples.Profile), abridged. The
+[`samples/TriasDev.Tabular.Samples.Profile`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Profile), abridged. The
 profile itself is an object model, not this JSON; the sample prints what a mapping screen would show
 first, and the full profile also carries counts under every culture, samples and distinct values:
 
@@ -125,7 +125,7 @@ over every row, with memory that stays flat:
 | 3M-row csv (364 MB) | 3,000,000 | 14.9 s | 201,000 | 134 MB |
 | 5M-row csv (572 MB) | 5,127,959 | 24.6 s | 209,000 | 131 MB |
 
-Method, every library and every number: [docs/benchmarks.md](docs/benchmarks.md).
+Method, every library and every number: [docs/benchmarks.md](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md).
 
 ## What it does
 
@@ -196,8 +196,8 @@ foreach (ImportOutcome<Customer> outcome in run)
 }
 ```
 
-The same flow, runnable, with its output: [`samples/TriasDev.Tabular.Samples.Import`](samples/TriasDev.Tabular.Samples.Import).
-Batches, the full rule set, translated fields and every error code are in the [guide](docs/guide.md#using-it).
+The same flow, runnable, with its output: [`samples/TriasDev.Tabular.Samples.Import`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Import).
+Batches, the full rule set, translated fields and every error code are in the [guide](https://github.com/TriasDev/tabular/blob/main/docs/guide.md#using-it).
 
 ## Limits
 
@@ -224,12 +224,12 @@ changelog. Error codes are the exception: once published, a code keeps its meani
 
 | | |
 |---|---|
-| [Guide](docs/guide.md) | Everything the library does and promises: profiling, import, error codes, bounds, cancellation |
-| [Benchmarks](docs/benchmarks.md) | Speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus |
-| [ADR-0001](docs/adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is our own |
-| [Known limitations](docs/KNOWN-ISSUES.md) | Behaviour at the edges not changed yet, and what would make each one matter |
-| [Contributing](CONTRIBUTING.md) | Building, testing, the invariants a change must keep |
-| [Security](SECURITY.md) | What counts as a vulnerability in a file reader, and how to report one privately |
+| [Guide](https://github.com/TriasDev/tabular/blob/main/docs/guide.md) | Everything the library does and promises: profiling, import, error codes, bounds, cancellation |
+| [Benchmarks](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md) | Speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus |
+| [ADR-0001](https://github.com/TriasDev/tabular/blob/main/docs/adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is our own |
+| [Known limitations](https://github.com/TriasDev/tabular/blob/main/docs/KNOWN-ISSUES.md) | Behaviour at the edges not changed yet, and what would make each one matter |
+| [Contributing](https://github.com/TriasDev/tabular/blob/main/CONTRIBUTING.md) | Building, testing, the invariants a change must keep |
+| [Security](https://github.com/TriasDev/tabular/blob/main/SECURITY.md) | What counts as a vulnerability in a file reader, and how to report one privately |
 
 ## Requirements
 
@@ -237,4 +237,4 @@ changelog. Error codes are the exception: once published, a code keeps its meani
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/TriasDev/tabular/blob/main/LICENSE)

@@ -67,6 +67,13 @@ A project dropped into `src/` or `tests/` needs no settings of its own.
   `RowError`s, and a row is either values or errors, never both.
 - **The invariant culture is `""`** everywhere — profile, hypotheses and plan.
 
+## The public API is recorded
+
+`src/TriasDev.Tabular/PublicAPI.Shipped.txt` and `PublicAPI.Unshipped.txt` list every public member.
+Adding, changing or removing one without updating them fails the build (RS0016/RS0017); the analyzer's
+code fix writes the line for you. New members go into `Unshipped`; a release moves them to `Shipped`.
+A change to a line in `Shipped` is a breaking change — call it out in the pull request.
+
 ## Working on the read path
 
 Speed and flat memory are the point of this library, so a change to a cursor, the analyzer or the
