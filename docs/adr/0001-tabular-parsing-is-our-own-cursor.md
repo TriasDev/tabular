@@ -3,8 +3,6 @@
 Date: 2026-08-24
 Status: Accepted
 
-Recorded before the library moved to its own repository, and renumbered on the move.
-
 ## Context
 
 This library reads an Excel or CSV file,

@@ -1,17 +1,12 @@
-# Known issues
+# Known limitations
 
-Things four review passes found in `TriasDev.Tabular` that were **not** fixed, with enough detail to
-act on when one of them stops being theoretical.
+Behaviour of `TriasDev.Tabular` that is wrong at the edges, or looser than it reads, and has not been
+changed yet — each with what would make it matter, so you can tell whether it affects your files. None
+of them loses or silently alters data in files an ordinary producer writes; where one could, it says
+so and links the issue that tracks it.
 
-Nothing here is a defect that loses or corrupts data — those were fixed when they were found, each
-with a test that reproduced it first. That sentence was false for a while: a review round found that a
-cancelled read left the cursor mid-record and the next read presented the remainder as a complete row.
-It is fixed, and the sentence is worth re-earning rather than assuming. What remains is behaviour that is wrong at the edges, contracts
-that are looser than they read, and gaps in coverage. Each entry says what would make it matter,
-because the point of writing them down is to recognise the day one of them arrives rather than to
-carry a backlog.
-
-Reviewed 2026-08-26, before the library moved to its own repository.
+Found a case that belongs here, or one of these that bites you? Open an issue; a real file that hits
+an entry is the best reason to fix it.
 
 ---
 
@@ -183,45 +178,9 @@ fails the whole pass instead of skipping it.
 
 ---
 
-## Coverage
+## Deliberate choices
 
-### The suite assumes the German and English cultures exist
-Under `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` the library degrades as the guide describes — named
-cultures are left out of analysis, a plan naming one is refused as `mapping.unknown-culture` — but
-about seventy tests exercise de-DE and en-US readings directly and fail there by design. The core
-flow under invariant mode is pinned instead by `tests/TriasDev.Tabular.InvariantGlobalizationTests`,
-whose whole test host runs with `InvariantGlobalization` — so the main suite need not.
-
-### One error code is asserted nowhere
-`value.min-length`. The codes are a frontend's translation contract; swapping two of them leaves the
-suite green.
-
-The count used to be wrong in both halves at once — it said four of nineteen when it was two of
-twenty — so the catalog itself is now pinned by `ErrorCodeCatalogTests` rather than described here.
-
-### The typed fast paths in extraction are untested end to end
-Every extraction test uses `CsvCursor`, which emits only text and empty cells. The branches that take
-a workbook's own number, date and boolean are never exercised.
-
-### Nothing pins the library's culture-cleanliness
-The library never touches `CurrentCulture` and the suite passes under German and Turkish locales, but
-nothing would *fail* if a `_culture` argument were dropped. On a US runner that regression is
-invisible.
-
-### Assorted weak tests
-Several tests assert less than their names claim — the delimiter-consistency tests never reach the
-consistency rule, `TabularAnalyzerTests`' cancellation test cancels before the pass begins rather than
-during it, and the "no values for a failing row" invariant is never actually read.
-
-Two that were on this list have been fixed rather than recorded: the quote-storm guard now compares
-allocation across two input sizes instead of asserting a wall-clock ceiling no defect could exceed,
-and `ExtractionSessionTests` cancels after a row rather than before the first.
-
----
-
-## Deliberate, not deferred
-
-Recorded so they are not re-raised as findings.
+Decided, not deferred — listed so they are not mistaken for gaps.
 
 - **Synchronous throughout.** Parsing is processor work over a buffered stream, and a row cannot be a
   `ReadOnlySpan<T>` and be awaited at once. See the remarks on `ITabularCursor`.

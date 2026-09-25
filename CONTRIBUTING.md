@@ -110,7 +110,8 @@ with the test that pins it.
 - `README.md` — the short front page: what the library does, a quick start, headline numbers
 - `docs/guide.md` — the behavioural contract, error-code table, bounds and the library's own performance numbers
 - `docs/benchmarks.md` — the comparison with other csv/xlsx libraries (`benchmarks/TriasDev.Tabular.Comparison`)
-- `docs/KNOWN-ISSUES.md` — review findings deliberately left unfixed, with when each would matter
+- `docs/KNOWN-ISSUES.md` — known limitations, with when each would matter; add one when you choose not to fix something
+- `docs/TEST-GAPS.md` — where the suite is thinner than the code deserves
 - `docs/IDEAS.md` — extensions the design allows that nobody has asked for yet
 - `docs/adr/0001-…` — why the parsing is our own; its measurements are frozen, the guide's and benchmarks' are live
 

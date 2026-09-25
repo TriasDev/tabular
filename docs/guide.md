@@ -614,13 +614,13 @@ them. Reproduce this table with the benchmark project and `TABULAR_FIXTURES`.
 | | |
 |---|---|
 | [benchmarks.md](benchmarks.md) | Reading speed and memory against the common csv and xlsx libraries |
-| [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | What review found and we chose not to fix yet, with what would make each one matter |
+| [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | Known limitations, with what would make each one matter |
 | [IDEAS.md](IDEAS.md) | What the design would accommodate and nobody has asked for |
 | [ADR-0001](adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is ours, with the measurements the choice was made on |
 
-## Known issues
+## Known limitations
 
-What review found and we chose not to fix yet, with what would make each one matter:
+Behaviour at the edges that has not been changed yet, with what would make each one matter:
 [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
 
 ## Ideas
