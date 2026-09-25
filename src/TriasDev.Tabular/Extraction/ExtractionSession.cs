@@ -208,7 +208,11 @@ public sealed class ExtractionSession : IDisposable
         if (!_cursor.MoveToSheet(_plan.SheetIndex))
         {
             throw new TabularStructureException(
-                $"The file has no sheet at index {_plan.SheetIndex}.");
+                TabularStructureException.SheetMissing,
+                $"The file has no sheet at index {_plan.SheetIndex}.")
+            {
+                SheetIndex = _plan.SheetIndex,
+            };
         }
 
         // The header is the first row at or below the spreadsheet row the plan names — by the row's
@@ -218,7 +222,11 @@ public sealed class ExtractionSession : IDisposable
             if (!_cursor.ReadRow(_cancellationToken))
             {
                 throw new TabularStructureException(
-                    $"The sheet ends before row {_plan.HeaderRowIndex + 1}, where the plan expects its headers.");
+                    TabularStructureException.HeaderRowMissing,
+                    $"The sheet ends before row {_plan.HeaderRowIndex + 1}, where the plan expects its headers.")
+                {
+                    SheetIndex = _plan.SheetIndex,
+                };
             }
         }
         while (_cursor.CurrentRowNumber <= _plan.HeaderRowIndex);
@@ -245,8 +253,15 @@ public sealed class ExtractionSession : IDisposable
             if (!string.Equals(actual, binding.SourceHeader, StringComparison.Ordinal))
             {
                 throw new TabularStructureException(
+                    TabularStructureException.HeaderChanged,
                     $"Column {binding.SourceColumnIndex} was mapped as '{binding.SourceHeader}' and now reads "
-                    + $"'{actual}'. The file is not the one the mapping was built against.");
+                    + $"'{actual}'. The file is not the one the mapping was built against.")
+                {
+                    SheetIndex = _plan.SheetIndex,
+                    SourceColumnIndex = binding.SourceColumnIndex,
+                    ExpectedHeader = binding.SourceHeader,
+                    ActualHeader = actual,
+                };
             }
         }
     }

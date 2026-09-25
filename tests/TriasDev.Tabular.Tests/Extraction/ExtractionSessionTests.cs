@@ -264,7 +264,7 @@ public sealed class ExtractionSessionTests
             Bindings = [new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "Betrag", TargetFieldName = "amount" }],
         };
 
-        Assert.Throws<ArgumentException>(() => TabularExtractor.Start(cursor, plan, Schema, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Throws<MappingPlanException>(() => TabularExtractor.Start(cursor, plan, Schema, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

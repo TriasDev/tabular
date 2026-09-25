@@ -48,7 +48,7 @@ public static class CsvDialectDetector
         // reported as a successful analysis.
         if (head.StartsWith(CompoundFileSignature))
         {
-            throw new InvalidDataException(
+            throw new TabularFormatException(TabularFormatException.Unsupported,
                 "This is a legacy Excel workbook (.xls) or an Excel file protected with a password; "
                 + "neither is supported. Save it as .xlsx without a password, or as .csv.");
         }
@@ -116,7 +116,7 @@ public static class CsvDialectDetector
         {
             return Utf16WithoutMark(head) is { } utf16
                 ? (utf16, DialectSource.Detected)
-                : throw new InvalidDataException(
+                : throw new TabularFormatException(TabularFormatException.Unsupported,
                     "The file is not text: it holds NUL bytes, which a csv file does not. It may be a "
                     + "binary document (a PDF, an image, an archive) uploaded as a table.");
         }

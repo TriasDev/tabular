@@ -69,7 +69,7 @@ public sealed class HostileInputTests
         // XFD, so anything past it is not a large file — it is a malformed one.
         byte[] content = Workbook($"""<row r="1"><c r="{reference}" t="inlineStr"><is><t>x</t></is></c></row>""");
 
-        InvalidDataException error = Assert.Throws<InvalidDataException>(() => ReadAll(content));
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() => ReadAll(content));
 
         Assert.Contains("column", error.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -161,7 +161,7 @@ public sealed class HostileInputTests
         string enormous = new('a', 40_000_000);
         byte[] content = Workbook($"""<row r="1"><c r="A1" t="inlineStr"><is><t>{enormous}</t></is></c></row>""");
 
-        Assert.Throws<InvalidDataException>(() => ReadAll(content));
+        Assert.Throws<TabularLimitException>(() => ReadAll(content));
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public sealed class HostileInputTests
         using MemoryStream stream = new(content, writable: false);
         using CsvCursor cursor = new(stream, "huge.csv");
 
-        Assert.Throws<InvalidDataException>(() =>
+        Assert.Throws<TabularLimitException>(() =>
         {
             while (cursor.ReadRow(TestContext.Current.CancellationToken))
             {

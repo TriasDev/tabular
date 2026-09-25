@@ -29,7 +29,7 @@ public sealed class ReviewFixesTests
         using MemoryStream stream = new(commas, writable: false);
         using CsvCursor cursor = new(stream, "bomb.csv");
 
-        InvalidDataException failure = Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        TabularLimitException failure = Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
         Assert.Contains("16384", failure.Message);
     }
@@ -194,7 +194,7 @@ public sealed class ReviewFixesTests
         using MemoryStream stream = new(SharedStringWorkbook(entries: 40, cellIndex: 0), writable: false);
         using XlsxCursor cursor = new(stream, new XlsxCursorOptions { MaxSharedStrings = 20 });
 
-        InvalidDataException failure = Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        TabularLimitException failure = Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
         Assert.Contains("20", failure.Message);
     }
@@ -214,7 +214,7 @@ public sealed class ReviewFixesTests
         using MemoryStream stream = new(package, writable: false);
         using XlsxCursor cursor = new(stream, new XlsxCursorOptions { MaxValueChars = 100 });
 
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -414,7 +414,7 @@ public sealed class ReviewFixesTests
 
         CountingStream stream = new(Utf8NoBom.GetBytes("iso\nDE\n"));
 
-        Assert.Throws<TabularStructureException>(
+        Assert.Throws<MappingPlanException>(
             () => TabularImporter.Import(stream, "t.csv", plan, schema, row => row.RowNumber, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(0, stream.Reads);

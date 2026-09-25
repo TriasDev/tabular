@@ -90,9 +90,7 @@ public static class TabularImporter
 
         if (faults.Count > 0)
         {
-            throw new TabularStructureException(
-                "The mapping does not fit the target: "
-                + string.Join(", ", faults.Select(f => f.Code).Distinct(StringComparer.Ordinal)) + ".");
+            throw new MappingPlanException(faults);
         }
 
         ITabularCursor cursor = TabularFile.Open(stream, name, cancellationToken: cancellationToken);

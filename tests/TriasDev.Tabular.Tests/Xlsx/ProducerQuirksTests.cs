@@ -263,7 +263,7 @@ public sealed class ProducerQuirksTests
 
         using MemoryStream stream = new(content, writable: false);
 
-        InvalidDataException error = Assert.Throws<InvalidDataException>(() => new XlsxCursor(stream));
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() => new XlsxCursor(stream));
         Assert.IsType<System.Xml.XmlException>(error.InnerException);
     }
 
@@ -277,7 +277,7 @@ public sealed class ProducerQuirksTests
 
         using MemoryStream stream = new(content, writable: false);
 
-        Assert.Throws<InvalidDataException>(() => new XlsxCursor(stream));
+        Assert.Throws<TabularFormatException>(() => new XlsxCursor(stream));
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public sealed class ProducerQuirksTests
         using MemoryStream stream = new(content, writable: false);
         using XlsxCursor cursor = new(stream);
 
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularFormatException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     private const string SheetOpen =
@@ -315,7 +315,7 @@ public sealed class ProducerQuirksTests
 
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularFormatException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -354,7 +354,7 @@ public sealed class ProducerQuirksTests
         using MemoryStream stream = new(content, writable: false);
         using XlsxCursor cursor = new(stream);
 
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularFormatException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
         Assert.True(cursor.MoveToSheet(1));
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));

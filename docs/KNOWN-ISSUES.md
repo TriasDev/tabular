@@ -104,15 +104,6 @@ either.
 **Matters as soon as** a caller puts a date range in a schema. Fix by comparing per type and by
 refusing the combination in the validator.
 
-### `TabularStructureException` carries no code
-Row errors have a closed catalog a frontend can translate; the one failure a user most needs
-explained — "this is not the file you mapped" — is an English sentence. A caller mapping it onto
-its own problem-details type has to parse prose.
-
-### Two exception types for one kind of fault
-The guide says an unreadable file raises `TabularStructureException`; the cursors raise
-`InvalidDataException`. A caller following the guide catches the wrong one.
-
 ### `ExtractionSession` implements `IDisposable` and owns nothing
 `Dispose` sets a flag. It reads as ownership of the cursor, which it does not have.
 

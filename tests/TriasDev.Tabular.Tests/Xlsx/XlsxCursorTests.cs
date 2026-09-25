@@ -116,7 +116,7 @@ public sealed class XlsxCursorTests
 
         XlsxCursorOptions options = new() { MaxUncompressedBytes = 64 * 1024 };
 
-        InvalidDataException error = Assert.Throws<InvalidDataException>(() => new XlsxCursor(stream, options));
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => new XlsxCursor(stream, options));
 
         Assert.Contains("65536", error.Message, StringComparison.Ordinal);
     }
@@ -126,7 +126,7 @@ public sealed class XlsxCursorTests
     {
         using MemoryStream stream = new("not a zip at all"u8.ToArray(), writable: false);
 
-        Assert.Throws<InvalidDataException>(() => new XlsxCursor(stream));
+        Assert.Throws<TabularFormatException>(() => new XlsxCursor(stream));
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class XlsxCursorTests
 
         using MemoryStream stream = new(buffer.ToArray(), writable: false);
 
-        Assert.Throws<InvalidDataException>(() => new XlsxCursor(stream));
+        Assert.Throws<TabularFormatException>(() => new XlsxCursor(stream));
     }
 
     [Fact]

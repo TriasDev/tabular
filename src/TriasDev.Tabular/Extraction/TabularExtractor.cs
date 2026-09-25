@@ -19,7 +19,7 @@ public static class TabularExtractor
     /// <param name="schema">What the caller wants filled.</param>
     /// <param name="options">Run options, or null for the defaults.</param>
     /// <param name="cancellationToken">Stops the run, checked as each row is read.</param>
-    /// <exception cref="ArgumentException">The plan does not fit the schema.</exception>
+    /// <exception cref="MappingPlanException">The plan does not fit the schema.</exception>
     /// <exception cref="TabularStructureException">The file is not the one the plan was built against.</exception>
     public static ExtractionSession Start(
         ITabularCursor cursor,
@@ -38,9 +38,7 @@ public static class TabularExtractor
         {
             // Checked here as well as by whoever built the plan, because starting a run on a plan
             // that cannot work would report the mapping's faults as if they were the data's.
-            throw new ArgumentException(
-                $"The plan does not fit the schema: {string.Join(", ", faults.Select(f => f.Code))}.",
-                nameof(plan));
+            throw new MappingPlanException(faults);
         }
 
         return new ExtractionSession(cursor, plan, schema, options ?? ExtractionOptions.Default, cancellationToken);

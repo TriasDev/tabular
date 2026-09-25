@@ -95,9 +95,10 @@ public sealed class XlsxCursor : ITabularCursor
     /// <param name="stream">The package.</param>
     /// <param name="options">Reading options, or null for the defaults.</param>
     /// <param name="leaveOpen">Whether disposing the cursor leaves the stream open.</param>
-    /// <exception cref="InvalidDataException">
-    /// The stream is not a workbook, holds no sheet, or expands beyond the configured budget.
+    /// <exception cref="TabularFormatException">
+    /// The stream is not a readable workbook, or is one in a format this library does not read.
     /// </exception>
+    /// <exception cref="TabularLimitException">The package exceeds one of the configured bounds.</exception>
     public XlsxCursor(
         Stream stream,
         XlsxCursorOptions? options = null,
@@ -109,7 +110,16 @@ public sealed class XlsxCursor : ITabularCursor
         XlsxCursorOptions effective = options ?? XlsxCursorOptions.Default;
         _options = effective;
 
-        _package = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen);
+        try
+        {
+            _package = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen);
+        }
+        catch (InvalidDataException broken)
+        {
+            // The zip itself is damaged — no central directory, entries that contradict it. The BCL
+            // reports that with its own type; the library's is the one a caller catches.
+            throw NotWellFormed(broken);
+        }
 
         try
         {
@@ -125,7 +135,7 @@ public sealed class XlsxCursor : ITabularCursor
                 // bypassed outright and the cursor opened, holding 264 MB.
                 if (++entries > effective.MaxPackageEntries)
                 {
-                    throw new InvalidDataException(
+                    throw new TabularLimitException(nameof(XlsxCursorOptions.MaxPackageEntries), effective.MaxPackageEntries,
                         $"The package holds more than the {effective.MaxPackageEntries} parts allowed.");
                 }
 
@@ -156,7 +166,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (sheets.Count == 0)
             {
-                throw new InvalidDataException("The package holds no worksheet.");
+                throw new TabularFormatException(TabularFormatException.Unsupported, "The package holds no worksheet.");
             }
 
             Sheets = sheets;
@@ -168,7 +178,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             MoveToSheet(0);
         }
-        catch (XmlException malformed)
+        catch (Exception malformed) when (malformed is XmlException or InvalidDataException)
         {
             _package.Dispose();
             throw NotWellFormed(malformed);
@@ -188,8 +198,11 @@ public sealed class XlsxCursor : ITabularCursor
     /// it does would crash on a crafted upload. The parser's message and position stay available as
     /// the inner exception.
     /// </remarks>
-    private static InvalidDataException NotWellFormed(XmlException malformed) =>
-        new($"The workbook is not readable: one of its parts is not well-formed XML ({malformed.Message})", malformed);
+    private static TabularFormatException NotWellFormed(Exception malformed) =>
+        new(
+            TabularFormatException.Corrupt,
+            $"The workbook is not readable: {malformed.Message}",
+            malformed);
 
     /// <summary>
     /// A part's name as a path inside the package: forward slashes, no leading one.
@@ -320,7 +333,7 @@ public sealed class XlsxCursor : ITabularCursor
             // reader has, and it was reachable from the public API by a malformed package.
             _faulted = true;
 
-            throw new InvalidDataException($"The worksheet part {_sheetPaths[index]} is missing.");
+            throw new TabularFormatException(TabularFormatException.Corrupt, $"The worksheet part {_sheetPaths[index]} is missing.");
         }
 
         _sheetStream = _sheetCounter = new CountingStream(entry.Open());
@@ -358,10 +371,10 @@ public sealed class XlsxCursor : ITabularCursor
         {
             return ReadRowCore(_sheetScanner, cancellationToken);
         }
-        catch (XmlException malformed)
+        catch (Exception malformed) when (malformed is XmlException or InvalidDataException)
         {
-            // Only the shared string table is read by XmlReader here, lazily, on the first cell that
-            // needs it.
+            // The shared string table, read by XmlReader lazily on the first cell that needs it, or a
+            // compressed part the BCL could not inflate.
             _faulted = true;
             throw NotWellFormed(malformed);
         }
@@ -450,8 +463,10 @@ public sealed class XlsxCursor : ITabularCursor
     /// a shorter table whose last row was whatever part of it had arrived — the one outcome worse than
     /// refusing, because nothing about it looks wrong.
     /// </remarks>
-    private static InvalidDataException Truncated() =>
-        new("The worksheet ends before its markup does: the file is truncated or incomplete.");
+    private static TabularFormatException Truncated() =>
+        new(
+            TabularFormatException.Truncated,
+            "The worksheet ends before its markup does: the file is truncated or incomplete.");
 
     /// <summary>Reads every cell up to the end of the row the scanner is inside.</summary>
     private void ReadCells(SheetScanner scanner, CancellationToken cancellationToken)
@@ -500,7 +515,7 @@ public sealed class XlsxCursor : ITabularCursor
 
         if (index >= MaxColumns)
         {
-            throw new InvalidDataException(
+            throw new TabularFormatException(TabularFormatException.Corrupt,
                 index == TooManyLetters
                     ? $"A cell names a column beyond the {MaxColumns} the format has."
                     : $"A cell names column {index + 1}, beyond the {MaxColumns} columns the format has.");
@@ -680,7 +695,7 @@ public sealed class XlsxCursor : ITabularCursor
         // approaching the scanner's limit.
         if (_inlineText.Length > _options.MaxValueChars)
         {
-            throw new InvalidDataException(
+            throw new TabularLimitException(nameof(XlsxCursorOptions.MaxValueChars), _options.MaxValueChars,
                 $"A cell value exceeds the {_options.MaxValueChars} characters allowed.");
         }
     }
@@ -825,7 +840,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (values.Count >= _options.MaxSharedStrings)
             {
-                throw new InvalidDataException(
+                throw new TabularLimitException(nameof(XlsxCursorOptions.MaxSharedStrings), _options.MaxSharedStrings,
                     $"The shared string table holds more than the {_options.MaxSharedStrings} entries allowed.");
             }
 
@@ -834,7 +849,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (characters > _options.MaxSharedStringChars)
             {
-                throw new InvalidDataException(
+                throw new TabularLimitException(nameof(XlsxCursorOptions.MaxSharedStringChars), _options.MaxSharedStringChars,
                     $"The shared string table holds more than the {_options.MaxSharedStringChars} "
                     + "characters allowed.");
             }
@@ -969,7 +984,7 @@ public sealed class XlsxCursor : ITabularCursor
 
                 if (text.Length + read > maxChars)
                 {
-                    throw new InvalidDataException(
+                    throw new TabularLimitException(nameof(XlsxCursorOptions.MaxValueChars), maxChars,
                         $"A cell value exceeds the {maxChars} characters allowed.");
                 }
 
@@ -1020,7 +1035,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (map.Count >= _options.MaxRelationships)
             {
-                throw new InvalidDataException(
+                throw new TabularLimitException(nameof(XlsxCursorOptions.MaxRelationships), _options.MaxRelationships,
                     $"A relationships part declares more than the {_options.MaxRelationships} relationships allowed.");
             }
 
@@ -1084,7 +1099,7 @@ public sealed class XlsxCursor : ITabularCursor
     /// <summary>
     /// Says what a zip that holds no workbook part is instead, where that can be told.
     /// </summary>
-    private InvalidDataException NotAWorkbook(string workbookPath)
+    private TabularFormatException NotAWorkbook(string workbookPath)
     {
         if (Part("mimetype") is { } mimetype)
         {
@@ -1094,18 +1109,18 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (head.AsSpan(0, read).StartsWith("application/vnd.oasis.opendocument", StringComparison.Ordinal))
             {
-                return new InvalidDataException(
+                return new TabularFormatException(TabularFormatException.Unsupported,
                     "This is an OpenDocument file (.ods), which is not supported yet. Save it as .xlsx or .csv.");
             }
         }
 
         if (workbookPath.EndsWith(".bin", StringComparison.OrdinalIgnoreCase) || Part("xl/workbook.bin") is not null)
         {
-            return new InvalidDataException(
+            return new TabularFormatException(TabularFormatException.Unsupported,
                 "This is a binary Excel workbook (.xlsb), which is not supported. Save it as .xlsx or .csv.");
         }
 
-        return new InvalidDataException($"The package is not a workbook: {workbookPath} is missing.");
+        return new TabularFormatException(TabularFormatException.Corrupt, $"The package is not a workbook: {workbookPath} is missing.");
     }
 
     /// <summary>
@@ -1151,7 +1166,7 @@ public sealed class XlsxCursor : ITabularCursor
 
         if (sheets.Count >= _options.MaxSheets)
         {
-            throw new InvalidDataException(
+            throw new TabularLimitException(nameof(XlsxCursorOptions.MaxSheets), _options.MaxSheets,
                 $"The workbook declares more than the {_options.MaxSheets} sheets allowed.");
         }
 
@@ -1170,7 +1185,7 @@ public sealed class XlsxCursor : ITabularCursor
     {
         if (value.Length > _options.MaxMetadataChars)
         {
-            throw new InvalidDataException(
+            throw new TabularLimitException(nameof(XlsxCursorOptions.MaxMetadataChars), _options.MaxMetadataChars,
                 $"A {what} is longer than the {_options.MaxMetadataChars} characters allowed.");
         }
 
@@ -1218,7 +1233,7 @@ public sealed class XlsxCursor : ITabularCursor
             // loop — and the uncounted one carries a string, so it costs more per entry.
             if (cellFormats.Count + customFormats.Count > _options.MaxCellFormats)
             {
-                throw new InvalidDataException(
+                throw new TabularLimitException(nameof(XlsxCursorOptions.MaxCellFormats), _options.MaxCellFormats,
                     $"The style table holds more than the {_options.MaxCellFormats} cell formats allowed.");
             }
 
@@ -1469,7 +1484,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (declared > budget)
             {
-                throw new InvalidDataException(
+                throw new TabularLimitException(nameof(XlsxCursorOptions.MaxUncompressedBytes), budget,
                     $"The package expands to more than the {budget} bytes allowed.");
             }
         }

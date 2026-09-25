@@ -208,14 +208,15 @@ public abstract record FieldConstraint
     /// </para>
     /// <para>
     /// The code is the caller's to translate, and may not start with a prefix the library's own
-    /// catalog uses — <c>value.</c>, <c>mapping.</c>, <c>group.</c>, <c>structure.</c> — so that a
+    /// catalog uses — <c>value.</c>, <c>mapping.</c>, <c>group.</c>, <c>structure.</c>, <c>format.</c>,
+    /// <c>limit.</c> — so that a
     /// frontend never reads a caller's rule as one of the library's. A predicate that throws is a
     /// defect in the caller and ends the run, rather than passing or failing values silently.
     /// </para>
     /// </remarks>
     public sealed record Rule : FieldConstraint
     {
-        private static readonly string[] ReservedPrefixes = ["value.", "mapping.", "group.", "structure."];
+        private static readonly string[] ReservedPrefixes = ["value.", "mapping.", "group.", "structure.", "format.", "limit."];
 
         private readonly Func<MappedValue, bool> _predicate;
 

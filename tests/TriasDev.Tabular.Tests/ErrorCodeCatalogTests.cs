@@ -14,11 +14,11 @@ namespace TriasDev.Tabular.Tests;
 public sealed class ErrorCodeCatalogTests
 {
     private static readonly Regex CodeInSource = new(
-        """"(?<code>(?:value|mapping|group|structure)\.[a-z-]+)"""",
+        """"(?<code>(?:value|mapping|group|structure|format|limit)\.[a-z-]+)"""",
         RegexOptions.Compiled);
 
     private static readonly Regex CodeInMarkdown = new(
-        @"`(?<code>(?:value|mapping|group|structure)\.[a-z-]+)`",
+        @"`(?<code>(?:value|mapping|group|structure|format|limit)\.[a-z-]+)`",
         RegexOptions.Compiled);
 
     [Fact]

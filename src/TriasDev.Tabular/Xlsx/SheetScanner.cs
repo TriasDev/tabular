@@ -380,7 +380,7 @@ internal sealed class SheetScanner : IDisposable
                 {
                     // Only a hostile element repeats these; refused rather than truncated, so a
                     // value is never read under the wrong one.
-                    throw new InvalidDataException(
+                    throw new TabularFormatException(TabularFormatException.Corrupt,
                         $"An element repeats its r, t or s attribute more than {MaxAttributes} times.");
                 }
 
@@ -572,7 +572,7 @@ internal sealed class SheetScanner : IDisposable
         {
             if (_buffer.Length >= MaxBufferChars)
             {
-                throw new InvalidDataException(
+                throw new TabularLimitException("MaxValueChars", MaxBufferChars,
                     $"A single value in the worksheet exceeds the {MaxBufferChars} characters allowed.");
             }
 

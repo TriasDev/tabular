@@ -308,7 +308,7 @@ public sealed class CsvCursor : ITabularCursor
     {
         if (_field.Length >= _options.MaxFieldChars)
         {
-            throw new InvalidDataException(
+            throw new TabularLimitException(nameof(CsvCursorOptions.MaxFieldChars), _options.MaxFieldChars,
                 $"A field exceeds the {_options.MaxFieldChars} characters allowed.");
         }
 
@@ -319,7 +319,7 @@ public sealed class CsvCursor : ITabularCursor
     {
         if (_cellCount >= _options.MaxColumns)
         {
-            throw new InvalidDataException(
+            throw new TabularLimitException(nameof(CsvCursorOptions.MaxColumns), _options.MaxColumns,
                 $"A row has more than the {_options.MaxColumns} columns allowed.");
         }
 

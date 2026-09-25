@@ -30,7 +30,7 @@ public sealed class SecondRoundFixesTests
             stream,
             new XlsxCursorOptions { MaxSharedStrings = 1_000, MaxSharedStringChars = 500 });
 
-        InvalidDataException failure = Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        TabularLimitException failure = Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
         Assert.Contains("500", failure.Message);
         Assert.Contains("characters", failure.Message);
@@ -47,7 +47,7 @@ public sealed class SecondRoundFixesTests
 
         using MemoryStream stream = new(package, writable: false);
 
-        Assert.Throws<InvalidDataException>(
+        Assert.Throws<TabularLimitException>(
             () => new XlsxCursor(stream, new XlsxCursorOptions { MaxPackageEntries = 2 }));
     }
 
@@ -64,7 +64,7 @@ public sealed class SecondRoundFixesTests
 
         using MemoryStream stream = new(package, writable: false);
 
-        Assert.Throws<InvalidDataException>(
+        Assert.Throws<TabularLimitException>(
             () => new XlsxCursor(stream, new XlsxCursorOptions { MaxCellFormats = 5 }));
     }
 
@@ -165,7 +165,7 @@ public sealed class SecondRoundFixesTests
         using MemoryStream stream = new(package, writable: false);
         using XlsxCursor cursor = new(stream);
 
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularFormatException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     // -- A value that does not name a date completely is not a date -------------------------------
@@ -247,7 +247,7 @@ public sealed class SecondRoundFixesTests
         using MemoryStream stream = new(package, writable: false);
         using XlsxCursor cursor = new(stream, new XlsxCursorOptions { MaxValueChars = 100 });
 
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -286,14 +286,14 @@ public sealed class SecondRoundFixesTests
     {
         // 2.35 MB of upload declaring sixteen million sheets retained 2,441 MB, held for the cursor's
         // whole life. The ceiling beside it guarded a different list in a different method.
-        Assert.Throws<InvalidDataException>(
+        Assert.Throws<TabularLimitException>(
             () => Workbook(sheets: 10, options: new XlsxCursorOptions { MaxSheets = 5 }));
     }
 
     [Fact]
     public void RefusesAWorkbookDeclaringMoreRelationshipsThanSheets()
     {
-        Assert.Throws<InvalidDataException>(
+        Assert.Throws<TabularLimitException>(
             () => Workbook(sheets: 10, options: new XlsxCursorOptions { MaxRelationships = 3 }));
     }
 
@@ -312,7 +312,7 @@ public sealed class SecondRoundFixesTests
 
         using MemoryStream stream = new(package, writable: false);
 
-        Assert.Throws<InvalidDataException>(
+        Assert.Throws<TabularLimitException>(
             () => new XlsxCursor(stream, new XlsxCursorOptions { MaxCellFormats = 5 }));
     }
 
@@ -330,7 +330,7 @@ public sealed class SecondRoundFixesTests
         using CsvCursor cursor = new(stream, "t.csv", new CsvCursorOptions { MaxFieldChars = 10 });
 
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
         InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
@@ -349,7 +349,7 @@ public sealed class SecondRoundFixesTests
         using MemoryStream stream = new(package, writable: false);
         using XlsxCursor cursor = new(stream, new XlsxCursorOptions { MaxValueChars = 100 });
 
-        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
@@ -403,7 +403,7 @@ public sealed class SecondRoundFixesTests
         using MemoryStream stream = new(package, writable: false);
         using XlsxCursor cursor = new(stream);
 
-        InvalidDataException failure = Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+        TabularFormatException failure = Assert.Throws<TabularFormatException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
         Assert.DoesNotContain("16385", failure.Message);
         Assert.Contains("beyond", failure.Message);

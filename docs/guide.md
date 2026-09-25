@@ -380,16 +380,30 @@ from them.
 | `mapping.invalid-column`, `mapping.invalid-header-row`, `mapping.invalid-sheet`, `mapping.unknown-culture` | A plan that is malformed |
 | `mapping.stale-profile` | The profile was measured against a different header row |
 | `mapping.header-changed` | The column's header is not the one the mapping recorded |
+| `mapping.invalid-plan` | `MappingPlanException`: the plan does not fit its schema; its `Faults` carry the codes above |
+| `structure.sheet-missing`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
+| `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .ods, binary), or damaged, or cut off |
+| `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
 
 This table is checked against the library's sources by `ErrorCodeCatalogTests`, in both directions.
 It went out of step twice in the branch that added it — a code emitted, asserted, given a requirement
 and described in this file's own prose, and left out of the table a frontend reads. Now it cannot.
 
-Faults that invalidate a whole run — a missing sheet, or a header that no longer matches — are
-`TabularStructureException`, not row errors. The two demand opposite responses, and merging them
-would force every caller to sort them out. An unreadable file and a resource ceiling are
-`InvalidDataException`, which is a second shape for one kind of fault and is recorded in
-[KNOWN-ISSUES.md](KNOWN-ISSUES.md) rather than defended.
+Faults that invalidate a whole run are exceptions, not row errors — the two demand opposite
+responses. All of them derive from `TabularException`, which carries a `Code` from the table, and
+split by what a host does about them:
+
+| Exception | Means | Typical HTTP answer |
+|---|---|---|
+| `TabularFormatException` | Not a file this library reads, or not a readable one | 400 / 415 |
+| `TabularLimitException` | Readable, but beyond a configured bound — how most hostile files end | 413 |
+| `TabularStructureException` | Not the file the plan was built for (sheet, header row or header changed) | 409 / 422 |
+| `MappingPlanException` | The plan does not fit its schema, before any file is read | 400 |
+
+Mistakes in the calling code — a null argument, an option out of range, a field the schema does not
+declare — are `ArgumentException` and `InvalidOperationException`. Nothing else escapes: malformed
+XML and a damaged zip are reported as `TabularFormatException` with the parser's error as the inner
+exception.
 
 ## What it deliberately does not do
 

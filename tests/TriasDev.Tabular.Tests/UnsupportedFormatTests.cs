@@ -16,10 +16,13 @@ namespace TriasDev.Tabular.Tests;
 /// </remarks>
 public sealed class UnsupportedFormatTests
 {
-    private static InvalidDataException Refusal(byte[] content)
+    private static TabularFormatException Refusal(byte[] content)
     {
         using MemoryStream stream = new(content, writable: false);
-        return Assert.Throws<InvalidDataException>(() => TabularFile.Open(stream, "upload", cancellationToken: TestContext.Current.CancellationToken));
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() => TabularFile.Open(stream, "upload", cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(TabularFormatException.Unsupported, error.Code);
+        return error;
     }
 
     [Fact]
@@ -29,7 +32,7 @@ public sealed class UnsupportedFormatTests
         byte[] content = new byte[4096];
         new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 }.CopyTo(content, 0);
 
-        InvalidDataException error = Refusal(content);
+        TabularFormatException error = Refusal(content);
 
         Assert.Contains(".xls", error.Message, StringComparison.Ordinal);
         Assert.Contains("password", error.Message, StringComparison.Ordinal);
