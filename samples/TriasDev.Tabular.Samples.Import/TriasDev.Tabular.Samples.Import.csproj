@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
+  </ItemGroup>
+
+  <!-- Beside the executable, so the sample runs from any working directory. -->
+  <ItemGroup>
+    <None Include="..\customers.csv" Link="customers.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

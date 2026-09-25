@@ -11,7 +11,7 @@ using TriasDev.Tabular;
 // The full FileProfile carries more — counts under every culture, samples, distinct values, every
 // ranked reading — this prints what a mapping screen would show first.
 
-string path = args.Length > 0 ? args[0] : Path.Combine("samples", "customers.csv");
+string path = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "customers.csv");
 
 using FileStream file = File.OpenRead(path);
 using ITabularCursor cursor = TabularFile.Open(file, Path.GetFileName(path));

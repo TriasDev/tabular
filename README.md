@@ -10,6 +10,10 @@ column they came from.
 It reads multi-million-row files in seconds while its memory stays flat as the files grow, and it is
 built on the base class library alone: no third-party packages.
 
+Use it when users upload spreadsheets into your application — profile what arrived, let a person map
+its columns to your fields, validate, import typed rows — or when you simply need the fastest way to
+stream a multi-million-row workbook in .NET.
+
 ## In one look
 
 A csv file, as someone might export it — German number format, a date column with a stray value,
@@ -25,8 +29,10 @@ id;name;country;signed_on;amount;active
 1006;Wide World Importers;US;2024-04-02;45.000,00;false
 ```
 
-What analysis reports about it (abridged — the full profile also carries counts under every
-culture, samples and distinct values):
+What analysis reports about it — the output of
+[`samples/TriasDev.Tabular.Samples.Profile`](samples/TriasDev.Tabular.Samples.Profile), abridged. The
+profile itself is an object model, not this JSON; the sample prints what a mapping screen would show
+first, and the full profile also carries counts under every culture, samples and distinct values:
 
 ```jsonc
 {
@@ -168,8 +174,51 @@ while (cursor.ReadRow())
 }
 ```
 
-Importing into your own types through a confirmed mapping — schemas, rules, the precheck, chunked
-imports — is described in the [guide](docs/guide.md#using-it).
+```csharp
+// 3. Import it into your own type: fields declared once, a plan from the headers, a check, typed rows.
+TextField name = ImportField.Text("name").Require().MaxLength(100);
+DecimalField amount = ImportField.Decimal("amount").Require();
+TargetSchema schema = new() { Fields = [name, amount] };
+
+MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], schema, culture: "de-DE");
+PrecheckResult check = MappingPrecheck.Check(plan, schema, profile);   // before reading the file again
+
+using FileStream again = File.OpenRead("customers.xlsx");
+using ImportRun<Customer> run = TabularImporter.Import(again, "customers.xlsx", plan, schema,
+    row => new Customer(row[name]!, row[amount]!.Value));
+
+foreach (ImportOutcome<Customer> outcome in run)
+{
+    if (outcome.HasErrors)
+        Console.WriteLine($"row {outcome.RowNumber}: {outcome.Errors[0].Code}");   // e.g. value.required
+    else
+        Save(outcome.Value);
+}
+```
+
+The same flow, runnable, with its output: [`samples/TriasDev.Tabular.Samples.Import`](samples/TriasDev.Tabular.Samples.Import).
+Batches, the full rule set, translated fields and every error code are in the [guide](docs/guide.md#using-it).
+
+## Limits
+
+Stated here so they are found before they are hit:
+
+- **Read-only.** It reads xlsx and csv; it does not write either.
+- **xlsx and csv only.** Legacy `.xls`, binary `.xlsb` and OpenDocument `.ods` are refused as
+  `format.unsupported` rather than misread. `.ods` is planned.
+- **Synchronous, over seekable streams.** Parsing is processor work over a buffered stream; a request
+  body or blob stream is copied to a file or `MemoryStream` first. A csv whose dialect you state can
+  be read forward-only.
+- **Cultures.** Analysis tries `""` (invariant), `de-DE` and `en-US` by default — set
+  `AnalysisOptions.Cultures` for files from elsewhere. Under invariant globalization (slim container
+  images) only the invariant culture exists, and a plan naming another is refused.
+- **Multi-line quoted csv fields** are bounded (four lines by default), and a pair of lone quotes can
+  join records ([#20](https://github.com/TriasDev/tabular/issues/20)).
+
+## Stability
+
+Until 1.0, a minor version (0.x) may change the public API; every such change is listed in the
+changelog. Error codes are the exception: once published, a code keeps its meaning.
 
 ## Documentation
 

@@ -3,6 +3,11 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <!-- Beside the executable, so the sample runs from any working directory. -->
+  <ItemGroup>
+    <None Include="..\customers.csv" Link="customers.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
   </ItemGroup>

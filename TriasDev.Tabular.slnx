@@ -4,6 +4,7 @@
     <Project Path="benchmarks/TriasDev.Tabular.Comparison/TriasDev.Tabular.Comparison.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/TriasDev.Tabular.Samples.Import/TriasDev.Tabular.Samples.Import.csproj" />
     <Project Path="samples/TriasDev.Tabular.Samples.Profile/TriasDev.Tabular.Samples.Profile.csproj" />
   </Folder>
   <Folder Name="/src/">
