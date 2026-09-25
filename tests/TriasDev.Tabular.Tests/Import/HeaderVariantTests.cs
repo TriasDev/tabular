@@ -9,7 +9,7 @@ public sealed class HeaderVariantTests
     private static readonly string[] Languages = ["en", "de", "fr"];
 
     [Theory]
-    [InlineData("Title#en", "Title", "en")]           // what the TOM catalogue writes
+    [InlineData("Title#en", "Title", "en")]           // what catalogue exports write
     [InlineData("Title_de", "Title", "de")]
     [InlineData("Title-fr", "Title", "fr")]
     [InlineData("Title.en", "Title", "en")]

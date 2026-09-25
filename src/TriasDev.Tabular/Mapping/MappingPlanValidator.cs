@@ -26,56 +26,71 @@ public static class MappingPlanValidator
 
         List<MappingFault> faults = [];
 
-        Dictionary<string, TargetField> fields = SchemaFields.ByName(schema);
+        HashSet<string> bound = CheckBindings(plan, SchemaFields.ByName(schema), faults);
 
+        CheckRequiredFields(schema, bound, faults);
+        CheckRequiredGroups(schema, bound, faults);
+        CheckPlanShape(plan, faults);
+
+        return faults;
+    }
+
+    /// <summary>
+    /// Faults in the bindings themselves, and the names of the fields they validly bind.
+    /// </summary>
+    private static HashSet<string> CheckBindings(
+        MappingPlan plan,
+        Dictionary<string, TargetField> fields,
+        List<MappingFault> faults)
+    {
         HashSet<string> bound = new(StringComparer.Ordinal);
 
         foreach (ColumnBinding binding in plan.Bindings)
         {
             if (!fields.ContainsKey(binding.TargetFieldName))
             {
-                faults.Add(new MappingFault
-                {
-                    Code = "mapping.unknown-field",
-                    TargetFieldName = binding.TargetFieldName,
-                    SourceColumnIndex = binding.SourceColumnIndex,
-                });
+                faults.Add(BindingFault("mapping.unknown-field", binding));
 
                 continue;
             }
 
             if (!bound.Add(binding.TargetFieldName))
             {
-                faults.Add(new MappingFault
-                {
-                    Code = "mapping.duplicate-binding",
-                    TargetFieldName = binding.TargetFieldName,
-                    SourceColumnIndex = binding.SourceColumnIndex,
-                });
+                faults.Add(BindingFault("mapping.duplicate-binding", binding));
             }
 
             if (binding.SourceColumnIndex < 0)
             {
-                faults.Add(new MappingFault
-                {
-                    Code = "mapping.invalid-column",
-                    TargetFieldName = binding.TargetFieldName,
-                    SourceColumnIndex = binding.SourceColumnIndex,
-                });
+                faults.Add(BindingFault("mapping.invalid-column", binding));
             }
         }
 
-        foreach (TargetField field in schema.Fields)
+        return bound;
+    }
+
+    private static MappingFault BindingFault(string code, ColumnBinding binding) => new()
+    {
+        Code = code,
+        TargetFieldName = binding.TargetFieldName,
+        SourceColumnIndex = binding.SourceColumnIndex,
+    };
+
+    private static void CheckRequiredFields(TargetSchema schema, HashSet<string> bound, List<MappingFault> faults)
+    {
+        foreach (TargetField field in schema.Fields
+            .Where(f => f.Required && f.Group is null && !bound.Contains(f.Name)))
         {
-            if (field.Required && field.Group is null && !bound.Contains(field.Name))
-            {
-                faults.Add(new MappingFault { Code = "mapping.required-field-unmapped", TargetFieldName = field.Name });
-            }
+            faults.Add(new MappingFault { Code = "mapping.required-field-unmapped", TargetFieldName = field.Name });
         }
+    }
 
-        // A required group asks for one of its members, not for each: a file translated into German
-        // alone is a complete file, and demanding an English column would refuse it for saying
-        // nothing wrong.
+    /// <remarks>
+    /// A required group asks for one of its members, not for each: a file translated into German
+    /// alone is a complete file, and demanding an English column would refuse it for saying nothing
+    /// wrong.
+    /// </remarks>
+    private static void CheckRequiredGroups(TargetSchema schema, HashSet<string> bound, List<MappingFault> faults)
+    {
         foreach (IGrouping<string, TargetField> group in schema.Fields
             .Where(f => f.Required && f.Group is not null)
             .GroupBy(f => f.Group!, StringComparer.Ordinal)
@@ -83,7 +98,11 @@ public static class MappingPlanValidator
         {
             faults.Add(new MappingFault { Code = "mapping.required-group-unmapped", TargetFieldName = group.Key });
         }
+    }
 
+    /// <summary>Faults in the plan's own settings, independent of any field.</summary>
+    private static void CheckPlanShape(MappingPlan plan, List<MappingFault> faults)
+    {
         if (plan.HeaderRowIndex < 0)
         {
             faults.Add(new MappingFault { Code = "mapping.invalid-header-row" });
@@ -98,8 +117,6 @@ public static class MappingPlanValidator
         {
             faults.Add(new MappingFault { Code = "mapping.unknown-culture" });
         }
-
-        return faults;
     }
 
     /// <summary>Every culture this runtime actually knows, by name.</summary>

@@ -232,9 +232,9 @@ fails the whole pass instead of skipping it.
 ### ICU is an undeclared hard dependency
 Under `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` a large share of the suite fails:
 analysing any file throws from the
-profiler's constructor. The production base image ships ICU, so this is not live — but neither
-project pins `InvariantGlobalization` or `PredefinedCulturesOnly`, so the image decides and not the
-code.
+profiler's constructor. Common runtime images ship ICU, so this rarely bites — but the library cannot
+pin `InvariantGlobalization` or `PredefinedCulturesOnly` for its host, so the host's image decides and
+not the code.
 
 ### One error code is asserted nowhere
 `value.min-length`. The codes are a frontend's translation contract; swapping two of them leaves the

@@ -242,113 +242,144 @@ public static class MappingPrecheck
                 Detail = detail,
             });
 
-        // A grouped field is answered for by its group, which is judged across all its columns at
-        // once. Warning per member would say "1256 rows leave this column empty" about a German
-        // column in an English file, which is not a fault at all.
-        if (field.Required && field.Group is null)
-        {
-            HashSet<string> nothing = new(binding.TreatAsEmpty.Select(v => v.Trim()), StringComparer.OrdinalIgnoreCase);
-
-            // The case that was answered by nobody. A column whose every value is one of the
-            // binding's spellings of nothing has no empty cells to count — the profiler counted those
-            // values as values — so the check above never ran, while the allowed-value check found
-            // nothing left to disallow and returned. Between them they held the proof and said
-            // nothing: every row of this column reads as absent.
-            bool everyValueIsNothing = facts.NonEmptyCount > 0
-                && facts.DistinctValuesAreComplete
-                && facts.DistinctValues.Count > 0
-                && facts.DistinctValues.All(nothing.Contains);
-
-            if (everyValueIsNothing)
-            {
-                Add(
-                    "value.required",
-                    PrecheckSeverity.Blocking,
-                    "Every value in this column is one of the spellings of nothing the mapping "
-                    + "declares, so no row carries a value for a field that requires one.",
-                    sheet.RowCount);
-            }
-            else if (facts.EmptyCount > 0)
-            {
-                Add(
-                    "value.required",
-                    PrecheckSeverity.Warning,
-                    $"{Describe(facts.EmptyCount, binding, sheet, plan)} leave this column empty and "
-                    + "the field is required.",
-                    facts.EmptyCount);
-            }
-        }
-
-        // Whether every value differs is a property of the column, so no per-row rule can decide it.
-        // The profile counted them exactly, unless its budget ran out.
-        if (field.MustBeUnique)
-        {
-            // The spellings of nothing are not repeated values: the import reads them as absent, so a
-            // column saying "k.A." twice repeats nothing — and equally, it carries rows with no value
-            // at all, which is the other way a column fails to identify its rows. Its three siblings
-            // learned about these spellings; this one had not, and reported them as repeats.
-            //
-            // Certain, unlike an empty cell: a row whose mapped column says "k.A." is not blank, so
-            // the import does read it and does find nothing there.
-            bool readsAsNothing = binding.TreatAsEmpty.Count > 0
-                && facts.DistinctValuesAreComplete
-                && facts.DistinctValues.Any(v =>
-                    binding.TreatAsEmpty.Any(e => string.Equals(e.Trim(), v, StringComparison.OrdinalIgnoreCase)));
-
-            if (readsAsNothing)
-            {
-                Add(
-                    NotUnique,
-                    PrecheckSeverity.Blocking,
-                    "Some rows spell this column's value as nothing, so they carry no value at all, and "
-                    + "a field that identifies a record must do so for every row.",
-                    null);
-            }
-            else if (facts.IsUnique == false)
-            {
-                // Two different faults wore one message. A column can fail to identify its rows by
-                // repeating a value, or by leaving one without any value at all, and reporting the
-                // second as "0 rows repeat a value already used" is a sentence that refutes itself.
-                int repeats = facts.NonEmptyCount - facts.DistinctCount;
-
-                // Failing by an empty cell is not the same as failing by a repeat, and only the
-                // repeat is certain. A row that is empty here may be a row the import never sees —
-                // it skips a row whose mapped columns are all empty, while analysis keeps any row
-                // with a value anywhere — so where the plan leaves columns unbound, this is a warning
-                // about rows that may not exist rather than a refusal.
-                bool certain = repeats > 0 || AllColumnsBound(sheet, plan);
-
-                Add(
-                    NotUnique,
-                    certain ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
-                    repeats > 0
-                        ? $"{repeats} rows repeat a value already used, and this field identifies a record."
-                        : $"{Describe(facts.EmptyCount, binding, sheet, plan)} leave this column empty, and a "
-                          + "field that identifies a record must do so for every row.",
-                    repeats > 0 ? repeats : facts.EmptyCount);
-            }
-            else if (facts.IsUnique is null && facts.NonEmptyCount == 0 && facts.EmptyCount == 0)
-            {
-                Add(
-                    NotUnique,
-                    PrecheckSeverity.Undetermined,
-                    "The column holds no values at all, so whether it identifies its rows was not "
-                    + "established.",
-                    null);
-            }
-            else if (facts.IsUnique is null)
-            {
-                Add(
-                    NotUnique,
-                    PrecheckSeverity.Undetermined,
-                    "There were more distinct values than the profile tracks, so uniqueness was not "
-                    + "established.");
-            }
-        }
-
+        CheckRequired(field, binding, facts, sheet, plan, Add);
+        CheckUnique(field, binding, facts, sheet, plan, Add);
         CheckHeader(binding, facts, Add);
         CheckRules(field, binding, facts, culture, Add);
         CheckType(field, facts, culture, Add);
+    }
+
+    /// <summary>Whether a required field's column can supply a value for every row.</summary>
+    /// <remarks>
+    /// A grouped field is answered for by its group, which is judged across all its columns at
+    /// once. Warning per member would say "1256 rows leave this column empty" about a German
+    /// column in an English file, which is not a fault at all.
+    /// </remarks>
+    private static void CheckRequired(
+        TargetField field,
+        ColumnBinding binding,
+        ColumnFacts facts,
+        SheetProfile sheet,
+        MappingPlan plan,
+        Action<string, PrecheckSeverity, string, int?> add)
+    {
+        if (!field.Required || field.Group is not null)
+        {
+            return;
+        }
+
+        HashSet<string> nothing = new(binding.TreatAsEmpty.Select(v => v.Trim()), StringComparer.OrdinalIgnoreCase);
+
+        // The case that was answered by nobody. A column whose every value is one of the
+        // binding's spellings of nothing has no empty cells to count — the profiler counted those
+        // values as values — so the check above never ran, while the allowed-value check found
+        // nothing left to disallow and returned. Between them they held the proof and said
+        // nothing: every row of this column reads as absent.
+        bool everyValueIsNothing = facts.NonEmptyCount > 0
+            && facts.DistinctValuesAreComplete
+            && facts.DistinctValues.Count > 0
+            && facts.DistinctValues.All(nothing.Contains);
+
+        if (everyValueIsNothing)
+        {
+            add(
+                "value.required",
+                PrecheckSeverity.Blocking,
+                "Every value in this column is one of the spellings of nothing the mapping "
+                + "declares, so no row carries a value for a field that requires one.",
+                sheet.RowCount);
+        }
+        else if (facts.EmptyCount > 0)
+        {
+            add(
+                "value.required",
+                PrecheckSeverity.Warning,
+                $"{Describe(facts.EmptyCount, binding, sheet, plan)} leave this column empty and "
+                + "the field is required.",
+                facts.EmptyCount);
+        }
+    }
+
+    /// <summary>Whether a field that identifies a record can do so from this column.</summary>
+    /// <remarks>
+    /// Whether every value differs is a property of the column, so no per-row rule can decide it.
+    /// The profile counted them exactly, unless its budget ran out.
+    /// </remarks>
+    private static void CheckUnique(
+        TargetField field,
+        ColumnBinding binding,
+        ColumnFacts facts,
+        SheetProfile sheet,
+        MappingPlan plan,
+        Action<string, PrecheckSeverity, string, int?> add)
+    {
+        if (!field.MustBeUnique)
+        {
+            return;
+        }
+
+        // The spellings of nothing are not repeated values: the import reads them as absent, so a
+        // column saying "k.A." twice repeats nothing — and equally, it carries rows with no value
+        // at all, which is the other way a column fails to identify its rows. Its three siblings
+        // learned about these spellings; this one had not, and reported them as repeats.
+        //
+        // Certain, unlike an empty cell: a row whose mapped column says "k.A." is not blank, so
+        // the import does read it and does find nothing there.
+        bool readsAsNothing = binding.TreatAsEmpty.Count > 0
+            && facts.DistinctValuesAreComplete
+            && facts.DistinctValues.Any(v =>
+                binding.TreatAsEmpty.Any(e => string.Equals(e.Trim(), v, StringComparison.OrdinalIgnoreCase)));
+
+        if (readsAsNothing)
+        {
+            add(
+                NotUnique,
+                PrecheckSeverity.Blocking,
+                "Some rows spell this column's value as nothing, so they carry no value at all, and "
+                + "a field that identifies a record must do so for every row.",
+                null);
+        }
+        else if (facts.IsUnique == false)
+        {
+            // Two different faults wore one message. A column can fail to identify its rows by
+            // repeating a value, or by leaving one without any value at all, and reporting the
+            // second as "0 rows repeat a value already used" is a sentence that refutes itself.
+            int repeats = facts.NonEmptyCount - facts.DistinctCount;
+
+            // Failing by an empty cell is not the same as failing by a repeat, and only the
+            // repeat is certain. A row that is empty here may be a row the import never sees —
+            // it skips a row whose mapped columns are all empty, while analysis keeps any row
+            // with a value anywhere — so where the plan leaves columns unbound, this is a warning
+            // about rows that may not exist rather than a refusal.
+            bool certain = repeats > 0 || AllColumnsBound(sheet, plan);
+
+            add(
+                NotUnique,
+                certain ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
+                repeats > 0
+                    ? $"{repeats} rows repeat a value already used, and this field identifies a record."
+                    : $"{Describe(facts.EmptyCount, binding, sheet, plan)} leave this column empty, and a "
+                      + "field that identifies a record must do so for every row.",
+                repeats > 0 ? repeats : facts.EmptyCount);
+        }
+        else if (facts.IsUnique is null && facts.NonEmptyCount == 0 && facts.EmptyCount == 0)
+        {
+            add(
+                NotUnique,
+                PrecheckSeverity.Undetermined,
+                "The column holds no values at all, so whether it identifies its rows was not "
+                + "established.",
+                null);
+        }
+        else if (facts.IsUnique is null)
+        {
+            add(
+                NotUnique,
+                PrecheckSeverity.Undetermined,
+                "There were more distinct values than the profile tracks, so uniqueness was not "
+                + "established.",
+                null);
+        }
     }
 
     /// <summary>
@@ -388,82 +419,104 @@ public static class MappingPrecheck
 
         if (!facts.DistinctValuesAreComplete)
         {
-            foreach (FieldConstraint constraint in field.Constraints)
-            {
-                add(
-                    constraint.Code,
-                    PrecheckSeverity.Undetermined,
-                    $"The column holds {facts.DistinctCount} distinct values, more than the profile "
-                    + "keeps, so this rule was not checked here.",
-                    null);
-            }
-
+            ReportRulesUnchecked(field, facts, add);
             return;
         }
 
-        CultureInfo reading = culture is { Length: > 0 } name
-            ? CultureInfo.GetCultureInfo(name)
-            : CultureInfo.InvariantCulture;
+        List<(string Source, MappedValue Value, bool Readable)> read = ReadDistinctValues(field, binding, facts, culture);
 
-        HashSet<string> nothing = new(binding.TreatAsEmpty.Select(v => v.Trim()), StringComparer.OrdinalIgnoreCase);
-        List<string> present = [.. facts.DistinctValues.Where(v => !nothing.Contains(v))];
-
-        if (present.Count == 0)
+        if (read.Count == 0)
         {
             return;             // every value reads as absent; the required check owns that
         }
 
-        // Read once per distinct value, and kept, because every constraint asks about the same
-        // rendering.
-        RawCellKind declared = DeclaredKind(facts);
-
-        List<(string Source, MappedValue Value, bool Readable)> read =
-        [
-            .. present.Select(v =>
-            {
-                bool ok = ValueReading.TryRead(Rebuild(v, declared), v, field.Type, reading, out MappedValue value);
-                return (v, value, ok);
-            }),
-        ];
-
         foreach (FieldConstraint constraint in field.Constraints)
         {
-            // A value that does not read as the field's type never reaches the constraint: extraction
-            // fails it as a type mismatch first, and CheckType reports that.
-            List<string> failing =
-            [
-                .. read.Where(r => r.Readable && !constraint.IsSatisfiedBy(r.Value)).Select(r => r.Source),
-            ];
+            JudgeConstraint(constraint, read, field, binding, facts, add);
+        }
+    }
 
-            if (failing.Count == 0)
-            {
-                continue;
-            }
-
-            int readable = read.Count(r => r.Readable);
-            bool none = failing.Count == readable && CannotBeSatisfiedByAnyRow(field, binding, facts);
-
+    private static void ReportRulesUnchecked(
+        TargetField field,
+        ColumnFacts facts,
+        Action<string, PrecheckSeverity, string, int?> add)
+    {
+        foreach (FieldConstraint constraint in field.Constraints)
+        {
             add(
                 constraint.Code,
-                none ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
-                $"{failing.Count} of {readable} distinct values fail this rule: "
-                + string.Join(", ", failing.Take(5).Order(StringComparer.Ordinal))
-                + (failing.Count > 5 ? $" and {failing.Count - 5} more" : string.Empty) + "."
-                + (none ? " No row can satisfy it." : string.Empty),
+                PrecheckSeverity.Undetermined,
+                $"The column holds {facts.DistinctCount} distinct values, more than the profile "
+                + "keeps, so this rule was not checked here.",
                 null);
         }
     }
 
     /// <summary>
-    /// Says how far a count of empty cells can be trusted, in the direction it is wrong.
+    /// Every distinct value that does not read as absent, read once the way the extractor reads it.
     /// </summary>
     /// <remarks>
-    /// Two things pull it apart. The binding's spellings of nothing were counted as values, so the
-    /// true number is higher. And the import skips a row whose <em>mapped</em> columns are all empty
-    /// while analysis keeps any row with a value anywhere, so where the sheet has columns the plan
-    /// does not bind, the true number is lower. When both apply, neither direction is known and the
-    /// number is not offered as one.
+    /// Kept rather than re-read per constraint, because every constraint asks about the same
+    /// rendering.
     /// </remarks>
+    private static List<(string Source, MappedValue Value, bool Readable)> ReadDistinctValues(
+        TargetField field,
+        ColumnBinding binding,
+        ColumnFacts facts,
+        string? culture)
+    {
+        CultureInfo reading = culture is { Length: > 0 } name
+            ? CultureInfo.GetCultureInfo(name)
+            : CultureInfo.InvariantCulture;
+
+        HashSet<string> nothing = new(binding.TreatAsEmpty.Select(v => v.Trim()), StringComparer.OrdinalIgnoreCase);
+        RawCellKind declared = DeclaredKind(facts);
+
+        return
+        [
+            .. facts.DistinctValues
+                .Where(v => !nothing.Contains(v))
+                .Select(v =>
+                {
+                    bool ok = ValueReading.TryRead(Rebuild(v, declared), v, field.Type, reading, out MappedValue value);
+                    return (v, value, ok);
+                }),
+        ];
+    }
+
+    private static void JudgeConstraint(
+        FieldConstraint constraint,
+        List<(string Source, MappedValue Value, bool Readable)> read,
+        TargetField field,
+        ColumnBinding binding,
+        ColumnFacts facts,
+        Action<string, PrecheckSeverity, string, int?> add)
+    {
+        // A value that does not read as the field's type never reaches the constraint: extraction
+        // fails it as a type mismatch first, and CheckType reports that.
+        List<string> failing =
+        [
+            .. read.Where(r => r.Readable && !constraint.IsSatisfiedBy(r.Value)).Select(r => r.Source),
+        ];
+
+        if (failing.Count == 0)
+        {
+            return;
+        }
+
+        int readable = read.Count(r => r.Readable);
+        bool none = failing.Count == readable && CannotBeSatisfiedByAnyRow(field, binding, facts);
+
+        add(
+            constraint.Code,
+            none ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
+            $"{failing.Count} of {readable} distinct values fail this rule: "
+            + string.Join(", ", failing.Take(5).Order(StringComparer.Ordinal))
+            + (failing.Count > 5 ? $" and {failing.Count - 5} more" : string.Empty) + "."
+            + (none ? " No row can satisfy it." : string.Empty),
+            null);
+    }
+
     /// <summary>
     /// The kind the file itself declared for this column's cells, or text where it declared none.
     /// </summary>
@@ -532,6 +585,16 @@ public static class MappingPrecheck
         }
     }
 
+    /// <summary>
+    /// Says how far a count of empty cells can be trusted, in the direction it is wrong.
+    /// </summary>
+    /// <remarks>
+    /// Two things pull it apart. The binding's spellings of nothing were counted as values, so the
+    /// true number is higher. And the import skips a row whose <em>mapped</em> columns are all empty
+    /// while analysis keeps any row with a value anywhere, so where the sheet has columns the plan
+    /// does not bind, the true number is lower. When both apply, neither direction is known and the
+    /// number is not offered as one.
+    /// </remarks>
     private static string Describe(int count, ColumnBinding binding, SheetProfile sheet, MappingPlan plan)
     {
         bool understated = binding.TreatAsEmpty.Count > 0;

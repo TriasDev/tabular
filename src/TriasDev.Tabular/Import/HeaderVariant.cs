@@ -22,8 +22,8 @@ public static class HeaderVariant
     /// The separators seen in the wild, in the order they are tried.
     /// </summary>
     /// <remarks>
-    /// The hash comes first because it is the one already in production here — the TOM catalogue
-    /// writes <c>Title#en</c> — and the rest are what the next customer will write instead.
+    /// The hash comes first because it is the form catalogue exports already use —
+    /// <c>Title#en</c> — and the rest are what the next exporter will write instead.
     /// </remarks>
     private static readonly string[] Separators = ["#", "_", "-", ".", " ", "@"];
 
@@ -54,39 +54,46 @@ public static class HeaderVariant
 
         foreach (string declared in variants)
         {
-            if (string.IsNullOrWhiteSpace(declared))
+            if (!string.IsNullOrWhiteSpace(declared) && TryStripMark(name, declared, out string stripped))
             {
-                continue;
+                name = stripped;
+                variant = declared;
+                return true;
             }
+        }
 
-            foreach (string separator in Separators)
+        return false;
+    }
+
+    /// <summary>
+    /// Removes one declared variant's mark from the end of a header, in whichever form it is written.
+    /// </summary>
+    private static bool TryStripMark(string header, string declared, out string stripped)
+    {
+        foreach (string separator in Separators)
+        {
+            // Bracketed forms first: "Title (de)" is common enough from spreadsheet exporters that
+            // leaving it to the plain-suffix rule would miss it, since the mark is not at the end of
+            // the string.
+            foreach (string candidate in (string[])[$"{separator}{declared}", $"({declared})", $"[{declared}]"])
             {
-                // Bracketed forms first: "Title (de)" is common enough from spreadsheet exporters
-                // that leaving it to the plain-suffix rule would miss it, since the mark is not at
-                // the end of the string.
-                foreach (string candidate in (string[])[$"{separator}{declared}", $"({declared})", $"[{declared}]"])
+                if (!header.EndsWith(candidate, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!name.EndsWith(candidate, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    string stripped = name[..^candidate.Length].TrimEnd(' ', '_', '-', '#', '.');
+                stripped = header[..^candidate.Length].TrimEnd(' ', '_', '-', '#', '.');
 
-                    if (stripped.Length == 0)
-                    {
-                        // The header is nothing but the mark. "de" alone names no field, and
-                        // proposing an empty one would be worse than proposing nothing.
-                        continue;
-                    }
-
-                    name = stripped;
-                    variant = declared;
+                // A header that is nothing but the mark names no field: "de" alone is not a column
+                // of German anything, and proposing an empty name would be worse than proposing none.
+                if (stripped.Length > 0)
+                {
                     return true;
                 }
             }
         }
 
+        stripped = string.Empty;
         return false;
     }
 }

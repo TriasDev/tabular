@@ -47,82 +47,103 @@ internal static class ValueReading
                 return true;
 
             case ColumnType.Integer:
-                // The range check is not decoration: `(long)1e30` does not throw, it saturates, and
-                // the row would then be written out carrying long.MaxValue as though the file had
-                // said so.
-                if (cell.Kind == RawCellKind.Number
-                    && double.IsInteger(cell.Number)
-                    && cell.Number >= long.MinValue
-                    && cell.Number <= long.MaxValue)
-                {
-                    value = MappedValue.FromInteger((long)cell.Number);
-                    return true;
-                }
-
-                if (long.TryParse(text, NumberStyles.Integer | NumberStyles.AllowThousands, culture, out long whole))
-                {
-                    value = MappedValue.FromInteger(whole);
-                    return true;
-                }
-
-                break;
+                return TryReadInteger(cell, text, culture, out value);
 
             case ColumnType.Decimal:
-                // A value the file declares as a number can still be outside decimal's range, or not
-                // a number at all. The profiler already guards this cast; the extractor did not, so
-                // analysis survived such a file and extraction died on it.
-                if (cell.Kind == RawCellKind.Number)
-                {
-                    if (!TryToDecimal(cell.Number, out decimal declared))
-                    {
-                        break;
-                    }
-
-                    value = MappedValue.FromDecimal(declared);
-                    return true;
-                }
-
-                if (decimal.TryParse(text, NumberStyles.Number, culture, out decimal fraction))
-                {
-                    value = MappedValue.FromDecimal(fraction);
-                    return true;
-                }
-
-                break;
+                return TryReadDecimal(cell, text, culture, out value);
 
             case ColumnType.Date:
-                if (cell.Kind == RawCellKind.Date)
-                {
-                    value = MappedValue.FromDate(cell.Date);
-                    return true;
-                }
-
-                // A value has to name a date completely. The parser fills in whatever the text
-                // leaves out from the clock — a bare time becomes today, a day and month become this
-                // year — so a row would import carrying a date the file never contained, and one that
-                // depends on when the import ran. The profiler applies the same rule.
-                if (DateReading.TryRead(text, culture, out DateTime date))
-                {
-                    value = MappedValue.FromDate(date);
-                    return true;
-                }
-
-                break;
+                return TryReadDate(cell, text, culture, out value);
 
             case ColumnType.Boolean:
-                if (cell.Kind == RawCellKind.Boolean)
-                {
-                    value = MappedValue.FromBoolean(cell.Boolean);
-                    return true;
-                }
+                return TryReadBoolean(cell, text, out value);
 
-                if (bool.TryParse(text, out bool flag))
-                {
-                    value = MappedValue.FromBoolean(flag);
-                    return true;
-                }
+            default:
+                value = MappedValue.Absent;
+                return false;
+        }
+    }
 
-                break;
+    private static bool TryReadInteger(in RawCell cell, string text, CultureInfo culture, out MappedValue value)
+    {
+        // The range check is not decoration: `(long)1e30` does not throw, it saturates, and the row
+        // would then be written out carrying long.MaxValue as though the file had said so.
+        if (cell.Kind == RawCellKind.Number
+            && double.IsInteger(cell.Number)
+            && cell.Number >= long.MinValue
+            && cell.Number <= long.MaxValue)
+        {
+            value = MappedValue.FromInteger((long)cell.Number);
+            return true;
+        }
+
+        if (long.TryParse(text, NumberStyles.Integer | NumberStyles.AllowThousands, culture, out long whole))
+        {
+            value = MappedValue.FromInteger(whole);
+            return true;
+        }
+
+        value = MappedValue.Absent;
+        return false;
+    }
+
+    private static bool TryReadDecimal(in RawCell cell, string text, CultureInfo culture, out MappedValue value)
+    {
+        // A value the file declares as a number can still be outside decimal's range, or not a
+        // number at all. The profiler already guards this cast; the extractor did not, so analysis
+        // survived such a file and extraction died on it.
+        if (cell.Kind == RawCellKind.Number)
+        {
+            bool fits = TryToDecimal(cell.Number, out decimal declared);
+
+            value = fits ? MappedValue.FromDecimal(declared) : MappedValue.Absent;
+            return fits;
+        }
+
+        if (decimal.TryParse(text, NumberStyles.Number, culture, out decimal fraction))
+        {
+            value = MappedValue.FromDecimal(fraction);
+            return true;
+        }
+
+        value = MappedValue.Absent;
+        return false;
+    }
+
+    private static bool TryReadDate(in RawCell cell, string text, CultureInfo culture, out MappedValue value)
+    {
+        if (cell.Kind == RawCellKind.Date)
+        {
+            value = MappedValue.FromDate(cell.Date);
+            return true;
+        }
+
+        // A value has to name a date completely. The parser fills in whatever the text leaves out
+        // from the clock — a bare time becomes today, a day and month become this year — so a row
+        // would import carrying a date the file never contained, and one that depends on when the
+        // import ran. The profiler applies the same rule.
+        if (DateReading.TryRead(text, culture, out DateTime date))
+        {
+            value = MappedValue.FromDate(date);
+            return true;
+        }
+
+        value = MappedValue.Absent;
+        return false;
+    }
+
+    private static bool TryReadBoolean(in RawCell cell, string text, out MappedValue value)
+    {
+        if (cell.Kind == RawCellKind.Boolean)
+        {
+            value = MappedValue.FromBoolean(cell.Boolean);
+            return true;
+        }
+
+        if (bool.TryParse(text, out bool flag))
+        {
+            value = MappedValue.FromBoolean(flag);
+            return true;
         }
 
         value = MappedValue.Absent;
