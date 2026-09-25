@@ -59,14 +59,19 @@ public sealed class PrecheckReadsXlsxCellsTests
     [Fact]
     public void ReadsAWorkbooksOwnDateAsTheDateItIs()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Date("when")] };
+        // A rule on the date makes the precheck rebuild each distinct value and judge it. Without
+        // one it returned early — every cell native, nothing to check — and this test passed for a
+        // reason other than its name. Under de-DE on purpose: a native date is not re-read as text.
+        TargetSchema schema = new() { Fields = [ImportField.Date("when").Must("when.in-january", d => d.Month == 1)] };
 
         PrecheckResult result = MappingPrecheck.Check(
             Plan("when") with { Culture = "de-DE" },
             schema,
             Profile("d:2023-01-15", "d:2023-02-20"));
 
-        Assert.True(result.CanImport);
+        // February fails the rule, January passes; the profile keeps distinct values, not how often
+        // each occurs, so the finding names the rule rather than a row count.
+        Assert.Equal("when.in-january", Assert.Single(result.Findings).Code);
     }
 
     [Theory]

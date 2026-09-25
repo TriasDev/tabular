@@ -91,6 +91,34 @@ public sealed class FieldConstraintTests
     }
 
     [Fact]
+    public void APatternWithALookaroundStillWorks()
+    {
+        // Lookarounds are refused by the non-backtracking engine; the constraint falls back to the
+        // ordinary one rather than rejecting the pattern.
+        FieldConstraint constraint = new FieldConstraint.Pattern("(?!XX)[A-Z]{2}");
+
+        Assert.True(constraint.IsSatisfiedBy(MappedValue.FromText("DE")));
+        Assert.False(constraint.IsSatisfiedBy(MappedValue.FromText("XX")));
+    }
+
+    [Fact]
+    public void APatternThatRunsAwayOnTheFallbackEngineFailsTheValueWithinItsBudget()
+    {
+        // The other test of this kind never reached the timeout: the non-backtracking engine made its
+        // pattern harmless. A lookahead forces the backtracking engine, and nested quantifiers inside
+        // it make it exponential — so this is the budget, and only the budget, that stops it.
+        FieldConstraint constraint = new FieldConstraint.Pattern("(?=(a+)+b).*");
+        string value = new string('a', 40) + "!";
+
+        System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+        bool satisfied = constraint.IsSatisfiedBy(MappedValue.FromText(value));
+        clock.Stop();
+
+        Assert.False(satisfied);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"took {clock.Elapsed}");
+    }
+
+    [Fact]
     public void APatternThatCouldRunAwayFailsTheValueRatherThanTheRun()
     {
         // The classic catastrophic pattern against input built to defeat it. Bounded, this returns

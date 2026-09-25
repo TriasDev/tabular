@@ -46,7 +46,11 @@ public sealed class TypedWorkbookImportTests
 
     private static List<ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)>> Import(string rows)
     {
-        byte[] workbook = new XlsxPackage().WithSheet("S", Header + rows).WithStyles(Styles).Build();
+        byte[] workbook = new XlsxPackage()
+            .WithSheet("S", Header + rows)
+            .WithStyles(Styles)
+            .WithSharedStrings("<si><t>from the table</t></si>")
+            .Build();
 
         using XlsxCursor cursor = new(new MemoryStream(workbook), cancellationToken: TestContext.Current.CancellationToken);
         using ImportRun<(long?, decimal?, DateTime?, bool?, string?)> run = TabularImporter.Import(
@@ -67,6 +71,18 @@ public sealed class TypedWorkbookImportTests
 
         Assert.False(row.HasErrors);
         Assert.Equal((42L, 1234.5m, new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Unspecified), true, "7.25"), row.Value);
+    }
+
+    [Fact]
+    public void ReadsAnIsoDateCellAndASharedString()
+    {
+        ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
+            """<row r="2"><c r="C2" t="d"><v>2026-09-25T14:30:00</v></c><c r="D2" t="b"><v>0</v></c><c r="E2" t="s"><v>0</v></c></row>"""));
+
+        Assert.False(row.HasErrors);
+        Assert.Equal(
+            ((long?)null, (decimal?)null, new DateTime(2026, 9, 25, 14, 30, 0, DateTimeKind.Unspecified), false, "from the table"),
+            row.Value);
     }
 
     [Theory]
