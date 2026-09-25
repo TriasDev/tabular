@@ -87,7 +87,6 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
         List<ColumnProfiler> profilers = [];
         int rowCount = 0;
         bool headerRead = false;
-        int rowsSeen = 0;
 
         // Handed down, not only checked here. The check between rows cannot interrupt a single read
         // that is loading a shared string table, which is the one that takes the time.
@@ -99,8 +98,10 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
             {
                 // Everything above the header is skipped, not measured. A title line counted as data
                 // puts its own text into the column's lengths and types, and the mapping is then
-                // judged against a value no row holds.
-                if (rowsSeen++ < _options.HeaderRowIndex)
+                // judged against a value no row holds. Counted by the row's own number, the one every
+                // report uses: a workbook does not write empty rows, so counting the rows present put
+                // a header below two blank rows at index 0.
+                if (cursor.CurrentRowNumber <= _options.HeaderRowIndex)
                 {
                     continue;
                 }

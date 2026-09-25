@@ -94,8 +94,13 @@ public sealed record AnalysisOptions
     public int OutlierSampleSize { get; init; } = 20;
 
     /// <summary>
-    /// Which row holds the header, zero-based.
+    /// Which spreadsheet row holds the header, zero-based: 2 is the row a person calls row 3.
     /// </summary>
+    /// <remarks>
+    /// It names a row by its number, the same numbering every reported row uses — not by how many
+    /// rows the file writes above it. A workbook leaves empty rows out; where the named row is one of
+    /// them, the header is the first row below it that has content.
+    /// </remarks>
     /// <remarks>
     /// Zero is the guess a file is analysed under before anybody has looked at it, and it is right
     /// nearly always. When it is not — a title line, a note, a blank spacer above the real header —

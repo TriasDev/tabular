@@ -7,7 +7,8 @@ public sealed record MappingPlan
     public int SheetIndex { get; init; }
 
     /// <summary>
-    /// Which row carries the headers, zero-based.
+    /// Which spreadsheet row carries the headers, zero-based: 2 is the row a person calls row 3.
+    /// Counted as <see cref="Analysis.AnalysisOptions.HeaderRowIndex"/> counts it.
     /// </summary>
     /// <remarks>
     /// Analysis always treats the first row as the header, because guessing otherwise produces a

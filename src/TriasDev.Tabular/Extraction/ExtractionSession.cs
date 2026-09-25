@@ -215,7 +215,9 @@ public sealed class ExtractionSession : IDisposable
                 $"The file has no sheet at index {_plan.SheetIndex}.");
         }
 
-        for (int i = 0; i <= _plan.HeaderRowIndex; i++)
+        // The header is the first row at or below the spreadsheet row the plan names — by the row's
+        // own number, as the analyzer counts it, not by how many rows the file happens to write.
+        do
         {
             if (!_cursor.ReadRow(_cancellationToken))
             {
@@ -223,6 +225,7 @@ public sealed class ExtractionSession : IDisposable
                     $"The sheet ends before row {_plan.HeaderRowIndex + 1}, where the plan expects its headers.");
             }
         }
+        while (_cursor.CurrentRowNumber <= _plan.HeaderRowIndex);
 
         VerifyHeaders(_cursor.CurrentRow);
     }
