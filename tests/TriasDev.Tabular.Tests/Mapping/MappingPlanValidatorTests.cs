@@ -27,6 +27,32 @@ public sealed class MappingPlanValidatorTests
         Assert.Empty(MappingPlanValidator.Validate(plan, Schema));
     }
 
+    [Theory]
+    [InlineData(ColumnType.Text)]
+    [InlineData(ColumnType.Date)]
+    [InlineData(ColumnType.Boolean)]
+    public void RejectsARangeOnAFieldThatIsNotANumber(ColumnType type)
+    {
+        // It compared the value's number, which is zero for anything else: a range on a text field
+        // judged zero, and one on a date field could never be satisfied. Neither said so.
+        TargetSchema schema = new()
+        {
+            Fields = [new TargetField { Name = "f", Type = type, Constraints = [new FieldConstraint.MinValue(1)] }],
+        };
+
+        MappingFault fault = Assert.Single(MappingPlanValidator.Validate(new MappingPlan { Bindings = [Bind(0, "f")] }, schema));
+
+        Assert.Equal((ErrorCodes.Mapping.ConstraintTypeMismatch, "f"), (fault.Code, fault.TargetFieldName));
+    }
+
+    [Fact]
+    public void AcceptsARangeOnANumber()
+    {
+        TargetSchema schema = new() { Fields = [ImportField.Integer("n").AtLeast(0), ImportField.Decimal("d").AtMost(1)] };
+
+        Assert.Empty(MappingPlanValidator.Validate(new MappingPlan { Bindings = [Bind(0, "n"), Bind(1, "d")] }, schema));
+    }
+
     [Fact]
     public void AcceptsAPlanThatLeavesAnOptionalFieldUnmapped()
     {

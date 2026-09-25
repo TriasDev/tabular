@@ -387,6 +387,7 @@ from them.
 | `group.required` | A row carries none of a group's variants |
 | `mapping.unknown-field`, `mapping.duplicate-binding`, `mapping.required-field-unmapped`, `mapping.required-group-unmapped` | A plan that does not fit its schema |
 | `mapping.invalid-column`, `mapping.invalid-header-row`, `mapping.invalid-sheet`, `mapping.unknown-culture` | A plan that is malformed |
+| `mapping.constraint-type-mismatch` | The schema puts a range (`MinValue`/`MaxValue`) on a field that is not a number |
 | `mapping.stale-profile` | The profile was measured against a different header row |
 | `mapping.header-changed` | The column's header is not the one the mapping recorded |
 | `mapping.invalid-plan` | `MappingPlanException`: the plan does not fit its schema; its `Faults` carry the codes above |

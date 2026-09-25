@@ -51,6 +51,9 @@ public static class ErrorCodes
     /// <summary>A mapping plan that does not fit its schema or its file — from the validator, the precheck and MappingPlanException.</summary>
     public static class Mapping
     {
+        /// <summary><c>mapping.constraint-type-mismatch</c></summary>
+        public const string ConstraintTypeMismatch = "mapping.constraint-type-mismatch";
+
         /// <summary><c>mapping.duplicate-binding</c></summary>
         public const string DuplicateBinding = "mapping.duplicate-binding";
 

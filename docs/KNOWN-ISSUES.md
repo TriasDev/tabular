@@ -95,14 +95,12 @@ named no year.
 **Matters when** a customer exports dates in a long form. The fix is a parse against the culture's
 year-bearing patterns rather than a shape test, which is more code than the case has so far earned.
 
-### A range constraint on a non-numeric field is silently a no-op
-`MinValue`/`MaxValue` compare `MappedValue.Number`, which is zero for text, dates and booleans. So a
-range on a date field is unsatisfiable and a range on a text field compares against zero. Date ranges
-— the obvious second use — cannot be expressed at all. The validator does not reject the combination
-either.
+### Dates cannot carry a range
+`MinValue`/`MaxValue` compare numbers, so a range on a date field is refused by the validator
+(`mapping.constraint-type-mismatch`) rather than silently judged against zero, as it once was. Date
+ranges — the obvious second use — cannot be expressed yet.
 
-**Matters as soon as** a caller puts a date range in a schema. Fix by comparing per type and by
-refusing the combination in the validator.
+**Matters as soon as** a caller wants one. Fix with a date-typed range constraint.
 
 ### `CsvCursor.MoveToSheet` does not rewind
 The interface documents "positions before its first row"; the csv implementation returns `index == 0`

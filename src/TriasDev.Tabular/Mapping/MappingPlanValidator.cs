@@ -29,6 +29,7 @@ public static class MappingPlanValidator
 
         CheckRequiredFields(schema, bound, faults);
         CheckRequiredGroups(schema, bound, faults);
+        CheckConstraintTypes(schema, faults);
         CheckPlanShape(plan, faults);
 
         return faults;
@@ -96,6 +97,21 @@ public static class MappingPlanValidator
             .Where(group => !group.Any(f => bound.Contains(f.Name))))
         {
             faults.Add(new MappingFault { Code = ErrorCodes.Mapping.RequiredGroupUnmapped, TargetFieldName = group.Key });
+        }
+    }
+
+    /// <summary>A range on a field that is not a number, which no value could be judged against.</summary>
+    /// <remarks>
+    /// Reported for every such field, bound or not: it is a fault of the schema, and it would stay
+    /// silent until the day somebody bound the field.
+    /// </remarks>
+    private static void CheckConstraintTypes(TargetSchema schema, List<MappingFault> faults)
+    {
+        foreach (TargetField field in schema.Fields.Where(f =>
+            f.Type is not (ColumnType.Integer or ColumnType.Decimal)
+            && f.Constraints.Any(c => c is FieldConstraint.MinValue or FieldConstraint.MaxValue)))
+        {
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.ConstraintTypeMismatch, TargetFieldName = field.Name });
         }
     }
 
