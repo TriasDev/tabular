@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 
 namespace TriasDev.Tabular;
 
@@ -28,6 +29,11 @@ public sealed class ImportOutcome<T>
     public IReadOnlyList<RowError> Errors { get; }
 
     /// <summary>True when the row produced no item.</summary>
+    /// <remarks>
+    /// False means <see cref="Value"/> holds what the mapper built, and the compiler is told so — no
+    /// <c>!</c> after the check. Unless the mapper itself declares a nullable result and returns null.
+    /// </remarks>
+    [MemberNotNullWhen(false, nameof(Value))]
     public bool HasErrors => Errors.Count > 0;
 
     internal static ImportOutcome<T> Built(int rowNumber, T value) => new(rowNumber, value, []);

@@ -279,7 +279,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
             }
             else
             {
-                items.Add(outcome.Value!);
+                items.Add(outcome.Value);
             }
 
             // Under AllOrNothing a failure ends the run, and the batch it falls in carries no items:
@@ -336,7 +336,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
                     + $"batches with {nameof(InChunks)} instead.");
             }
 
-            items.Add(outcome.Value!);
+            items.Add(outcome.Value);
         }
 
         // Nothing unless everything: the run stopped at the first failure, and what came before it
