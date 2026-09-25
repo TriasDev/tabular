@@ -97,6 +97,11 @@ public sealed class RetainedDistinctValuesTests
         // would only be pinning what the rest of the profiler happens to allocate today. Refilling
         // changes no answer this class returns — it just quietly spends memory, 33 MB on a
         // five-million-row column when it was found.
+        // One run discarded first: whichever run goes first pays for what happens once per process —
+        // culture data loaded on the first parse, lazily built tables — and under de-DE on net8 that
+        // alone was 98 KB, larger than the allowance below.
+        _ = AllocatedProfiling(new AnalysisOptions { RetainedDistinctValues = 100 });
+
         long withRetention = AllocatedProfiling(new AnalysisOptions { RetainedDistinctValues = 100 });
         long without = AllocatedProfiling(new AnalysisOptions { RetainedDistinctValues = 0 });
 

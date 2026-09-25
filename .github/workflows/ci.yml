@@ -126,8 +126,11 @@ jobs:
       - name: Build
         run: dotnet build TriasDev.Tabular.slnx --no-restore --configuration Release
 
+      # The main suite only: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT above overrides the
+      # InvariantGlobalization setting of the invariant-globalization test host, which runs in the
+      # build-and-test job instead.
       - name: Test
-        run: dotnet test TriasDev.Tabular.slnx --no-build --configuration Release
+        run: dotnet test tests/TriasDev.Tabular.Tests --no-build --configuration Release
 
   pack:
     name: Pack NuGet
