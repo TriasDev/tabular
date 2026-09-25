@@ -71,12 +71,14 @@ So the reader recovers — and counts what it recovered in `CursorDiagnostics`. 
 indistinguishable from correct reading, and *that* is the defect: left unbounded, those 302 quotes
 swallow about 39,000 records without a word.
 
-Two repairs, both counted. A quote left open is abandoned once its field passes four lines
-(`RecoveredUnterminatedQuotes`), or when the file ends inside it. A quote that *is* closed, but whose
-field spans lines and holds a whole record's worth of delimiters, was never a quote either — a lone
-`"` opening in one line and another closing it in a later one — and the records inside it are read
-as records (`RecoveredStrayQuotes`). Genuine multi-line values, which hold a delimiter or two at most,
-are left alone.
+Two repairs, both counted. A quoted field that has crossed a line ending and holds a whole record's
+worth of delimiters was never a quote — a lone `"` that opened a field and swallowed the records
+after it — and those records are read as records the moment that is clear (`RecoveredStrayQuotes`).
+Past a line ending a quote also closes a field only where a field can end, so an inch mark in the
+swallowed text (`135"th`) does not close it. Behind that, a quoted field longer than 100 lines, or
+one the file ends inside, is abandoned the same way (`RecoveredUnterminatedQuotes`); that bound is
+what protects tables narrower than five columns, where the delimiter test is off. Genuine multi-line
+values — an address, a long note — hold a delimiter or two at most and are left alone.
 
 ## What it deliberately does not do
 
@@ -541,7 +543,7 @@ exception.
 | Package metadata string | 2,048 chars | A sheet name, a relationship target, a format code — each had a ceiling on how many, none on how long |
 | Columns per row | 16,384 | The workbook format's own width. A csv has none, and a file of nothing but delimiters is the cheapest attack there is |
 | Field length (csv) | 16 M chars | Held twice while a quoted field is open, once as the value and once as the text kept for a replay |
-| Quoted field length | 4 lines | Beyond that an opening quote was never syntax |
+| Quoted field length | 100 lines | Beyond that an opening quote was never syntax. In a table of five columns or more a stray quote is caught sooner, by swallowing a record's worth of delimiters |
 | Distinct tracking | 2,000,000 values | Exact counting costs memory in proportion; the budget is per file, not per column |
 | Retained distinct values | 1,000 per column | Enough to judge a column of codes against a reference set; a column with more is not one |
 | Error rows | 1,000 | A wrong mapping fails every row, and the thousand-and-first error says nothing the first did not |

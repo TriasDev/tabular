@@ -33,6 +33,12 @@ public sealed class CsvCursor : ITabularCursor
     private int _recordColumns;
 
     /// <summary>
+    /// How many delimiters a quoted field spanning lines may hold before it is judged to be records
+    /// rather than a value: a whole record's worth, or never for a table narrower than five columns.
+    /// </summary>
+    private int _strayQuoteDelimiters = int.MaxValue;
+
+    /// <summary>
     /// Characters put back to be read again, which is how a record is re-parsed after an
     /// unterminated quote is abandoned.
     /// </summary>
@@ -162,6 +168,10 @@ public sealed class CsvCursor : ITabularCursor
             if (read && _recordColumns == 0)
             {
                 _recordColumns = _cellCount;
+
+                // Off below five columns: "a record's worth" is then two or three delimiters, which
+                // a genuine note reaches by accident. The line bound still stands behind it there.
+                _strayQuoteDelimiters = _recordColumns >= 5 ? _recordColumns - 1 : int.MaxValue;
             }
 
             return read;
@@ -193,6 +203,7 @@ public sealed class CsvCursor : ITabularCursor
         bool atFieldStart = true;
         bool suppressQuote = false;         // set while replaying a field whose quote proved literal
         int quotedLines = 0;
+        int quotedDelimiters = 0;
 
         int sinceCheck = 0;
 
@@ -272,6 +283,24 @@ public sealed class CsvCursor : ITabularCursor
                     continue;
                 }
 
+                // A field that has crossed a line ending and holds a whole record's worth of
+                // delimiters is not a multi-line value: it is a stray quote and the records it
+                // swallowed — whether a later quote would have closed it (#20) or none ever does. Caught
+                // here, as soon as it is true, rather than when the field closes or the bound trips,
+                // so the bound can be generous enough for genuine long notes (#10).
+                if ((c == Dialect.Delimiter ? ++quotedDelimiters : quotedDelimiters) >= _strayQuoteDelimiters
+                    && quotedLines > 0)
+                {
+                    Diagnostics.RecoveredStrayQuotes++;
+                    ReplayQuotedField();
+                    inQuotes = false;
+                    fieldWasQuoted = false;
+                    atFieldStart = true;
+                    suppressQuote = true;
+                    quotedLines = 0;
+                    continue;
+                }
+
                 if (c != Dialect.Quote)
                 {
                     AppendToField(c);
@@ -292,23 +321,19 @@ public sealed class CsvCursor : ITabularCursor
                     continue;
                 }
 
+                // Past a line ending, a quote closes the field only where a field can end. Anything
+                // else — `135"th` — is a character of the text, and the field reads on: that is what
+                // keeps an inch mark from closing a stray quote that swallowed its line (#10).
+                if (quotedLines > 0
+                    && peek >= 0 && peek != Dialect.Delimiter && peek != '\n' && peek != '\r')
+                {
+                    AppendToField(c);
+                    continue;
+                }
+
                 // Anything else closes the field. What follows is appended as ordinary text, which is
                 // what makes `"C" Road` read as `C Road` instead of failing the file.
                 inQuotes = false;
-
-                // A field that spanned lines and holds a whole record's worth of delimiters is not a
-                // multi-line value: it is a lone quote opening, another closing, and the records
-                // between them (#20). Replayed with the opening quote as an ordinary character.
-                if (quotedLines > 0 && HoldsAWholeRecord())
-                {
-                    Diagnostics.RecoveredStrayQuotes++;
-                    ReplayQuotedField();
-                    fieldWasQuoted = false;
-                    atFieldStart = true;
-                    suppressQuote = true;
-                    quotedLines = 0;
-                }
-
                 continue;
             }
 
@@ -319,6 +344,7 @@ public sealed class CsvCursor : ITabularCursor
                 atFieldStart = false;
                 anythingSeen = true;
                 quotedLines = 0;
+                quotedDelimiters = 0;
                 _quotedRaw.Clear();
                 continue;
             }
@@ -392,33 +418,6 @@ public sealed class CsvCursor : ITabularCursor
         PushBack(Dialect.Quote + _quotedRaw.ToString());
         _quotedRaw.Clear();
         _field.Clear();
-    }
-
-    /// <summary>
-    /// Whether the quoted field just closed holds as many delimiters as a whole record does.
-    /// </summary>
-    /// <remarks>
-    /// Asked only of a field that spanned lines, which is rare, so the scan costs nothing on the
-    /// ordinary path. A genuine multi-line value — an address, a note — holds a delimiter or two at
-    /// most; one holding a record's worth is records. Off for tables narrower than five columns,
-    /// where "a record's worth" is two or three delimiters, which a note reaches by accident — the
-    /// exports this happens to are wide.
-    /// </remarks>
-    private bool HoldsAWholeRecord()
-    {
-        if (_recordColumns < 5)
-        {
-            return false;
-        }
-
-        int delimiters = 0;
-
-        foreach (ReadOnlyMemory<char> chunk in _field.GetChunks())
-        {
-            delimiters += chunk.Span.Count(Dialect.Delimiter);
-        }
-
-        return delimiters >= _recordColumns - 1;
     }
 
     private void CompleteField(bool wasQuoted)

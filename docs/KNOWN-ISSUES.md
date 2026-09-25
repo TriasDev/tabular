@@ -12,17 +12,17 @@ an entry is the best reason to fix it.
 
 ## Correctness at the edges
 
-### A stray quote that closes within less than a record joins two lines
-A quote that opens a field and is closed by another quote on a later line is read as one field
-spanning lines, as RFC 4180 says. When that field holds a whole record's worth of delimiters it is
-read as the records it is instead, and counted in `RecoveredStrayQuotes` (#20). When it holds fewer —
-a quote left open in the last column and closed by a quoted field early in the next line — the two
-lines stay joined: telling that from a genuine multi-line note in the last column is not possible
-from the text. The repair is also off for tables narrower than five columns, where a record's worth
-of delimiters is few enough for a note to reach.
+### A stray quote closed at a field boundary within less than a record joins two lines
+A quote that opens a field and is closed on a later line by a quote followed by a delimiter or a
+line ending is read as one field spanning lines, as RFC 4180 says — unless the field has by then
+swallowed a whole record's worth of delimiters, which marks it as a stray quote (#20, #10). A stray
+quote that happens to be closed at a field boundary before that point keeps the two lines joined:
+nothing in the text tells it from a genuine multi-line value. In tables narrower than five columns
+the delimiter test is off, and only the 100-line bound catches a stray quote.
 
-**Matters when** a producer leaves quotes open in the last column of a wide table. The real-world
-5M-row fixture has none; the synthetic one writes a few on purpose.
+**Matters when** a producer writes lone quotes into fields often enough for two of them to meet at a
+field boundary within one record. Neither the real-world nor the synthetic 5M-row fixture has such a
+case.
 
 ### A `numFmt` inside `<dxfs>` can overwrite a cell format
 Number formats are collected from anywhere in `styles.xml`. Differential formats — used by

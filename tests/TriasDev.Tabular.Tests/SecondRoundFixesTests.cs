@@ -296,7 +296,7 @@ public sealed class SecondRoundFixesTests
 
         Assert.Equal(16_384, csv.MaxColumns);
         Assert.Equal(16 * 1024 * 1024, csv.MaxFieldChars);
-        Assert.Equal(4, csv.MaxQuotedFieldLines);
+        Assert.Equal(100, csv.MaxQuotedFieldLines);
 
         Assert.Equal(1_000, ExtractionOptions.Default.MaxErrorRows);
         Assert.Equal(2_000_000, AnalysisOptions.Default.DistinctTrackingBudget);

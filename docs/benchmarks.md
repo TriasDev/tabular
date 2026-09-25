@@ -101,7 +101,7 @@ are never closed.
 
 | Library | Version | Time | Peak memory | Rows read | Result |
 |---|---|--:|--:|--:|---|
-| **TriasDev.Tabular** | 0.1.0 | 3.87 s | **51 MB** | **5,127,969** | every record; 40 unterminated and 9 stray quotes repaired and reported |
+| **TriasDev.Tabular** | 0.1.0 | 3.87 s | **51 MB** | **5,127,969** | every record; 49 stray quotes repaired and reported |
 | CsvHelper | 33.1.0 | 3.51 s | 71 MB | 5,088,738 | 39,231 records merged into others, no warning — with its default settings too, its bad-data callback is never called |
 | Sep | 0.17.1 | 4.56 s | 208 MB | 2,845,485 | 2,282,484 records merged into others, no warning |
 | Sylvan.Data.Csv | 1.4.4 | — | — | — | throws: a delimiter, newline or EOF was expected after a closing quote |
@@ -169,9 +169,8 @@ machine as above, 2026-09-25):
 | malformed-5m.csv | 5.71 s | 53 MB | 22.2 s | 135 MB |
 
 Same shape, not the same bytes, so expect figures close to the real-file tables rather than equal to
-them. The malformed file has 5,127,969 lines and reads as 5,127,965 rows, with 310 unterminated and
-6 stray quotes repaired: its generator also writes quotes that close within less than a record,
-which the stray-quote repair leaves alone by design (see the known limitations).
+them. The malformed file has 5,127,969 lines and reads as all 5,127,969 rows, with 320 stray quotes
+repaired.
 
 Point the comparison project at those files, or at a folder of your own:
 

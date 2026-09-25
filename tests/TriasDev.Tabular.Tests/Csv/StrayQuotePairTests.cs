@@ -98,15 +98,17 @@ public sealed class StrayQuotePairTests
     public void ReadsTheLinesAfterAQuoteThatTheFileEndsInside()
     {
         // The file ends inside a quoted field that spans lines. The text used to become that field's
-        // value, joining every record after the quote into it; it is replayed as records instead.
+        // value, joining every record after the quote into it; it is replayed as records instead. A
+        // narrow table, so the early stray-quote check stays out of it and the end of the file is what
+        // decides.
         (List<string[]> rows, CursorDiagnostics diagnostics) = Read(
-            "id;name;size;city;note\n" +
-            "1;pipe;\";Bonn;a\n" +
-            "2;hose;big;Köln;b\n");
+            "id;size;note\n" +
+            "1;big;\"never closed\n" +
+            "2;small;b\n");
 
         Assert.Equal(3, rows.Count);
-        Assert.Equal(["1", "pipe", "\"", "Bonn", "a"], rows[1]);
-        Assert.Equal(["2", "hose", "big", "Köln", "b"], rows[2]);
+        Assert.Equal(["1", "big", "\"never closed"], rows[1]);
+        Assert.Equal(["2", "small", "b"], rows[2]);
         Assert.Equal(1, diagnostics.RecoveredUnterminatedQuotes);
     }
 }

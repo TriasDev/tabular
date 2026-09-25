@@ -23,12 +23,15 @@ public sealed record CsvCursorOptions
     /// quotes in a 572 MB export swallow about 39,000 records.
     /// </para>
     /// <para>
-    /// Four is generous for the legitimate case and short enough that the illegitimate one costs a
-    /// handful of rows before the reader recovers. Every recovery is counted in
+    /// A hundred is generous for any genuine note or address. It was four, which split a well-formed
+    /// six-line note into rows (#10); it can be this high because a stray quote in a table of five
+    /// columns or more is now caught by what it swallows — a whole record's worth of delimiters,
+    /// counted in <see cref="CursorDiagnostics.RecoveredStrayQuotes"/> — long before this bound. The
+    /// bound is what stands behind narrower tables, and every recovery by it is counted in
     /// <see cref="CursorDiagnostics.RecoveredUnterminatedQuotes"/>.
     /// </para>
     /// </remarks>
-    public int MaxQuotedFieldLines { get; init; } = 4;
+    public int MaxQuotedFieldLines { get; init; } = 100;
 
     /// <summary>
     /// The most characters one field may hold.
