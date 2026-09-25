@@ -4,6 +4,7 @@ using System.Text;
 using System.Xml;
 
 using TriasDev.Tabular.Abstractions;
+using TriasDev.Tabular.Analysis;
 
 namespace TriasDev.Tabular.Xlsx;
 
@@ -527,7 +528,7 @@ public sealed class XlsxCursor : ITabularCursor
                 return RawCell.FromText(new string(text));
 
             case CellValueType.IsoDate:
-                return DateTime.TryParse(
+                return DateReading.TryParseAsWritten(
                     text,
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.NoCurrentDateDefault | DateTimeStyles.AllowWhiteSpaces,

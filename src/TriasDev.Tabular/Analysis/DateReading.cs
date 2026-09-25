@@ -37,8 +37,53 @@ internal static class DateReading
         date = default;
 
         return LooksLikeOne(text)
-            && DateTime.TryParse(text, culture, DateTimeStyles.NoCurrentDateDefault, out date)
+            && TryParseAsWritten(text, culture, DateTimeStyles.NoCurrentDateDefault, out date)
             && date.Year != 1;
+    }
+
+    /// <summary>
+    /// Parses a date and time as the clock time it states, setting aside any zone it carries.
+    /// </summary>
+    /// <remarks>
+    /// Dates in this library are wall-clock values. <c>DateTime.TryParse</c> converts a zoned text —
+    /// <c>…Z</c>, <c>+05:00</c> — to the host's local time, so one file imported different dates on
+    /// different servers, and a timestamp near midnight moved to another day. The clock time as
+    /// written is what a person reading the cell sees, and is the same everywhere.
+    /// </remarks>
+    public static bool TryParseAsWritten(
+        ReadOnlySpan<char> text,
+        IFormatProvider culture,
+        DateTimeStyles styles,
+        out DateTime date)
+    {
+        if (!HasZone(text))
+        {
+            return DateTime.TryParse(text, culture, styles, out date);
+        }
+
+        if (DateTimeOffset.TryParse(text, culture, styles & ~DateTimeStyles.NoCurrentDateDefault, out DateTimeOffset zoned))
+        {
+            date = DateTime.SpecifyKind(zoned.DateTime, DateTimeKind.Unspecified);
+            return true;
+        }
+
+        date = default;
+        return false;
+    }
+
+    /// <summary>Whether a timestamp ends in a zone designator: <c>Z</c>, or an offset after its time.</summary>
+    private static bool HasZone(ReadOnlySpan<char> text)
+    {
+        ReadOnlySpan<char> trimmed = text.TrimEnd();
+
+        if (trimmed.Length > 0 && trimmed[^1] is 'Z' or 'z')
+        {
+            return true;
+        }
+
+        int time = trimmed.IndexOf(':');
+
+        return time >= 0 && trimmed[time..].IndexOfAny('+', '-') >= 0;
     }
 
     /// <summary>
