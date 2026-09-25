@@ -117,11 +117,6 @@ The interface documents "positions before its first row"; the csv implementation
 and stays where it is. Analysing and then extracting through one cursor instance reads a csv from
 wherever it stopped.
 
-### `"invariant"` and `""` are two spellings of one culture
-`TypeHypothesis.Culture` reports `"invariant"`; `MappingPlan.Culture` expects the empty string. A UI
-doing the obvious thing — take the top hypothesis's culture, put it in the plan — is told the culture
-is unknown.
-
 ### `IsBlank` ignores the binding's empty-equivalents
 A row whose every mapped cell holds `k.A.` is not skipped. It is counted as produced and handed over
 as a valid row of entirely absent values.

@@ -455,7 +455,8 @@ the context it was created on; an `IProgress<T>` of your own is called on the an
 
 Every text value is tried under each culture in `AnalysisOptions.Cultures`, by default
 `["", "de-DE", "en-US"]` — invariant, German and US conventions — and the ranked hypotheses name the
-culture that read a column. The default leans towards the files this library was first written for;
+culture that read a column — the empty string for the invariant one, the same spelling
+`MappingPlan.Culture` takes, so a hypothesis's culture goes into a plan as it is. The default leans towards the files this library was first written for;
 a caller whose files come from elsewhere should list its own (`["", "fr-FR"]`). An unknown name is
 refused when the analyzer is created.
 

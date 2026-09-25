@@ -80,7 +80,7 @@ public sealed class ColumnProfilerTests
 
         Assert.Equal(3, facts.MinLength);
         Assert.Equal(3, facts.MaxLength);
-        Assert.Equal(0, For(facts, "invariant").Integer + For(facts, "invariant").Decimal);
+        Assert.Equal(0, For(facts, "").Integer + For(facts, "").Decimal);
         Assert.Equal(1, facts.EmptyCount);
     }
 
@@ -104,7 +104,7 @@ public sealed class ColumnProfilerTests
         ColumnFacts facts = Profile(["1.234,56", "2.000,00"]);
 
         Assert.Equal(2, For(facts, "de-DE").Decimal);
-        Assert.Equal(0, For(facts, "invariant").Decimal + For(facts, "invariant").Integer);
+        Assert.Equal(0, For(facts, "").Decimal + For(facts, "").Integer);
         Assert.Equal(0, For(facts, "en-US").Decimal + For(facts, "en-US").Integer);
     }
 
@@ -117,7 +117,7 @@ public sealed class ColumnProfilerTests
         ColumnFacts facts = Profile(["1,00", "2,00", "3,00"]);
 
         Assert.Equal(3, For(facts, "de-DE").Decimal);
-        Assert.Equal(0, For(facts, "invariant").Integer);
+        Assert.Equal(0, For(facts, "").Integer);
         Assert.True(facts.IsUnique);
     }
 
@@ -159,7 +159,7 @@ public sealed class ColumnProfilerTests
     {
         ColumnFacts facts = Profile(["2023-01-15", "2021-06-30", "2024-12-01"]);
 
-        Assert.Equal(3, For(facts, "invariant").Date);
+        Assert.Equal(3, For(facts, "").Date);
         Assert.Equal(new DateTime(2021, 6, 30, 0, 0, 0, DateTimeKind.Unspecified), facts.MinDate);
         Assert.Equal(new DateTime(2024, 12, 1, 0, 0, 0, DateTimeKind.Unspecified), facts.MaxDate);
     }

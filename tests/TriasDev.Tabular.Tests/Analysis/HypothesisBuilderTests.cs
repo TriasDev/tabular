@@ -154,7 +154,11 @@ public sealed class HypothesisBuilderTests
 
         Assert.DoesNotContain(hypotheses, h => h.Type == ColumnType.Integer);
         Assert.Equal(ColumnType.Decimal, hypotheses[0].Type);
-        Assert.Equal("en-US", hypotheses[0].Culture);
+
+        // en-US and the invariant culture read it alike; a tie goes to the invariant one, whose name
+        // is the empty string and sorts first.
+        Assert.Equal(string.Empty, hypotheses[0].Culture);
+        Assert.Contains(hypotheses, h => h.Type == ColumnType.Decimal && h.Culture == "en-US");
     }
 
     [Fact]

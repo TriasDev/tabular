@@ -23,7 +23,8 @@ public sealed record TypeHypothesis
 
     /// <summary>
     /// The culture the values were read under, or null where the reading does not depend on one —
-    /// text, booleans, and anything the file itself declared.
+    /// text, booleans, and anything the file itself declared. The empty string is the invariant
+    /// culture, spelled as <see cref="MappingPlan.Culture"/> expects it.
     /// </summary>
     public string? Culture { get; init; }
 

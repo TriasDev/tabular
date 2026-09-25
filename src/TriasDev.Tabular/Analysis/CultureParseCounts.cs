@@ -9,7 +9,7 @@ namespace TriasDev.Tabular;
 /// </remarks>
 public sealed record CultureParseCounts
 {
-    /// <summary>The culture's name, or <c>invariant</c>.</summary>
+    /// <summary>The culture's name; the empty string is the invariant culture, as in .NET.</summary>
     public required string Culture { get; init; }
 
     /// <summary>Non-empty values that read as a whole number.</summary>

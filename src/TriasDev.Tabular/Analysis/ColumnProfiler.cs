@@ -446,7 +446,7 @@ internal sealed class ColumnProfiler
         public CultureParseCounts ToCounts() =>
             new()
             {
-                Culture = name.Length == 0 ? "invariant" : name,
+                Culture = name,
                 Integer = _integer,
                 Decimal = _decimal,
                 Date = _date,

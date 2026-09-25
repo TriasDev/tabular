@@ -689,7 +689,9 @@ public static class MappingPrecheck
             + Native(facts, RawCellKind.Date)
             + Native(facts, RawCellKind.Boolean);
 
-        string name = string.IsNullOrEmpty(culture) ? "invariant" : culture;
+        // One spelling of the invariant culture everywhere: the empty name, as .NET itself names it.
+        string name = culture ?? string.Empty;
+        string shown = name.Length == 0 ? "the invariant culture" : name;
         CultureParseCounts? counts = facts.ParseCounts.FirstOrDefault(c => c.Culture == name)
             // Native values read the same under every culture, so any culture's figures answer for a
             // column made of nothing else.
@@ -700,7 +702,7 @@ public static class MappingPrecheck
             add(
                 ErrorCodes.Value.TypeMismatch,
                 PrecheckSeverity.Undetermined,
-                $"The file was not profiled under {name}, so this could not be judged.",
+                $"The file was not profiled under {shown}, so this could not be judged.",
                 null);
 
             return;
@@ -726,7 +728,7 @@ public static class MappingPrecheck
             ErrorCodes.Value.TypeMismatch,
             readable == 0 ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
             $"{failing} of {facts.NonEmptyCount} values do not read as "
-            + $"{field.Type.ToString().ToLowerInvariant()} under {name}."
+            + $"{field.Type.ToString().ToLowerInvariant()} under {shown}."
             + (readable == 0 ? " None of them do." : string.Empty),
             failing);
     }
