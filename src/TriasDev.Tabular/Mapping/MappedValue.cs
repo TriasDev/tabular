@@ -78,17 +78,22 @@ public readonly struct MappedValue : IEquatable<MappedValue>
     public bool Boolean => _number != 0;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// By value. The text of a number, date or boolean is only its rendering — 1.0 and 1.00 are one
+    /// amount — so it takes part only for a text value, where it is the value.
+    /// </remarks>
     public bool Equals(MappedValue other) =>
         Type == other.Type
         && IsPresent == other.IsPresent
         && _number == other._number
-        && string.Equals(Text, other.Text, StringComparison.Ordinal);
+        && (Type != ColumnType.Text || string.Equals(Text, other.Text, StringComparison.Ordinal));
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is MappedValue other && Equals(other);
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Type, IsPresent, Text, _number);
+    public override int GetHashCode() =>
+        HashCode.Combine(Type, IsPresent, Type == ColumnType.Text ? Text : null, _number);
 
     /// <inheritdoc />
     public override string ToString() => IsPresent ? Text ?? string.Empty : "(absent)";
