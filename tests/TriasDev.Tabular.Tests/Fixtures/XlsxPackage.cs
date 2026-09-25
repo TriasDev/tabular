@@ -33,6 +33,18 @@ internal sealed class XlsxPackage
         return this;
     }
 
+    /// <summary>
+    /// Adds a worksheet whose whole part is supplied verbatim — for markup a well-behaved writer
+    /// never produces, such as a part cut off before it ends.
+    /// </summary>
+    public XlsxPackage WithRawSheet(string name, string worksheetXml)
+    {
+        _sheets.Add((name, RawMarker + worksheetXml));
+        return this;
+    }
+
+    private const string RawMarker = "\u0001raw\u0001";
+
     /// <summary>Supplies the <c>&lt;si&gt;</c> children of the shared string table verbatim.</summary>
     public XlsxPackage WithSharedStrings(string itemsXml)
     {
@@ -230,7 +242,9 @@ internal sealed class XlsxPackage
     }
 
     private static string Worksheet(string rowsXml) =>
-        $"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>{rowsXml}</sheetData></worksheet>""";
+        rowsXml.StartsWith(RawMarker, StringComparison.Ordinal)
+            ? rowsXml[RawMarker.Length..]
+            : $"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>{rowsXml}</sheetData></worksheet>""";
 
     private static string SharedStrings(string itemsXml) =>
         $"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">{itemsXml}</sst>""";

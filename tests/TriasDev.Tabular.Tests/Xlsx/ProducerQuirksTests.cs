@@ -251,4 +251,94 @@ public sealed class ProducerQuirksTests
 
         Assert.Equal("漢字", ReadFirstCell(content).Text);
     }
+
+    [Fact]
+    public void RefusesAWorkbookPartThatIsNotWellFormedXmlAsAnUnreadableFile()
+    {
+        // XmlException escaped the constructor: a type the guide never names, so a host catching the
+        // documented ones crashed on a crafted upload.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", OneCell)
+            .WithWorkbookTail("<unclosed>")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+
+        InvalidDataException error = Assert.Throws<InvalidDataException>(() => new XlsxCursor(stream));
+        Assert.IsType<System.Xml.XmlException>(error.InnerException);
+    }
+
+    [Fact]
+    public void RefusesAStylesheetThatIsNotWellFormedXmlAsAnUnreadableFile()
+    {
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", OneCell)
+            .WithStyles("<styleSheet><cellXfs>")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+
+        Assert.Throws<InvalidDataException>(() => new XlsxCursor(stream));
+    }
+
+    [Fact]
+    public void RefusesASharedStringTableThatIsNotWellFormedXmlWhenARowFirstNeedsIt()
+    {
+        byte[] content = new XlsxPackage()
+            .WithSharedStrings("""<si><t>a</t></si><si><t>b""")
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="s"><v>0</v></c></row>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    private const string SheetOpen =
+        """<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>""";
+
+    private static readonly string TwoRows =
+        """<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>b</t></is></c></row>""";
+
+    [Theory]
+    [InlineData("""<row r="3"><c r="A3" t="inlineStr"><is><t>c""")]      // inside a value
+    [InlineData("""<row r="3"><c r="A3" t="inlineStr"><is><t>c</t></is></c>""")] // inside a row
+    [InlineData("")]                                                          // between rows
+    public void RefusesAWorksheetCutOffBeforeItsMarkupEnds(string tail)
+    {
+        // A clipped upload ended the scanner cleanly, and the cursor handed out a shorter table whose
+        // last row was whatever part of it had arrived — no exception, nothing in the diagnostics.
+        byte[] content = new XlsxPackage().WithRawSheet("Sheet1", SheetOpen + TwoRows + tail).Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<InvalidDataException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void ReadsAnEmptyWorksheetWrittenAsASelfClosingElement()
+    {
+        byte[] content = new XlsxPackage()
+            .WithRawSheet("Sheet1", """<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void StopsReadingAtTheEndOfTheSheetDataWhateverFollowsIt()
+    {
+        byte[] content = new XlsxPackage()
+            .WithRawSheet("Sheet1", SheetOpen + TwoRows + "</sheetData><extLst><ext><row r=\"9\"/></ext></extLst></worksheet>")
+            .Build();
+
+        Assert.Equal(2, ReadAll(content).Count);
+    }
 }

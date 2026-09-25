@@ -77,6 +77,9 @@ public sealed class XlsxCursor : ITabularCursor
     private readonly long _totalSheetBytes;
     private CountingStream? _sheetCounter;
 
+    /// <summary>Whether the current sheet's cell data has been read to its end.</summary>
+    private bool _sheetEnded;
+
     private readonly StringBuilder _inlineText = new();
     private readonly XlsxCursorOptions _options;
 
@@ -165,12 +168,28 @@ public sealed class XlsxCursor : ITabularCursor
 
             MoveToSheet(0);
         }
+        catch (XmlException malformed)
+        {
+            _package.Dispose();
+            throw NotWellFormed(malformed);
+        }
         catch
         {
             _package.Dispose();
             throw;
         }
     }
+
+    /// <summary>
+    /// A part of the package that is not well-formed XML, reported as the unreadable file it is.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="XmlException"/> is not a type the library documents, so a host catching the ones
+    /// it does would crash on a crafted upload. The parser's message and position stay available as
+    /// the inner exception.
+    /// </remarks>
+    private static InvalidDataException NotWellFormed(XmlException malformed) =>
+        new($"The workbook is not readable: one of its parts is not well-formed XML ({malformed.Message})", malformed);
 
     /// <summary>
     /// A part's name as a path inside the package: forward slashes, no leading one.
@@ -334,6 +353,13 @@ public sealed class XlsxCursor : ITabularCursor
         {
             return ReadRowCore(_sheetScanner, cancellationToken);
         }
+        catch (XmlException malformed)
+        {
+            // Only the shared string table is read by XmlReader here, lazily, on the first cell that
+            // needs it.
+            _faulted = true;
+            throw NotWellFormed(malformed);
+        }
         catch
         {
             // Whatever it was, the scanner is somewhere inside a row whose cells are partly consumed,
@@ -346,6 +372,11 @@ public sealed class XlsxCursor : ITabularCursor
 
     private bool ReadRowCore(SheetScanner scanner, CancellationToken cancellationToken)
     {
+        if (_sheetEnded)
+        {
+            return false;
+        }
+
         int sinceCheck = 0;
 
         while (scanner.Read())
@@ -358,6 +389,14 @@ public sealed class XlsxCursor : ITabularCursor
             {
                 sinceCheck = 0;
                 cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            // The end of the cell data is the end of the sheet; whatever follows it holds no rows,
+            // and is not read.
+            if (EndsSheetData(scanner))
+            {
+                _sheetEnded = true;
+                return false;
             }
 
             if (scanner.Kind != XmlNodeKind.Element || !scanner.Name.SequenceEqual("row"))
@@ -382,8 +421,28 @@ public sealed class XlsxCursor : ITabularCursor
             return true;
         }
 
-        return false;
+        throw Truncated();
     }
+
+    /// <summary>Whether the scanner stands where a worksheet's cell data ends.</summary>
+    private static bool EndsSheetData(SheetScanner scanner) =>
+        scanner.Kind switch
+        {
+            XmlNodeKind.EndElement => scanner.Name.SequenceEqual("sheetData") || scanner.Name.SequenceEqual("worksheet"),
+            XmlNodeKind.Element => scanner.IsEmptyElement && scanner.Name.SequenceEqual("sheetData"),
+            _ => false,
+        };
+
+    /// <summary>
+    /// The part ended before its markup did: a clipped upload, or a package whose sizes lie.
+    /// </summary>
+    /// <remarks>
+    /// The scanner reports the end of its input as a clean end, and reading on from there handed out
+    /// a shorter table whose last row was whatever part of it had arrived — the one outcome worse than
+    /// refusing, because nothing about it looks wrong.
+    /// </remarks>
+    private static InvalidDataException Truncated() =>
+        new("The worksheet ends before its markup does: the file is truncated or incomplete.");
 
     /// <summary>Reads every cell up to the end of the row the scanner is inside.</summary>
     private void ReadCells(SheetScanner scanner, CancellationToken cancellationToken)
@@ -411,6 +470,8 @@ public sealed class XlsxCursor : ITabularCursor
                 ReadCell(scanner, cancellationToken);
             }
         }
+
+        throw Truncated();
     }
 
     /// <summary>
@@ -476,7 +537,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (scanner.Kind == XmlNodeKind.EndElement && scanner.Name.SequenceEqual("c"))
             {
-                break;
+                return cell;
             }
 
             if (scanner.Kind != XmlNodeKind.Element)
@@ -494,7 +555,7 @@ public sealed class XlsxCursor : ITabularCursor
             }
         }
 
-        return cell;
+        throw Truncated();
     }
 
     private RawCell ReadValue(SheetScanner scanner, CellValueType type, bool dateStyle, CancellationToken cancellationToken)
@@ -598,7 +659,7 @@ public sealed class XlsxCursor : ITabularCursor
             }
         }
 
-        return _inlineText.ToString();
+        throw Truncated();
     }
 
     private void AppendInlineText(ReadOnlySpan<char> text)
@@ -1383,6 +1444,7 @@ public sealed class XlsxCursor : ITabularCursor
         _sheetStream?.Dispose();
         _sheetStream = null;
         _sheetCounter = null;
+        _sheetEnded = false;
     }
 
     /// <inheritdoc />
