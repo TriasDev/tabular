@@ -12,6 +12,12 @@ with the base class library. The build adds analyzers, and nothing else; none of
 by any code here. `TabularIndependenceTests` checks the resolved package graph, not just the project
 file, so a parsing library arriving through a transitive reference fails a test.
 
+## Contents
+
+- **Concepts** — [What it does](#what-it-does) · [What it deliberately does not do](#what-it-deliberately-does-not-do)
+- **How-to** — [Using it](#using-it) · [Who closes the stream](#who-closes-the-stream) · [Cancellation](#cancellation) · [Progress](#progress) · [Cultures](#cultures)
+- **Reference** — [Error codes](#error-codes) · [Bounds](#bounds) · [Performance](#performance) · [Known limitations](#known-limitations) · [Ideas](#ideas) · [Tests](#tests) · [Documents](#documents)
+
 ## What it does
 
 ```
@@ -64,6 +70,18 @@ import of five million rows.
 So the reader recovers — and counts what it recovered in `CursorDiagnostics`. A silent recovery is
 indistinguishable from correct reading, and *that* is the defect: left unbounded, those 302 quotes
 swallow about 39,000 records without a word.
+
+## What it deliberately does not do
+
+- **Guess where the header is.** The first row is the header. A guess that is usually right produces
+  a wrong answer nobody checks; `MappingPlan.HeaderRowIndex` is where a user says otherwise.
+- **Decide a column's type.** It proposes. A person disposes.
+- **Distinguish an empty field from a quoted empty one.** The syntax does; the data does not.
+- **Scan for viruses.** That belongs before a file reaches here.
+- **Offer a transformation language.** A list of empty-equivalents, and nothing more,
+  because nothing yet asks for more.
+- **Count distinct values beyond its budget.** Past it, a column reports a lower bound and an
+  undetermined uniqueness — an explicit "not determined" rather than a confident wrong number.
 
 ## Using it
 
@@ -382,64 +400,6 @@ The code is yours to translate and may not start with `value.`, `mapping.`, `gro
 `CheckDigits` ships Luhn (card numbers; ISINs, with letters counted as A = 10 … Z = 35) and ISO 7064
 MOD 97-10 (LEIs; IBANs with their first four characters moved to the end).
 
-## Error codes
-
-The library reports codes and never messages: it knows nothing about who reads them or in what
-language. A calling domain maps them onto its own error envelope, and a frontend derives its wording
-from them.
-
-| Code | Meaning |
-|---|---|
-| `value.required` | A required field's cell was empty |
-| `value.type-mismatch` | The value does not read as the field's type |
-| `value.exact-length`, `value.min-length`, `value.max-length` | A length rule |
-| `value.out-of-range` | A minimum or maximum |
-| `value.not-allowed` | Outside the allowed set |
-| `value.not-unique` | The column repeats a value, and the field identifies a record |
-| `value.pattern` | Did not match the pattern (as a whole: patterns are anchored at both ends) |
-| `group.required` | A row carries none of a group's variants |
-| `mapping.unknown-field`, `mapping.duplicate-binding`, `mapping.required-field-unmapped`, `mapping.required-group-unmapped` | A plan that does not fit its schema |
-| `mapping.invalid-column`, `mapping.invalid-header-row`, `mapping.invalid-sheet`, `mapping.unknown-culture` | A plan that is malformed |
-| `mapping.constraint-type-mismatch` | The schema puts a range (`MinValue`/`MaxValue`) on a field that is not a number |
-| `mapping.stale-profile` | The profile was measured against a different header row |
-| `mapping.header-changed` | The column's header is not the one the mapping recorded |
-| `mapping.invalid-plan` | `MappingPlanException`: the plan does not fit its schema; its `Faults` carry the codes above |
-| `structure.sheet-missing`, `structure.sheet-changed`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
-| `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .ods, binary), or damaged, or cut off |
-| `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
-
-This table is checked against the library's sources by `ErrorCodeCatalogTests`, in both directions.
-It went out of step twice in the branch that added it — a code emitted, asserted, given a requirement
-and described in this file's own prose, and left out of the table a frontend reads. Now it cannot.
-
-Faults that invalidate a whole run are exceptions, not row errors — the two demand opposite
-responses. All of them derive from `TabularException`, which carries a `Code` from the table, and
-split by what a host does about them:
-
-| Exception | Means | Typical HTTP answer |
-|---|---|---|
-| `TabularFormatException` | Not a file this library reads, or not a readable one | 400 / 415 |
-| `TabularLimitException` | Readable, but beyond a configured bound — how most hostile files end | 413 |
-| `TabularStructureException` | Not the file the plan was built for (sheet, header row or header changed) | 409 / 422 |
-| `MappingPlanException` | The plan does not fit its schema, before any file is read | 400 |
-
-Mistakes in the calling code — a null argument, an option out of range, a field the schema does not
-declare — are `ArgumentException` and `InvalidOperationException`. Nothing else escapes: malformed
-XML and a damaged zip are reported as `TabularFormatException` with the parser's error as the inner
-exception.
-
-## What it deliberately does not do
-
-- **Guess where the header is.** The first row is the header. A guess that is usually right produces
-  a wrong answer nobody checks; `MappingPlan.HeaderRowIndex` is where a user says otherwise.
-- **Decide a column's type.** It proposes. A person disposes.
-- **Distinguish an empty field from a quoted empty one.** The syntax does; the data does not.
-- **Scan for viruses.** That belongs before a file reaches here.
-- **Offer a transformation language.** A list of empty-equivalents, and nothing more,
-  because nothing yet asks for more.
-- **Count distinct values beyond its budget.** Past it, a column reports a lower bound and an
-  undetermined uniqueness — an explicit "not determined" rather than a confident wrong number.
-
 ## Who closes the stream
 
 One rule at every entry point: a stream handed over is closed — when the cursor or run is disposed,
@@ -512,6 +472,52 @@ common in slim container images) only the invariant culture exists. Analysis the
 cultures out instead of failing — the profile's `ParseCounts` show which cultures were used — and a
 mapping that names one is refused by the validator and the precheck as `mapping.unknown-culture`.
 German amounts such as `1.234,50` cannot be read as numbers in that mode.
+
+## Error codes
+
+The library reports codes and never messages: it knows nothing about who reads them or in what
+language. A calling domain maps them onto its own error envelope, and a frontend derives its wording
+from them.
+
+| Code | Meaning |
+|---|---|
+| `value.required` | A required field's cell was empty |
+| `value.type-mismatch` | The value does not read as the field's type |
+| `value.exact-length`, `value.min-length`, `value.max-length` | A length rule |
+| `value.out-of-range` | A minimum or maximum |
+| `value.not-allowed` | Outside the allowed set |
+| `value.not-unique` | The column repeats a value, and the field identifies a record |
+| `value.pattern` | Did not match the pattern (as a whole: patterns are anchored at both ends) |
+| `group.required` | A row carries none of a group's variants |
+| `mapping.unknown-field`, `mapping.duplicate-binding`, `mapping.required-field-unmapped`, `mapping.required-group-unmapped` | A plan that does not fit its schema |
+| `mapping.invalid-column`, `mapping.invalid-header-row`, `mapping.invalid-sheet`, `mapping.unknown-culture` | A plan that is malformed |
+| `mapping.constraint-type-mismatch` | The schema puts a range (`MinValue`/`MaxValue`) on a field that is not a number |
+| `mapping.stale-profile` | The profile was measured against a different header row |
+| `mapping.header-changed` | The column's header is not the one the mapping recorded |
+| `mapping.invalid-plan` | `MappingPlanException`: the plan does not fit its schema; its `Faults` carry the codes above |
+| `structure.sheet-missing`, `structure.sheet-changed`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
+| `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .ods, binary), or damaged, or cut off |
+| `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
+
+This table is checked against the library's sources by `ErrorCodeCatalogTests`, in both directions.
+It went out of step twice in the branch that added it — a code emitted, asserted, given a requirement
+and described in this file's own prose, and left out of the table a frontend reads. Now it cannot.
+
+Faults that invalidate a whole run are exceptions, not row errors — the two demand opposite
+responses. All of them derive from `TabularException`, which carries a `Code` from the table, and
+split by what a host does about them:
+
+| Exception | Means | Typical HTTP answer |
+|---|---|---|
+| `TabularFormatException` | Not a file this library reads, or not a readable one | 400 / 415 |
+| `TabularLimitException` | Readable, but beyond a configured bound — how most hostile files end | 413 |
+| `TabularStructureException` | Not the file the plan was built for (sheet, header row or header changed) | 409 / 422 |
+| `MappingPlanException` | The plan does not fit its schema, before any file is read | 400 |
+
+Mistakes in the calling code — a null argument, an option out of range, a field the schema does not
+declare — are `ArgumentException` and `InvalidOperationException`. Nothing else escapes: malformed
+XML and a damaged zip are reported as `TabularFormatException` with the parser's error as the inner
+exception.
 
 ## Bounds
 
@@ -609,15 +615,6 @@ deliberately frozen** set: the comparison against every alternative, measured du
 against the prototype the decision was made on. Its numbers are not these and are not meant to track
 them. Reproduce this table with the benchmark project and `TABULAR_FIXTURES`.
 
-## Documents
-
-| | |
-|---|---|
-| [benchmarks.md](benchmarks.md) | Reading speed and memory against the common csv and xlsx libraries |
-| [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | Known limitations, with what would make each one matter |
-| [IDEAS.md](IDEAS.md) | What the design would accommodate and nobody has asked for |
-| [ADR-0001](adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is ours, with the measurements the choice was made on |
-
 ## Known limitations
 
 Behaviour at the edges that has not been changed yet, with what would make each one matter:
@@ -638,3 +635,12 @@ specification allows one.
 The large fixtures behind the performance tables are not in the repository, and no test reads them.
 The benchmark project does: set `TABULAR_FIXTURES` to their folder and `TABULAR_FILES` to the file
 names to measure.
+
+## Documents
+
+| | |
+|---|---|
+| [benchmarks.md](benchmarks.md) | Reading speed and memory against the common csv and xlsx libraries |
+| [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | Known limitations, with what would make each one matter |
+| [IDEAS.md](IDEAS.md) | What the design would accommodate and nobody has asked for |
+| [ADR-0001](adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is ours, with the measurements the choice was made on |
