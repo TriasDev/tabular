@@ -57,7 +57,9 @@ Analyze:  ITabularCursor ─► TabularAnalyzer ─► FileProfile (ColumnFacts 
 Import:   ITabularCursor ─► TabularExtractor / TabularImporter ─► typed rows or located RowErrors
 ```
 
-Namespaces map to folders under `src/TriasDev.Tabular`:
+Everything a consumer touches is in the `TriasDev.Tabular` namespace; only the format-specific
+cursors and their options live in `TriasDev.Tabular.Csv` and `TriasDev.Tabular.Xlsx`. The folders
+under `src/TriasDev.Tabular` still group the code by layer:
 
 - **Abstractions** — `ITabularCursor` is the only format-aware seam; everything above is written
   against it. `TabularFile.Open` picks the cursor from the file's first bytes (zip signature → xlsx),

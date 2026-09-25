@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>What a user decided about how to read a file.</summary>
 public sealed record MappingPlan
@@ -8,7 +8,7 @@ public sealed record MappingPlan
 
     /// <summary>
     /// Which spreadsheet row carries the headers, zero-based: 2 is the row a person calls row 3.
-    /// Counted as <see cref="Analysis.AnalysisOptions.HeaderRowIndex"/> counts it.
+    /// Counted as <see cref="AnalysisOptions.HeaderRowIndex"/> counts it.
     /// </summary>
     /// <remarks>
     /// Analysis always treats the first row as the header, because guessing otherwise produces a

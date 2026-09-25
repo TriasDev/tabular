@@ -1,7 +1,6 @@
 using System.IO.Compression;
 using System.Text;
 
-using TriasDev.Tabular.Abstractions;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 

@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>How a column's values fare when read under one culture.</summary>
 /// <remarks>

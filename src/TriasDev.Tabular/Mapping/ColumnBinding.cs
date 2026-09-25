@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>A source column feeding a target field.</summary>
 public sealed record ColumnBinding

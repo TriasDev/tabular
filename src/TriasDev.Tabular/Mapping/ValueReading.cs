@@ -1,9 +1,6 @@
 using System.Globalization;
 
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Analysis;
-
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Turns a cell and its text into the value a field would hold, by the one rule both halves use.

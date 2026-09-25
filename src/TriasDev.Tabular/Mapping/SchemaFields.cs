@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// A schema's fields by name, built once and the same way everywhere.

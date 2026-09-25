@@ -1,7 +1,5 @@
-using TriasDev.Tabular.Analysis;
-using TriasDev.Tabular.Mapping;
 
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Declares a field once, so the schema and the code that reads a value share one declaration.

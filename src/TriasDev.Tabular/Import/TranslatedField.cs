@@ -1,9 +1,6 @@
 using System.Collections;
 
-using TriasDev.Tabular.Analysis;
-using TriasDev.Tabular.Mapping;
-
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// One thing a file says in several languages, declared once.

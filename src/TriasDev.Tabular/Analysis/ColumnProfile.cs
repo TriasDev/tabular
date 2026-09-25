@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>What is known about one column: what was measured, and what that suggests.</summary>
 public sealed record ColumnProfile

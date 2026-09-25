@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Abstractions;
 
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// What was measured about a column, over every row of the file.

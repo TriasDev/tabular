@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Mapping;
 
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// One validated row, read by the field declarations that built the schema.

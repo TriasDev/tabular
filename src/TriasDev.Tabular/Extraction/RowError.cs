@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Extraction;
+namespace TriasDev.Tabular;
 
 /// <summary>Something wrong with one value in one row.</summary>
 /// <remarks>

@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Abstractions;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Reads a file forward, one row at a time.

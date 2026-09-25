@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>What is known about one sheet.</summary>
 public sealed record SheetProfile

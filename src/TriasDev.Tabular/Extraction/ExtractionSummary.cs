@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Extraction;
+namespace TriasDev.Tabular;
 
 /// <summary>What a run amounted to, available once it has been read out.</summary>
 public sealed class ExtractionSummary

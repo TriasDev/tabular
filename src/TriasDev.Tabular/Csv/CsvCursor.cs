@@ -1,8 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-using TriasDev.Tabular.Abstractions;
-
 namespace TriasDev.Tabular.Csv;
 
 /// <summary>

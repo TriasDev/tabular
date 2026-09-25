@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// The file's allowance for exact distinct counting, shared by every column.

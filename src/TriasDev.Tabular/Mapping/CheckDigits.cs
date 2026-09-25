@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// The check-digit schemes identifiers commonly carry, for use as rules with <c>Must</c>.

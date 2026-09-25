@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>Which cultures this runtime actually has, asked the same way everywhere.</summary>
 /// <remarks>

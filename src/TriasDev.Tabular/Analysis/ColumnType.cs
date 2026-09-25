@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>A reading a column's values can be given.</summary>
 public enum ColumnType

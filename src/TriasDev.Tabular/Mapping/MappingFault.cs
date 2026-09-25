@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>Something wrong with a plan, found before the file is opened.</summary>
 public sealed record MappingFault

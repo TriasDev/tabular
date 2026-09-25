@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Extraction;
 
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for a run.</summary>
 public sealed record ImportOptions

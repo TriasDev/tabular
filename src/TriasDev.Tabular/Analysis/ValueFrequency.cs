@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>A value and how often it was seen.</summary>
 public readonly record struct ValueFrequency

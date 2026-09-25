@@ -25,7 +25,7 @@ public sealed record CsvCursorOptions
     /// <para>
     /// Four is generous for the legitimate case and short enough that the illegitimate one costs a
     /// handful of rows before the reader recovers. Every recovery is counted in
-    /// <see cref="Abstractions.CursorDiagnostics.RecoveredUnterminatedQuotes"/>.
+    /// <see cref="CursorDiagnostics.RecoveredUnterminatedQuotes"/>.
     /// </para>
     /// </remarks>
     public int MaxQuotedFieldLines { get; init; } = 4;

@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Extraction;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for a run.</summary>
 public sealed record ExtractionOptions

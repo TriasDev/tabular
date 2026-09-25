@@ -1,8 +1,7 @@
 using System.Globalization;
-using TriasDev.Tabular.Abstractions;
 using TriasDev.Tabular.Csv;
 
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Reads a file through and reports what is in it.
@@ -89,7 +88,6 @@ public sealed class TabularAnalyzer
                 $"AnalysisOptions.{option} must be at least {minimum}.");
         }
     }
-
 
     /// <summary>Reads every sheet of an open cursor and profiles every column of each.</summary>
     /// <param name="cursor">A cursor positioned at the start of the file.</param>

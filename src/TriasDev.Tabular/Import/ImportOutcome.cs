@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Extraction;
 
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// What one row of the file amounted to: an item, or the reasons it produced none.

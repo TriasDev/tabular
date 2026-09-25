@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Analysis;
 
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Checks a plan against its schema without opening the file.

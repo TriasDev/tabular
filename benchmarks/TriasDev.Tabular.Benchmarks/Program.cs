@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Analysis;
 using TriasDev.Tabular.Benchmarks.Shared;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Xlsx;

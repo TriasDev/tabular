@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>What to do about a file that does not import cleanly.</summary>
 public enum ImportPolicy

@@ -1,10 +1,6 @@
 using System.Globalization;
 
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Analysis;
-using TriasDev.Tabular.Mapping;
-
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>How much weight a finding carries.</summary>
 public enum PrecheckSeverity
@@ -689,9 +685,9 @@ public static class MappingPrecheck
         // an integer or a decimal, a native date as a date — so they are judged by the same arithmetic
         // as text. Returning early for them, on the view that the file "had already answered", let a
         // column of numbers mapped to a date field pass here and then fail every row of the import.
-        int declared = Native(facts, Abstractions.RawCellKind.Number)
-            + Native(facts, Abstractions.RawCellKind.Date)
-            + Native(facts, Abstractions.RawCellKind.Boolean);
+        int declared = Native(facts, RawCellKind.Number)
+            + Native(facts, RawCellKind.Date)
+            + Native(facts, RawCellKind.Boolean);
 
         string name = string.IsNullOrEmpty(culture) ? "invariant" : culture;
         CultureParseCounts? counts = facts.ParseCounts.FirstOrDefault(c => c.Culture == name)
@@ -735,6 +731,6 @@ public static class MappingPrecheck
             failing);
     }
 
-    private static int Native(ColumnFacts facts, Abstractions.RawCellKind kind) =>
+    private static int Native(ColumnFacts facts, RawCellKind kind) =>
         facts.NativeKinds.TryGetValue(kind, out int count) ? count : 0;
 }

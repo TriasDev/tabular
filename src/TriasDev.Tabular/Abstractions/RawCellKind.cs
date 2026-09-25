@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Abstractions;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// What a cell carries as the file itself presents it, before anything is inferred about it.

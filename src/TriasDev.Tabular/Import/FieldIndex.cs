@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Mapping;
 
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Where each of a schema's fields sits in a row.

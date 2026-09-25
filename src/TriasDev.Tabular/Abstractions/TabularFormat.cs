@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Abstractions;
+namespace TriasDev.Tabular;
 
 /// <summary>The file shapes this library reads.</summary>
 public enum TabularFormat

@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Analysis;
 
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>One field a caller wants filled.</summary>
 /// <remarks>
@@ -9,7 +8,7 @@ namespace TriasDev.Tabular.Mapping;
 /// this one's domain.
 /// </remarks>
 /// <remarks>
-/// Open for the typed descriptions in <see cref="Import.ImportField"/> to derive from, so a caller
+/// Open for the typed descriptions in <see cref="ImportField"/> to derive from, so a caller
 /// can declare a field once and use that same declaration both to build the schema and to read the
 /// value out of a row. Writing the name twice is what makes a rename go wrong quietly.
 /// </remarks>
@@ -33,7 +32,7 @@ public record TargetField
     /// <remarks>
     /// Not a <see cref="FieldConstraint"/>, because it is not a property of a value. Whether a value
     /// repeats can only be known from the whole column, which no row-by-row rule can see, so it is
-    /// settled by <see cref="Import.MappingPrecheck"/> against the profile instead — where it costs
+    /// settled by <see cref="MappingPrecheck"/> against the profile instead — where it costs
     /// nothing, because the distinct values were already counted.
     /// </remarks>
     public bool MustBeUnique { get; init; }

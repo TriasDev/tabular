@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Extraction;
 
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// A batch of rows, for a caller that writes in batches.

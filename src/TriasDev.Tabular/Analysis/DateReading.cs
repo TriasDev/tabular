@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// The one rule for reading a date out of text, shared by the profiler and the extractor.

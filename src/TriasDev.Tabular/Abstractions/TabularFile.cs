@@ -1,7 +1,7 @@
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Xlsx;
 
-namespace TriasDev.Tabular.Abstractions;
+namespace TriasDev.Tabular;
 
 /// <summary>Opens a file without the caller having to know which kind it is.</summary>
 public static class TabularFile

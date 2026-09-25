@@ -1,7 +1,6 @@
-using TriasDev.Tabular.Abstractions;
 using TriasDev.Tabular.Csv;
 
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Everything analysis learned about a file.

@@ -1,6 +1,5 @@
 using System.Text;
 
-using TriasDev.Tabular.Analysis;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;

@@ -1,6 +1,5 @@
-using TriasDev.Tabular.Abstractions;
 
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Turns a column's measured facts into ranked readings of it.

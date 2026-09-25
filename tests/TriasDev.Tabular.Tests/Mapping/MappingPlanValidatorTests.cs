@@ -1,5 +1,3 @@
-using TriasDev.Tabular.Analysis;
-using TriasDev.Tabular.Mapping;
 
 using Xunit;
 

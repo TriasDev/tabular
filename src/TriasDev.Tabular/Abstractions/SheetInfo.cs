@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Abstractions;
+namespace TriasDev.Tabular;
 
 /// <summary>One sheet of a file, as the file names it.</summary>
 public sealed record SheetInfo

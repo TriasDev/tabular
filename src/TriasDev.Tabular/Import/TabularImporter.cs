@@ -1,10 +1,6 @@
 using System.Collections;
 
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Extraction;
-using TriasDev.Tabular.Mapping;
-
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>Builds one item from one validated row.</summary>
 /// <remarks>

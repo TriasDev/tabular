@@ -1,6 +1,3 @@
-using TriasDev.Tabular.Analysis;
-using TriasDev.Tabular.Import;
-using TriasDev.Tabular.Mapping;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 

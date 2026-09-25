@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Abstractions;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// What the reader had to repair to get through the file.

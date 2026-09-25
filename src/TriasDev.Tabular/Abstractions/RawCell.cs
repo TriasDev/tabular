@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TriasDev.Tabular.Abstractions;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// One cell as the file presents it.

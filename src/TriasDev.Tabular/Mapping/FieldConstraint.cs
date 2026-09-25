@@ -1,9 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-using TriasDev.Tabular.Analysis;
-
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// A rule a mapped value must satisfy.
@@ -205,7 +203,7 @@ public abstract record FieldConstraint
     /// <para>
     /// For what a pattern cannot say — a check digit, a checksum, membership in something computed.
     /// It is applied wherever the built-in rules are: to every row's value at import, and to a
-    /// column's distinct values in <see cref="Import.MappingPrecheck"/>. Like them it is only asked
+    /// column's distinct values in <see cref="MappingPrecheck"/>. Like them it is only asked
     /// about a value that is present; an empty cell is the required check's business.
     /// </para>
     /// <para>

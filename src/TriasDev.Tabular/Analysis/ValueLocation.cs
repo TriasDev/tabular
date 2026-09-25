@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>Where a value stands in the file, and what it says.</summary>
 /// <remarks>

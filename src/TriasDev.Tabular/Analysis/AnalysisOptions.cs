@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for profiling a file.</summary>
 public sealed record AnalysisOptions

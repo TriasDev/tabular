@@ -1,8 +1,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-using TriasDev.Tabular.Mapping;
-
 using Xunit;
 
 namespace TriasDev.Tabular.Tests;

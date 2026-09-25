@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>What a caller wants an import to produce.</summary>
 public sealed record TargetSchema

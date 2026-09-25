@@ -1,7 +1,5 @@
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Mapping;
 
-namespace TriasDev.Tabular.Extraction;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Reads a file through a mapping a user confirmed.

@@ -1,8 +1,6 @@
 using System.Globalization;
 
-using TriasDev.Tabular.Abstractions;
-
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Accumulates what is true about one column as its values go past.

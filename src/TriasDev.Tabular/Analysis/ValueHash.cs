@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// A 64-bit hash of a value, used so that counting distinct values costs eight bytes each rather

@@ -140,8 +140,7 @@ Method, every library and every number: [docs/benchmarks.md](docs/benchmarks.md)
 ## Quick start
 
 ```csharp
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Analysis;
+using TriasDev.Tabular;
 
 using FileStream file = File.OpenRead("customers.xlsx");       // or .csv — detected from its bytes
 using ITabularCursor cursor = TabularFile.Open(file, "customers.xlsx");

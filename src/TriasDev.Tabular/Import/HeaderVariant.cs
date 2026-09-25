@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Import;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// Reads a language out of a column header, where the file marks one.

@@ -2,8 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Analysis;
+using TriasDev.Tabular;
 
 // Profiles a file and prints the headline of what analysis found, per column, as JSON.
 //

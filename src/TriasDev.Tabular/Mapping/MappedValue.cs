@@ -1,15 +1,13 @@
 using System.Globalization;
 
-using TriasDev.Tabular.Analysis;
-
-namespace TriasDev.Tabular.Mapping;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// One value after it has been read as the target field's type.
 /// </summary>
 /// <remarks>
 /// A struct, and typed rather than boxed, for the same reason
-/// <see cref="Abstractions.RawCell"/> is: this sits on a path that runs to millions of rows, and an
+/// <see cref="RawCell"/> is: this sits on a path that runs to millions of rows, and an
 /// object per value would spend the whole budget on the garbage collector.
 /// </remarks>
 public readonly struct MappedValue : IEquatable<MappedValue>

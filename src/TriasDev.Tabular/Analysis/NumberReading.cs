@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// The number-reading rules the profiler and the import must share, so the two cannot disagree.

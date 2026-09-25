@@ -1,10 +1,6 @@
 using System.Globalization;
 
-using TriasDev.Tabular.Abstractions;
-using TriasDev.Tabular.Analysis;
-using TriasDev.Tabular.Mapping;
-
-namespace TriasDev.Tabular.Extraction;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// One run of a file through a mapping.
@@ -397,7 +393,6 @@ public sealed class ExtractionSession : IDisposable
         return emptyEquivalents.Contains(text) ? null : text;
     }
 
-
     /// <summary>
     /// Holds one value to one rule, reporting the rule's own code when it does not hold.
     /// </summary>
@@ -414,7 +409,6 @@ public sealed class ExtractionSession : IDisposable
 
         Fail(binding, constraint.Code, text);
     }
-
 
     private void Fail(ColumnBinding binding, string code, string? raw) =>
         _errors.Add(new RowError

@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Extraction;
+namespace TriasDev.Tabular;
 
 /// <summary>
 /// The file cannot be read the way the plan says it should be.

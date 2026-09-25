@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Analysis;
+namespace TriasDev.Tabular;
 
 /// <summary>How far an analysis has got, as reported while it runs.</summary>
 /// <remarks>
