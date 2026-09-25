@@ -606,6 +606,12 @@ public sealed class XlsxCursor : ITabularCursor
 
         List<string> values = [];
 
+        // One of each for the whole table. Allocated per entry, the chunk buffer alone cost sixteen
+        // kilobytes for every shared string — 4.9 GB of allocation to read an 8.6 MB workbook whose
+        // table holds some three hundred thousand of them.
+        StringBuilder text = new();
+        char[] chunk = new char[8 * 1024];
+
         using Stream stream = part.Open();
         using XmlReader reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
 
@@ -631,7 +637,7 @@ public sealed class XlsxCursor : ITabularCursor
                     $"The shared string table holds more than the {_options.MaxSharedStrings} entries allowed.");
             }
 
-            string item = ReadSharedStringItem(reader, _options.MaxValueChars, cancellationToken);
+            string item = ReadSharedStringItem(reader, text, chunk, _options.MaxValueChars, cancellationToken);
             characters += item.Length;
 
             if (characters > _options.MaxSharedStringChars)
@@ -651,14 +657,19 @@ public sealed class XlsxCursor : ITabularCursor
         return [.. values];
     }
 
-    private static string ReadSharedStringItem(XmlReader reader, int maxChars, CancellationToken cancellationToken)
+    private static string ReadSharedStringItem(
+        XmlReader reader,
+        StringBuilder text,
+        char[] chunk,
+        int maxChars,
+        CancellationToken cancellationToken)
     {
         if (reader.IsEmptyElement)
         {
             return string.Empty;
         }
 
-        StringBuilder text = new();
+        text.Clear();
         bool advance = true;
         int sinceCheck = 0;
 
@@ -686,7 +697,7 @@ public sealed class XlsxCursor : ITabularCursor
 
             if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
             {
-                AppendText(reader, text, maxChars, cancellationToken);
+                AppendText(reader, text, chunk, maxChars, cancellationToken);
                 advance = false;
             }
         }
@@ -707,6 +718,7 @@ public sealed class XlsxCursor : ITabularCursor
     private static void AppendText(
         XmlReader reader,
         StringBuilder text,
+        char[] buffer,
         int maxChars,
         CancellationToken cancellationToken)
     {
@@ -714,8 +726,6 @@ public sealed class XlsxCursor : ITabularCursor
         {
             return;
         }
-
-        char[] buffer = new char[8 * 1024];
 
         while (reader.Read())
         {
