@@ -19,7 +19,7 @@
   <!-- What every test project runs on. -->
 
   <PropertyGroup>
-    <XunitV3Version>3.2.2</XunitV3Version>
+    <XunitV3Version>4.0.1</XunitV3Version>
   </PropertyGroup>
 
   <ItemGroup>
