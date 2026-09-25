@@ -65,6 +65,16 @@ public sealed class CsvCursor : ITabularCursor
     /// </summary>
     private readonly SearchValues<char> _specials;
 
+    /// <summary>
+    /// Where in the buffer a field's only content lies, when all of it is one run of ordinary text —
+    /// the common case — or -1. The string is then made once, from the buffer, instead of copied into
+    /// the builder and out of it again. Flushed into the builder before anything else is added and
+    /// before the buffer is refilled, so it never outlives the characters it points at.
+    /// </summary>
+    private int _pendingStart = -1;
+
+    private int _pendingLength;
+
     private RawCell[] _cells = new RawCell[16];
     private int _cellCount;
     private int _bufferLength;
@@ -168,6 +178,7 @@ public sealed class CsvCursor : ITabularCursor
 
         _cellCount = 0;
         _field.Clear();
+        _pendingStart = -1;
 
         try
         {
@@ -239,10 +250,20 @@ public sealed class CsvCursor : ITabularCursor
                 {
                     if (run < 0)
                     {
+                        // To the end of the buffer: the next read refills it, so the text is copied now.
                         run = ahead.Length;
+                        AppendRunToField(ahead);
+                    }
+                    else if (_field.Length == 0 && _pendingStart < 0 && run <= _options.MaxFieldChars)
+                    {
+                        _pendingStart = _bufferPosition;
+                        _pendingLength = run;
+                    }
+                    else
+                    {
+                        AppendRunToField(ahead[..run]);
                     }
 
-                    AppendRunToField(ahead[..run]);
                     _bufferPosition += run;
                     sinceCheck += run;
                     atFieldStart = false;
@@ -430,6 +451,8 @@ public sealed class CsvCursor : ITabularCursor
     /// <summary>Adds a run of ordinary text to the field being built, under the same ceiling.</summary>
     private void AppendRunToField(ReadOnlySpan<char> run)
     {
+        FlushPending();
+
         if (_field.Length + run.Length > _options.MaxFieldChars)
         {
             throw new TabularLimitException(nameof(CsvCursorOptions.MaxFieldChars), _options.MaxFieldChars,
@@ -441,6 +464,11 @@ public sealed class CsvCursor : ITabularCursor
 
     private void AppendToField(char c)
     {
+        if (_pendingStart >= 0)
+        {
+            FlushPending();
+        }
+
         if (_field.Length >= _options.MaxFieldChars)
         {
             throw new TabularLimitException(nameof(CsvCursorOptions.MaxFieldChars), _options.MaxFieldChars,
@@ -484,8 +512,20 @@ public sealed class CsvCursor : ITabularCursor
         // punctuation rather than on content.
         _ = wasQuoted;
 
-        _cells[_cellCount++] = RawCell.FromText(_field.ToString());
-        _field.Clear();
+        string text;
+
+        if (_pendingStart >= 0)
+        {
+            text = new string(_buffer, _pendingStart, _pendingLength);
+            _pendingStart = -1;
+        }
+        else
+        {
+            text = _field.ToString();
+            _field.Clear();
+        }
+
+        _cells[_cellCount++] = RawCell.FromText(text);
     }
 
     /// <summary>
@@ -534,6 +574,16 @@ public sealed class CsvCursor : ITabularCursor
         _pushbackPosition = 0;
     }
 
+    /// <summary>Moves a pending run of the buffer into the field builder.</summary>
+    private void FlushPending()
+    {
+        if (_pendingStart >= 0)
+        {
+            _field.Append(_buffer, _pendingStart, _pendingLength);
+            _pendingStart = -1;
+        }
+    }
+
     /// <summary>Looks at the next character without consuming it, or -1 at the end.</summary>
     private int PeekChar()
     {
@@ -561,6 +611,9 @@ public sealed class CsvCursor : ITabularCursor
 
         if (_bufferPosition == _bufferLength)
         {
+            // The refill overwrites the buffer a pending run points into.
+            FlushPending();
+
             if (_endOfStream)
             {
                 return -1;
