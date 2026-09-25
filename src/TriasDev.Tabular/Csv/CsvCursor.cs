@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 using TriasDev.Tabular.Abstractions;
@@ -135,6 +136,8 @@ public sealed class CsvCursor : ITabularCursor
     /// silently missing its beginning. A rule that has to be remembered at every new throw will be
     /// forgotten at the next one; this one cannot be.
     /// </remarks>
+    [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "A per-character state machine. Its six state variables live in locals the JIT keeps in registers; splitting it means passing them by reference or holding them in fields on every character of the file.")]
     private bool ReadRowCore(CancellationToken cancellationToken)
     {
         bool inQuotes = false;

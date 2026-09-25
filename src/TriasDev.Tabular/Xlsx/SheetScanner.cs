@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 
@@ -152,54 +153,79 @@ internal sealed class SheetScanner : IDisposable
 
             char next = _buffer[_position + 1];
 
-            if (next == '?')
+            if (next is '?' or '!')
             {
-                if (!SkipThrough("?>"))
+                switch (ReadMarkup(next))
                 {
-                    Kind = XmlNodeKind.Eof;
-                    return false;
-                }
+                    case Markup.Skipped:
+                        continue;
 
-                continue;
-            }
+                    case Markup.CharacterData:
+                        return ReadCharacterData();
 
-            if (next == '!')
-            {
-                if (Matches("<!--"))
-                {
-                    if (!SkipThrough("-->"))
-                    {
+                    default:
                         Kind = XmlNodeKind.Eof;
                         return false;
-                    }
-
-                    continue;
                 }
-
-                if (Matches("<![CDATA["))
-                {
-                    return ReadCharacterData();
-                }
-
-                if (!SkipThrough(">"))
-                {
-                    Kind = XmlNodeKind.Eof;
-                    return false;
-                }
-
-                continue;
             }
 
-            int end = FindTagEnd();
-
-            if (end < 0)
-            {
-                Kind = XmlNodeKind.Eof;
-                return false;
-            }
-
-            return next == '/' ? ReadEndElement(end) : ReadElement(end);
+            return ReadTag(isEnd: next == '/');
         }
+    }
+
+    /// <summary>Reads the opening or closing tag that starts at the scan position.</summary>
+    private bool ReadTag(bool isEnd)
+    {
+        int end = FindTagEnd();
+
+        if (end < 0)
+        {
+            Kind = XmlNodeKind.Eof;
+            return false;
+        }
+
+        return isEnd ? ReadEndElement(end) : ReadElement(end);
+    }
+
+    /// <summary>What a <c>&lt;?</c> or <c>&lt;!</c> construct turned out to be.</summary>
+    private enum Markup
+    {
+        /// <summary>A declaration, processing instruction or comment, now behind the scan position.</summary>
+        Skipped,
+
+        /// <summary>A CDATA section, not yet consumed; it carries text.</summary>
+        CharacterData,
+
+        /// <summary>The part ended inside the construct.</summary>
+        Eof,
+    }
+
+    /// <summary>
+    /// Deals with the constructs a worksheet may carry but this reader has no use for, apart from
+    /// CDATA, which it only recognises.
+    /// </summary>
+    /// <remarks>
+    /// Kept out of <see cref="Read"/> because they are rare, and the loop that runs once per node is
+    /// better off holding only the text-or-element path it takes almost every time.
+    /// </remarks>
+    private Markup ReadMarkup(char next)
+    {
+        if (next == '?')
+        {
+            return SkipThrough("?>") ? Markup.Skipped : Markup.Eof;
+        }
+
+        if (Matches("<!--"))
+        {
+            return SkipThrough("-->") ? Markup.Skipped : Markup.Eof;
+        }
+
+        if (Matches("<![CDATA["))
+        {
+            return Markup.CharacterData;
+        }
+
+        return SkipThrough(">") ? Markup.Skipped : Markup.Eof;
     }
 
     private bool ReadText()
@@ -285,6 +311,8 @@ internal sealed class SheetScanner : IDisposable
         return true;
     }
 
+    [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "A per-character scan over every tag of the worksheet. The nested loops are the tokenizer itself; a helper per step adds a call per character on the hottest path of xlsx reading.")]
     private void ReadAttributes(int from, int to)
     {
         int i = from;
@@ -444,6 +472,8 @@ internal sealed class SheetScanner : IDisposable
     /// in the middle of that value, and everything after it is misread: the remaining attributes are
     /// lost, so a shared-string cell quietly becomes a number, with no exception and no diagnostic.
     /// </remarks>
+    [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "A per-character scan run for every tag. Its quote state and resume-after-refill logic belong to one loop, and a call per chunk or character would cost on the hottest path of xlsx reading.")]
     private int FindTagEnd()
     {
         int i = _position;

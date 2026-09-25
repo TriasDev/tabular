@@ -255,38 +255,43 @@ public sealed class XlsxCursor : ITabularCursor
 
             _cellCount = 0;
 
-            if (scanner.IsEmptyElement)
+            if (!scanner.IsEmptyElement)
             {
-                return true;
-            }
-
-            while (scanner.Read())
-            {
-                // Its own counter. The outer stride stops advancing the moment a row is entered, so
-                // a row holding four hundred million elements this reader wants none of ran for five
-                // seconds with nothing able to stop it.
-                if (++sinceCheck >= 4_096)
-                {
-                    sinceCheck = 0;
-
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
-
-                if (scanner.Kind == XmlNodeKind.EndElement && scanner.Name.SequenceEqual("row"))
-                {
-                    break;
-                }
-
-                if (scanner.Kind == XmlNodeKind.Element && scanner.Name.SequenceEqual("c"))
-                {
-                    ReadCell(scanner, cancellationToken);
-                }
+                ReadCells(scanner, cancellationToken);
             }
 
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>Reads every cell up to the end of the row the scanner is inside.</summary>
+    private void ReadCells(SheetScanner scanner, CancellationToken cancellationToken)
+    {
+        // Its own counter. The outer stride stops advancing the moment a row is entered, so a row
+        // holding four hundred million elements this reader wants none of ran for five seconds with
+        // nothing able to stop it.
+        int sinceCheck = 0;
+
+        while (scanner.Read())
+        {
+            if (++sinceCheck >= 4_096)
+            {
+                sinceCheck = 0;
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            if (scanner.Kind == XmlNodeKind.EndElement && scanner.Name.SequenceEqual("row"))
+            {
+                return;
+            }
+
+            if (scanner.Kind == XmlNodeKind.Element && scanner.Name.SequenceEqual("c"))
+            {
+                ReadCell(scanner, cancellationToken);
+            }
+        }
     }
 
     /// <summary>
@@ -327,12 +332,16 @@ public sealed class XlsxCursor : ITabularCursor
             index = _cellCount;
         }
 
-        if (scanner.IsEmptyElement)
-        {
-            Place(index, RawCell.Empty);
-            return;
-        }
+        Place(index, scanner.IsEmptyElement ? RawCell.Empty : ReadCellContent(scanner, type, dateStyle, cancellationToken));
+    }
 
+    /// <summary>Reads the children of a <c>&lt;c&gt;</c> element up to its end, and the value they hold.</summary>
+    private RawCell ReadCellContent(
+        SheetScanner scanner,
+        CellValueType type,
+        bool dateStyle,
+        CancellationToken cancellationToken)
+    {
         RawCell cell = RawCell.Empty;
         int sinceCheck = 0;
 
@@ -366,7 +375,7 @@ public sealed class XlsxCursor : ITabularCursor
             }
         }
 
-        Place(index, cell);
+        return cell;
     }
 
     private RawCell ReadValue(SheetScanner scanner, CellValueType type, bool dateStyle, CancellationToken cancellationToken)
@@ -448,43 +457,40 @@ public sealed class XlsxCursor : ITabularCursor
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
-            if (scanner.Kind == XmlNodeKind.EndElement)
+            switch (scanner.Kind)
             {
-                if (scanner.Name.SequenceEqual("is"))
-                {
+                case XmlNodeKind.EndElement when scanner.Name.SequenceEqual("is"):
+                    return _inlineText.ToString();
+
+                case XmlNodeKind.EndElement:
+                    inText &= !scanner.Name.SequenceEqual("t");
                     break;
-                }
 
-                if (scanner.Name.SequenceEqual("t"))
-                {
-                    inText = false;
-                }
+                case XmlNodeKind.Element:
+                    inText = scanner.Name.SequenceEqual("t") && !scanner.IsEmptyElement;
+                    break;
 
-                continue;
-            }
-
-            if (scanner.Kind == XmlNodeKind.Element)
-            {
-                inText = scanner.Name.SequenceEqual("t") && !scanner.IsEmptyElement;
-                continue;
-            }
-
-            if (inText && scanner.Kind == XmlNodeKind.Text)
-            {
-                _inlineText.Append(scanner.Value);
-
-                // The scanner's ceiling bounds one token; this bounds the value the tokens build.
-                // Measured, a 307 KB workbook assembled eighty million characters into one cell
-                // without a single token approaching the scanner's limit.
-                if (_inlineText.Length > _options.MaxValueChars)
-                {
-                    throw new InvalidDataException(
-                        $"A cell value exceeds the {_options.MaxValueChars} characters allowed.");
-                }
+                case XmlNodeKind.Text when inText:
+                    AppendInlineText(scanner.Value);
+                    break;
             }
         }
 
         return _inlineText.ToString();
+    }
+
+    private void AppendInlineText(ReadOnlySpan<char> text)
+    {
+        _inlineText.Append(text);
+
+        // The scanner's ceiling bounds one token; this bounds the value the tokens build. Measured, a
+        // 307 KB workbook assembled eighty million characters into one cell without a single token
+        // approaching the scanner's limit.
+        if (_inlineText.Length > _options.MaxValueChars)
+        {
+            throw new InvalidDataException(
+                $"A cell value exceeds the {_options.MaxValueChars} characters allowed.");
+        }
     }
 
     /// <summary>What a cell's <c>t</c> attribute says it holds.</summary>
