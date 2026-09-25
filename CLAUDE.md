@@ -68,7 +68,9 @@ under `src/TriasDev.Tabular` still group the code by layer:
   (stray quotes, unclosed quotes), counting each repair in `CursorDiagnostics`. The xlsx cursor reads
   the OOXML package directly (shared strings, styles, 1904 epoch, inline strings).
 - **Analysis** — reads every row, not a sample. `ColumnFacts` are measured; `TypeHypothesis` is
-  derived and only ever a suggestion. Keep that distinction.
+  derived and only ever a suggestion. Keep that distinction. A sheet's source facts (`Format`,
+  `Source`, `Dialect`, `Diagnostics`) live on `SheetProfile`, not `FileProfile` — an archive holds
+  sources of different kinds.
 - **Mapping** — `TargetSchema`, `MappingPlan`, `MappingPlanValidator`, field constraints, `ImportPolicy`.
 - **Extraction** — `TabularExtractor.Start` → `ExtractionSession`: typed values per row, no entity.
 - **Import** — `TabularImporter` = extraction + the caller's mapper, exposed as `ImportRun<T>`

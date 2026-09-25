@@ -47,6 +47,13 @@ Why that matters, from a real file: a column of `1,00 2,00 3,00` yields a decima
 confidence. That is arithmetically perfect and practically useless — the column is an identifier, and
 only the facts beside it (every value distinct) say so.
 
+### What belongs to the sheet
+
+Each `SheetProfile` says what its own source was: `Format`, `Source` (a path inside an archive, else
+null), the csv `Dialect` it was read with, and the `Diagnostics` of what was repaired in it.
+`FileProfile.Format` is the container's; `FileProfile.Diagnostics` is every sheet together. Both are
+snapshots taken when the pass ended.
+
 ### Malformed input is repaired, and the repair is counted
 
 Files that people upload are not well-formed. A 572 MB real-world export carries quotes inside
@@ -98,6 +105,10 @@ unbound, for `MappingPlanValidator` to report if they are required.
 ```csharp
 MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], Schema, culture: "de-DE");
 ```
+
+A plan built by `ByHeader` also records the sheet's name and source. Extraction checks them against
+the sheet at the plan's index and refuses another one (`structure.sheet-changed`), so a workbook whose
+tabs were reordered is not imported from the wrong tab. A plan written by hand can leave them null.
 
 ```csharp
 using FileStream file = File.OpenRead(path);

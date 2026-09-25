@@ -52,6 +52,10 @@ workbook's tab order is meaningful and the person who uploaded it saw it. "The t
 mean different things in the two formats. Small, but it argues for addressing a sheet by name rather
 than by index from the first line of code.
 
+**Status.** Designed in `docs/superpowers/specs/2026-09-25-archive-as-workbook-design.md`. Its
+breaking half — per-sheet format, source, dialect and diagnostics, and a plan that records its
+sheet — shipped before v0.1; the archive cursor itself is additive and comes after it.
+
 ## Say whether a sheet is hidden
 
 A workbook marks sheets `state="hidden"` or `state="veryHidden"` — lookup tables, scratch space, a
