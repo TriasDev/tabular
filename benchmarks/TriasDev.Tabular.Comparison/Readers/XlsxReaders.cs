@@ -12,9 +12,9 @@ using ExcelDataReader;
 using MiniExcelLibs;
 
 using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 
 using OfficeOpenXml;
-using NPOI.XSSF.UserModel;
 
 namespace TriasDev.Tabular.Comparison.Readers;
 

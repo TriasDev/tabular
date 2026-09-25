@@ -5,8 +5,8 @@ using CsvHelper.Configuration;
 
 using nietras.SeparatedValues;
 
-using SylvanCsvReader = Sylvan.Data.Csv.CsvDataReader;
 using SylvanCsvOptions = Sylvan.Data.Csv.CsvDataReaderOptions;
+using SylvanCsvReader = Sylvan.Data.Csv.CsvDataReader;
 
 namespace TriasDev.Tabular.Comparison.Readers;
 
