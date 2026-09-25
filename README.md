@@ -228,6 +228,8 @@ changelog. Error codes are the exception: once published, a code keeps its meani
 | [Benchmarks](docs/benchmarks.md) | Speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus |
 | [ADR-0001](docs/adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is our own |
 | [Known issues](docs/KNOWN-ISSUES.md) | What review found and we chose not to fix yet |
+| [Contributing](CONTRIBUTING.md) | Building, testing, the invariants a change must keep |
+| [Security](SECURITY.md) | What counts as a vulnerability in a file reader, and how to report one privately |
 
 ## Requirements
 

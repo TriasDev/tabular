@@ -1,0 +1,53 @@
+name: Bug report
+description: A file is read wrongly, an import misbehaves, or the library throws where it should not.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: File format
+      options:
+        - xlsx
+        - csv
+        - not about a file
+    validations:
+      required: true
+  - type: input
+    id: producer
+    attributes:
+      label: What wrote the file
+      description: Excel, LibreOffice, Google Sheets, a library, an export from some system…
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: >-
+        The smallest file or code that shows it. Please do not attach files with personal or customer
+        data — a few synthetic rows that reproduce the problem are enough.
+      render: csharp
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: TriasDev.Tabular version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: dotnet
+    attributes:
+      label: .NET version
+      options:
+        - .NET 10
+        - .NET 8
+        - other
+    validations:
+      required: true
