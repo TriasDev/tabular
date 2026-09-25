@@ -23,6 +23,17 @@ internal sealed class ColumnProfiler
     private readonly AnalysisOptions _options;
     private readonly DistinctBudget _budget;
     private readonly CultureAccumulator[] _cultures;
+
+    /// <summary>
+    /// For each culture, the first culture that reads numbers exactly as it does — itself, when none
+    /// before it does. The invariant culture and en-US write numbers alike, so a value read as a
+    /// number under one is read the same under the other, and parsing it twice was a third of the
+    /// numeric work for nothing.
+    /// </summary>
+    private readonly int[] _numberTwin;
+
+    /// <summary>The numeric reading of the current value under each culture, reused across twins.</summary>
+    private readonly NumberRead[] _numberReads;
     private readonly HashSet<ulong> _distinctHashes = [];
     private readonly Dictionary<string, int> _frequencies = new(StringComparer.Ordinal);
     private readonly List<string> _firstValues = [];
@@ -47,6 +58,13 @@ internal sealed class ColumnProfiler
         _budget = budget;
         _options = options ?? AnalysisOptions.Default;
         _cultures = [.. CultureCatalog.Available(_options.Cultures).Select(name => new CultureAccumulator(name, _options.OutlierSampleSize))];
+        _numberTwin = new int[_cultures.Length];
+        _numberReads = new NumberRead[_cultures.Length];
+
+        for (int i = 0; i < _cultures.Length; i++)
+        {
+            _numberTwin[i] = Array.FindIndex(_cultures, 0, i + 1, c => c.ReadsNumbersLike(_cultures[i]));
+        }
     }
 
     /// <summary>The column's position, zero-based.</summary>
@@ -136,11 +154,25 @@ internal sealed class ColumnProfiler
         bool couldBeNumeric = CultureAccumulator.CouldBeNumeric(text);
         bool couldBeDate = DateReading.LooksLikeOne(text);
 
-        foreach (CultureAccumulator culture in _cultures)
+        for (int i = 0; i < _cultures.Length; i++)
         {
-            culture.AcceptText(text, rowNumber, couldBeNumeric, couldBeDate);
+            int twin = _numberTwin[i];
+
+            _numberReads[i] = twin == i ? _cultures[i].ReadNumber(text, couldBeNumeric) : _numberReads[twin];
+            _cultures[i].AcceptText(text, rowNumber, _numberReads[i], couldBeDate);
         }
     }
+
+    /// <summary>What a value read as under one culture's number rules.</summary>
+    private enum NumberKind : byte
+    {
+        None,
+        Integer,
+        Decimal,
+    }
+
+    /// <summary>The outcome of reading one value as a number under one culture.</summary>
+    private readonly record struct NumberRead(NumberKind Kind, decimal Value);
 
     /// <summary>Renders what has been measured so far.</summary>
     public ColumnFacts ToFacts()
@@ -357,31 +389,69 @@ internal sealed class ColumnProfiler
             Widen(value);
         }
 
+        /// <summary>Whether this culture reads numbers exactly as <paramref name="other"/> does.</summary>
+        /// <remarks>
+        /// Everything the two parses below and the grouping rule consult: the separators, the group
+        /// sizes, the signs. Cultures equal in all of them give the same answer for every value.
+        /// </remarks>
+        public bool ReadsNumbersLike(CultureAccumulator other)
+        {
+            NumberFormatInfo a = _culture.NumberFormat;
+            NumberFormatInfo b = other._culture.NumberFormat;
+
+            return a.NumberDecimalSeparator == b.NumberDecimalSeparator
+                && a.NumberGroupSeparator == b.NumberGroupSeparator
+                && a.NumberGroupSizes.AsSpan().SequenceEqual(b.NumberGroupSizes)
+                && a.NegativeSign == b.NegativeSign
+                && a.PositiveSign == b.PositiveSign;
+        }
+
+        /// <param name="text">The value.</param>
         /// <param name="couldBeNumeric">
         /// Whether the value could be a number under any culture, asked once by the caller: a value
         /// holding a letter is not, and most columns of a real export are exactly that — streets,
         /// cities, descriptions. Skipping the attempt loses nothing, because such a value contributes
         /// zero to every numeric count either way.
         /// </param>
-        /// <param name="couldBeDate">Whether the value has the shape of a date, asked once by the caller.</param>
-        public void AcceptText(string text, int rowNumber, bool couldBeNumeric, bool couldBeDate)
+        public NumberRead ReadNumber(string text, bool couldBeNumeric)
         {
             bool grouped = couldBeNumeric && NumberReading.HasWellFormedGroups(text, _culture.NumberFormat);
 
             if (grouped
                 && long.TryParse(text, NumberStyles.Integer | NumberStyles.AllowThousands, _culture, out long whole))
             {
-                _integer++;
-                Widen(whole);
+                return new NumberRead(NumberKind.Integer, whole);
             }
-            else if (grouped && decimal.TryParse(text, NumberStyles.Number, _culture, out decimal fraction))
+
+            if (grouped && decimal.TryParse(text, NumberStyles.Number, _culture, out decimal fraction))
             {
-                _decimal++;
-                Widen(fraction);
+                return new NumberRead(NumberKind.Decimal, fraction);
             }
-            else if (_numericOutliers.Count < outlierLimit)
+
+            return default;
+        }
+
+        /// <param name="text">The value.</param>
+        /// <param name="rowNumber">Where it stands, for an outlier.</param>
+        /// <param name="number">What <see cref="ReadNumber"/> made of it, here or under a twin culture.</param>
+        /// <param name="couldBeDate">Whether the value has the shape of a date, asked once by the caller.</param>
+        public void AcceptText(string text, int rowNumber, NumberRead number, bool couldBeDate)
+        {
+            switch (number.Kind)
             {
-                _numericOutliers.Add(new ValueLocation { RowNumber = rowNumber, RawValue = text });
+                case NumberKind.Integer:
+                    _integer++;
+                    Widen(number.Value);
+                    break;
+
+                case NumberKind.Decimal:
+                    _decimal++;
+                    Widen(number.Value);
+                    break;
+
+                case NumberKind.None when _numericOutliers.Count < outlierLimit:
+                    _numericOutliers.Add(new ValueLocation { RowNumber = rowNumber, RawValue = text });
+                    break;
             }
 
             if (couldBeDate && DateReading.TryReadShaped(text, _culture, out DateTime date))
