@@ -34,6 +34,9 @@ public sealed class XlsxCursor : ITabularCursor
     /// </remarks>
     private const int MaxColumns = 16_384;
 
+    /// <summary>The format's last row, 1,048,576; a row number beyond it is not one.</summary>
+    private const int MaxRows = 1_048_576;
+
     /// <summary>Where the workbook part is when the package's own relationships do not say.</summary>
     private const string ConventionalWorkbookPart = "xl/workbook.xml";
 
@@ -410,9 +413,13 @@ public sealed class XlsxCursor : ITabularCursor
             }
 
             // The row's own number, not a count of how many were read: rows may be absent, and a
-            // message pointing a user at the wrong line is worse than no message.
+            // message pointing a user at the wrong line is worse than no message. Taken only where it
+            // can be one — within the format's rows and after the row before — so numbering never
+            // goes backwards or repeats; anything else is read as the next row.
             CurrentRowNumber = scanner.TryGetAttribute("r", out ReadOnlySpan<char> reference)
-                && int.TryParse(reference, NumberStyles.Integer, CultureInfo.InvariantCulture, out int number)
+                && int.TryParse(reference, NumberStyles.None, CultureInfo.InvariantCulture, out int number)
+                && number > CurrentRowNumber
+                && number <= MaxRows
                     ? number
                     : CurrentRowNumber + 1;
 

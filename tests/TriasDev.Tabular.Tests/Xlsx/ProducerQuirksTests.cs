@@ -361,4 +361,30 @@ public sealed class ProducerQuirksTests
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.Equal("a", cursor.CurrentRow[0].AsText());
     }
+
+    [Fact]
+    public void NumbersRowsInIncreasingOrderWhateverTheirRAttributesSay()
+    {
+        // A negative, zero, repeated or descending r was taken at its word, so reported row numbers
+        // went backwards or repeated — and a negative one always counted as "above the header", so a
+        // header row index could skip the whole sheet.
+        static string Row(string r, string value) =>
+            $"""<row r="{r}"><c t="inlineStr"><is><t>{value}</t></is></c></row>""";
+
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", Row("-5", "a") + Row("0", "b") + Row("2", "c") + Row("2", "d") + Row("1", "e") + Row("9", "f"))
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        List<int> numbers = [];
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            numbers.Add(cursor.CurrentRowNumber);
+        }
+
+        Assert.Equal([1, 2, 3, 4, 5, 9], numbers);
+    }
 }
