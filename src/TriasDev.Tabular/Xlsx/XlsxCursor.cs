@@ -821,25 +821,35 @@ public sealed class XlsxCursor : ITabularCursor
             }
             else if (reader.LocalName == "sheet")
             {
-                string name = reader.GetAttribute("name") ?? $"Sheet{sheets.Count + 1}";
-                string? id = reader.GetAttribute("id", RelationshipNamespace);
-
-                string target = id is not null && relationships.TryGetValue(id, out string? mapped)
-                    ? mapped
-                    : $"worksheets/sheet{sheets.Count + 1}.xml";
-
-                if (sheets.Count >= _options.MaxSheets)
-                {
-                    throw new InvalidDataException(
-                        $"The workbook declares more than the {_options.MaxSheets} sheets allowed.");
-                }
-
-                sheets.Add(new SheetInfo { Index = sheets.Count, Name = Bounded(name, "sheet name") });
-                paths.Add(NormalisePart(Bounded(target, "sheet target")));
+                AddSheet(reader, relationships, sheets, paths);
             }
         }
 
         return (sheets, paths, date1904);
+    }
+
+    /// <summary>Records one <c>&lt;sheet&gt;</c> element: its name, and the part that holds it.</summary>
+    private void AddSheet(
+        XmlReader reader,
+        Dictionary<string, string> relationships,
+        List<SheetInfo> sheets,
+        List<string> paths)
+    {
+        string name = reader.GetAttribute("name") ?? $"Sheet{sheets.Count + 1}";
+        string? id = reader.GetAttribute("id", RelationshipNamespace);
+
+        string target = id is not null && relationships.TryGetValue(id, out string? mapped)
+            ? mapped
+            : $"worksheets/sheet{sheets.Count + 1}.xml";
+
+        if (sheets.Count >= _options.MaxSheets)
+        {
+            throw new InvalidDataException(
+                $"The workbook declares more than the {_options.MaxSheets} sheets allowed.");
+        }
+
+        sheets.Add(new SheetInfo { Index = sheets.Count, Name = Bounded(name, "sheet name") });
+        paths.Add(NormalisePart(Bounded(target, "sheet target")));
     }
 
     /// <summary>
@@ -915,44 +925,60 @@ public sealed class XlsxCursor : ITabularCursor
                 continue;
             }
 
-            if (reader.NodeType != XmlNodeType.Element)
+            if (reader.NodeType == XmlNodeType.Element)
             {
-                continue;
-            }
-
-            switch (reader.LocalName)
-            {
-                case "numFmt":
-                {
-                    string? id = reader.GetAttribute("numFmtId");
-                    string? code = reader.GetAttribute("formatCode");
-
-                    if (id is not null && code is not null
-                        && int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out int numFmtId))
-                    {
-                        customFormats[numFmtId] = Bounded(code, "number format code");
-                    }
-
-                    break;
-                }
-
-                case "cellXfs":
-                    inCellXfs = true;
-                    break;
-
-                case "xf" when inCellXfs:
-                {
-                    string? id = reader.GetAttribute("numFmtId");
-                    cellFormats.Add(
-                        id is not null
-                        && int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out int numFmtId)
-                            ? numFmtId
-                            : 0);
-                    break;
-                }
+                inCellXfs = ReadStyleElement(reader, inCellXfs, customFormats, cellFormats);
             }
         }
 
+        return FlattenDateStyles(cellFormats, customFormats);
+    }
+
+    /// <summary>
+    /// Takes what one element of the style table contributes, and says whether the reader is now
+    /// inside <c>&lt;cellXfs&gt;</c>.
+    /// </summary>
+    private bool ReadStyleElement(
+        XmlReader reader,
+        bool inCellXfs,
+        Dictionary<int, string> customFormats,
+        List<int> cellFormats)
+    {
+        switch (reader.LocalName)
+        {
+            case "numFmt":
+                string? code = reader.GetAttribute("formatCode");
+
+                if (code is not null && TryParseFormatId(reader, out int numFmtId))
+                {
+                    customFormats[numFmtId] = Bounded(code, "number format code");
+                }
+
+                return inCellXfs;
+
+            case "cellXfs":
+                return true;
+
+            case "xf" when inCellXfs:
+                cellFormats.Add(TryParseFormatId(reader, out int formatId) ? formatId : 0);
+                return true;
+
+            default:
+                return inCellXfs;
+        }
+    }
+
+    private static bool TryParseFormatId(XmlReader reader, out int numFmtId)
+    {
+        string? id = reader.GetAttribute("numFmtId");
+
+        numFmtId = 0;
+        return id is not null && int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out numFmtId);
+    }
+
+    /// <summary>Resolves, per cell format, whether its number format is a date.</summary>
+    private static bool[] FlattenDateStyles(List<int> cellFormats, Dictionary<int, string> customFormats)
+    {
         bool[] isDate = new bool[cellFormats.Count];
 
         for (int i = 0; i < cellFormats.Count; i++)

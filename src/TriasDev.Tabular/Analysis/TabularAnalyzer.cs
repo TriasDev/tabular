@@ -105,28 +105,44 @@ public sealed class TabularAnalyzer(AnalysisOptions? options = null)
             }
 
             rowCount++;
-
-            // A row may be wider than the header. Its extra values are still values, and a column
-            // that exists only below the header is worth reporting rather than dropping.
-            while (profilers.Count < row.Length)
-            {
-                ColumnProfiler late = new(profilers.Count, string.Empty, budget, _options);
-
-                // Given the rows it missed, as empties. Without this its counts do not add up to the
-                // sheet's — a column appearing in the last of a thousand rows reported one value and
-                // no empties — and every verdict derived from an empty count silently inherited that:
-                // "no row leaves this column empty" was read as "every row carries a value".
-                late.AcceptEmpties(rowCount - 1);
-
-                profilers.Add(late);
-            }
-
-            for (int i = 0; i < profilers.Count; i++)
-            {
-                profilers[i].Accept(i < row.Length ? row[i] : RawCell.Empty, cursor.CurrentRowNumber);
-            }
+            AcceptRow(row, cursor.CurrentRowNumber, rowCount, profilers, budget);
         }
 
+        return BuildProfile(sheet, rowCount, profilers);
+    }
+
+    /// <summary>Hands one data row's cells to the column profilers, adding columns it is the first to reach.</summary>
+    /// <param name="rowCount">The data rows counted so far, this one included.</param>
+    private void AcceptRow(
+        ReadOnlySpan<RawCell> row,
+        int rowNumber,
+        int rowCount,
+        List<ColumnProfiler> profilers,
+        DistinctBudget budget)
+    {
+        // A row may be wider than the header. Its extra values are still values, and a column that
+        // exists only below the header is worth reporting rather than dropping.
+        while (profilers.Count < row.Length)
+        {
+            ColumnProfiler late = new(profilers.Count, string.Empty, budget, _options);
+
+            // Given the rows it missed, as empties. Without this its counts do not add up to the
+            // sheet's — a column appearing in the last of a thousand rows reported one value and no
+            // empties — and every verdict derived from an empty count silently inherited that: "no
+            // row leaves this column empty" was read as "every row carries a value".
+            late.AcceptEmpties(rowCount - 1);
+
+            profilers.Add(late);
+        }
+
+        for (int i = 0; i < profilers.Count; i++)
+        {
+            profilers[i].Accept(i < row.Length ? row[i] : RawCell.Empty, rowNumber);
+        }
+    }
+
+    private SheetProfile BuildProfile(SheetInfo sheet, int rowCount, List<ColumnProfiler> profilers)
+    {
         List<ColumnProfile> columns = [];
 
         foreach (ColumnProfiler profiler in profilers)
