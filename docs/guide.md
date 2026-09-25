@@ -327,6 +327,33 @@ with the file — it is a few hundred kilobytes for a thousand strings per colum
 is the property that makes the check affordable at all: it falls on how varied a column is, never on
 how long the file is.
 
+### Rules of your own
+
+A pattern checks an identifier's shape; many identifiers also carry a check digit that a pattern
+cannot see. `Must` declares a rule from a predicate, under a code of the caller's choosing:
+
+```csharp
+public static readonly TextField Isin = ImportField.Text("isin")
+    .Require()
+    .ExactLength(12)
+    .Must("isin.check-digit", CheckDigits.Luhn);
+
+public static readonly TextField Lei = ImportField.Text("lei")
+    .ExactLength(20)
+    .Must("lei.check-digits", CheckDigits.Mod97);
+```
+
+It is applied wherever the built-in rules are: to every row at import, where a failure is a
+`RowError` carrying that code and the cell's location, and in `MappingPrecheck` to the column's
+distinct values — "2 of 1,200 distinct values fail this rule" — or `Undetermined` where the profile
+did not keep them all. It is only asked about a value that is present, and typed by its field:
+`Func<string, bool>` for text, `long` for integers, `decimal`, `DateTime`.
+
+The code is yours to translate and may not start with `value.`, `mapping.`, `group.` or
+`structure.`, so a caller's rule is never mistaken for one of the library's codes below.
+`CheckDigits` ships Luhn (card numbers; ISINs, with letters counted as A = 10 … Z = 35) and ISO 7064
+MOD 97-10 (LEIs; IBANs with their first four characters moved to the end).
+
 ## Error codes
 
 The library reports codes and never messages: it knows nothing about who reads them or in what

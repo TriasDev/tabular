@@ -129,8 +129,8 @@ Method, every library and every number: [docs/benchmarks.md](docs/benchmarks.md)
 - **Read it fast** — a forward-only cursor over rows of typed cells, for xlsx and csv alike. The
   format is detected from the file's bytes, not its name.
 - **Import it through a mapping** — declare fields once with their rules (required, length, range,
-  pattern, allowed values, unique), get typed rows or errors with stable codes, row by row or in
-  batches. A precheck judges a mapping against the profile before anything is imported.
+  pattern, allowed values, unique, or your own — check digits such as ISIN and LEI included), get
+  typed rows or errors with stable codes, row by row or in batches. A precheck judges a mapping against the profile before anything is imported.
 - **Survive hostile input** — malformed quoting is repaired and counted, every structure read from a
   file has a ceiling (zip expansion, shared strings, columns, field length), and every read honours
   cancellation, including inside a single long read.

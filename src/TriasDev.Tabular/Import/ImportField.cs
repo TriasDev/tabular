@@ -87,6 +87,15 @@ public sealed record TextField : TargetField
     /// <summary>The value must match this pattern.</summary>
     public TextField Matching(string pattern) => With(new FieldConstraint.Pattern(pattern));
 
+    /// <summary>Adds a rule of the caller's own, reported under its code when a value fails it.</summary>
+    /// <param name="code">The caller's error code; see <see cref="FieldConstraint.Rule"/>.</param>
+    /// <param name="rule">Whether a present value satisfies the rule, e.g. <see cref="CheckDigits.Luhn"/>.</param>
+    public TextField Must(string code, Func<string, bool> rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        return With(new FieldConstraint.Rule(code, v => v.Text is { } text && rule(text)));
+    }
+
     private TextField With(FieldConstraint constraint) =>
         this with { Constraints = [.. Constraints, constraint] };
 }
@@ -111,6 +120,13 @@ public sealed record IntegerField : TargetField
 
     /// <summary>The value must not be above this one.</summary>
     public IntegerField AtMost(long value) => With(new FieldConstraint.MaxValue(value));
+
+    /// <summary>Adds a rule of the caller's own, reported under its code when a value fails it.</summary>
+    public IntegerField Must(string code, Func<long, bool> rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        return With(new FieldConstraint.Rule(code, v => rule(v.Integer)));
+    }
 
     private IntegerField With(FieldConstraint constraint) =>
         this with { Constraints = [.. Constraints, constraint] };
@@ -137,6 +153,13 @@ public sealed record DecimalField : TargetField
     /// <summary>The value must not be above this one.</summary>
     public DecimalField AtMost(decimal value) => With(new FieldConstraint.MaxValue(value));
 
+    /// <summary>Adds a rule of the caller's own, reported under its code when a value fails it.</summary>
+    public DecimalField Must(string code, Func<decimal, bool> rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        return With(new FieldConstraint.Rule(code, v => rule(v.Number)));
+    }
+
     private DecimalField With(FieldConstraint constraint) =>
         this with { Constraints = [.. Constraints, constraint] };
 }
@@ -155,6 +178,13 @@ public sealed record DateField : TargetField
     /// is a property of the column and no single row can show it.
     /// </remarks>
     public DateField Unique() => this with { MustBeUnique = true };
+
+    /// <summary>Adds a rule of the caller's own, reported under its code when a value fails it.</summary>
+    public DateField Must(string code, Func<DateTime, bool> rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        return this with { Constraints = [.. Constraints, new FieldConstraint.Rule(code, v => rule(v.Date))] };
+    }
 }
 
 /// <summary>A field whose values are true or false.</summary>

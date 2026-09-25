@@ -199,4 +199,57 @@ public abstract record FieldConstraint
         public override string ToString() =>
             string.Create(CultureInfo.InvariantCulture, $"Pattern({Expression})");
     }
+
+    /// <summary>A rule the caller declares, under a code of its own.</summary>
+    /// <remarks>
+    /// <para>
+    /// For what a pattern cannot say — a check digit, a checksum, membership in something computed.
+    /// It is applied wherever the built-in rules are: to every row's value at import, and to a
+    /// column's distinct values in <see cref="Import.MappingPrecheck"/>. Like them it is only asked
+    /// about a value that is present; an empty cell is the required check's business.
+    /// </para>
+    /// <para>
+    /// The code is the caller's to translate, and may not start with a prefix the library's own
+    /// catalog uses — <c>value.</c>, <c>mapping.</c>, <c>group.</c>, <c>structure.</c> — so that a
+    /// frontend never reads a caller's rule as one of the library's. A predicate that throws is a
+    /// defect in the caller and ends the run, rather than passing or failing values silently.
+    /// </para>
+    /// </remarks>
+    public sealed record Rule : FieldConstraint
+    {
+        private static readonly string[] ReservedPrefixes = ["value.", "mapping.", "group.", "structure."];
+
+        private readonly Func<MappedValue, bool> _predicate;
+
+        /// <summary>Creates a rule from a predicate over the field's value.</summary>
+        /// <param name="code">What a failure is reported as; the caller's own, not the library's.</param>
+        /// <param name="predicate">Whether a present value satisfies the rule.</param>
+        public Rule(string code, Func<MappedValue, bool> predicate)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(code);
+            ArgumentNullException.ThrowIfNull(predicate);
+
+            if (ReservedPrefixes.Any(prefix => code.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ArgumentException(
+                    $"The code '{code}' uses a prefix the library's own error codes use; choose another.",
+                    nameof(code));
+            }
+
+            RuleCode = code;
+            _predicate = predicate;
+        }
+
+        /// <summary>The code as the caller gave it.</summary>
+        public string RuleCode { get; }
+
+        /// <inheritdoc />
+        public override string Code => RuleCode;
+
+        /// <inheritdoc />
+        public override bool IsSatisfiedBy(in MappedValue value) => value.IsPresent && _predicate(value);
+
+        /// <inheritdoc />
+        public override string ToString() => $"Rule({RuleCode})";
+    }
 }
