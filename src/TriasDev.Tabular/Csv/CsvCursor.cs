@@ -60,10 +60,12 @@ public sealed class CsvCursor : ITabularCursor
     private readonly StringBuilder _quotedRaw = new();
 
     /// <summary>
-    /// The characters that end a run of ordinary text outside quotes: the delimiter, the quote and
-    /// the two line-ending characters. Everything between two of them is field content.
+    /// The characters that end a run of ordinary text: the delimiter, the quote and the two
+    /// line-ending characters. Outside quotes everything between two of them is field content; inside,
+    /// the delimiter and line endings still end a run, because the stray-quote check counts them.
     /// </summary>
     private readonly SearchValues<char> _specials;
+
 
     /// <summary>
     /// Where in the buffer a field's only content lies, when all of it is one run of ordinary text —
@@ -269,6 +271,29 @@ public sealed class CsvCursor : ITabularCursor
                     atFieldStart = false;
                     anythingSeen = true;
                     suppressQuote = false;
+                    continue;
+                }
+            }
+
+            // Inside quotes the same holds for text up to the next quote, delimiter or line ending: it is
+            // kept, as the value and as the raw text a replay would need, in one go. The characters
+            // that decide something still go through the state machine one at a time.
+            if (inQuotes && _peeked < 0 && _pushbackPosition >= _pushback.Count && _bufferPosition < _bufferLength)
+            {
+                ReadOnlySpan<char> ahead = _buffer.AsSpan(_bufferPosition, _bufferLength - _bufferPosition);
+                int run = ahead.IndexOfAny(_specials);
+
+                if (run != 0)
+                {
+                    if (run < 0)
+                    {
+                        run = ahead.Length;
+                    }
+
+                    _quotedRaw.Append(ahead[..run]);
+                    AppendRunToField(ahead[..run]);
+                    _bufferPosition += run;
+                    sinceCheck += run;
                     continue;
                 }
             }
