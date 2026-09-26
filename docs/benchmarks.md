@@ -5,9 +5,9 @@ large files on the same machine under the same harness.
 
 **In short:** on workbooks it is the fastest reader measured, with a peak memory in the same band as
 the other streaming readers and a fraction of what the object-model libraries need. On clean csv it
-is in the middle of a field that is close together. On a malformed csv it loses far fewer records
-of all 5,127,969, where the others merge tens of thousands or millions into their neighbours — and
-says what it repaired.
+is third, just behind Sylvan, in a field that is close together. On a malformed csv it is the fastest
+reader and the only one that reads all 5,127,969 records, where the others merge tens of thousands or
+millions into their neighbours — and it says what it repaired.
 
 ## What the numbers mean
 
@@ -40,7 +40,8 @@ says what it repaired.
   under Apache-2.0 (from 2.8.0 the NuGet package ships under a maintenance-fee agreement).
 
 Machine: Apple M1 Max, 10 cores, 64 GB, macOS 26.7, .NET 10.0.9, workstation GC. Measured
-2026-09-25.
+2026-09-25; TriasDev.Tabular's csv rows re-measured 2026-09-26, after the reader got faster (#9) —
+its workbook reader did not change.
 
 ## Workbooks
 
@@ -87,11 +88,12 @@ peak grows with the file: NPOI holds 11.7 GB to read a 101 MB workbook.
 |---|---|--:|--:|--:|
 | Sep | 0.17.1 | 1.12 s | 50 MB | 1,428 MB |
 | Sylvan.Data.Csv | 1.4.4 | 1.69 s | 52 MB | 1,566 MB |
-| **TriasDev.Tabular** | 0.1.0 | 2.15 s | 50 MB | 1,567 MB |
+| **TriasDev.Tabular** | 0.1.0 | 1.82 s | 52 MB | 1,567 MB |
 | CsvHelper | 33.1.0 | 2.19 s | 50 MB | 1,566 MB |
 
 All read 3,000,001 rows and the same 43,234,592 values. On clean input Sep is the fastest by a clear
-margin; TriasDev.Tabular spends part of its time on the dialect and encoding detection the others
+margin — it creates no string until one is asked for, where every other reader here makes one per
+cell; TriasDev.Tabular also spends part of its time on the dialect and encoding detection the others
 are spared by being told the delimiter.
 
 ### 5M-row csv — 572 MB, 17 columns, with malformed quoting
@@ -101,7 +103,7 @@ are never closed.
 
 | Library | Version | Time | Peak memory | Rows read | Result |
 |---|---|--:|--:|--:|---|
-| **TriasDev.Tabular** | 0.1.0 | 3.87 s | **51 MB** | **5,127,969** | every record; 49 stray quotes repaired and reported |
+| **TriasDev.Tabular** | 0.1.0 | **2.69 s** | **50 MB** | **5,127,969** | every record; 49 stray quotes repaired and reported |
 | CsvHelper | 33.1.0 | 3.51 s | 71 MB | 5,088,738 | 39,231 records merged into others, no warning — with its default settings too, its bad-data callback is never called |
 | Sep | 0.17.1 | 4.56 s | 208 MB | 2,845,485 | 2,282,484 records merged into others, no warning |
 | Sylvan.Data.Csv | 1.4.4 | — | — | — | throws: a delimiter, newline or EOF was expected after a closing quote |
@@ -137,10 +139,10 @@ two), not from the comparison above — which is why the million-row workbook re
 
 | File | Rows | Read | Full analysis | Rows per second | Peak memory |
 |---|--:|--:|--:|--:|--:|
-| 100k-row workbook, 8.6 MB | 100,000 | 0.87 s | 1.6 s | 62,000 | 107 MB |
-| 1M-row workbook, 101 MB | 1,000,000 | 4.6 s | 7.8 s | 128,000 | 180 MB |
-| 3M-row csv, 364 MB | 3,000,000 | 2.4 s | 14.9 s | 201,000 | 134 MB |
-| 5M-row csv, 572 MB | 5,127,959 | 4.2 s | 24.6 s | 209,000 | 131 MB |
+| 100k-row workbook, 8.6 MB | 100,000 | 0.87 s | 1.5 s | 66,000 | 106 MB |
+| 1M-row workbook, 101 MB | 1,000,000 | 4.6 s | 6.7 s | 149,000 | 188 MB |
+| 3M-row csv, 364 MB | 3,000,000 | 2.0 s | 9.6 s | 313,000 | 122 MB |
+| 5M-row csv, 572 MB | 5,127,968 | 3.0 s | 14.0 s | 366,000 | 122 MB |
 
 All files have 17 columns. Measured with `benchmarks/TriasDev.Tabular.Benchmarks` on the same machine
 and day, best of two runs; the peak stays flat because analysis keeps counts and a bounded set of

@@ -106,18 +106,18 @@ ISO dates read the same under any culture, so none is claimed. Reproduce it with
 | 1M-row workbook (101 MB) | **4.3 s, 125 MB peak** | Sylvan.Data.Excel: 5.3 s, 126 MB | ClosedXML 42 s / 2.3 GB · NPOI 47 s / 11.7 GB |
 | 100k-row workbook (8.6 MB) | **0.8 s, 96 MB peak** | Sylvan.Data.Excel: 2.1 s, 95 MB | EPPlus 3.0 s / 502 MB · NPOI 5.6 s / 1.7 GB |
 
-**Correct on dirty csv, where fast readers go quietly wrong.** On a 5M-row export with malformed
+**Correct on dirty csv, where fast readers go quietly wrong — and the fastest there too.** On a 5M-row export with malformed
 quoting — 5,127,969 lines, one record each:
 
 | | Time | Peak | Rows read |
 |---|--:|--:|---|
-| **TriasDev.Tabular** | 3.9 s | **51 MB** | **all 5,127,969** — 49 repairs reported |
+| **TriasDev.Tabular** | **2.7 s** | **51 MB** | **all 5,127,969** — 49 repairs reported |
 | CsvHelper | 3.5 s | 71 MB | 39,231 records merged into others, no warning |
 | Sep | 4.6 s | 208 MB | 2,282,484 records merged into others, no warning |
 | Sylvan.Data.Csv | — | — | throws |
 
 On clean csv the field is close: Sep is fastest (1.1 s for 3M rows), TriasDev.Tabular reads the same
-file in 2.2 s with the same 50 MB peak, its own delimiter and encoding detection included — the
+file in 1.8 s with the same 50 MB peak, its own delimiter and encoding detection included — the
 comparison hands every other reader the delimiter.
 
 **And it tells you what is in the file**, which none of them does — a full profile of every column,
@@ -125,10 +125,10 @@ over every row, with memory that stays flat:
 
 | | Rows | Full analysis | Rows per second | Peak |
 |---|--:|--:|--:|--:|
-| 100k-row workbook (8.6 MB) | 100,000 | 1.6 s | 62,000 | 107 MB |
-| 1M-row workbook (101 MB) | 1,000,000 | 7.8 s | 128,000 | 180 MB |
-| 3M-row csv (364 MB) | 3,000,000 | 14.9 s | 201,000 | 134 MB |
-| 5M-row csv (572 MB) | 5,127,959 | 24.6 s | 209,000 | 131 MB |
+| 100k-row workbook (8.6 MB) | 100,000 | 1.5 s | 66,000 | 106 MB |
+| 1M-row workbook (101 MB) | 1,000,000 | 6.7 s | 149,000 | 188 MB |
+| 3M-row csv (364 MB) | 3,000,000 | 9.6 s | 313,000 | 122 MB |
+| 5M-row csv (572 MB) | 5,127,968 | 14.0 s | 366,000 | 122 MB |
 
 Method, every library and every number: [docs/benchmarks.md](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md).
 

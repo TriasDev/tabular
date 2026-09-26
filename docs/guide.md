@@ -565,16 +565,17 @@ call the count exact; not zero, and a collision undercounts.
 
 ## Performance
 
-**This table is the living one.** Measured 2026-09-25 with the benchmark project: one process per
-reading, best of two runs.
+**This table is the living one.** Measured with the benchmark project: one process per reading, best
+of two runs — the workbooks on 2026-09-25, the csv files on 2026-09-26, after #9 made csv reading and
+analysis faster.
 
 | Fixture | Rows | Cells | Time | Allocated | Per cell | Peak |
 |---|--:|--:|--:|--:|--:|--:|
 | 72 KB workbook | 10,759 | 17,340 | 0.07 s | 1 MB | 39 B | 57 MB |
 | 8.6 MB workbook, dense | 100,001 | 1,700,017 | 0.87 s | 61 MB | 38 B | 96 MB |
 | 101 MB workbook | 1,000,001 | 17,000,017 | 4.6 s | 326 MB | 20 B | 129 MB |
-| 364 MB csv | 3,000,001 | 51,000,017 | 2.4 s | 1,567 MB | 32 B | 53 MB |
-| 572 MB csv, malformed | 5,127,969 | 87,175,473 | 4.2 s | 2,742 MB | 33 B | 53 MB |
+| 364 MB csv | 3,000,001 | 51,000,017 | 2.0 s | 1,567 MB | 32 B | 53 MB |
+| 572 MB csv, malformed | 5,127,969 | 87,175,473 | 3.0 s | 2,742 MB | 33 B | 53 MB |
 
 The comparison with other libraries (docs/benchmarks.md) measures the same reads through a different
 harness and run — 4.30 s for the million-row workbook against 4.6 s here — so quote each table's
@@ -584,7 +585,8 @@ Peak memory stays flat as files grow: the 572 MB csv is read in 53 MB, and a wor
 rows in 129 MB. Bytes per cell rises on smaller workbooks because the shared string table is read
 once and amortised over fewer cells.
 
-All of it is measured on .NET 10. On .NET 8 the same code reads and imports the 572 MB csv about 15%
+All of it is measured on .NET 10. On .NET 8 — measured before #9, so the absolute figures below are
+the older ones; the ratio is what they show — the same code reads and imports the 572 MB csv about 15%
 slower and analyses it 5–18% slower (import 6.05 s against 5.25–5.32 s; analysis 23.7–23.9 s against
 20.1–22.9 s, the widest net10 run being noise), with the same allocations — the runtime's own gains,
 not a different code path. Behaviour is identical on both; the test suite runs on each.
@@ -595,10 +597,10 @@ while every value in a csv is text and is tried under each culture in the option
 
 | Fixture | Read | Full analysis |
 |---|--:|--:|
-| 8.6 MB workbook, 1.7M cells | 0.87 s | 1.6 s |
-| 101 MB workbook, 17M cells | 4.6 s | 7.8 s |
-| 364 MB csv, 51M cells | 2.4 s | 14.9 s |
-| 572 MB csv, 87M cells | 4.2 s | 24.6 s |
+| 8.6 MB workbook, 1.7M cells | 0.87 s | 1.5 s |
+| 101 MB workbook, 17M cells | 4.6 s | 6.7 s |
+| 364 MB csv, 51M cells | 2.0 s | 9.6 s |
+| 572 MB csv, 87M cells | 3.0 s | 14.0 s |
 
 At ten thousand rows — the size of a typical upload through a mapping screen — analysis is around a
 third of a second, so none of this is a constraint there. The larger figures are quoted for batch
