@@ -1,10 +1,34 @@
 #nullable enable
+override TriasDev.Tabular.Archive.ArchiveCursorOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.Archive.ArchiveCursorOptions.GetHashCode() -> int
+override TriasDev.Tabular.Archive.ArchiveCursorOptions.ToString() -> string!
 override TriasDev.Tabular.Ods.OdsCursorOptions.Equals(object? obj) -> bool
 override TriasDev.Tabular.Ods.OdsCursorOptions.GetHashCode() -> int
 override TriasDev.Tabular.Ods.OdsCursorOptions.ToString() -> string!
+override TriasDev.Tabular.SkippedEntry.Equals(object? obj) -> bool
+override TriasDev.Tabular.SkippedEntry.GetHashCode() -> int
+override TriasDev.Tabular.SkippedEntry.ToString() -> string!
+static TriasDev.Tabular.Archive.ArchiveCursorOptions.Default.get -> TriasDev.Tabular.Archive.ArchiveCursorOptions!
+static TriasDev.Tabular.Archive.ArchiveCursorOptions.operator !=(TriasDev.Tabular.Archive.ArchiveCursorOptions? left, TriasDev.Tabular.Archive.ArchiveCursorOptions? right) -> bool
+static TriasDev.Tabular.Archive.ArchiveCursorOptions.operator ==(TriasDev.Tabular.Archive.ArchiveCursorOptions? left, TriasDev.Tabular.Archive.ArchiveCursorOptions? right) -> bool
 static TriasDev.Tabular.Ods.OdsCursorOptions.Default.get -> TriasDev.Tabular.Ods.OdsCursorOptions!
 static TriasDev.Tabular.Ods.OdsCursorOptions.operator !=(TriasDev.Tabular.Ods.OdsCursorOptions? left, TriasDev.Tabular.Ods.OdsCursorOptions? right) -> bool
 static TriasDev.Tabular.Ods.OdsCursorOptions.operator ==(TriasDev.Tabular.Ods.OdsCursorOptions? left, TriasDev.Tabular.Ods.OdsCursorOptions? right) -> bool
+static TriasDev.Tabular.SkippedEntry.operator !=(TriasDev.Tabular.SkippedEntry? left, TriasDev.Tabular.SkippedEntry? right) -> bool
+static TriasDev.Tabular.SkippedEntry.operator ==(TriasDev.Tabular.SkippedEntry? left, TriasDev.Tabular.SkippedEntry? right) -> bool
+TriasDev.Tabular.Archive.ArchiveCursorOptions
+TriasDev.Tabular.Archive.ArchiveCursorOptions.<Clone>$() -> TriasDev.Tabular.Archive.ArchiveCursorOptions!
+TriasDev.Tabular.Archive.ArchiveCursorOptions.ArchiveCursorOptions() -> void
+TriasDev.Tabular.Archive.ArchiveCursorOptions.Equals(TriasDev.Tabular.Archive.ArchiveCursorOptions? other) -> bool
+TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEmbeddedWorkbookBytes.get -> long
+TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEmbeddedWorkbookBytes.init -> void
+TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEntries.get -> int
+TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEntries.init -> void
+TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxUncompressedBytes.get -> long
+TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxUncompressedBytes.init -> void
+TriasDev.Tabular.FileProfile.SkippedEntries.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SkippedEntry!>!
+TriasDev.Tabular.FileProfile.SkippedEntries.init -> void
+TriasDev.Tabular.ITabularCursor.SkippedEntries.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SkippedEntry!>!
 TriasDev.Tabular.Ods.OdsCursor
 TriasDev.Tabular.Ods.OdsCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
 TriasDev.Tabular.Ods.OdsCursor.CurrentRowNumber.get -> int
@@ -33,6 +57,26 @@ TriasDev.Tabular.Ods.OdsCursorOptions.MaxUncompressedBytes.init -> void
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxValueChars.get -> int
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxValueChars.init -> void
 TriasDev.Tabular.Ods.OdsCursorOptions.OdsCursorOptions() -> void
+TriasDev.Tabular.SkippedEntry
+TriasDev.Tabular.SkippedEntry.<Clone>$() -> TriasDev.Tabular.SkippedEntry!
+TriasDev.Tabular.SkippedEntry.Equals(TriasDev.Tabular.SkippedEntry? other) -> bool
+TriasDev.Tabular.SkippedEntry.Path.get -> string!
+TriasDev.Tabular.SkippedEntry.Path.init -> void
+TriasDev.Tabular.SkippedEntry.Reason.get -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntry.Reason.init -> void
+TriasDev.Tabular.SkippedEntry.SkippedEntry() -> void
+TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.Binary = 4 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.Encrypted = 5 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.LegacyWorkbook = 2 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.NestedArchive = 0 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.OtherDocument = 1 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.Unreadable = 7 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.Unsupported = 6 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.SkippedEntryReason.XmlDocument = 3 -> TriasDev.Tabular.SkippedEntryReason
 TriasDev.Tabular.TabularFormat.Ods = 2 -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.TabularFormat.Zip = 3 -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.TabularOpenOptions.Archive.get -> TriasDev.Tabular.Archive.ArchiveCursorOptions!
+TriasDev.Tabular.TabularOpenOptions.Archive.init -> void
 TriasDev.Tabular.TabularOpenOptions.Ods.get -> TriasDev.Tabular.Ods.OdsCursorOptions!
 TriasDev.Tabular.TabularOpenOptions.Ods.init -> void

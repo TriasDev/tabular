@@ -86,4 +86,7 @@ public interface ITabularCursor : IDisposable
     /// the profile still says how the file was read.
     /// </remarks>
     CsvDialect? Dialect => null;
+
+    /// <summary>The files of an archive that were not read as tables, and why; empty for any other file.</summary>
+    IReadOnlyList<SkippedEntry> SkippedEntries => [];
 }

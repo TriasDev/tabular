@@ -136,6 +136,7 @@ public sealed class TabularAnalyzer
             Format = cursor.Format,
             Sheets = sheets,
             Diagnostics = cursor.Diagnostics.Snapshot(),
+            SkippedEntries = cursor.SkippedEntries,
         };
     }
 

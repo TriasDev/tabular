@@ -19,4 +19,7 @@ public sealed record FileProfile
     /// <summary>What the reader had to repair to get through the file, every sheet together.</summary>
     /// <remarks>Taken when the pass ended: reading the cursor on does not change it.</remarks>
     public required CursorDiagnostics Diagnostics { get; init; }
+
+    /// <summary>The files of an archive that were not read as tables, and why; empty for any other file.</summary>
+    public IReadOnlyList<SkippedEntry> SkippedEntries { get; init; } = [];
 }

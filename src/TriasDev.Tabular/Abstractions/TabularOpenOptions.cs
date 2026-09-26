@@ -1,3 +1,4 @@
+using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
@@ -18,6 +19,9 @@ public sealed record TabularOpenOptions
 
     /// <summary>Options for the cursor, should the file be an OpenDocument spreadsheet.</summary>
     public OdsCursorOptions Ods { get; init; } = OdsCursorOptions.Default;
+
+    /// <summary>The bounds of a zip archive; the files inside it are read with the options above.</summary>
+    public ArchiveCursorOptions Archive { get; init; } = ArchiveCursorOptions.Default;
 
     /// <summary>
     /// Whether the stream stays open once the cursor is disposed — or once opening it fails.
