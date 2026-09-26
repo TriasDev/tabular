@@ -9,7 +9,7 @@ using Xunit;
 namespace TriasDev.Tabular.Tests;
 
 /// <summary>
-/// Behaviour docs/guide.md promises that nothing else pins.
+/// Behaviour the documentation (docs/*.md) promises that nothing else pins.
 /// </summary>
 public sealed class GuidePromisesTests
 {

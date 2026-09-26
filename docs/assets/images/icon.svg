@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="docGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#64748B"/><stop offset="100%" stop-color="#334155"/></linearGradient>
+    <linearGradient id="foldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1E293B"/><stop offset="100%" stop-color="#334155"/></linearGradient>
+  </defs>
+  <path d="M24 8 L88 8 L104 24 L104 120 Q104 124 100 124 L28 124 Q24 124 24 120 Z" fill="url(#docGrad)"/>
+  <path d="M88 8 L88 24 L104 24 Z" fill="url(#foldGrad)"/>
+  <rect x="36" y="40" width="56" height="16.0" rx="2" fill="white" fill-opacity="0.90"/>
+  <rect x="36" y="40" width="56" height="64" rx="3" fill="none" stroke="white" stroke-opacity="1.0" stroke-width="3"/>
+  <line x1="36" y1="56.0" x2="92" y2="56.0" stroke="white" stroke-opacity="0.55" stroke-width="2"/>
+  <line x1="36" y1="72.0" x2="92" y2="72.0" stroke="white" stroke-opacity="0.55" stroke-width="2"/>
+  <line x1="36" y1="88.0" x2="92" y2="88.0" stroke="white" stroke-opacity="0.55" stroke-width="2"/>
+  <line x1="54.7" y1="56.0" x2="54.7" y2="104" stroke="white" stroke-opacity="0.55" stroke-width="2"/>
+  <line x1="73.3" y1="56.0" x2="73.3" y2="104" stroke="white" stroke-opacity="0.55" stroke-width="2"/>
+</svg>

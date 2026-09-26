@@ -36,7 +36,7 @@ public abstract class TabularException : Exception
         Code = code;
     }
 
-    /// <summary>What went wrong, as a stable code a caller can translate; see the guide's catalog.</summary>
+    /// <summary>What went wrong, as a stable code a caller can translate; see the documentation's error-code page.</summary>
     public string Code { get; }
 }
 
@@ -66,7 +66,7 @@ public sealed class TabularFormatException : TabularException
 /// <summary>A readable file exceeds one of the bounds its reader was given.</summary>
 /// <remarks>
 /// The bounds are the <c>Max…</c> properties of <c>XlsxCursorOptions</c> and <c>CsvCursorOptions</c>,
-/// plus the format's own limits; the guide's Bounds table lists them with their defaults.
+/// plus the format's own limits; the documentation's bounds page lists them with their defaults.
 /// </remarks>
 [SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
 public sealed class TabularLimitException : TabularException

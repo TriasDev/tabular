@@ -1,7 +1,7 @@
 namespace TriasDev.Tabular;
 
 /// <summary>
-/// Every error code the library reports, as constants — the catalog in the guide, for code.
+/// Every error code the library reports, as constants — the catalog in the documentation, for code.
 /// </summary>
 /// <remarks>
 /// The codes are a translation contract: a frontend maps them to its wording, a calling domain to its

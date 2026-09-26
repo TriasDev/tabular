@@ -24,3 +24,11 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "chore"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "documentation"]
+    commit-message:
+      prefix: "chore"

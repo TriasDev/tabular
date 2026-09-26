@@ -1,0 +1,140 @@
+site_name: TriasDev.Tabular
+site_description: Fast, low-memory reading of large Excel, OpenDocument and CSV files for .NET — profile every column, map, validate and import, with no dependencies
+site_author: TriasDev
+site_url: https://triasdev.github.io/tabular/
+repo_url: https://github.com/TriasDev/tabular
+repo_name: TriasDev/tabular
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  logo: assets/images/icon.svg
+  favicon: assets/images/icon-64.png
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  # Code on the site is taken from the samples the build compiles, so it cannot drift from the API.
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+      dedent_subsections: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - attr_list
+
+plugins:
+  - search:
+      lang: en
+  # llms.txt for AI agents: a short map of the library, every page as Markdown, and all of it in one
+  # file (https://llmstxt.org).
+  - llmstxt:
+      full_output: llms-full.txt
+      markdown_description: |
+        TriasDev.Tabular is a .NET 8/10 library (NuGet: TriasDev.Tabular, no dependencies) that reads
+        csv, xlsx, ods and zip archives of them, profiles every column over every row, and imports
+        rows through a column mapping a person confirmed.
+
+        The flow is two independent reads of the same file, with no state kept between them:
+
+        1. `TabularFile.Open(stream, name)` returns an `ITabularCursor`; `new TabularAnalyzer().Analyze(cursor)`
+           returns a `FileProfile` (per sheet `SheetProfile`, per column measured `ColumnFacts` and ranked
+           `TypeHypothesis` suggestions).
+        2. Declare fields with `ImportField.Text/Integer/Decimal/Date/Boolean(...)` and rules
+           (`Require()`, `MaxLength()`, ...); put them in a `TargetSchema`; build a `MappingPlan`
+           (`MappingPlan.ByHeader(sheetProfile, schema)` or by hand); optionally judge it with
+           `MappingPrecheck.Check(plan, schema, profile)`.
+        3. `TabularImporter.Import(stream, name, plan, schema, row => new MyType(row[field], ...))`
+           returns an `ImportRun<T>`: iterate outcomes (value or `RowError`s), or use `InChunks` / `All(limit)`.
+
+        Rules that are easy to get wrong: a row (`CurrentRow`, `ImportRow`) is a view over a reused
+        buffer — copy what you keep before the next read. Row errors carry codes such as
+        `value.required`, not messages. Library exceptions derive from `TabularException` and carry a
+        code (`TabularFormatException`, `TabularLimitException`, `TabularStructureException`,
+        `MappingPlanException`). Every structure read from a file is bounded by an option. Streams are
+        closed by the library unless `LeaveOpen` is set. The format is decided by the file's bytes,
+        never its name.
+      sections:
+        Start:
+          - index.md: What the library does and where to read on
+          - getting-started.md: Install, read a file, profile, map, check and import
+          - concepts.md: The two reads, what a profile measures, facts against suggestions
+        Using it:
+          - importing.md: Import runs, batches, rules, translated fields, the precheck
+          - formats.md: What csv, xlsx, ods and zip files read as; csv repair
+          - operations.md: Stream ownership, cancellation, progress, cultures
+        Reference:
+          - error-codes.md: Every error code
+          - bounds.md: Every ceiling and its option
+          - performance.md: The library's own speed and memory numbers
+          - benchmarks.md: Comparison with other csv and xlsx libraries
+          - KNOWN-ISSUES.md: Known limitations and when they matter
+
+# Internal material that lives in docs/ but is not published: plans and specs, the old single-page
+# guide (kept on GitHub as a pointer for links from the first release), and test notes.
+exclude_docs: |
+  superpowers/
+  guide.md
+  TEST-GAPS.md
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: info
+    unrecognized_links: warn
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/TriasDev/tabular
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - How it works: concepts.md
+  - Using it:
+    - Importing: importing.md
+    - Formats: formats.md
+    - Streams, cancellation, progress, cultures: operations.md
+  - Reference:
+    - Error codes: error-codes.md
+    - Bounds: bounds.md
+    - Performance: performance.md
+    - Benchmarks: benchmarks.md
+    - Known issues: KNOWN-ISSUES.md
+    - Ideas: IDEAS.md
+    - Why the parsing is our own: adr/0001-tabular-parsing-is-our-own-cursor.md
