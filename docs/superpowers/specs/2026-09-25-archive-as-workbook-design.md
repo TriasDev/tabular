@@ -1,6 +1,8 @@
 # A zip archive read as one workbook
 
-Status: agreed design, 2026-09-25. Part 1 lands before v0.1; part 2 after it.
+Status: agreed design, 2026-09-25. Part 1 lands before v0.1; part 2 after it. Part 2 revised on
+2026-09-26 after OpenDocument reading (#13) landed: `.ods` entries, the XML refusal, and an embedded
+workbook budget without the 2 GB ceiling of one array.
 
 ## Intent
 
@@ -121,8 +123,9 @@ By bytes, as today. A zip signature opens the central directory (at the end of t
 
 | Found | Read as |
 |---|---|
+| a first entry `mimetype` naming an OpenDocument spreadsheet (read from the local header, as today) | `TabularFormat.Ods` — `OdsCursor` |
 | `[Content_Types].xml` at the root | a workbook — `XlsxCursor`, as today |
-| `mimetype` naming an OpenDocument spreadsheet | `format.unsupported` until #13 |
+| a `mimetype` entry naming any other OpenDocument type (text, presentation) | `format.unsupported`, as today — not an archive of XML parts |
 | anything else | an archive — `TabularFormat.Zip`, `ArchiveCursor` |
 
 This also reads a workbook renamed to `.zip` correctly.
@@ -132,10 +135,10 @@ This also reads a workbook renamed to `.zip` correctly.
 By their bytes, not their extension:
 
 - Skipped silently: directories, `__MACOSX/`, hidden files (`.DS_Store` and anything starting with `.`).
-- Every other entry is sniffed with the rules `TabularFile.Open` uses: a zip holding a workbook
-  contributes its sheets; text becomes one csv sheet.
-- Skipped with a reason: a nested archive, a legacy `.xls` or other OLE2 file, a binary file, an
-  encrypted entry.
+- Every other entry is sniffed with the rules `TabularFile.Open` uses: a zip holding an xlsx or ods
+  workbook contributes its sheets; text becomes one csv sheet.
+- Skipped with a reason: a nested archive, another OpenDocument type, a legacy `.xls` or other OLE2
+  file, a binary file, an XML document (`.fods`, Excel 2003 XML), an encrypted entry.
 - An archive with no readable entry is `format.unsupported`.
 
 A `readme.txt` becomes a sheet. That is deliberate: the UI shows it, and nobody maps it.
@@ -156,9 +159,12 @@ Skipped entries are reported as `FileProfile.SkippedEntries` — path and reason
   dialect probe is buffered and re-joined to the front of the stream (an internal change to
   `CsvCursor` / `CsvDialectDetector`). Moving back to a csv sheet reopens its entry — which also
   closes the known issue "`CsvCursor.MoveToSheet` does not rewind" for archives.
-- **Workbook entries** are buffered in memory, bounded by `MaxEmbeddedWorkbookBytes`, and opened with
-  the existing `XlsxCursor`. At most one workbook is held at a time. To list sheets, each workbook is
-  opened once at construction for its metadata and released.
+- **Workbook entries** (xlsx and ods) are buffered in memory, bounded by `MaxEmbeddedWorkbookBytes`,
+  and opened with the existing `XlsxCursor` or `OdsCursor`. At most one workbook is held at a time. To
+  list sheets, each workbook is opened once at construction for its metadata and released.
+- The buffer is a seekable stream over chunks, not one array: an array stops short of 2 GB, and a
+  server with memory to spare may set the budget to many gigabytes. The workbook's own options still
+  bound what it expands to.
 - `ReadFraction` is compressed bytes consumed against the archive's compressed size.
 
 ### Options and bounds
@@ -168,13 +174,14 @@ public sealed record ArchiveCursorOptions
 {
     public CsvCursorOptions Csv { get; init; }
     public XlsxCursorOptions Xlsx { get; init; }
+    public OdsCursorOptions Ods { get; init; }
     public int MaxEntries { get; init; }                 // entries in the central directory
     public long MaxUncompressedBytes { get; init; }      // the whole archive, against zip bombs
-    public long MaxEmbeddedWorkbookBytes { get; init; }  // proposed default 256 MB
+    public long MaxEmbeddedWorkbookBytes { get; init; }  // default 256 MB; any positive value, beyond 2 GB too
 }
 ```
 
-`MaxSheets` from the xlsx options bounds the total across all sources. `TabularOpenOptions` gains
+`MaxSheets` from the xlsx options bounds the total across all sources, ods sheets included. `TabularOpenOptions` gains
 `Archive`. Every bound fails as `TabularLimitException`, and every option is checked where it is
 handed over, as the others are.
 
@@ -183,7 +190,9 @@ handed over, as the others are.
 Archives built from raw bytes, like `Fixtures/XlsxPackage.cs`:
 
 - one csv; several csv in different encodings and delimiters; a mixed archive;
-- a workbook renamed to `.zip`; an OpenDocument file inside and outside an archive;
+- a workbook renamed to `.zip`; an ods workbook inside an archive, and an OpenDocument text file
+  inside (skipped) and outside (refused);
+- an embedded workbook read through the chunked buffer across a chunk boundary;
 - junk entries (`__MACOSX/`, `.DS_Store`, a pdf, a nested zip, an encrypted entry);
 - a zip bomb against `MaxUncompressedBytes`, an oversized workbook against `MaxEmbeddedWorkbookBytes`;
 - sheet order independent of entry order; repeated sheet names across sources;
