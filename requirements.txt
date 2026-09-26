@@ -1,0 +1,4 @@
+# MkDocs documentation dependencies (pinned for reproducible docs builds; Dependabot updates them)
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+mkdocs-llmstxt==0.4.0

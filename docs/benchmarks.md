@@ -147,7 +147,7 @@ two), not from the comparison above — which is why the million-row workbook re
 All files have 17 columns. Measured with `benchmarks/TriasDev.Tabular.Benchmarks` on the same machine
 and day, best of two runs; the peak stays flat because analysis keeps counts and a bounded set of
 values per column, never the rows. How far analysis could be made faster, and at what price to what
-it reports, is in the [guide](guide.md#if-analysis-ever-needs-to-be-faster).
+it reports, is in the [performance page](performance.md#if-analysis-ever-needs-to-be-faster).
 
 ## Reproducing
 

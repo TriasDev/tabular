@@ -153,11 +153,32 @@ jobs:
 
   # Single aggregate status for branch protection: require only "CI Success", so matrix changes do
   # not require updating the protection rules.
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install MkDocs
+        run: pip install -r requirements.txt
+
+      # Strict, so a broken link, a missing anchor or a sample snippet that no longer exists fails
+      # the pull request rather than the published site.
+      - name: Build documentation
+        run: mkdocs build --strict
+
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
     if: always()
-    needs: [build-and-test, lint, culture-tests, pack]
+    needs: [build-and-test, lint, culture-tests, pack, docs]
     steps:
       - name: Check job results
         env:

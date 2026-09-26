@@ -4,7 +4,7 @@ Places the suite covers less well than the code deserves, for contributors picki
 user-facing: nothing here is a behaviour, only a missing check on one.
 
 ### The suite assumes the German and English cultures exist
-Under `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` the library degrades as the guide describes — named
+Under `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` the library degrades as the documentation describes — named
 cultures are left out of analysis, a plan naming one is refused as `mapping.unknown-culture` — but
 about seventy tests exercise de-DE and en-US readings directly and fail there by design. The core
 flow under invariant mode is pinned instead by `tests/TriasDev.Tabular.InvariantGlobalizationTests`,

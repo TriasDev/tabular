@@ -48,13 +48,13 @@ A project dropped into `src/` or `tests/` needs no settings of its own.
   (`obj/project.assets.json`) against a list of parsing libraries (Sylvan, ExcelDataReader, CsvHelper,
   OpenXml, …). Analyzers are fine; anything else is a decision for an ADR, not a convenience.
 - **Error codes, never messages.** Row errors carry codes like `value.required`. The "Error codes"
-  table in `docs/guide.md` is checked against the `ErrorCodes` constants by `ErrorCodeCatalogTests` in
+  table in `docs/error-codes.md` is checked against the `ErrorCodes` constants by `ErrorCodeCatalogTests` in
   both directions — adding, renaming or removing a code means updating both.
 - **Rows are views.** `CurrentRow`, `CurrentValues` and `ImportRow` (a `ref struct`) point at reused
   buffers; do not introduce per-row allocations on the read path.
 - **The precheck must judge a value exactly as extraction would read it** — same reader, same cell
   kind, same culture, trimmed. Past bugs came from the two halves disagreeing.
-- **Every collection that grows with the file has a ceiling** (see the "Bounds" table in `docs/guide.md`).
+- **Every collection that grows with the file has a ceiling** (see the table in `docs/bounds.md`).
   Hostile-input tests pin these; a new structure read from a file needs its own bound.
 - **Cancellation is passed into `ReadRow`**, not only checked between rows, because single reads can
   be expensive on hostile files. Every reading operation takes a token as its last parameter; the
@@ -104,6 +104,10 @@ with the test that pins it.
 
 ## Commits and pull requests
 
+- **Every change reaches `main` through a pull request** — maintainers included. `main` is protected:
+  no direct pushes, no force pushes, and a pull request merges only when the `CI Success` check is
+  green (the build and tests on three systems and two runtimes, the culture jobs, the package and the
+  documentation built strictly). No approval is required, so a maintainer can merge their own.
 - Commit titles follow [Conventional Commits](https://www.conventionalcommits.org/) (`fix: …`,
   `feat: …`, `docs: …`); release notes are generated from them.
 - One concern per pull request. Describe what changes and why, and call out anything that breaks the
@@ -131,12 +135,16 @@ Commit titles:
 ## Docs to consult
 
 - `README.md` — the short front page: what the library does, a quick start, headline numbers
-- `docs/guide.md` — the behavioural contract, error-code table, bounds and the library's own performance numbers
+- `docs/*.md` — the documentation site (MkDocs, `mkdocs.yml`), published to https://triasdev.github.io/tabular/: the
+  behavioural contract split by topic (`concepts`, `importing`, `formats`, `operations`), the error codes, the bounds
+  and the library's own performance numbers. Build it with `pip install -r requirements.txt && mkdocs build --strict`;
+  CI builds it the same way on every pull request. Code on the site is included from `samples/` with
+  `--8<--` markers, so it is compiled by the build.
 - `docs/benchmarks.md` — the comparison with other csv/xlsx libraries (`benchmarks/TriasDev.Tabular.Comparison`)
 - `docs/KNOWN-ISSUES.md` — known limitations, with when each would matter; add one when you choose not to fix something
 - `docs/TEST-GAPS.md` — where the suite is thinner than the code deserves
 - `docs/IDEAS.md` — extensions the design allows that nobody has asked for yet
-- `docs/adr/0001-…` — why the parsing is our own; its measurements are frozen, the guide's and benchmarks' are live
+- `docs/adr/0001-…` — why the parsing is our own; its measurements are frozen, the site's performance and benchmark pages are live
 
 Code comments and XML docs in this repository explain *why*, often at length; match that when
 changing behaviour.

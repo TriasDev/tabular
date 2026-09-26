@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # Local working notes that never leave this machine (analyses of private projects and the like).
 /local/
+
+# MkDocs output
+site/

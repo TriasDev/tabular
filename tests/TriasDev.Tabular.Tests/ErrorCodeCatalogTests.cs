@@ -68,17 +68,13 @@ public sealed class ErrorCodeCatalogTests
         return codes;
     }
 
-    /// <summary>Every code named in the error-code table of docs/guide.md.</summary>
+    /// <summary>Every code named in the error-code table of docs/error-codes.md.</summary>
     private static HashSet<string> Documented()
     {
-        string readme = File.ReadAllText(Path.Combine(RepositoryRoot(), "docs", "guide.md"));
+        // The page is the catalog: every code on it is a documented one.
+        string section = File.ReadAllText(Path.Combine(RepositoryRoot(), "docs", "error-codes.md"));
 
-        int start = readme.IndexOf("## Error codes", StringComparison.Ordinal);
-
-        Assert.True(start >= 0, "The guide has no error-code section.");
-
-        int end = readme.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
-        string section = end < 0 ? readme[start..] : readme[start..end];
+        Assert.StartsWith("# Error codes", section, StringComparison.Ordinal);
 
         HashSet<string> codes = new(StringComparer.Ordinal);
 
