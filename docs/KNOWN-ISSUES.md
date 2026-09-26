@@ -170,6 +170,15 @@ that grows to hold a token peaks at three times its content. The scanner buffer 
 have their own ceilings, which carry most of this weight, but the package ceiling by itself is not
 the bound it appears to be.
 
+### A zip entry that understates its size is read short, without an error
+The runtime's zip reader stops an entry at the size its headers declare and does not check the
+checksum, so a crafted archive — or a buggy writer — that declares 10 bytes for a csv of a hundred
+thousand rows yields its first rows as a plausible, shorter table. Workbook parts are read the same
+way. An upload cut off in transit is not this case: it loses the directory at the end and is refused
+as damaged. Catching it needs a CRC-32 over every byte read, which the base class library offers on no
+x86 processor, and a table-driven one costs about half a second on the 572 MB csv. Matters if files
+come from a writer that gets sizes wrong.
+
 ### A pattern constraint is bounded per value, not per run
 The match timeout is 100 ms. A pattern using a lookaround falls back to the backtracking engine, and
 a million rows at 100 ms each is a run measured in hours. Compilation is not bounded at all: a

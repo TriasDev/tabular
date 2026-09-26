@@ -173,6 +173,59 @@ public sealed class ArchiveCursorWorkbookTests
     }
 
     [Fact]
+    public void SkipsAWorkbookDamagedPastItsHeadInsteadOfFailingTheArchive()
+    {
+        // A deflate stream written by hand, so the damage is exact: two stored blocks the head is read
+        // from, then a block of the reserved type, which every inflater refuses. The damage is met
+        // only when the whole workbook is copied.
+        byte[] first = new byte[65_535];
+        "PK\u0003\u0004"u8.CopyTo(first);
+        byte[] deflate = [.. StoredBlock(first), .. StoredBlock(new byte[10_000]), 0x07];
+
+        byte[] archive = new ZipArchiveBuilder()
+            .With("big.xlsx", new byte[deflate.Length], CompressionLevel.NoCompression)
+            .With("data.csv", "h\n1\n")
+            .Build();
+        ReplaceWithDeflate(archive, "big.xlsx", deflate, uncompressedSize: 80_000);
+
+        using ArchiveCursor cursor = Open(archive);
+
+        Assert.Equal("data.csv", Assert.Single(cursor.Sheets).Source);
+        Assert.Equal(new SkippedEntry { Path = "big.xlsx", Reason = SkippedEntryReason.Unreadable }, Assert.Single(cursor.SkippedEntries));
+    }
+
+    private static byte[] StoredBlock(byte[] content)
+    {
+        ushort length = (ushort)content.Length;
+        return [0x00, (byte)length, (byte)(length >> 8), (byte)~length, (byte)(~length >> 8), .. content];
+    }
+
+    /// <summary>
+    /// Turns a stored entry into a deflated one with the given data, which must be as long as the
+    /// stored content was: the method and the uncompressed size change in both headers.
+    /// </summary>
+    private static void ReplaceWithDeflate(byte[] zip, string name, byte[] deflate, int uncompressedSize)
+    {
+        byte[] nameBytes = Encoding.UTF8.GetBytes(name);
+
+        for (int i = 0; i + 46 <= zip.Length; i++)
+        {
+            if (zip.AsSpan(i, 4).SequenceEqual("PK\u0003\u0004"u8) && zip.AsSpan(i + 30, nameBytes.Length).SequenceEqual(nameBytes))
+            {
+                zip[i + 8] = 8;
+                BitConverter.GetBytes(uncompressedSize).CopyTo(zip, i + 22);
+                int dataAt = i + 30 + nameBytes.Length + (zip[i + 28] | (zip[i + 29] << 8));
+                deflate.CopyTo(zip, dataAt);
+            }
+            else if (zip.AsSpan(i, 4).SequenceEqual("PK\u0001\u0002"u8) && zip.AsSpan(i + 46, nameBytes.Length).SequenceEqual(nameBytes))
+            {
+                zip[i + 10] = 8;
+                BitConverter.GetBytes(uncompressedSize).CopyTo(zip, i + 24);
+            }
+        }
+    }
+
+    [Fact]
     public void MovesBetweenTheSheetsOfOneWorkbookAndAwayAndBack()
     {
         byte[] xlsx = Workbook(("S1", InlineRow(1, "a") + InlineRow(2, "b")), ("S2", InlineRow(1, "c")));

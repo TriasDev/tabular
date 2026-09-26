@@ -100,6 +100,20 @@ public sealed class ArchiveCursorCsvTests
     }
 
     [Fact]
+    public void ReadsFilesWhosePathsStartWithTheCurrentDirectory()
+    {
+        // Some writers store "./data.csv". The "." is a path segment, not a hidden name.
+        using ArchiveCursor cursor = Open(new ZipArchiveBuilder()
+            .With("./data.csv", "a;b\n1;2\n")
+            .With("./sub/x.csv", "a;b\n3;4\n")
+            .With("./.DS_Store", "junk")
+            .Build());
+
+        Assert.Equal(["./data.csv", "./sub/x.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.Empty(cursor.SkippedEntries);
+    }
+
+    [Fact]
     public void NamesEachFileItSkipsAndWhy()
     {
         byte[] ole2 = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, .. new byte[512]];

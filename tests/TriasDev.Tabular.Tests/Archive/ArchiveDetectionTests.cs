@@ -54,6 +54,18 @@ public sealed class ArchiveDetectionTests
     }
 
     [Fact]
+    public void KnowsAWorkbookWhosePartNamesAWriterSpelledItsOwnWay()
+    {
+        // The workbook reader matches part names without regard to case or slash direction; so must
+        // the detection that sends a file to it, or a file it reads is refused as an empty archive.
+        byte[] odd = Renamed(Workbook(), ("[Content_Types].xml", "[content_types].xml"), ("_rels/.rels", "_rels\\.rels"));
+
+        Assert.Equal(TabularFormat.Xlsx, TabularFile.Detect(new MemoryStream(odd)));
+        using ITabularCursor cursor = Open(odd);
+        Assert.IsType<XlsxCursor>(cursor);
+    }
+
+    [Fact]
     public void KnowsASpreadsheetWhoseMimetypeIsNotFirst()
     {
         byte[] ods = new OdsPackage()
@@ -148,6 +160,24 @@ public sealed class ArchiveDetectionTests
             new MemoryStream(after), "upload.zip", plan, Schema, row => row[Name], cancellationToken: Token));
 
         Assert.Equal(TabularStructureException.SheetChanged, error.Code);
+    }
+
+    private static byte[] Renamed(byte[] zip, params (string From, string To)[] renames)
+    {
+        ZipArchiveBuilder builder = new();
+
+        using ZipArchive source = new(new MemoryStream(zip), ZipArchiveMode.Read);
+
+        foreach (ZipArchiveEntry entry in source.Entries)
+        {
+            using Stream content = entry.Open();
+            using MemoryStream copy = new();
+            content.CopyTo(copy);
+            string name = renames.FirstOrDefault(r => r.From == entry.FullName).To ?? entry.FullName;
+            builder.With(name, copy.ToArray());
+        }
+
+        return builder.Build();
     }
 
     private static byte[] Without(byte[] zip, string entryName)

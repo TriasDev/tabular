@@ -20,8 +20,8 @@ public sealed class ZipArchiveBuilder
     }
 
     /// <summary>Adds a text file in UTF-8 without a byte order mark.</summary>
-    public ZipArchiveBuilder With(string path, string text) =>
-        With(path, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(text));
+    public ZipArchiveBuilder With(string path, string text, CompressionLevel level = CompressionLevel.Optimal) =>
+        With(path, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(text), level);
 
     /// <summary>Adds a directory entry.</summary>
     public ZipArchiveBuilder WithDirectory(string path) => With(path.EndsWith('/') ? path : path + "/", []);

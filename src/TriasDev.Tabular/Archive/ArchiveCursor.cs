@@ -280,7 +280,7 @@ public sealed class ArchiveCursor : ITabularCursor
     private static bool IsLeftOut(string path) =>
         path.EndsWith('/') || path.EndsWith('\\')
         || path.StartsWith("__MACOSX/", StringComparison.Ordinal)
-        || path.Split(PathSeparators).Any(segment => segment.StartsWith('.'));
+        || path.Split(PathSeparators).Any(segment => segment is not ("." or "..") && segment.StartsWith('.'));
 
     private static readonly char[] PathSeparators = ['/', '\\'];
 
@@ -351,8 +351,27 @@ public sealed class ArchiveCursor : ITabularCursor
     /// </remarks>
     private void SniffWorkbook(ZipArchiveEntry entry, CancellationToken cancellationToken)
     {
-        using ChunkedBuffer buffer = Buffer(entry, cancellationToken);
+        ChunkedBuffer buffer;
 
+        try
+        {
+            buffer = Buffer(entry, cancellationToken);
+        }
+        catch (TabularFormatException)
+        {
+            // Damage met past the head, while copying: the file is unreadable, the archive is not.
+            Skip(entry, SkippedEntryReason.Unreadable);
+            return;
+        }
+
+        using (buffer)
+        {
+            SniffBufferedWorkbook(entry, buffer, cancellationToken);
+        }
+    }
+
+    private void SniffBufferedWorkbook(ZipArchiveEntry entry, ChunkedBuffer buffer, CancellationToken cancellationToken)
+    {
         (TabularFormat format, SkippedEntryReason? skip) = TabularFile.ClassifyZip(buffer) switch
         {
             TabularFile.ZipContent.Xlsx => (TabularFormat.Xlsx, (SkippedEntryReason?)null),

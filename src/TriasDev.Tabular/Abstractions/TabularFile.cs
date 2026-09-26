@@ -116,12 +116,23 @@ public static class TabularFile
 
             using ZipArchive zip = new(stream, ZipArchiveMode.Read, leaveOpen: true);
 
-            if (zip.GetEntry("[Content_Types].xml") is not null || zip.GetEntry("_rels/.rels") is not null)
+            ZipArchiveEntry? mimetype = null;
+
+            foreach (ZipArchiveEntry entry in zip.Entries)
             {
-                return ZipContent.Xlsx;
+                // Named as the workbook reader matches parts: any case, either slash, no leading one.
+                string name = entry.FullName.Replace('\\', '/').TrimStart('/');
+
+                if (name.Equals("[Content_Types].xml", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("_rels/.rels", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ZipContent.Xlsx;
+                }
+
+                mimetype ??= name.Equals("mimetype", StringComparison.Ordinal) ? entry : null;
             }
 
-            return zip.GetEntry("mimetype") is { } mimetype ? ClassifyOpenDocument(mimetype) : ZipContent.Archive;
+            return mimetype is null ? ZipContent.Archive : ClassifyOpenDocument(mimetype);
         }
         catch (InvalidDataException)
         {
