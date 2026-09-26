@@ -53,6 +53,13 @@ public static class CsvDialectDetector
                 + "neither is supported. Save it as .xlsx without a password, or as .csv.");
         }
 
+        if (IsXmlDocument(head))
+        {
+            throw new TabularFormatException(TabularFormatException.Unsupported,
+                "The file is an XML document, not csv. Flat OpenDocument spreadsheets (.fods) and Excel "
+                + "2003 XML spreadsheets are not supported; save it as .ods, .xlsx or .csv.");
+        }
+
         (Encoding encoding, DialectSource encodingSource) = DetectEncoding(head);
 
         // The probe may end mid-character, and decoding a partial one would fail on the tail rather
@@ -124,6 +131,24 @@ public static class CsvDialectDetector
         return IsValidUtf8(head)
             ? (new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), DialectSource.Detected)
             : (Windows1252Encoding.Instance, DialectSource.Fallback);
+    }
+
+    /// <summary>
+    /// Whether the file opens with an XML declaration, after a UTF-8 byte order mark and whitespace.
+    /// </summary>
+    /// <remarks>
+    /// A spreadsheet can be written as one XML document — flat OpenDocument, Excel 2003's XML — and
+    /// read as csv it profiles as a column of tags. No csv starts with <c>&lt;?xml</c>; a table of
+    /// markup that does not declare itself is left to be read as the text it is.
+    /// </remarks>
+    private static bool IsXmlDocument(ReadOnlySpan<byte> head)
+    {
+        if (head.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]))
+        {
+            head = head[3..];
+        }
+
+        return head.TrimStart(" \t\r\n"u8).StartsWith("<?xml"u8);
     }
 
     /// <summary>The OLE2 compound-file signature: a .xls workbook, or an encrypted .xlsx.</summary>

@@ -38,6 +38,19 @@ public sealed class UnsupportedFormatTests
         Assert.Contains("password", error.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("""<?xml version="1.0" encoding="UTF-8"?><office:document office:mimetype="application/vnd.oasis.opendocument.spreadsheet">""")]
+    [InlineData("""<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet">""")]
+    [InlineData("﻿  <?xml version=\"1.0\"?><table/>")]
+    public void RefusesAnXmlDocumentInsteadOfReadingItsMarkupAsLines(string head)
+    {
+        // A flat OpenDocument spreadsheet (.fods) or an Excel 2003 XML one is a table, but not one
+        // this library reads; as csv it would profile as one column of tags.
+        TabularFormatException error = Refusal(Encoding.UTF8.GetBytes(head + "\n<row>1;2</row>\n"));
+
+        Assert.Contains("XML", error.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void RefusesABinaryFileInsteadOfProfilingItAsText()
     {
