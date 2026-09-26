@@ -1160,7 +1160,8 @@ public sealed class XlsxCursor : ITabularCursor
             if (head.AsSpan(0, read).StartsWith("application/vnd.oasis.opendocument", StringComparison.Ordinal))
             {
                 return new TabularFormatException(TabularFormatException.Unsupported,
-                    "This is an OpenDocument file (.ods), which is not supported yet. Save it as .xlsx or .csv.");
+                    "This is an OpenDocument file that is not a spreadsheet — a text document or a presentation. "
+                    + "Only OpenDocument spreadsheets (.ods) are read.");
             }
         }
 

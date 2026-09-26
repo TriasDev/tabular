@@ -1,5 +1,6 @@
 using System.IO.Compression;
 
+using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
@@ -41,7 +42,13 @@ public static class TabularFile
             return TabularFormat.Csv;
         }
 
-        return IsOpenDocumentSpreadsheet(head[..read]) ? TabularFormat.Ods : TabularFormat.Xlsx;
+        // Another OpenDocument type goes on to the workbook path, which refuses it by name.
+        return ClassifyZip(stream) switch
+        {
+            ZipContent.Ods => TabularFormat.Ods,
+            ZipContent.Archive => TabularFormat.Zip,
+            _ => TabularFormat.Xlsx,
+        };
     }
 
     /// <summary>
@@ -172,6 +179,7 @@ public static class TabularFile
             {
                 TabularFormat.Xlsx => new XlsxCursor(stream, effective.Xlsx, effective.LeaveOpen, cancellationToken),
                 TabularFormat.Ods => new OdsCursor(stream, effective.Ods, effective.LeaveOpen, cancellationToken),
+                TabularFormat.Zip => new ArchiveCursor(stream, effective, cancellationToken),
                 _ => new CsvCursor(stream, name, effective.Csv, effective.LeaveOpen, cancellationToken),
             };
         }

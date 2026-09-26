@@ -109,13 +109,14 @@ public sealed class UnsupportedFormatTests
     }
 
     [Fact]
-    public void RefusesAnOpenDocumentSpreadsheetByName()
+    public void RefusesAnOpenDocumentFileThatIsNotASpreadsheetByName()
     {
+        // Spreadsheets are read since #13; a text document, found by the same mimetype entry, is not.
         byte[] content = Zip(
-            ("mimetype", "application/vnd.oasis.opendocument.spreadsheet"),
+            ("mimetype", "application/vnd.oasis.opendocument.text"),
             ("content.xml", "<office:document-content/>"));
 
-        Assert.Contains("OpenDocument", Refusal(content).Message, StringComparison.Ordinal);
+        Assert.Contains("not a spreadsheet", Refusal(content).Message, StringComparison.Ordinal);
     }
 
     private static byte[] Zip(params (string Name, string Content)[] entries)
