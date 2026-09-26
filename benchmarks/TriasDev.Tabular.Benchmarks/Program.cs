@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 
+using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Benchmarks.Shared;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Ods;
@@ -45,8 +46,10 @@ public static class Program
         new LibraryXlsxCursor(),
         new LibraryXlsxCursorCellsOnly(),
         new LibraryOdsCursor(),
+        new LibraryArchiveCursor(),
         new FullAnalysis(TabularFormat.Xlsx),
         new FullAnalysis(TabularFormat.Ods),
+        new FullAnalysis(TabularFormat.Zip),
         new FullAnalysis(TabularFormat.Csv),
     ];
 
@@ -87,6 +90,7 @@ public static class Program
         {
             TabularFormat.Xlsx => CandidateFormats.Xlsx,
             TabularFormat.Ods => CandidateFormats.Ods,
+            TabularFormat.Zip => CandidateFormats.Zip,
             _ => CandidateFormats.Csv,
         };
 
@@ -96,6 +100,7 @@ public static class Program
             {
                 TabularFormat.Xlsx => new XlsxCursor(stream),
                 TabularFormat.Ods => new OdsCursor(stream),
+                TabularFormat.Zip => new ArchiveCursor(stream),
                 _ => new CsvCursor(stream, "benchmark.csv"),
             };
 
@@ -155,6 +160,39 @@ public static class Program
 
                 _ = present;
                 yield return shape;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A zip archive read sheet by sheet, every cell turned into text — for a zipped csv, the cost of
+    /// reading it out of the archive against reading the file itself.
+    /// </summary>
+    private sealed class LibraryArchiveCursor : IParserCandidate
+    {
+        public string Name => "TriasDev.Tabular.ArchiveCursor";
+
+        public CandidateFormats Formats => CandidateFormats.Zip;
+
+        public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
+        {
+            using ArchiveCursor cursor = new(stream);
+
+            List<string?> row = [];
+
+            for (int sheet = 0; sheet < cursor.Sheets.Count && cursor.MoveToSheet(sheet); sheet++)
+            {
+                while (cursor.ReadRow())
+                {
+                    row.Clear();
+
+                    for (int i = 0; i < cursor.CurrentRow.Length; i++)
+                    {
+                        row.Add(cursor.CurrentRow[i].AsText());
+                    }
+
+                    yield return row;
+                }
             }
         }
     }
@@ -353,6 +391,7 @@ public static class Program
             {
                 "xlsx" => CandidateFormats.Xlsx,
                 "ods" => CandidateFormats.Ods,
+                "zip" => CandidateFormats.Zip,
                 _ => CandidateFormats.Csv,
             };
 

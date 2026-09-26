@@ -74,6 +74,29 @@ A row or cell repeated by attribute is expanded only when it holds a value; the 
 LibreOffice declares after the last one cost nothing. Covered cells of a merge read as empty. Hidden
 sheets and rows read like any other, as in xlsx.
 
+### A zip archive reads as one workbook
+
+A zip that is not itself a workbook is read as one: its sheets are the sheets of every file in it
+that can be read as a table — csv, xlsx and ods — in the order of their paths, each with its file's
+path as `SheetInfo.Source` and its own `Format`. A csv file is named after its file; a workbook's
+sheets keep their names, and `Source` tells two `Sheet1` apart. Files are judged by their bytes, as a
+file on its own is.
+
+- **Left out without a word:** directories, hidden files and folders (`.DS_Store`, anything whose
+  name starts with a dot) and `__MACOSX/`.
+- **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a nested zip, another
+  OpenDocument type, a legacy `.xls`, an XML document, a binary file, and a workbook that is damaged
+  or of a kind not read (`.xlsb`). Nested archives are not opened.
+- **Refused:** an archive with nothing readable in it, as `format.unsupported`.
+
+A csv file is read as a stream straight out of the archive, never unpacked, with its dialect
+decided from its own head; moving back to it reads it again from its first row. A workbook has to be
+read with random access, so it is copied into memory while its sheets are read — one at a time, up to
+`ArchiveCursorOptions.MaxEmbeddedWorkbookBytes` (256 MB by default, and any size a server can
+afford: the copy is held in pieces, not one array). A mapping plan made from an archive records the
+sheet's `Source`, and an import refuses the archive as `structure.sheet-changed` when another file now
+stands at the plan's index.
+
 ### Malformed input is repaired, and the repair is counted
 
 Files that people upload are not well-formed. A 572 MB real-world export carries quotes inside
@@ -212,9 +235,10 @@ what was built and the failures from the same window, so the report keeps pace w
 `TabularExtractor.Start` is the layer underneath, and hands back typed values without building
 anything. `TabularImporter` is that plus your mapper, and is what a caller normally wants.
 
-A workbook is the same call. Which kind of file it is comes from its first bytes, not its name — a
-csv saved as `.xlsx` is commoner than it ought to be, and a reader that trusts the extension fails on
-it with a message about a corrupt archive.
+A workbook, an OpenDocument spreadsheet or a zip archive is the same call. Which kind of file it is
+comes from its bytes, not its name — a csv saved as `.xlsx` is commoner than it ought to be, and a
+reader that trusts the extension fails on it with a message about a corrupt archive. A zip's
+directory says whether it is a workbook, a spreadsheet or an archive of files.
 
 ### Checking a mapping before importing through it
 
@@ -435,8 +459,9 @@ and also when the call fails — unless the caller asked for it to stay open.
 | `TabularImporter.Import(stream, …)` | on `Dispose` of the run, or when the call throws (a refused plan included) | `ImportOptions.Open.LeaveOpen` |
 | `TabularImporter.Import(cursor, …)`, `TabularAnalyzer.Analyze`, `TabularExtractor.Start` | never — the cursor is the caller's | — |
 
-`TabularOpenOptions` also carries the csv, xlsx and ods cursor options, so ceilings can be changed without
-giving up format detection.
+`TabularOpenOptions` also carries the csv, xlsx and ods cursor options and the archive's bounds, so
+ceilings can be changed without giving up format detection. The files inside an archive are read with
+the same csv, xlsx and ods options as files on their own.
 
 ## Cancellation
 
@@ -519,7 +544,7 @@ from them.
 | `mapping.header-changed` | The column's header is not the one the mapping recorded |
 | `mapping.invalid-plan` | `MappingPlanException`: the plan does not fit its schema; its `Faults` carry the codes above |
 | `structure.sheet-missing`, `structure.sheet-changed`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
-| `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .fods, another OpenDocument type, binary), or damaged, or cut off |
+| `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .fods, another OpenDocument type, binary, an archive with nothing readable), or damaged, or cut off |
 | `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
 
 This table is checked against the library's sources by `ErrorCodeCatalogTests`, in both directions.
@@ -546,6 +571,9 @@ exception.
 
 | | Default | Why |
 |---|---|---|
+| Archive entries | 16,384 | The directory is read before anything else, and each entry costs a sniff |
+| Archive expansion | 8 GB | Every entry's declared size together; an archive may carry a zipped ods at that format's own budget |
+| Workbook inside an archive | 256 MB | Held in memory while its sheets are read, one at a time. A server may raise it to any size, past 2 GB too |
 | Package expansion | 2 GB (ods: 8 GB) | A zip's ratio is unbounded by design; a 50 MB upload could otherwise become fifty gigabytes. OpenDocument writes about four times the bytes for the same cells, so its budget is four times larger |
 | Package parts | 16,384 | Every entry's metadata is materialised to find parts by name, before any budget can be consulted |
 | Worksheets | 4,096 | One descriptor per sheet, held for the cursor's life and walked by anything that analyses the file |
@@ -608,6 +636,10 @@ since it has no shared string table — and in about twice the time, because it 
 XML: the million rows are 1.9 GB of content, against half a gigabyte of worksheet. The sheet names
 are listed by a pass over that content's bytes before the first row, which is 0.2 s of the 100,000-row
 file's time.
+
+A zipped csv costs its decompression and nothing else. The 572 MB csv zipped to 179 MB reads in 4.2 s
+against 3.0 s unpacked and analyses in 15.6 s against 14.2 s, the same 49 repairs and the same values
+to the byte, with a peak of 56 MB against 53 MB (measured 2026-09-26, best of two alternating runs).
 
 All of it is measured on .NET 10. On .NET 8 — measured before #9, so the absolute figures below are
 the older ones; the ratio is what they show — the same code reads and imports the 572 MB csv about 15%

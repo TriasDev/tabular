@@ -8,6 +8,7 @@ public enum CandidateFormats
     Xlsx = 1,
     Csv = 2,
     Ods = 4,
+    Zip = 8,
 }
 
 /// <summary>

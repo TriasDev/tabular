@@ -128,7 +128,7 @@ ranges — the obvious second use — cannot be expressed yet.
 ### `CsvCursor.MoveToSheet` does not rewind
 The interface documents "positions before its first row"; the csv implementation returns `index == 0`
 and stays where it is. Analysing and then extracting through one cursor instance reads a csv from
-wherever it stopped.
+wherever it stopped. A csv inside an archive does rewind: the archive reopens its file.
 
 ### `IsBlank` ignores the binding's empty-equivalents
 A row whose every mapped cell holds `k.A.` is not skipped. It is counted as produced and handed over
