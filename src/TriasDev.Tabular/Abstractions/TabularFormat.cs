@@ -13,4 +13,7 @@ public enum TabularFormat
 
     /// <summary>A delimiter-separated text file.</summary>
     Csv,
+
+    /// <summary>An OpenDocument spreadsheet, as LibreOffice writes it.</summary>
+    Ods,
 }

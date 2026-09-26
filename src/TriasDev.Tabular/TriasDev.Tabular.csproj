@@ -5,8 +5,8 @@
          analyzers hold it to that, and the package says so to consumers. -->
     <IsAotCompatible>true</IsAotCompatible>
     <PackageId>TriasDev.Tabular</PackageId>
-    <Description>Fast, low-memory reading of large Excel (.xlsx) and CSV files, with no dependencies — and a safe import pipeline on top: profile every column over every row, map columns to your fields, validate, and get typed rows or errors that name their row and column. Detects csv encoding and delimiter, repairs malformed quoting, bounds hostile input.</Description>
-    <PackageTags>csv;excel;xlsx;spreadsheet;import;parser;reader;streaming;data-import;schema-mapping;validation;profiling</PackageTags>
+    <Description>Fast, low-memory reading of large Excel (.xlsx), OpenDocument (.ods) and CSV files, with no dependencies — and a safe import pipeline on top: profile every column over every row, map columns to your fields, validate, and get typed rows or errors that name their row and column. Detects csv encoding and delimiter, repairs malformed quoting, bounds hostile input.</Description>
+    <PackageTags>csv;excel;xlsx;ods;opendocument;libreoffice;spreadsheet;import;parser;reader;streaming;data-import;schema-mapping;validation;profiling</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

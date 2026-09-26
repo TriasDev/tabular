@@ -1,4 +1,5 @@
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular;
@@ -29,13 +30,44 @@ public static class TabularFile
 
         long origin = stream.Position;
 
-        Span<byte> head = stackalloc byte[4];
+        Span<byte> head = stackalloc byte[128];
         int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
         stream.Position = origin;
 
-        return read == head.Length && head.SequenceEqual(ZipSignature)
-            ? TabularFormat.Xlsx
-            : TabularFormat.Csv;
+        if (read < 4 || !head[..4].SequenceEqual(ZipSignature))
+        {
+            return TabularFormat.Csv;
+        }
+
+        return IsOpenDocumentSpreadsheet(head[..read]) ? TabularFormat.Ods : TabularFormat.Xlsx;
+    }
+
+    /// <summary>
+    /// Whether a zip's first bytes are an OpenDocument spreadsheet's: ODF requires the first entry to
+    /// be <c>mimetype</c>, stored uncompressed, so its name and content stand in the local header.
+    /// </summary>
+    /// <remarks>
+    /// Read from the header rather than by opening the archive: the name's length is at offset 26, the
+    /// extra field's at 28, the name itself at 30 and the content right after both. A spreadsheet
+    /// that breaks the rule goes on to the workbook path, which refuses it by name.
+    /// </remarks>
+    private static bool IsOpenDocumentSpreadsheet(ReadOnlySpan<byte> head)
+    {
+        if (head.Length < 30)
+        {
+            return false;
+        }
+
+        int nameLength = head[26] | (head[27] << 8);
+        int extraLength = head[28] | (head[29] << 8);
+        int content = 30 + nameLength + extraLength;
+        ReadOnlySpan<byte> mimetype = "application/vnd.oasis.opendocument.spreadsheet"u8;
+
+        return nameLength == 8
+            && head.Slice(30, 8).SequenceEqual("mimetype"u8)
+            && head.Length >= content + mimetype.Length
+            && head.Slice(content, mimetype.Length).SequenceEqual(mimetype)
+            && (head.Length == content + mimetype.Length || head[content + mimetype.Length] is not (byte)'-');
     }
 
     /// <summary>Opens a cursor over a file of whichever kind it turns out to be.</summary>
@@ -63,9 +95,12 @@ public static class TabularFile
             // Opening a workbook is not free — the package's parts are enumerated and its style
             // table is read before a single row is available — so the token belongs here as much as
             // on a read.
-            return Detect(stream) == TabularFormat.Xlsx
-                ? new XlsxCursor(stream, effective.Xlsx, effective.LeaveOpen, cancellationToken)
-                : new CsvCursor(stream, name, effective.Csv, effective.LeaveOpen, cancellationToken);
+            return Detect(stream) switch
+            {
+                TabularFormat.Xlsx => new XlsxCursor(stream, effective.Xlsx, effective.LeaveOpen, cancellationToken),
+                TabularFormat.Ods => new OdsCursor(stream, effective.Ods, effective.LeaveOpen, cancellationToken),
+                _ => new CsvCursor(stream, name, effective.Csv, effective.LeaveOpen, cancellationToken),
+            };
         }
         catch when (!effective.LeaveOpen)
         {

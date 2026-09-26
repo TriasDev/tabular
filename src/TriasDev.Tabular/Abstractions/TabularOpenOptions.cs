@@ -1,4 +1,5 @@
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular;
@@ -14,6 +15,9 @@ public sealed record TabularOpenOptions
 
     /// <summary>Options for the cursor, should the file be a workbook.</summary>
     public XlsxCursorOptions Xlsx { get; init; } = XlsxCursorOptions.Default;
+
+    /// <summary>Options for the cursor, should the file be an OpenDocument spreadsheet.</summary>
+    public OdsCursorOptions Ods { get; init; } = OdsCursorOptions.Default;
 
     /// <summary>
     /// Whether the stream stays open once the cursor is disposed — or once opening it fails.

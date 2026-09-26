@@ -56,6 +56,22 @@ A shared string of spaces without `xml:space="preserve"` is dropped, because tha
 no such notion. Same value, two answers, depending only on how the writer chose to store it.
 
 
+### Rows that repeat a row number are read as successive rows
+A worksheet that writes every cell in a `<row>` of its own, all carrying `r="1"`, is read as that many
+rows, each with one cell; LibreOffice joins them into one. Row numbers here never go backwards or
+repeat, so a message never points at a row twice. Seen once, in one writer's output. Matters if a
+producer that writes this way turns up among real files.
+
+### An OpenDocument error cell carries the writer's text, not an Excel code
+LibreOffice writes a formula that failed with its own wording — `Err:502` where Excel would say
+`#VALUE!` — and recalculates on saving, so a workbook converted to `.ods` can hold different errors,
+and different values in volatile or unsupported formulas, than the original. Read as written; a
+caller comparing the two formats sees the writer's differences, not the reader's.
+
+### Flat OpenDocument (`.fods`) and Excel 2003 XML are not read
+Both are a spreadsheet as one plain XML document, without the zip. A file that opens with an XML
+declaration is refused as unsupported rather than read as csv. Matters if anyone sends one.
+
 ### Chartsheets and hidden sheets are indistinguishable from ordinary ones
 `SheetInfo` carries a name and an index. A caller cannot tell a hidden sheet, or a chartsheet with no
 cells, from a sheet the user meant.

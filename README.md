@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TriasDev/tabular/blob/main/LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%2010-purple)](https://dotnet.microsoft.com/download)
 
-**Fast, low-memory reading of large Excel and CSV files for .NET — with no dependencies.**
+**Fast, low-memory reading of large Excel, OpenDocument and CSV files for .NET — with no dependencies.**
 
 Hand it a file and it tells you what is in it: every column's type, emptiness, uniqueness, value
 ranges and the rows that do not fit — measured over every row, not a sample. Then read the data
@@ -137,7 +137,7 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
 - **Profile a file** — per column: measured facts (empty and distinct counts, lengths, numeric and
   date ranges, how values parse under each culture, located outliers) and ranked type suggestions
   for a mapping screen to pre-select. Csv delimiter, quoting and encoding are detected.
-- **Read it fast** — a forward-only cursor over rows of typed cells, for xlsx and csv alike. The
+- **Read it fast** — a forward-only cursor over rows of typed cells, for xlsx, OpenDocument (.ods) and csv alike. The
   format is detected from the file's bytes, not its name.
 - **Import it through a mapping** — declare fields once with their rules (required, length, range,
   pattern, allowed values, unique, or your own — check digits such as ISIN and LEI included), get
@@ -212,9 +212,9 @@ Batches, the full rule set, translated fields and every error code are in the [g
 
 Stated here so they are found before they are hit:
 
-- **Read-only.** It reads xlsx and csv; it does not write either.
-- **xlsx and csv only.** Legacy `.xls`, binary `.xlsb` and OpenDocument `.ods` are refused as
-  `format.unsupported` rather than misread. `.ods` is planned.
+- **Read-only.** It reads xlsx, ods and csv; it does not write any of them.
+- **xlsx, ods and csv only.** Legacy `.xls`, binary `.xlsb` and flat OpenDocument `.fods` are refused
+  as `format.unsupported` rather than misread.
 - **Synchronous, over seekable streams.** Parsing is processor work over a buffered stream; a request
   body or blob stream is copied to a file or `MemoryStream` first. A csv whose dialect you state can
   be read forward-only.

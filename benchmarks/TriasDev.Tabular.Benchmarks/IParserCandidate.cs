@@ -7,6 +7,7 @@ public enum CandidateFormats
     None = 0,
     Xlsx = 1,
     Csv = 2,
+    Ods = 4,
 }
 
 /// <summary>

@@ -77,10 +77,24 @@ internal sealed class SheetScanner : IDisposable
     private int _decodedLength;
     private bool _valueIsDecoded;
 
-    public SheetScanner(TextReader reader, bool leaveOpen = false)
+    /// <summary>
+    /// The attributes an OpenDocument reader keeps, by local name; null for a worksheet, where the
+    /// one-character check for <c>r</c>, <c>t</c> and <c>s</c> stands in for it.
+    /// </summary>
+    private readonly string[]? _keptLocalNames;
+
+    /// <param name="reader">The part.</param>
+    /// <param name="leaveOpen">Whether disposing the scanner leaves the reader open.</param>
+    /// <param name="keptLocalNames">
+    /// For an OpenDocument part: the attributes to keep, by the name after their prefix, so that
+    /// <c>table:number-columns-repeated</c> is asked for as <c>number-columns-repeated</c>. A name
+    /// listed with its prefix is kept, and asked for, whole instead. Null for a worksheet part.
+    /// </param>
+    public SheetScanner(TextReader reader, bool leaveOpen = false, string[]? keptLocalNames = null)
     {
         _reader = reader;
         _leaveOpen = leaveOpen;
+        _keptLocalNames = keptLocalNames;
     }
 
     /// <summary>What the scanner is sitting on.</summary>
@@ -323,9 +337,45 @@ internal sealed class SheetScanner : IDisposable
         return true;
     }
 
-    /// <summary>Whether an attribute is one the cursor asks for: <c>r</c>, <c>t</c> or <c>s</c>.</summary>
-    private bool IsKept(int nameStart, int nameLength) =>
-        nameLength == 1 && _buffer[nameStart] is ('r' or 't' or 's');
+    /// <summary>
+    /// Whether an attribute is one the cursor asks for: <c>r</c>, <c>t</c> or <c>s</c> in a
+    /// worksheet, one of the kept local names in an OpenDocument part.
+    /// </summary>
+    private bool IsKept(int nameStart, int nameLength)
+    {
+        if (_keptLocalNames is null)
+        {
+            return nameLength == 1 && _buffer[nameStart] is ('r' or 't' or 's');
+        }
+
+        ReadOnlySpan<char> local = _buffer.AsSpan(nameStart, nameLength);
+
+        foreach (string kept in _keptLocalNames)
+        {
+            if (local.SequenceEqual(kept))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a prefixed attribute is kept under its whole name, prefix and all.</summary>
+    private bool IsKeptWhole(int nameStart, int nameLength)
+    {
+        ReadOnlySpan<char> whole = _buffer.AsSpan(nameStart, nameLength);
+
+        foreach (string kept in _keptLocalNames!)
+        {
+            if (kept.Contains(':', StringComparison.Ordinal) && whole.SequenceEqual(kept))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high",
         Justification = "A per-character scan over every tag of the worksheet. The nested loops are the tokenizer itself; a helper per step adds a call per character on the hottest path of xlsx reading.")]
@@ -353,6 +403,20 @@ internal sealed class SheetScanner : IDisposable
             }
 
             int nameLength = i - nameStart;
+
+            // An OpenDocument attribute is kept and asked for by its local name, unless it is kept
+            // by its whole name — an extension's attribute that shares its local name with a
+            // standard one. A worksheet's are never prefixed, so it is left alone.
+            if (_keptLocalNames is not null && !IsKeptWhole(nameStart, nameLength))
+            {
+                int colon = _buffer.AsSpan(nameStart, nameLength).IndexOf(':');
+
+                if (colon >= 0)
+                {
+                    nameStart += colon + 1;
+                    nameLength -= colon + 1;
+                }
+            }
 
             while (i < to && _buffer[i] != '=')
             {
@@ -662,6 +726,43 @@ internal sealed class SheetScanner : IDisposable
 
         _decodedLength = written;
         _valueIsDecoded = true;
+    }
+
+    /// <summary>
+    /// An attribute value with its entities resolved, for the few that carry free text — an
+    /// OpenDocument sheet name, a cell's stated string.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="TryGetAttribute"/> hands values over raw, which is right for the structural ones it
+    /// exists for; a caller holding text asks for this instead. No entity is longer resolved than
+    /// written, so the result fits in the length of the raw value.
+    /// </remarks>
+    public static string DecodeAttribute(ReadOnlySpan<char> raw)
+    {
+        if (!raw.Contains('&'))
+        {
+            return raw.ToString();
+        }
+
+        Span<char> decoded = raw.Length <= 256 ? stackalloc char[raw.Length] : new char[raw.Length];
+        int written = 0;
+        int i = 0;
+
+        while (i < raw.Length)
+        {
+            int semicolon = raw[i] == '&' ? raw[(i + 1)..Math.Min(raw.Length, i + 13)].IndexOf(';') : -1;
+
+            if (semicolon < 0)
+            {
+                decoded[written++] = raw[i++];
+                continue;
+            }
+
+            written += WriteEntity(raw.Slice(i + 1, semicolon), decoded[written..]);
+            i += semicolon + 2;
+        }
+
+        return decoded[..written].ToString();
     }
 
     private static int WriteEntity(ReadOnlySpan<char> entity, Span<char> destination)

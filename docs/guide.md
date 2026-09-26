@@ -60,6 +60,20 @@ null), the csv `Dialect` it was read with, and the `Diagnostics` of what was rep
 `FileProfile.Format` is the container's; `FileProfile.Diagnostics` is every sheet together. Both are
 snapshots taken when the pass ended.
 
+### An OpenDocument cell says its own type
+
+A workbook guesses dates from number formats; a `.ods` cell states its type beside its value, so
+there is nothing to guess. `float`, `percentage` and `currency` read as numbers, `date` as a date,
+`time` as a time on 31 December 1899 — the day an xlsx time-only cell reads on — and `boolean` as a
+boolean. Anything else is text: the cell's `office:string-value` when it has one, else its paragraphs
+joined by a line feed, comments left out. A formula reads as the value the writer cached. ODF has no
+error type; LibreOffice marks a failed formula in an extension attribute, and it reads as an error
+carrying the text the cell shows — `#N/A`, `#REF!`, or LibreOffice's own `Err:502`.
+
+A row or cell repeated by attribute is expanded only when it holds a value; the million empty rows
+LibreOffice declares after the last one cost nothing. Covered cells of a merge read as empty. Hidden
+sheets and rows read like any other, as in xlsx.
+
 ### Malformed input is repaired, and the repair is counted
 
 Files that people upload are not well-formed. A 572 MB real-world export carries quotes inside
@@ -421,7 +435,7 @@ and also when the call fails — unless the caller asked for it to stay open.
 | `TabularImporter.Import(stream, …)` | on `Dispose` of the run, or when the call throws (a refused plan included) | `ImportOptions.Open.LeaveOpen` |
 | `TabularImporter.Import(cursor, …)`, `TabularAnalyzer.Analyze`, `TabularExtractor.Start` | never — the cursor is the caller's | — |
 
-`TabularOpenOptions` also carries the csv and xlsx cursor options, so ceilings can be changed without
+`TabularOpenOptions` also carries the csv, xlsx and ods cursor options, so ceilings can be changed without
 giving up format detection.
 
 ## Cancellation
@@ -505,7 +519,7 @@ from them.
 | `mapping.header-changed` | The column's header is not the one the mapping recorded |
 | `mapping.invalid-plan` | `MappingPlanException`: the plan does not fit its schema; its `Faults` carry the codes above |
 | `structure.sheet-missing`, `structure.sheet-changed`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
-| `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .ods, binary), or damaged, or cut off |
+| `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .fods, another OpenDocument type, binary), or damaged, or cut off |
 | `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
 
 This table is checked against the library's sources by `ErrorCodeCatalogTests`, in both directions.
@@ -532,7 +546,7 @@ exception.
 
 | | Default | Why |
 |---|---|---|
-| Package expansion | 2 GB | A zip's ratio is unbounded by design; a 50 MB upload could otherwise become fifty gigabytes |
+| Package expansion | 2 GB (ods: 8 GB) | A zip's ratio is unbounded by design; a 50 MB upload could otherwise become fifty gigabytes. OpenDocument writes about four times the bytes for the same cells, so its budget is four times larger |
 | Package parts | 16,384 | Every entry's metadata is materialised to find parts by name, before any budget can be consulted |
 | Worksheets | 4,096 | One descriptor per sheet, held for the cursor's life and walked by anything that analyses the file |
 | Workbook relationships | 8,192 | A map built before anything reads from it; a workbook declares about one per sheet |
@@ -542,6 +556,7 @@ exception.
 | Cell value length | 16 M chars | A value is assembled from as many small runs as a file cares to write, none of them large |
 | Package metadata string | 2,048 chars | A sheet name, a relationship target, a format code — each had a ceiling on how many, none on how long |
 | Columns per row | 16,384 | The workbook format's own width. A csv has none, and a file of nothing but delimiters is the cheapest attack there is |
+| Rows holding a value (ods) | 1,048,576 | OpenDocument repeats a row or cell with one attribute. An empty repeat only moves the position along; one that holds a value is expanded, so it is bounded here and by the column ceiling — twenty characters of markup could otherwise ask for a billion cells |
 | Field length (csv) | 16 M chars | Held twice while a quoted field is open, once as the value and once as the text kept for a replay |
 | Quoted field length | 100 lines | Beyond that an opening quote was never syntax. In a table of five columns or more a stray quote is caught sooner, by swallowing a record's worth of delimiters |
 | Distinct tracking | 2,000,000 values | Exact counting costs memory in proportion; the budget is per file, not per column |
@@ -567,13 +582,16 @@ call the count exact; not zero, and a collision undercounts.
 
 **This table is the living one.** Measured with the benchmark project: one process per reading, best
 of two runs — the workbooks on 2026-09-25, the csv files on 2026-09-26, after #9 made csv reading and
-analysis faster.
+analysis faster, and the OpenDocument ones (the same two workbooks saved by LibreOffice 26.8) on
+2026-09-26.
 
 | Fixture | Rows | Cells | Time | Allocated | Per cell | Peak |
 |---|--:|--:|--:|--:|--:|--:|
 | 72 KB workbook | 10,759 | 17,340 | 0.07 s | 1 MB | 39 B | 57 MB |
 | 8.6 MB workbook, dense | 100,001 | 1,700,017 | 0.87 s | 61 MB | 38 B | 96 MB |
 | 101 MB workbook | 1,000,001 | 17,000,017 | 4.6 s | 326 MB | 20 B | 129 MB |
+| the 8.6 MB workbook as ods (7 MB) | 100,001 | 1,700,017 | 1.7 s | 53 MB | 33 B | 65 MB |
+| the 101 MB workbook as ods (89 MB) | 1,000,001 | 17,000,017 | 9.4 s | 526 MB | 32 B | 66 MB |
 | 364 MB csv | 3,000,001 | 51,000,017 | 2.0 s | 1,567 MB | 32 B | 53 MB |
 | 572 MB csv, malformed | 5,127,969 | 87,175,473 | 3.0 s | 2,742 MB | 33 B | 53 MB |
 
@@ -584,6 +602,12 @@ figures together rather than mixing them.
 Peak memory stays flat as files grow: the 572 MB csv is read in 53 MB, and a workbook of a million
 rows in 129 MB. Bytes per cell rises on smaller workbooks because the shared string table is read
 once and amortised over fewer cells.
+
+An OpenDocument spreadsheet reads in less memory than the same workbook — 66 MB for the million rows,
+since it has no shared string table — and in about twice the time, because it is about four times the
+XML: the million rows are 1.9 GB of content, against half a gigabyte of worksheet. The sheet names
+are listed by a pass over that content's bytes before the first row, which is 0.2 s of the 100,000-row
+file's time.
 
 All of it is measured on .NET 10. On .NET 8 — measured before #9, so the absolute figures below are
 the older ones; the ratio is what they show — the same code reads and imports the 572 MB csv about 15%
@@ -599,6 +623,7 @@ while every value in a csv is text and is tried under each culture in the option
 |---|--:|--:|
 | 8.6 MB workbook, 1.7M cells | 0.87 s | 1.5 s |
 | 101 MB workbook, 17M cells | 4.6 s | 6.7 s |
+| the same workbook as ods | 9.4 s | 12.2 s |
 | 364 MB csv, 51M cells | 2.0 s | 9.6 s |
 | 572 MB csv, 87M cells | 3.0 s | 14.0 s |
 

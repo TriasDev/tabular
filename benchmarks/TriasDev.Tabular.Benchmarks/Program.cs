@@ -3,6 +3,7 @@ using System.Globalization;
 
 using TriasDev.Tabular.Benchmarks.Shared;
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular.Benchmarks;
@@ -43,7 +44,9 @@ public static class Program
         new LibraryCsvCursor(),
         new LibraryXlsxCursor(),
         new LibraryXlsxCursorCellsOnly(),
+        new LibraryOdsCursor(),
         new FullAnalysis(TabularFormat.Xlsx),
+        new FullAnalysis(TabularFormat.Ods),
         new FullAnalysis(TabularFormat.Csv),
     ];
 
@@ -80,14 +83,21 @@ public static class Program
 
         public string Name => $"Full analysis ({format.ToString().ToLowerInvariant()})";
 
-        public CandidateFormats Formats =>
-            format == TabularFormat.Xlsx ? CandidateFormats.Xlsx : CandidateFormats.Csv;
+        public CandidateFormats Formats => format switch
+        {
+            TabularFormat.Xlsx => CandidateFormats.Xlsx,
+            TabularFormat.Ods => CandidateFormats.Ods,
+            _ => CandidateFormats.Csv,
+        };
 
         public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
         {
-            using ITabularCursor cursor = format == TabularFormat.Xlsx
-                ? new XlsxCursor(stream)
-                : new CsvCursor(stream, "benchmark.csv");
+            using ITabularCursor cursor = format switch
+            {
+                TabularFormat.Xlsx => new XlsxCursor(stream),
+                TabularFormat.Ods => new OdsCursor(stream),
+                _ => new CsvCursor(stream, "benchmark.csv"),
+            };
 
             FileProfile profile = new TabularAnalyzer(AnalysisOptions).Analyze(cursor);
 
@@ -145,6 +155,33 @@ public static class Program
 
                 _ = present;
                 yield return shape;
+            }
+        }
+    }
+
+    /// <summary>The OpenDocument cursor, turning every cell into text as the xlsx one does.</summary>
+    private sealed class LibraryOdsCursor : IParserCandidate
+    {
+        public string Name => "TriasDev.Tabular.OdsCursor";
+
+        public CandidateFormats Formats => CandidateFormats.Ods;
+
+        public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
+        {
+            using OdsCursor cursor = new(stream);
+
+            List<string?> row = [];
+
+            while (cursor.ReadRow())
+            {
+                row.Clear();
+
+                for (int i = 0; i < cursor.CurrentRow.Length; i++)
+                {
+                    row.Add(cursor.CurrentRow[i].AsText());
+                }
+
+                yield return row;
             }
         }
     }
@@ -312,7 +349,12 @@ public static class Program
                 continue;
             }
 
-            CandidateFormats format = Extension(path) == "xlsx" ? CandidateFormats.Xlsx : CandidateFormats.Csv;
+            CandidateFormats format = Extension(path) switch
+            {
+                "xlsx" => CandidateFormats.Xlsx,
+                "ods" => CandidateFormats.Ods,
+                _ => CandidateFormats.Csv,
+            };
 
             foreach (IParserCandidate candidate in Candidates.Where(c => c.Formats.HasFlag(format)))
             {

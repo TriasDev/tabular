@@ -1,1 +1,38 @@
 #nullable enable
+override TriasDev.Tabular.Ods.OdsCursorOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.Ods.OdsCursorOptions.GetHashCode() -> int
+override TriasDev.Tabular.Ods.OdsCursorOptions.ToString() -> string!
+static TriasDev.Tabular.Ods.OdsCursorOptions.Default.get -> TriasDev.Tabular.Ods.OdsCursorOptions!
+static TriasDev.Tabular.Ods.OdsCursorOptions.operator !=(TriasDev.Tabular.Ods.OdsCursorOptions? left, TriasDev.Tabular.Ods.OdsCursorOptions? right) -> bool
+static TriasDev.Tabular.Ods.OdsCursorOptions.operator ==(TriasDev.Tabular.Ods.OdsCursorOptions? left, TriasDev.Tabular.Ods.OdsCursorOptions? right) -> bool
+TriasDev.Tabular.Ods.OdsCursor
+TriasDev.Tabular.Ods.OdsCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
+TriasDev.Tabular.Ods.OdsCursor.CurrentRowNumber.get -> int
+TriasDev.Tabular.Ods.OdsCursor.CurrentSheetIndex.get -> int
+TriasDev.Tabular.Ods.OdsCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
+TriasDev.Tabular.Ods.OdsCursor.Dispose() -> void
+TriasDev.Tabular.Ods.OdsCursor.Format.get -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.Ods.OdsCursor.MoveToSheet(int index) -> bool
+TriasDev.Tabular.Ods.OdsCursor.OdsCursor(System.IO.Stream! stream, TriasDev.Tabular.Ods.OdsCursorOptions? options = null, bool leaveOpen = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+TriasDev.Tabular.Ods.OdsCursor.ReadFraction.get -> double?
+TriasDev.Tabular.Ods.OdsCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+TriasDev.Tabular.Ods.OdsCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
+TriasDev.Tabular.Ods.OdsCursorOptions
+TriasDev.Tabular.Ods.OdsCursorOptions.<Clone>$() -> TriasDev.Tabular.Ods.OdsCursorOptions!
+TriasDev.Tabular.Ods.OdsCursorOptions.Equals(TriasDev.Tabular.Ods.OdsCursorOptions? other) -> bool
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxColumns.get -> int
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxColumns.init -> void
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxPackageEntries.get -> int
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxPackageEntries.init -> void
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxRows.get -> int
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxRows.init -> void
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxSheets.get -> int
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxSheets.init -> void
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxUncompressedBytes.get -> long
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxUncompressedBytes.init -> void
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxValueChars.get -> int
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxValueChars.init -> void
+TriasDev.Tabular.Ods.OdsCursorOptions.OdsCursorOptions() -> void
+TriasDev.Tabular.TabularFormat.Ods = 2 -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.TabularOpenOptions.Ods.get -> TriasDev.Tabular.Ods.OdsCursorOptions!
+TriasDev.Tabular.TabularOpenOptions.Ods.init -> void
