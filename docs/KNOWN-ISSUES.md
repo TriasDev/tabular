@@ -130,6 +130,13 @@ The interface documents "positions before its first row"; the csv implementation
 and stays where it is. Analysing and then extracting through one cursor instance reads a csv from
 wherever it stopped. A csv inside an archive does rewind: the archive reopens its file.
 
+### Moving to a sheet cannot be cancelled
+`ITabularCursor.MoveToSheet` takes no token. For an OpenDocument spreadsheet it reads forward through
+the content part to the sheet, and for a workbook inside an archive it copies the workbook into
+memory, so a move can take seconds on a large file. The first move, made while the cursor is opened,
+does observe the opening's token. Matters if an import must stop within a second while it changes
+sheets; fixing it means a token on the interface, in a minor release.
+
 ### `IsBlank` ignores the binding's empty-equivalents
 A row whose every mapped cell holds `k.A.` is not skipped. It is counted as produced and handed over
 as a valid row of entirely absent values.

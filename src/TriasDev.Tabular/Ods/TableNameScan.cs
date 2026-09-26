@@ -16,12 +16,17 @@ namespace TriasDev.Tabular.Ods;
 /// for <c>&lt;</c>, looks at the name behind it, and takes a tag apart only when that is a table.
 /// </para>
 /// <para>
-/// It must see the same tables the reading does: an element whose local name is <c>table</c>,
-/// with content, wherever it stands; not one inside a comment, CDATA or processing instruction.
-/// Other tags are not taken apart, which is sound for well-formed XML, where no <c>&lt;</c> stands
-/// inside an attribute value. A malformed file that puts one there can make the two passes count
-/// differently; the list then names a sheet the reading cannot find, and moving to it fails as a
-/// truncated file — refused, never read as another sheet's rows.
+/// It must see the same tables the reading does. A sheet is an element whose local name is
+/// <c>table</c>, with content, that stands in no other table and no <c>dde-link</c> — a sub-table
+/// inside a cell and a DDE link's cached table are markup, not sheets — and not inside a comment,
+/// CDATA or processing instruction. So the pass follows the start and end tags of those two
+/// elements, and names end where the reading's end. Other tags are not taken apart, which is sound
+/// for well-formed XML, where no <c>&lt;</c> stands inside an attribute value.
+/// </para>
+/// <para>
+/// A malformed file can still make the two passes count differently. The reading therefore checks
+/// that the table it enters carries the name listed for it, and refuses the file when it does not,
+/// so a disagreement never reads one sheet's rows under another's name.
 /// </para>
 /// </remarks>
 internal sealed class TableNameScan
@@ -32,16 +37,29 @@ internal sealed class TableNameScan
     /// </summary>
     private const int MaxTagBytes = 3 * 16 * 1024 * 1024;
 
-    /// <summary>An element name longer than this is not a table's, whatever its prefix.</summary>
-    private const int MaxNameBytes = 256;
+    /// <summary>The elements the pass keeps track of: a table, and a DDE link, whose cached table is no sheet.</summary>
+    private enum Scope
+    {
+        None,
+        Table,
+        DdeLink,
+    }
 
     private readonly Stream _stream;
+    private readonly CancellationToken _cancellationToken;
+
+    /// <summary>How many tables and DDE links are open around the scan position.</summary>
+    private int _depth;
     private byte[] _buffer = new byte[64 * 1024];
     private int _position;
     private int _length;
     private bool _endOfStream;
 
-    private TableNameScan(Stream stream) => _stream = stream;
+    private TableNameScan(Stream stream, CancellationToken cancellationToken)
+    {
+        _stream = stream;
+        _cancellationToken = cancellationToken;
+    }
 
     /// <summary>
     /// The tables' names in document order, or null when the part is not UTF-8 and the caller has
@@ -49,7 +67,7 @@ internal sealed class TableNameScan
     /// </summary>
     public static List<string>? TryRead(Stream content, int maxSheets, CancellationToken cancellationToken)
     {
-        TableNameScan scan = new(content);
+        TableNameScan scan = new(content, cancellationToken);
 
         if (scan.Ensure(2) && (scan._buffer[0], scan._buffer[1]) is (0xFE, 0xFF) or (0xFF, 0xFE))
         {
@@ -85,8 +103,8 @@ internal sealed class TableNameScan
     }
 
     /// <summary>
-    /// Deals with the markup at a <c>&lt;</c>: skips it, or lists the table it opens; false when the
-    /// part ends inside it.
+    /// Deals with the markup at a <c>&lt;</c>: skips it, keeps count of the tables and DDE links it
+    /// opens and closes, and lists a table that stands in neither; false when the part ends inside it.
     /// </summary>
     private bool Step(List<string> names, int maxSheets)
     {
@@ -97,20 +115,30 @@ internal sealed class TableNameScan
             return SkipMarkup(next);
         }
 
-        if (next == (byte)'/' || !NamesTable())
+        bool closing = next == (byte)'/';
+        Scope scope = ElementScope(closing ? 2 : 1);
+
+        if (scope == Scope.None)
         {
             _position++;
             return true;
         }
 
-        return ReadTable(names, maxSheets);
+        if (closing)
+        {
+            _depth = Math.Max(0, _depth - 1);
+            _position += 2;
+            return true;
+        }
+
+        return ReadScope(scope, names, maxSheets);
     }
 
     /// <summary>
-    /// Takes apart the table start tag at the scan position and lists its name; false when the part
-    /// ends inside the tag.
+    /// Takes apart the start tag of a table or DDE link at the scan position, listing the table when
+    /// it is the spreadsheet's own; false when the part ends inside the tag.
     /// </summary>
-    private bool ReadTable(List<string> names, int maxSheets)
+    private bool ReadScope(Scope scope, List<string> names, int maxSheets)
     {
         int end = FindTagEnd();
 
@@ -124,16 +152,21 @@ internal sealed class TableNameScan
 
         if (tag[^1] == (byte)'/')
         {
-            return true;                    // a table with no content, which the reading passes over too
+            return true;                    // no content: neither a sheet nor a scope, as the reading has it
         }
 
-        if (names.Count >= maxSheets)
+        if (scope == Scope.Table && _depth == 0)
         {
-            throw new TabularLimitException(nameof(OdsCursorOptions.MaxSheets), maxSheets,
-                $"The spreadsheet declares more than the {maxSheets} sheets allowed.");
+            if (names.Count >= maxSheets)
+            {
+                throw new TabularLimitException(nameof(OdsCursorOptions.MaxSheets), maxSheets,
+                    $"The spreadsheet declares more than the {maxSheets} sheets allowed.");
+            }
+
+            names.Add(NameAttribute(tag));
         }
 
-        names.Add(NameAttribute(tag));
+        _depth++;
         return true;
     }
 
@@ -178,36 +211,43 @@ internal sealed class TableNameScan
         return Starts("<![CDATA["u8) ? SkipThrough("]]>"u8) : SkipThrough(">"u8);
     }
 
-    /// <summary>Whether the tag at the scan position is an element whose local name is <c>table</c>.</summary>
-    private bool NamesTable()
+    /// <summary>
+    /// Whether the element named <paramref name="offset"/> bytes past the scan position is a table or
+    /// a DDE link, by local name. The name ends where the reading's does: at whitespace, a slash or
+    /// the bracket; a prefix may be as long as it likes.
+    /// </summary>
+    private Scope ElementScope(int offset)
     {
         int length = 0;
 
         while (true)
         {
-            if (!Ensure(length + 2))
+            if (!Ensure(offset + length + 1))
             {
-                return false;
+                return Scope.None;
             }
 
-            byte b = _buffer[_position + 1 + length];
-
-            if (b is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n' or (byte)'/' or (byte)'>')
+            if (IsNameEnd(_buffer[_position + offset + length]))
             {
                 break;
             }
 
-            if (++length > MaxNameBytes)
-            {
-                return false;
-            }
+            length++;
         }
 
-        ReadOnlySpan<byte> name = _buffer.AsSpan(_position + 1, length);
-        int colon = name.IndexOf((byte)':');
+        ReadOnlySpan<byte> name = _buffer.AsSpan(_position + offset, length);
+        ReadOnlySpan<byte> local = name[(name.IndexOf((byte)':') + 1)..];
 
-        return name[(colon + 1)..].SequenceEqual("table"u8);
+        if (local.SequenceEqual("table"u8))
+        {
+            return Scope.Table;
+        }
+
+        return local.SequenceEqual("dde-link"u8) ? Scope.DdeLink : Scope.None;
     }
+
+    private static bool IsNameEnd(byte b) =>
+        b is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n' or (byte)'\v' or (byte)'\f' or (byte)'/' or (byte)'>';
 
     /// <summary>
     /// The index of the bracket closing the tag at the scan position, brackets inside an attribute
@@ -271,7 +311,7 @@ internal sealed class TableNameScan
         return string.Empty;
     }
 
-    private static ReadOnlySpan<byte> Whitespace => " \t\r\n"u8;
+    private static ReadOnlySpan<byte> Whitespace => " \t\r\n\v\f"u8;
 
     /// <summary>Takes the next <c>name="value"</c> off the front of a tag's attributes.</summary>
     private static bool TryNextAttribute(
@@ -309,11 +349,12 @@ internal sealed class TableNameScan
     private bool Starts(ReadOnlySpan<byte> text) =>
         Ensure(text.Length) && _buffer.AsSpan(_position, text.Length).SequenceEqual(text);
 
-    /// <summary>Moves past the next occurrence of a terminator; false when the part ends first.</summary>
+    /// <summary>
+    /// Moves past the next occurrence of a terminator, searched from the construct's own
+    /// <c>&lt;</c> as the reading searches it; false when the part ends first.
+    /// </summary>
     private bool SkipThrough(ReadOnlySpan<byte> terminator)
     {
-        _position += 2;
-
         while (true)
         {
             int found = _buffer.AsSpan(_position, _length - _position).IndexOf(terminator);
@@ -366,6 +407,9 @@ internal sealed class TableNameScan
         {
             return false;
         }
+
+        // Once per buffer: a single comment or tag may run for megabytes without another node.
+        _cancellationToken.ThrowIfCancellationRequested();
 
         int kept = _length - _position;
         _buffer.AsSpan(_position, kept).CopyTo(_buffer);

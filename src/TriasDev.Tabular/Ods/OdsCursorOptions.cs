@@ -51,6 +51,16 @@ public sealed record OdsCursorOptions
     /// <summary>The most characters one cell's value may assemble to.</summary>
     public int MaxValueChars { get; init; } = 16 * 1024 * 1024;
 
+    /// <summary>How many cells, across the file, repeats may hand out beyond the ones written.</summary>
+    /// <remarks>
+    /// The row and column ceilings bound one sheet's shape, not the work: a cell repeated across all
+    /// 16,384 columns in a row repeated a million times is under a kilobyte of markup and seventeen
+    /// billion cells, each within both ceilings. Every cell a repeat adds — the copies, not the one
+    /// written — counts against this. A hundred million is six sheets of a million rows by seventeen
+    /// columns made entirely of repeats, far beyond what a spreadsheet program writes for real data.
+    /// </remarks>
+    public long MaxRepeatedCells { get; init; } = 100_000_000;
+
     internal OdsCursorOptions Checked()
     {
         OptionChecks.AtLeast(MaxUncompressedBytes, 1, nameof(OdsCursorOptions), nameof(MaxUncompressedBytes));
@@ -59,6 +69,7 @@ public sealed record OdsCursorOptions
         OptionChecks.AtLeast(MaxColumns, 1, nameof(OdsCursorOptions), nameof(MaxColumns));
         OptionChecks.AtLeast(MaxRows, 1, nameof(OdsCursorOptions), nameof(MaxRows));
         OptionChecks.AtLeast(MaxValueChars, 1, nameof(OdsCursorOptions), nameof(MaxValueChars));
+        OptionChecks.AtLeast(MaxRepeatedCells, 0, nameof(OdsCursorOptions), nameof(MaxRepeatedCells));
         return this;
     }
 }

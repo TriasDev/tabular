@@ -64,7 +64,8 @@ snapshots taken when the pass ended.
 
 A workbook guesses dates from number formats; a `.ods` cell states its type beside its value, so
 there is nothing to guess. `float`, `percentage` and `currency` read as numbers, `date` as a date,
-`time` as a time on 31 December 1899 — the day an xlsx time-only cell reads on — and `boolean` as a
+`time` as the workbook serial of as many days — a time of day on 31 December 1899, the day an xlsx
+time-only cell reads on, and a longer duration on the day that serial names — and `boolean` as a
 boolean. Anything else is text: the cell's `office:string-value` when it has one, else its paragraphs
 joined by a line feed, comments left out. A formula reads as the value the writer cached. ODF has no
 error type; LibreOffice marks a failed formula in an extension attribute, and it reads as an error
@@ -72,7 +73,8 @@ carrying the text the cell shows — `#N/A`, `#REF!`, or LibreOffice's own `Err:
 
 A row or cell repeated by attribute is expanded only when it holds a value; the million empty rows
 LibreOffice declares after the last one cost nothing. Covered cells of a merge read as empty. Hidden
-sheets and rows read like any other, as in xlsx.
+sheets and rows read like any other, as in xlsx. A sheet is a table of the spreadsheet itself: a
+sub-table inside a cell, or the table a DDE link caches, is not one, and its text is not the cell's.
 
 ### A zip archive reads as one workbook
 
@@ -584,6 +586,7 @@ exception.
 | Cell value length | 16 M chars | A value is assembled from as many small runs as a file cares to write, none of them large |
 | Package metadata string | 2,048 chars | A sheet name, a relationship target, a format code — each had a ceiling on how many, none on how long |
 | Columns per row | 16,384 | The workbook format's own width. A csv has none, and a file of nothing but delimiters is the cheapest attack there is |
+| Cells repeats hand out (ods) | 100,000,000 | The row and column ceilings bound a sheet's shape, not the work: one cell repeated across every column of a row repeated a million times is under a kilobyte and seventeen billion cells. The copies count, across the file |
 | Rows holding a value (ods) | 1,048,576 | OpenDocument repeats a row or cell with one attribute. An empty repeat only moves the position along; one that holds a value is expanded, so it is bounded here and by the column ceiling — twenty characters of markup could otherwise ask for a billion cells |
 | Field length (csv) | 16 M chars | Held twice while a quoted field is open, once as the value and once as the text kept for a replay |
 | Quoted field length | 100 lines | Beyond that an opening quote was never syntax. In a table of five columns or more a stray quote is caught sooner, by swallowing a record's worth of delimiters |
@@ -619,7 +622,7 @@ analysis faster, and the OpenDocument ones (the same two workbooks saved by Libr
 | 8.6 MB workbook, dense | 100,001 | 1,700,017 | 0.87 s | 61 MB | 38 B | 96 MB |
 | 101 MB workbook | 1,000,001 | 17,000,017 | 4.6 s | 326 MB | 20 B | 129 MB |
 | the 8.6 MB workbook as ods (7 MB) | 100,001 | 1,700,017 | 1.7 s | 53 MB | 33 B | 65 MB |
-| the 101 MB workbook as ods (89 MB) | 1,000,001 | 17,000,017 | 9.4 s | 526 MB | 32 B | 66 MB |
+| the 101 MB workbook as ods (89 MB) | 1,000,001 | 17,000,017 | 8.7 s | 526 MB | 32 B | 65 MB |
 | 364 MB csv | 3,000,001 | 51,000,017 | 2.0 s | 1,567 MB | 32 B | 53 MB |
 | 572 MB csv, malformed | 5,127,969 | 87,175,473 | 3.0 s | 2,742 MB | 33 B | 53 MB |
 
@@ -631,7 +634,7 @@ Peak memory stays flat as files grow: the 572 MB csv is read in 53 MB, and a wor
 rows in 129 MB. Bytes per cell rises on smaller workbooks because the shared string table is read
 once and amortised over fewer cells.
 
-An OpenDocument spreadsheet reads in less memory than the same workbook — 66 MB for the million rows,
+An OpenDocument spreadsheet reads in less memory than the same workbook — 65 MB for the million rows,
 since it has no shared string table — and in about twice the time, because it is about four times the
 XML: the million rows are 1.9 GB of content, against half a gigabyte of worksheet. The sheet names
 are listed by a pass over that content's bytes before the first row, which is 0.2 s of the 100,000-row
@@ -655,7 +658,7 @@ while every value in a csv is text and is tried under each culture in the option
 |---|--:|--:|
 | 8.6 MB workbook, 1.7M cells | 0.87 s | 1.5 s |
 | 101 MB workbook, 17M cells | 4.6 s | 6.7 s |
-| the same workbook as ods | 9.4 s | 12.2 s |
+| the same workbook as ods | 8.7 s | 11.6 s |
 | 364 MB csv, 51M cells | 2.0 s | 9.6 s |
 | 572 MB csv, 87M cells | 3.0 s | 14.0 s |
 

@@ -83,6 +83,10 @@ internal sealed class SheetScanner : IDisposable
     /// </summary>
     private readonly string[]? _keptLocalNames;
 
+    /// <summary>The kept names given with their prefix, looked up whole; empty for a worksheet.</summary>
+    /// <remarks>Split out once, not per attribute: every attribute of every element is checked against it.</remarks>
+    private readonly string[] _keptWholeNames;
+
     /// <param name="reader">The part.</param>
     /// <param name="leaveOpen">Whether disposing the scanner leaves the reader open.</param>
     /// <param name="keptLocalNames">
@@ -95,6 +99,7 @@ internal sealed class SheetScanner : IDisposable
         _reader = reader;
         _leaveOpen = leaveOpen;
         _keptLocalNames = keptLocalNames;
+        _keptWholeNames = keptLocalNames is null ? [] : [.. keptLocalNames.Where(kept => kept.Contains(':', StringComparison.Ordinal))];
     }
 
     /// <summary>What the scanner is sitting on.</summary>
@@ -366,9 +371,9 @@ internal sealed class SheetScanner : IDisposable
     {
         ReadOnlySpan<char> whole = _buffer.AsSpan(nameStart, nameLength);
 
-        foreach (string kept in _keptLocalNames!)
+        foreach (string kept in _keptWholeNames)
         {
-            if (kept.Contains(':', StringComparison.Ordinal) && whole.SequenceEqual(kept))
+            if (whole.SequenceEqual(kept))
             {
                 return true;
             }

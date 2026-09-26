@@ -62,6 +62,8 @@ TriasDev.Tabular.Ods.OdsCursorOptions.MaxColumns.get -> int
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxColumns.init -> void
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxPackageEntries.get -> int
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxPackageEntries.init -> void
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxRepeatedCells.get -> long
+TriasDev.Tabular.Ods.OdsCursorOptions.MaxRepeatedCells.init -> void
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxRows.get -> int
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxRows.init -> void
 TriasDev.Tabular.Ods.OdsCursorOptions.MaxSheets.get -> int

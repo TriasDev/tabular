@@ -135,6 +135,23 @@ public sealed class XlsxCursorEdgeCaseTests
     }
 
     [Fact]
+    public void KeepsTheDateOfAWrittenOutValueThatOpensWithItsTime()
+    {
+        // Out of the format's spec but parsed all the same: the time comes first and a date follows.
+        // Shaped like a bare time at its start, it is not one, and its date must survive.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="d"><v>12:00 2024-01-01</v></c><c r="B1" t="d"><v>12:00:00+02:00</v></c></row>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[0].Date);
+        Assert.Equal(new DateTime(1899, 12, 31, 12, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[1].Date);
+    }
+
+    [Fact]
     public void ReadsAWrittenOutTimeOnTheDateABareTimeHasInA1904Workbook()
     {
         byte[] content = new XlsxPackage()

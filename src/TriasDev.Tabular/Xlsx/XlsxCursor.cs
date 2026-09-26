@@ -1438,16 +1438,27 @@ public sealed class XlsxCursor : ITabularCursor
     /// </para>
     /// </remarks>
     /// <summary>
-    /// Whether a <c>d</c> cell states a time and no date — <c>12:00:00.000</c> — which the parser
-    /// puts on year one. An ISO date opens with its four-digit year, a time with one or two hour
-    /// digits and a colon.
+    /// Whether a <c>d</c> cell states a time and no date — <c>12:00:00.000</c>, perhaps with a zone —
+    /// which the parser puts on year one, or on today when zoned. Judged by the whole text: a time,
+    /// then nothing but a zone, so a time followed by a date keeps its date.
     /// </summary>
     private static bool IsBareTime(ReadOnlySpan<char> text)
     {
-        ReadOnlySpan<char> trimmed = text.TrimStart();
-        int colon = trimmed.IndexOf(':');
+        ReadOnlySpan<char> rest = text.Trim();
+        int colon = rest.IndexOf(':');
 
-        return colon is 1 or 2 && !trimmed[..colon].ContainsAnyExcept("0123456789");
+        if (colon is not (1 or 2) || rest[..colon].ContainsAnyExcept("0123456789"))
+        {
+            return false;
+        }
+
+        // The time itself: digits, colons and a fraction; then nothing but a zone.
+        int timeEnd = rest.IndexOfAnyExcept("0123456789:.");
+        ReadOnlySpan<char> zone = timeEnd < 0 ? [] : rest[timeEnd..].TrimStart();
+
+        return zone.IsEmpty
+            || zone is "Z" or "z"
+            || (zone[0] is '+' or '-' && zone.Length > 1 && !zone[1..].ContainsAnyExcept("0123456789:"));
     }
 
     /// <summary>
@@ -1468,7 +1479,7 @@ public sealed class XlsxCursor : ITabularCursor
         return day.Add(parsed.TimeOfDay);
     }
 
-    private static bool TryFromSerial(double serial, bool date1904, out DateTime date)
+    internal static bool TryFromSerial(double serial, bool date1904, out DateTime date)
     {
         date = default;
 

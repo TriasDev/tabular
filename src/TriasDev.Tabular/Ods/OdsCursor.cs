@@ -45,9 +45,6 @@ public sealed class OdsCursor : ITabularCursor
 
     private const string ExtensionValueType = "calcext:value-type";
 
-    /// <summary>A time-only cell's date, as a workbook reads a serial below one.</summary>
-    private static readonly DateTime TimeEpoch = new(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified);
-
     private readonly OdsCursorOptions _options;
     private readonly ZipArchive _package;
     private readonly ZipArchiveEntry _content;
@@ -61,6 +58,12 @@ public sealed class OdsCursor : ITabularCursor
 
     /// <summary>How many tables the scanner has entered; the current one is this minus one.</summary>
     private int _tablesEntered;
+
+    /// <summary>How many tables and DDE links are open around the scanner, as the name pass counts them.</summary>
+    private int _nesting;
+
+    /// <summary>The cells repeats have handed out beyond the ones written, across the file.</summary>
+    private long _repeatedCells;
 
     private bool _sheetEnded;
     private int _repeatsLeft;
@@ -111,6 +114,7 @@ public sealed class OdsCursor : ITabularCursor
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _content = FindContent();
             Sheets = ReadSheetNames(cancellationToken);
 
@@ -119,7 +123,7 @@ public sealed class OdsCursor : ITabularCursor
                 throw new TabularFormatException(TabularFormatException.Unsupported, "The spreadsheet holds no sheet.");
             }
 
-            MoveToSheet(0);
+            MoveTo(0, cancellationToken);
         }
         catch (Exception malformed) when (malformed is XmlException or InvalidDataException or FormatException)
         {
@@ -161,7 +165,13 @@ public sealed class OdsCursor : ITabularCursor
         _counter is null || _content.Length == 0 ? null : Math.Min(1d, (double)_counter.BytesRead / _content.Length);
 
     /// <inheritdoc />
-    public bool MoveToSheet(int index)
+    /// <remarks>
+    /// Reads forward through the content part to the sheet, from the top when it lies behind. The
+    /// interface gives this no token; the constructor's first move is cancellable, later ones are not.
+    /// </remarks>
+    public bool MoveToSheet(int index) => MoveTo(index, CancellationToken.None);
+
+    private bool MoveTo(int index, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -177,6 +187,8 @@ public sealed class OdsCursor : ITabularCursor
             OpenContent();
         }
 
+        int sinceCheck = 0;
+
         while (_tablesEntered <= index)
         {
             if (!_scanner!.Read())
@@ -184,10 +196,8 @@ public sealed class OdsCursor : ITabularCursor
                 throw Truncated();
             }
 
-            if (_scanner.Kind == XmlNodeKind.Element && _scanner.Name.SequenceEqual("table") && !_scanner.IsEmptyElement)
-            {
-                _tablesEntered++;
-            }
+            Checkpoint(ref sinceCheck, cancellationToken);
+            EnterOrLeaveScope(_scanner, index);
         }
 
         CurrentSheetIndex = index;
@@ -198,6 +208,45 @@ public sealed class OdsCursor : ITabularCursor
         _faulted = false;
         return true;
     }
+
+    /// <summary>
+    /// Keeps count of the tables and DDE links around the scanner, as the name pass does, and checks
+    /// a sheet it enters against the name listed for it.
+    /// </summary>
+    private void EnterOrLeaveScope(SheetScanner scanner, int index)
+    {
+        if (scanner.Kind == XmlNodeKind.EndElement && IsScope(scanner.Name))
+        {
+            _nesting = Math.Max(0, _nesting - 1);
+            return;
+        }
+
+        if (scanner.Kind != XmlNodeKind.Element || scanner.IsEmptyElement || !IsScope(scanner.Name))
+        {
+            return;
+        }
+
+        if (_nesting == 0 && scanner.Name.SequenceEqual(TableElement) && ++_tablesEntered > index)
+        {
+            string name = scanner.TryGetAttribute("name", out ReadOnlySpan<char> value)
+                ? SheetScanner.DecodeAttribute(value)
+                : string.Empty;
+
+            // The two passes over the part disagree only on markup no writer produces; reading on
+            // would hand out one sheet's rows under another's name.
+            if (name != Sheets[index].Name)
+            {
+                throw new TabularFormatException(TabularFormatException.Corrupt,
+                    "The spreadsheet's markup is malformed: its tables cannot be told apart reliably.");
+            }
+        }
+
+        _nesting++;
+    }
+
+    private static bool IsScope(ReadOnlySpan<char> name) => name.SequenceEqual(TableElement) || name.SequenceEqual("dde-link");
+
+    private const string TableElement = "table";
 
     /// <inheritdoc />
     public bool ReadRow(CancellationToken cancellationToken = default)
@@ -247,45 +296,89 @@ public sealed class OdsCursor : ITabularCursor
         {
             Checkpoint(ref sinceCheck, cancellationToken);
 
-            if (scanner.Kind == XmlNodeKind.EndElement && scanner.Name.SequenceEqual("table"))
+            switch (Classify(scanner))
             {
-                _sheetEnded = true;
-                return false;
+                case RowPlace.SheetEnd:
+                    _sheetEnded = true;
+                    return false;
+
+                case RowPlace.Row when ReadRowElement(scanner, cancellationToken):
+                    return true;
             }
-
-            // Header rows, row groups and the like are wrappers; the rows inside them are rows.
-            if (scanner.Kind != XmlNodeKind.Element || !scanner.Name.SequenceEqual("table-row"))
-            {
-                continue;
-            }
-
-            long repeat = Repeat(scanner, "number-rows-repeated");
-
-            if (!scanner.IsEmptyElement)
-            {
-                ReadCells(scanner, cancellationToken);
-            }
-
-            if (_cellCount == 0)
-            {
-                // Empty, however many times: the row number moves on and nothing is handed out.
-                CurrentRowNumber = (int)Math.Min(int.MaxValue, CurrentRowNumber + repeat);
-                continue;
-            }
-
-            Advance(1);
-            _repeatsLeft = (int)Math.Min(int.MaxValue, repeat - 1);
-
-            // Refused at once rather than after a billion rows have been handed out one at a time.
-            if (CurrentRowNumber + (long)_repeatsLeft > _options.MaxRows)
-            {
-                throw RowLimit();
-            }
-
-            return true;
         }
 
         throw Truncated();
+    }
+
+    private enum RowPlace
+    {
+        Other,
+        Row,
+        SheetEnd,
+    }
+
+    /// <summary>
+    /// What the node means to the sheet: its end, one of its rows, or neither. A table inside the
+    /// sheet is kept count of, so its end is not the sheet's and its rows are not the sheet's rows.
+    /// </summary>
+    private RowPlace Classify(SheetScanner scanner)
+    {
+        if (scanner.Kind == XmlNodeKind.EndElement && scanner.Name.SequenceEqual(TableElement))
+        {
+            if (--_nesting > 0)
+            {
+                return RowPlace.Other;
+            }
+
+            _nesting = 0;
+            return RowPlace.SheetEnd;
+        }
+
+        if (scanner.Kind != XmlNodeKind.Element)
+        {
+            return RowPlace.Other;
+        }
+
+        if (!scanner.IsEmptyElement && scanner.Name.SequenceEqual(TableElement))
+        {
+            _nesting++;
+            return RowPlace.Other;
+        }
+
+        // Header rows, row groups and the like are wrappers; the rows inside them are rows.
+        return _nesting == 1 && scanner.Name.SequenceEqual("table-row") ? RowPlace.Row : RowPlace.Other;
+    }
+
+    /// <summary>Reads a row element; true when it holds a value and is handed out.</summary>
+    private bool ReadRowElement(SheetScanner scanner, CancellationToken cancellationToken)
+    {
+        long repeat = Repeat(scanner, "number-rows-repeated");
+
+        if (!scanner.IsEmptyElement)
+        {
+            ReadCells(scanner, cancellationToken);
+        }
+
+        if (_cellCount == 0)
+        {
+            // Empty, however many times: the row number moves on and nothing is handed out. It
+            // stops one past the ceiling, so a value after it is refused and nothing wraps.
+            long ceiling = Math.Min(int.MaxValue, _options.MaxRows + 1L);
+            CurrentRowNumber = (int)(repeat >= ceiling - CurrentRowNumber ? ceiling : CurrentRowNumber + repeat);
+            return false;
+        }
+
+        Advance(1);
+
+        // Refused at once rather than after a billion rows have been handed out one at a time.
+        if (repeat - 1 > _options.MaxRows - (long)CurrentRowNumber)
+        {
+            throw RowLimit();
+        }
+
+        _repeatsLeft = (int)(repeat - 1);
+        CountRepeated(_repeatsLeft, _cellCount);
+        return true;
     }
 
     /// <summary>Checks the token every few thousand nodes: often enough to stop a hostile file, rarely enough to cost nothing.</summary>
@@ -300,12 +393,28 @@ public sealed class OdsCursor : ITabularCursor
 
     private void Advance(int rows)
     {
-        CurrentRowNumber += rows;
+        long next = CurrentRowNumber + (long)rows;
 
-        if (CurrentRowNumber > _options.MaxRows)
+        if (next > _options.MaxRows)
         {
             throw RowLimit();
         }
+
+        CurrentRowNumber = (int)next;
+    }
+
+    /// <summary>Counts cells a repeat adds against the file's budget for them.</summary>
+    private void CountRepeated(long copies, long cellsPerCopy)
+    {
+        long budget = _options.MaxRepeatedCells;
+
+        if (copies > 0 && copies > (budget - _repeatedCells) / Math.Max(1, cellsPerCopy))
+        {
+            throw new TabularLimitException(nameof(OdsCursorOptions.MaxRepeatedCells), budget,
+                $"The spreadsheet's repeats hand out more than the {budget} cells allowed.");
+        }
+
+        _repeatedCells += copies * cellsPerCopy;
     }
 
     /// <summary>Reads a row's cells up to its end, placing each at its column.</summary>
@@ -340,7 +449,8 @@ public sealed class OdsCursor : ITabularCursor
                 PlaceRepeated(column, repeat, cell);
             }
 
-            column += repeat;
+            // Stops one past the ceiling, so a value after it is refused and nothing wraps.
+            column = repeat > _options.MaxColumns - column ? _options.MaxColumns + 1L : column + repeat;
         }
 
         throw Truncated();
@@ -369,9 +479,21 @@ public sealed class OdsCursor : ITabularCursor
             ? SheetScanner.DecodeAttribute(s)
             : null;
 
+        if (stated is not null)
+        {
+            if (stated.Length > _options.MaxValueChars)
+            {
+                throw ValueLimit();
+            }
+
+            // The stated string is the value; the paragraphs only show it.
+            SkipCell(scanner, cancellationToken);
+            return RawCell.FromText(stated);
+        }
+
         if (scanner.IsEmptyElement)
         {
-            return stated is null ? RawCell.Empty : RawCell.FromText(stated);
+            return RawCell.Empty;
         }
 
         ReadText(scanner, cancellationToken);
@@ -382,7 +504,7 @@ public sealed class OdsCursor : ITabularCursor
             return RawCell.FromError(_text.ToString());
         }
 
-        return RawCell.FromText(stated ?? _text.ToString());
+        return RawCell.FromText(_text.ToString());
     }
 
     /// <summary>The value a cell declares in its attributes, or empty for text and for no type.</summary>
@@ -397,8 +519,10 @@ public sealed class OdsCursor : ITabularCursor
                         : RawCell.Empty;
 
             case "date":
+                // An ISO date, year first: a value with no date is no date, not today's.
                 return scanner.TryGetAttribute("date-value", out ReadOnlySpan<char> date)
-                    && DateReading.TryParseAsWritten(date, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime written)
+                    && date.IndexOf('-') >= 4
+                    && DateReading.TryParseAsWritten(date, CultureInfo.InvariantCulture, DateTimeStyles.NoCurrentDateDefault, out DateTime written)
                         ? RawCell.FromDate(written)
                         : RawCell.Empty;
 
@@ -425,7 +549,11 @@ public sealed class OdsCursor : ITabularCursor
         _ => RawCell.Empty,
     };
 
-    /// <summary>A time-of-day cell, an ISO 8601 duration, on the date a workbook gives a bare time.</summary>
+    /// <summary>
+    /// A time cell, an ISO 8601 duration, read as the workbook serial of as many days: a time of day
+    /// on 31 December 1899, as an xlsx time-only cell, and a longer one — LibreOffice's form for a
+    /// date-time under a time-only format — on the day the serial names.
+    /// </summary>
     private static RawCell FromDuration(string duration)
     {
         TimeSpan span;
@@ -443,11 +571,9 @@ public sealed class OdsCursor : ITabularCursor
             return RawCell.Empty;
         }
 
-        long milliseconds = (long)Math.Round(span.TotalMilliseconds);
-
-        return milliseconds < 0 || milliseconds > (DateTime.MaxValue - TimeEpoch).TotalMilliseconds
-            ? RawCell.Empty
-            : RawCell.FromDate(TimeEpoch.AddMilliseconds(milliseconds));
+        return span >= TimeSpan.Zero && XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out DateTime date)
+            ? RawCell.FromDate(date)
+            : RawCell.Empty;
     }
 
     // The state of one cell's text assembly: how deep the reader is inside the cell, and the depth
@@ -510,7 +636,8 @@ public sealed class OdsCursor : ITabularCursor
 
         ReadOnlySpan<char> name = scanner.Name;
 
-        if (name.SequenceEqual("annotation"))
+        // A comment, and a sub-table inside the cell, are not the cell's text.
+        if (name.SequenceEqual("annotation") || name.SequenceEqual(TableElement))
         {
             _annotationDepth = scanner.IsEmptyElement ? -1 : depth;
         }
@@ -612,11 +739,13 @@ public sealed class OdsCursor : ITabularCursor
     /// <summary>Places a cell holding a value at every column its repeat covers, within the ceiling.</summary>
     private void PlaceRepeated(long column, long repeat, RawCell cell)
     {
-        if (column + repeat > _options.MaxColumns)
+        if (repeat > _options.MaxColumns - column)
         {
             throw new TabularLimitException(nameof(OdsCursorOptions.MaxColumns), _options.MaxColumns,
                 $"A row fills more than the {_options.MaxColumns} columns allowed.");
         }
+
+        CountRepeated(repeat - 1, 1);
 
         for (long i = 0; i < repeat; i++)
         {
@@ -717,12 +846,21 @@ public sealed class OdsCursor : ITabularCursor
         using SheetScanner scanner = new(
             new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: KeptAttributes);
         int sinceCheck = 0;
+        int depth = 0;
 
         while (scanner.Read())
         {
             Checkpoint(ref sinceCheck, cancellationToken);
 
-            if (scanner.Kind != XmlNodeKind.Element || !scanner.Name.SequenceEqual("table") || scanner.IsEmptyElement)
+            // The same sheets the byte pass lists: tables standing in no table and no DDE link.
+            if (scanner.Kind == XmlNodeKind.EndElement && IsScope(scanner.Name))
+            {
+                depth = Math.Max(0, depth - 1);
+                continue;
+            }
+
+            if (scanner.Kind != XmlNodeKind.Element || scanner.IsEmptyElement || !IsScope(scanner.Name)
+                || depth++ > 0 || !scanner.Name.SequenceEqual(TableElement))
             {
                 continue;
             }
@@ -748,6 +886,7 @@ public sealed class OdsCursor : ITabularCursor
         _counter = new CountingStream(_content.Open());
         _scanner = new SheetScanner(new StreamReader(_counter, Encoding.UTF8, true, 64 * 1024), keptLocalNames: KeptAttributes);
         _tablesEntered = 0;
+        _nesting = 0;
         _sheetEnded = false;
     }
 
