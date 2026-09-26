@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.2.0](https://github.com/TriasDev/tabular/compare/v0.1.0...v0.2.0) (2026-09-26)
+
+
+### Features
+
+* **archive:** open a zip archive by its contents ([49cde9b](https://github.com/TriasDev/tabular/commit/49cde9bcce57d3cd5a05d0b7cbdcfc555ea74b25))
+* **archive:** options, the zip format and skipped entries ([a0aea63](https://github.com/TriasDev/tabular/commit/a0aea6314bcaeb716a469fbe7cb44fe63eab9259))
+* **archive:** read the csv files in a zip archive as sheets ([59b086c](https://github.com/TriasDev/tabular/commit/59b086c866370bba800d0a38ade9aa9f1b16522b))
+* **archive:** read xlsx and ods workbooks inside an archive ([2bcdf09](https://github.com/TriasDev/tabular/commit/2bcdf09e712e35fbb9430ff5afdc29ba0a3bda58))
+* **ods:** read OpenDocument spreadsheets ([5f5f927](https://github.com/TriasDev/tabular/commit/5f5f927db11ca3189cdeb9bcf887095d75cb2bc1)), closes [#13](https://github.com/TriasDev/tabular/issues/13)
+
+
+### Bug Fixes
+
+* **archive:** findings of the final review ([88bcd8f](https://github.com/TriasDev/tabular/commit/88bcd8f0789072b371dfa6243a78b0800963541b))
+* **csv:** read quoted notes of any length, catching stray quotes by what they swallow ([b550474](https://github.com/TriasDev/tabular/commit/b550474637e6747c7d347e4b2d0d2a5c7bbd72df))
+* **csv:** refuse an XML document instead of reading its markup as lines ([efd98fc](https://github.com/TriasDev/tabular/commit/efd98fca1fcd203579abed47c4f4630a50f287e4))
+* drop the raw HTML image from the readme, which nuget.org shows as text ([2ccdbbf](https://github.com/TriasDev/tabular/commit/2ccdbbfac8accbbbc09a384bc295006a861490eb))
+* **ods:** findings of two independent reviews ([a9324a9](https://github.com/TriasDev/tabular/commit/a9324a993954d3fbcad376cb03b210290b48b571))
+* **xlsx:** read a written-out bare time on the day a serial time reads on ([010aca1](https://github.com/TriasDev/tabular/commit/010aca13ee717376839c82522f231d324e903b2c))
+
+
+### Performance Improvements
+
+* **analysis:** ask the culture-free shape questions once per value, not once per culture ([eba9e27](https://github.com/TriasDev/tabular/commit/eba9e27007a2c9e80e84ff5e52712cdae69dbbca))
+* **analysis:** count cell kinds in an array, not a dictionary ([2b06499](https://github.com/TriasDev/tabular/commit/2b06499749549ddd1c0538f5d1710d27f0a722e2))
+* **analysis:** keep distinct-value hashes in a flat open-addressing set ([c8eb8f6](https://github.com/TriasDev/tabular/commit/c8eb8f6fed69dbc92942226623ae302204e47f24))
+* **analysis:** read a number once for cultures that write numbers alike ([94fd7a8](https://github.com/TriasDev/tabular/commit/94fd7a82351cc4eca6d81b09d910b665ae2db500))
+* **csv:** make a field that is one run of the buffer straight from the buffer ([d526580](https://github.com/TriasDev/tabular/commit/d5265802ed6814252723c924e9498e86f9c2364e))
+* **csv:** take runs of ordinary text inside quotes as one span too ([64d527b](https://github.com/TriasDev/tabular/commit/64d527b2d10e0d7ceb88f2f5ef396eea7c817781))
+* **csv:** take runs of ordinary text outside quotes as one span, found by a vectorised search ([b1273a5](https://github.com/TriasDev/tabular/commit/b1273a5ed5478fbe6300157c2c2364d5a2372f9a))
+
 ## 0.1.0 (2026-09-25)
 
 
