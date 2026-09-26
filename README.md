@@ -209,7 +209,7 @@ foreach (ImportOutcome<Customer> outcome in run)
 ```
 
 The same flow, runnable, with its output: [`samples/TriasDev.Tabular.Samples.Import`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Import).
-Batches, the full rule set, translated fields and every error code are in the [guide](https://github.com/TriasDev/tabular/blob/main/docs/guide.md#using-it).
+Batches, the full rule set, translated fields and every error code are in the [documentation](https://triasdev.github.io/tabular/importing/).
 
 ## Limits
 
@@ -225,7 +225,7 @@ Stated here so they are found before they are hit:
 - **Cultures.** Analysis tries `""` (invariant), `de-DE` and `en-US` by default — set
   `AnalysisOptions.Cultures` for files from elsewhere. Under invariant globalization (slim container
   images) only the invariant culture exists, and a plan naming another is refused.
-- **Multi-line quoted csv fields** are bounded (four lines by default). A quote that spans lines and
+- **Multi-line quoted csv fields** are bounded (a hundred lines by default). A quote that spans lines and
   closes within less than a whole record is taken at its word, as RFC 4180 says.
 
 ## Stability
@@ -237,8 +237,9 @@ changelog. Error codes are the exception: once published, a code keeps its meani
 
 | | |
 |---|---|
-| [Guide](https://github.com/TriasDev/tabular/blob/main/docs/guide.md) | Everything the library does and promises: profiling, import, error codes, bounds, cancellation |
-| [Benchmarks](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md) | Speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus |
+| [Documentation](https://triasdev.github.io/tabular/) | Everything the library does and promises: getting started, profiling, import, formats, error codes, bounds, cancellation |
+| [For AI agents](https://triasdev.github.io/tabular/llms.txt) | The same documentation for language models: [`llms.txt`](https://triasdev.github.io/tabular/llms.txt) and [`llms-full.txt`](https://triasdev.github.io/tabular/llms-full.txt) |
+| [Benchmarks](https://triasdev.github.io/tabular/benchmarks/) | Speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus |
 | [ADR-0001](https://github.com/TriasDev/tabular/blob/main/docs/adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is our own |
 | [Known limitations](https://github.com/TriasDev/tabular/blob/main/docs/KNOWN-ISSUES.md) | Behaviour at the edges not changed yet, and what would make each one matter |
 | [Contributing](https://github.com/TriasDev/tabular/blob/main/CONTRIBUTING.md) | Building, testing, the invariants a change must keep |

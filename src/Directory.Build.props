@@ -26,7 +26,7 @@
     <Company>TriasDev GmbH &amp; Co. KG</Company>
     <Copyright>Copyright © 2026 TriasDev GmbH &amp; Co. KG</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/TriasDev/tabular</PackageProjectUrl>
+    <PackageProjectUrl>https://triasdev.github.io/tabular/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TriasDev/tabular</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>

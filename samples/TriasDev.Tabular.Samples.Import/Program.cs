@@ -11,13 +11,16 @@ using TriasDev.Tabular.Samples.Import;
 
 string path = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "customers.csv");
 
+// --8<-- [start:schema]
 // The fields, declared once: they build the schema and read the values.
 TextField name = ImportField.Text("name").Require().MaxLength(100);
 TextField country = ImportField.Text("country").ExactLength(2);
 DateField signedOn = ImportField.Date("signed_on");
 DecimalField amount = ImportField.Decimal("amount").Require();
 TargetSchema schema = new() { Fields = [name, country, signedOn, amount] };
+// --8<-- [end:schema]
 
+// --8<-- [start:profile]
 // 1. Profile the file, and build the plan from its headers.
 FileProfile profile;
 using (FileStream file = File.OpenRead(path))
@@ -27,7 +30,9 @@ using (ITabularCursor cursor = TabularFile.Open(file, Path.GetFileName(path)))
 }
 
 MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], schema, culture: "de-DE");
+// --8<-- [end:profile]
 
+// --8<-- [start:precheck]
 // 2. Judge the plan against the profile, before reading the file again.
 PrecheckResult check = MappingPrecheck.Check(plan, schema, profile);
 
@@ -40,7 +45,9 @@ if (!check.CanImport)
 {
     return 1;
 }
+// --8<-- [end:precheck]
 
+// --8<-- [start:import]
 // 3. Import: typed rows, or errors that point at their row and column.
 using FileStream again = File.OpenRead(path);
 using ImportRun<Customer> run = TabularImporter.Import(
@@ -66,4 +73,5 @@ foreach (ImportOutcome<Customer> outcome in run)
 }
 
 Console.WriteLine($"{run.Summary.RowsProduced} imported, {run.Summary.RowsFailed} failed");
+// --8<-- [end:import]
 return 0;
