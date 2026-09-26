@@ -16,6 +16,20 @@ static TriasDev.Tabular.Ods.OdsCursorOptions.operator !=(TriasDev.Tabular.Ods.Od
 static TriasDev.Tabular.Ods.OdsCursorOptions.operator ==(TriasDev.Tabular.Ods.OdsCursorOptions? left, TriasDev.Tabular.Ods.OdsCursorOptions? right) -> bool
 static TriasDev.Tabular.SkippedEntry.operator !=(TriasDev.Tabular.SkippedEntry? left, TriasDev.Tabular.SkippedEntry? right) -> bool
 static TriasDev.Tabular.SkippedEntry.operator ==(TriasDev.Tabular.SkippedEntry? left, TriasDev.Tabular.SkippedEntry? right) -> bool
+TriasDev.Tabular.Archive.ArchiveCursor
+TriasDev.Tabular.Archive.ArchiveCursor.ArchiveCursor(System.IO.Stream! stream, TriasDev.Tabular.TabularOpenOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+TriasDev.Tabular.Archive.ArchiveCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
+TriasDev.Tabular.Archive.ArchiveCursor.CurrentRowNumber.get -> int
+TriasDev.Tabular.Archive.ArchiveCursor.CurrentSheetIndex.get -> int
+TriasDev.Tabular.Archive.ArchiveCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
+TriasDev.Tabular.Archive.ArchiveCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
+TriasDev.Tabular.Archive.ArchiveCursor.Dispose() -> void
+TriasDev.Tabular.Archive.ArchiveCursor.Format.get -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.Archive.ArchiveCursor.MoveToSheet(int index) -> bool
+TriasDev.Tabular.Archive.ArchiveCursor.ReadFraction.get -> double?
+TriasDev.Tabular.Archive.ArchiveCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+TriasDev.Tabular.Archive.ArchiveCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
+TriasDev.Tabular.Archive.ArchiveCursor.SkippedEntries.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SkippedEntry!>!
 TriasDev.Tabular.Archive.ArchiveCursorOptions
 TriasDev.Tabular.Archive.ArchiveCursorOptions.<Clone>$() -> TriasDev.Tabular.Archive.ArchiveCursorOptions!
 TriasDev.Tabular.Archive.ArchiveCursorOptions.ArchiveCursorOptions() -> void

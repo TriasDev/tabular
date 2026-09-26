@@ -37,11 +37,20 @@ public static class CsvDialectDetector
         int read = stream.ReadAtLeast(probe, probeBytes, throwOnEndOfStream: false);
         stream.Position = origin;
 
+        return Detect(probe.AsSpan(0, read));
+    }
+
+    /// <summary>
+    /// Decides the dialect from a file's head already read — for a stream that cannot be rewound,
+    /// such as a file inside an archive, whose head is read once and the file then opened afresh.
+    /// </summary>
+    internal static CsvDialect Detect(ReadOnlySpan<byte> probe)
+    {
         // Trimmed before the encoding is judged, not after. A multi-byte character cut in half by the
         // end of the probe is not invalid UTF-8, it is an incomplete view of it — and judging it
         // invalid demotes the whole file to the single-byte fallback, which never fails and quietly
         // turns every umlaut into two characters.
-        ReadOnlySpan<byte> head = TrimIncompleteSequence(probe.AsSpan(0, read));
+        ReadOnlySpan<byte> head = TrimIncompleteSequence(probe);
 
         // Every file that is not a zip arrives here, so this is where a file that is not csv at all
         // has to be told apart from one that is — or it is profiled as columns of mojibake and
@@ -141,7 +150,7 @@ public static class CsvDialectDetector
     /// read as csv it profiles as a column of tags. No csv starts with <c>&lt;?xml</c>; a table of
     /// markup that does not declare itself is left to be read as the text it is.
     /// </remarks>
-    private static bool IsXmlDocument(ReadOnlySpan<byte> head)
+    internal static bool IsXmlDocument(ReadOnlySpan<byte> head)
     {
         if (head.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]))
         {
@@ -152,7 +161,7 @@ public static class CsvDialectDetector
     }
 
     /// <summary>The OLE2 compound-file signature: a .xls workbook, or an encrypted .xlsx.</summary>
-    private static ReadOnlySpan<byte> CompoundFileSignature => [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+    internal static ReadOnlySpan<byte> CompoundFileSignature => [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
 
     /// <summary>
     /// UTF-16 without a byte order mark, recognised by where its NUL bytes stand: beside ASCII

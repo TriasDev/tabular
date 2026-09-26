@@ -1,6 +1,7 @@
 using System.Text;
 
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 
@@ -45,6 +46,28 @@ public sealed class OptionsValidationTests
         { new XlsxCursorOptions { MaxCellFormats = -1 }, nameof(XlsxCursorOptions.MaxCellFormats) },
         { new XlsxCursorOptions { MaxValueChars = 0 }, nameof(XlsxCursorOptions.MaxValueChars) },
     };
+
+    public static TheoryData<OdsCursorOptions, string> BadOdsOptions => new()
+    {
+        { new OdsCursorOptions { MaxUncompressedBytes = 0 }, nameof(OdsCursorOptions.MaxUncompressedBytes) },
+        { new OdsCursorOptions { MaxPackageEntries = 0 }, nameof(OdsCursorOptions.MaxPackageEntries) },
+        { new OdsCursorOptions { MaxSheets = 0 }, nameof(OdsCursorOptions.MaxSheets) },
+        { new OdsCursorOptions { MaxColumns = 0 }, nameof(OdsCursorOptions.MaxColumns) },
+        { new OdsCursorOptions { MaxRows = 0 }, nameof(OdsCursorOptions.MaxRows) },
+        { new OdsCursorOptions { MaxValueChars = 0 }, nameof(OdsCursorOptions.MaxValueChars) },
+    };
+
+    [Theory]
+    [MemberData(nameof(BadOdsOptions))]
+    public void RefusesAnOdsOptionThatCannotWork(OdsCursorOptions options, string option)
+    {
+        byte[] spreadsheet = new OdsPackage().WithTable("S", "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a</text:p></table:table-cell></table:table-row>").Build();
+
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => new OdsCursor(new MemoryStream(spreadsheet), options, cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Contains(option, error.Message, StringComparison.Ordinal);
+    }
 
     [Theory]
     [MemberData(nameof(BadCsvOptions))]
