@@ -207,7 +207,7 @@ public static class Program
                 yield return row;
             }
 
-            Repairs = cursor.Diagnostics.RecoveredUnterminatedQuotes;
+            Repairs = cursor.Diagnostics.RecoveredUnterminatedQuotes + cursor.Diagnostics.RecoveredStrayQuotes;
         }
     }
 
