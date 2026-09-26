@@ -1,6 +1,8 @@
 using System.IO.Compression;
 
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Ods;
+using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular.Archive;
 
@@ -164,7 +166,8 @@ public sealed class ArchiveCursor : ITabularCursor
                 before += _sources[i].Entry.Length;
             }
 
-            long current = _counter?.BytesRead ?? 0;
+            long current = _counter?.BytesRead
+                ?? (long)((_inner?.ReadFraction ?? 0) * _sources[_innerSource].Entry.Length);
             return Math.Min(1d, (before + current) / (double)_declaredTotal);
         }
     }
@@ -269,7 +272,7 @@ public sealed class ArchiveCursor : ITabularCursor
         foreach (ZipArchiveEntry entry in _zip.Entries.Where(e => !IsLeftOut(e.FullName)).OrderBy(e => e.FullName, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Sniff(entry);
+            Sniff(entry, cancellationToken);
         }
     }
 
@@ -282,7 +285,7 @@ public sealed class ArchiveCursor : ITabularCursor
     private static readonly char[] PathSeparators = ['/', '\\'];
 
     /// <summary>Decides what a file is from its head, and lists its sheets or records why not.</summary>
-    private void Sniff(ZipArchiveEntry entry)
+    private void Sniff(ZipArchiveEntry entry, CancellationToken cancellationToken)
     {
         if (entry.IsEncrypted)
         {
@@ -305,7 +308,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
         if (head.AsSpan().StartsWith("PK\u0003\u0004"u8))
         {
-            Skip(entry, SkippedEntryReason.NestedArchive);
+            SniffWorkbook(entry, cancellationToken);
             return;
         }
 
@@ -336,6 +339,77 @@ public sealed class ArchiveCursor : ITabularCursor
         string name = Path.GetFileNameWithoutExtension(entry.Name);
         AddSource(new Source(entry, TabularFormat.Csv, _options.Csv.Dialect ?? dialect), [name.Length > 0 ? name : entry.Name]);
     }
+
+    /// <summary>
+    /// Lists the sheets of a zip inside the archive, if it is a workbook: it is copied into memory,
+    /// opened for its sheet names and released.
+    /// </summary>
+    /// <remarks>
+    /// A workbook that cannot be read is skipped with the reason, as any other file that is not a
+    /// table; a bound it exceeds fails the archive, because bounds are the library's defence and are
+    /// never downgraded to a skip.
+    /// </remarks>
+    private void SniffWorkbook(ZipArchiveEntry entry, CancellationToken cancellationToken)
+    {
+        using ChunkedBuffer buffer = Buffer(entry, cancellationToken);
+
+        (TabularFormat format, SkippedEntryReason? skip) = TabularFile.ClassifyZip(buffer) switch
+        {
+            TabularFile.ZipContent.Xlsx => (TabularFormat.Xlsx, (SkippedEntryReason?)null),
+            TabularFile.ZipContent.Ods => (TabularFormat.Ods, null),
+            TabularFile.ZipContent.OtherDocument => (TabularFormat.Zip, SkippedEntryReason.OtherDocument),
+            _ => (TabularFormat.Zip, SkippedEntryReason.NestedArchive),
+        };
+
+        if (skip is { } reason)
+        {
+            Skip(entry, reason);
+            return;
+        }
+
+        List<string> names;
+
+        try
+        {
+            using ITabularCursor workbook = OpenWorkbook(format, buffer, leaveOpen: true, cancellationToken);
+            names = [.. workbook.Sheets.Select(sheet => sheet.Name)];
+        }
+        catch (TabularFormatException e)
+        {
+            Skip(entry, e.Code == TabularFormatException.Unsupported ? SkippedEntryReason.Unsupported : SkippedEntryReason.Unreadable);
+            return;
+        }
+
+        AddSource(new Source(entry, format, null), names);
+    }
+
+    private ChunkedBuffer Buffer(ZipArchiveEntry entry, CancellationToken cancellationToken)
+    {
+        long limit = _options.Archive.MaxEmbeddedWorkbookBytes;
+
+        // The declared size refuses the plain case before a byte is copied; the copy refuses a file
+        // whose declared size lied.
+        if (entry.Length > limit)
+        {
+            throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes), limit,
+                $"A workbook inside the archive is larger than the {limit} bytes allowed.");
+        }
+
+        try
+        {
+            using Stream content = entry.Open();
+            return ChunkedBuffer.CopyOf(content, entry.Length, limit, cancellationToken);
+        }
+        catch (InvalidDataException e)
+        {
+            throw Corrupt(e);
+        }
+    }
+
+    private ITabularCursor OpenWorkbook(TabularFormat format, Stream buffer, bool leaveOpen, CancellationToken cancellationToken) =>
+        format == TabularFormat.Ods
+            ? new OdsCursor(buffer, _options.Ods, leaveOpen, cancellationToken)
+            : new XlsxCursor(buffer, _options.Xlsx, leaveOpen, cancellationToken);
 
     private static byte[] ReadHead(ZipArchiveEntry entry, int probeBytes)
     {
@@ -381,6 +455,15 @@ public sealed class ArchiveCursor : ITabularCursor
         CloseInner();
 
         Source source = _sources[index];
+
+        if (source.Format != TabularFormat.Csv)
+        {
+            // Held while its sheets are read, released when the cursor moves to another file.
+            _inner = OpenWorkbook(source.Format, Buffer(source.Entry, CancellationToken.None), leaveOpen: false, CancellationToken.None);
+            _innerSource = index;
+            return;
+        }
+
         Stream content;
 
         try

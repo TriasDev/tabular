@@ -1,3 +1,5 @@
+using System.IO.Compression;
+
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
@@ -61,7 +63,7 @@ public static class TabularFile
         int nameLength = head[26] | (head[27] << 8);
         int extraLength = head[28] | (head[29] << 8);
         int content = 30 + nameLength + extraLength;
-        ReadOnlySpan<byte> mimetype = "application/vnd.oasis.opendocument.spreadsheet"u8;
+        ReadOnlySpan<byte> mimetype = OpenDocumentSpreadsheet;
 
         return nameLength == 8
             && head.Slice(30, 8).SequenceEqual("mimetype"u8)
@@ -69,6 +71,77 @@ public static class TabularFile
             && head.Slice(content, mimetype.Length).SequenceEqual(mimetype)
             && (head.Length == content + mimetype.Length || head[content + mimetype.Length] is not (byte)'-');
     }
+
+    /// <summary>What a zip holds, as far as this library reads zips.</summary>
+    internal enum ZipContent
+    {
+        Xlsx,
+        Ods,
+        OtherDocument,
+        Archive,
+    }
+
+    /// <summary>
+    /// Tells a workbook from a spreadsheet, another OpenDocument file and an archive of files, by the
+    /// zip's directory; leaves the stream where it was.
+    /// </summary>
+    /// <remarks>
+    /// A workbook is known by <c>[Content_Types].xml</c>, or by <c>_rels/.rels</c> for a writer that
+    /// leaves the first out. An OpenDocument file is known by its <c>mimetype</c> entry — from the
+    /// local header when it stands first, as the format requires, and from the directory when a
+    /// writer put it elsewhere. Anything else is an archive. A directory that cannot be read is
+    /// called a workbook, so that the workbook path reports the damage as it always has.
+    /// </remarks>
+    internal static ZipContent ClassifyZip(Stream stream)
+    {
+        long origin = stream.Position;
+
+        try
+        {
+            Span<byte> head = stackalloc byte[128];
+            int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+            stream.Position = origin;
+
+            if (IsOpenDocumentSpreadsheet(head[..read]))
+            {
+                return ZipContent.Ods;
+            }
+
+            using ZipArchive zip = new(stream, ZipArchiveMode.Read, leaveOpen: true);
+
+            if (zip.GetEntry("[Content_Types].xml") is not null || zip.GetEntry("_rels/.rels") is not null)
+            {
+                return ZipContent.Xlsx;
+            }
+
+            return zip.GetEntry("mimetype") is { } mimetype ? ClassifyOpenDocument(mimetype) : ZipContent.Archive;
+        }
+        catch (InvalidDataException)
+        {
+            return ZipContent.Xlsx;
+        }
+        finally
+        {
+            stream.Position = origin;
+        }
+    }
+
+    private static ZipContent ClassifyOpenDocument(ZipArchiveEntry mimetype)
+    {
+        using Stream content = mimetype.Open();
+        byte[] head = new byte[128];
+        int read = content.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+        ReadOnlySpan<byte> type = head.AsSpan(0, read).Trim(" \t\r\n"u8);
+
+        if (type.SequenceEqual(OpenDocumentSpreadsheet))
+        {
+            return ZipContent.Ods;
+        }
+
+        return type.StartsWith("application/vnd.oasis.opendocument"u8) ? ZipContent.OtherDocument : ZipContent.Archive;
+    }
+
+    private static ReadOnlySpan<byte> OpenDocumentSpreadsheet => "application/vnd.oasis.opendocument.spreadsheet"u8;
 
     /// <summary>Opens a cursor over a file of whichever kind it turns out to be.</summary>
     /// <param name="stream">
