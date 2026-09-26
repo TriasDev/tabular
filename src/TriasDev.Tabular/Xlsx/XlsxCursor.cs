@@ -640,7 +640,7 @@ public sealed class XlsxCursor : ITabularCursor
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.NoCurrentDateDefault | DateTimeStyles.AllowWhiteSpaces,
                     out DateTime written)
-                        ? RawCell.FromDate(written)
+                        ? RawCell.FromDate(AsWritten(text, written, _date1904))
                         : RawCell.FromText(new string(text));
         }
 
@@ -1436,6 +1436,37 @@ public sealed class XlsxCursor : ITabularCursor
     /// than failing the file, which is close to what a spreadsheet program shows for it.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Whether a <c>d</c> cell states a time and no date — <c>12:00:00.000</c> — which the parser
+    /// puts on year one. An ISO date opens with its four-digit year, a time with one or two hour
+    /// digits and a colon.
+    /// </summary>
+    private static bool IsBareTime(ReadOnlySpan<char> text)
+    {
+        ReadOnlySpan<char> trimmed = text.TrimStart();
+        int colon = trimmed.IndexOf(':');
+
+        return colon is 1 or 2 && !trimmed[..colon].ContainsAnyExcept("0123456789");
+    }
+
+    /// <summary>
+    /// A <c>d</c> cell's value, a bare time moved onto the day a serial below one reads on, so that a
+    /// written-out time and the serial for it are the same value.
+    /// </summary>
+    private static DateTime AsWritten(ReadOnlySpan<char> text, DateTime parsed, bool date1904)
+    {
+        if (!IsBareTime(text))
+        {
+            return parsed;
+        }
+
+        DateTime day = date1904
+            ? new DateTime(1904, 1, 1, 0, 0, 0, DateTimeKind.Unspecified)
+            : new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified);
+
+        return day.Add(parsed.TimeOfDay);
+    }
+
     private static bool TryFromSerial(double serial, bool date1904, out DateTime date)
     {
         date = default;
@@ -1561,59 +1592,5 @@ public sealed class XlsxCursor : ITabularCursor
         _disposed = true;
         CloseSheet();
         _package.Dispose();
-    }
-
-    /// <summary>A read-only pass-through that counts the bytes read from it.</summary>
-    private sealed class CountingStream(Stream inner) : Stream
-    {
-        public long BytesRead { get; private set; }
-
-        public override bool CanRead => true;
-
-        public override bool CanSeek => false;
-
-        public override bool CanWrite => false;
-
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            int read = inner.Read(buffer, offset, count);
-            BytesRead += read;
-            return read;
-        }
-
-        public override int Read(Span<byte> buffer)
-        {
-            int read = inner.Read(buffer);
-            BytesRead += read;
-            return read;
-        }
-
-        public override void Flush()
-        {
-        }
-
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-
-        public override void SetLength(long value) => throw new NotSupportedException();
-
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                inner.Dispose();
-            }
-
-            base.Dispose(disposing);
-        }
     }
 }

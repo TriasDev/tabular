@@ -116,6 +116,42 @@ public sealed class XlsxCursorEdgeCaseTests
     }
 
     [Fact]
+    public void ReadsATimeDeclaredAsAnIso8601StringOnTheDateABareTimeHas()
+    {
+        // A time with no date, written out: the same instant as the serial 0.5, so it reads on the
+        // same day — not on year one, where a parser without a date puts it.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="d"><v>12:00:00.000</v></c><c r="B1" s="1"><v>0.5</v></c><c r="C1" t="d"><v>0001-01-01T12:00:00</v></c></row>""")
+            .WithStyles("""<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="21" applyNumberFormat="1"/></cellXfs></styleSheet>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(cursor.CurrentRow[1], cursor.CurrentRow[0]);
+        Assert.Equal(new DateTime(1899, 12, 31, 12, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[0].Date);
+        Assert.Equal(new DateTime(1, 1, 1, 12, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[2].Date);
+    }
+
+    [Fact]
+    public void ReadsAWrittenOutTimeOnTheDateABareTimeHasInA1904Workbook()
+    {
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="d"><v>6:30</v></c><c r="B1" s="1"><v>0.2708333333333333</v></c></row>""")
+            .WithStyles("""<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="21" applyNumberFormat="1"/></cellXfs></styleSheet>""")
+            .WithDate1904()
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(new DateTime(1904, 1, 1, 6, 30, 0, DateTimeKind.Unspecified), cursor.CurrentRow[0].Date);
+        Assert.Equal(cursor.CurrentRow[1], cursor.CurrentRow[0]);
+    }
+
+    [Fact]
     public void ReadsAStyledCellWhenThePackageCarriesNoStyles()
     {
         byte[] content = new XlsxPackage()
