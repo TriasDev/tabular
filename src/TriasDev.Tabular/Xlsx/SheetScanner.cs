@@ -113,7 +113,8 @@ internal sealed class SheetScanner : IDisposable
 
     /// <summary>
     /// Whether the current text node may go on after it: markup that is not a tag — a comment, a
-    /// processing instruction, CDATA — follows it directly, or the buffer ends before saying.
+    /// processing instruction, CDATA — follows it directly, text follows a CDATA section, or the
+    /// buffer ends before saying.
     /// </summary>
     /// <remarks>
     /// Answered from what is already buffered and never by reading more, so <see cref="Value"/>
@@ -121,7 +122,7 @@ internal sealed class SheetScanner : IDisposable
     /// it: a false yes costs a copy, a false no would cut a value short.
     /// </remarks>
     public bool MayContinueText =>
-        _position + 1 >= _length || (_buffer[_position] == '<' && _buffer[_position + 1] is '!' or '?');
+        _position + 1 >= _length || _buffer[_position] != '<' || _buffer[_position + 1] is '!' or '?';
 
     /// <summary>The current text node's content, with entities resolved.</summary>
     public ReadOnlySpan<char> Value =>
