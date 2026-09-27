@@ -51,6 +51,11 @@ public static class Program
             return Measure(args[1], args[2], args[3][0]);
         }
 
+        if (args.Length == 2 && args[0] == "write-producers")
+        {
+            return ProducerFixtures.Write(args[1]);
+        }
+
         return Drive();
     }
 

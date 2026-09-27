@@ -4,3 +4,7 @@
 * text=auto eol=lf
 *.{cmd,[cC][mM][dD]} text eol=crlf
 *.{bat,[bB][aA][tT]} text eol=crlf
+
+# Producer fixtures are read byte for byte: no line-ending conversion.
+tests/TriasDev.Tabular.Tests/Fixtures/Producers/* -text
+tests/TriasDev.Tabular.Tests/Fixtures/Producers/*.md text

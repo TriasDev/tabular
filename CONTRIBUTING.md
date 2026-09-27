@@ -96,6 +96,10 @@ emit. Tests go through the public API; `InternalsVisibleTo` exists for the few u
 by design (`ColumnProfiler`, `HypothesisBuilder`, `Windows1252Encoding`, a diagnostics counter) —
 not a licence to test implementation details elsewhere.
 
+`Fixtures/Producers` is the exception: one small table as ClosedXML, the Open XML SDK, EPPlus, NPOI,
+MiniExcel, Sylvan and LibreOffice write it, committed as they wrote it and embedded in the test
+assembly, so the readers answer to real producers too. Its README says how to regenerate them.
+
 `GoldenFixtureTests` holds both cursors to the golden fixtures. The parser candidates from the
 ADR-0001 spike were removed once the decision was recorded; they remain in git history.
 
