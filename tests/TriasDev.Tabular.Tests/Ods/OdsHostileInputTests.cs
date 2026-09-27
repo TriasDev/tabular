@@ -301,15 +301,4 @@ public sealed class OdsHostileInputTests
 
         Assert.Equal(nameof(OdsCursorOptions.MaxPackageEntries), error.Limit);
     }
-
-    private sealed class TrackedStream(byte[] content) : MemoryStream(content, writable: false)
-    {
-        public bool IsDisposed { get; private set; }
-
-        protected override void Dispose(bool disposing)
-        {
-            IsDisposed = true;
-            base.Dispose(disposing);
-        }
-    }
 }
