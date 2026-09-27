@@ -43,3 +43,31 @@ Mistakes in the calling code — a null argument, an option out of range, a fiel
 declare — are `ArgumentException` and `InvalidOperationException`. Nothing else escapes: malformed
 XML and a damaged zip are reported as `TabularFormatException` with the parser's error as the inner
 exception.
+
+## Precheck arguments
+
+A `PrecheckFinding` states data, not a sentence, so a UI fills its own template for the code in its
+own language. Besides its `Code`, `Severity`, `FieldName` and `ColumnIndex` it carries:
+
+- `AffectedRows` with `AffectedRowsBound` — `Exact`, `AtLeast`, `AtMost` or `Unknown`, because a count
+  of empty cells can be off in a known direction (spellings of nothing counted as values; rows the
+  import will skip);
+- `Examples` — up to five of the values that fail, in ordinal order;
+- `Arguments` — named values, numbers written invariantly. The names are constants in
+  `PrecheckArguments`, and where one code has several causes, `reason` names which one, from
+  `PrecheckReasons`.
+
+| Code | Arguments | Reasons |
+|---|---|---|
+| `mapping.invalid-sheet`, `structure.sheet-changed` | `sheetIndex` | |
+| `mapping.unknown-culture` | `culture` | |
+| `mapping.stale-profile` | `profileHeaderRow`, `planHeaderRow` | |
+| `mapping.invalid-column` | none: the column is `ColumnIndex` | |
+| `mapping.header-changed` | `expectedHeader`, `actualHeader` | |
+| `group.required` | `boundColumns` | |
+| `value.required` | `reason` | `every-value-is-nothing`, `empty-cells` |
+| `value.not-unique` | `reason`; `distinctCount` for `too-many-distinct` | `spelled-as-nothing`, `repeats`, `empty-cells`, `no-values`, `too-many-distinct` |
+| a rule's code (`value.max-length`, `value.pattern`, …) | `reason`; `failingCount`, `readableCount` (distinct values) and `Examples` when judged; `distinctCount` when not | `values-fail`, `no-row-can-satisfy`, `too-many-distinct` |
+| `value.type-mismatch` | `reason`, `culture`, `type`; `failingCount`, `readableCount` (values) when judged | `values-fail`, `no-row-can-satisfy`, `not-profiled` |
+
+`PrecheckArgumentsTests` keeps this table and the constants in step, in both directions.

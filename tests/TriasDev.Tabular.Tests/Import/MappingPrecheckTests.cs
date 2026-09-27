@@ -61,8 +61,9 @@ public sealed class MappingPrecheckTests
 
         Assert.Equal("value.not-allowed", finding.Code);
         Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
-        Assert.Contains("QQ, ZZ", finding.Detail);
-        Assert.Contains("2 of 5", finding.Detail);
+        Assert.Equal(["QQ", "ZZ"], finding.Examples);
+        Assert.Equal("2", finding.Arguments[PrecheckArguments.FailingCount]);
+        Assert.Equal("5", finding.Arguments[PrecheckArguments.ReadableCount]);
         Assert.True(result.CanImport);
     }
 
@@ -117,7 +118,8 @@ public sealed class MappingPrecheckTests
         PrecheckFinding finding = Assert.Single(result.Findings);
 
         Assert.Equal(PrecheckSeverity.Undetermined, finding.Severity);
-        Assert.Contains("60 distinct values", finding.Detail);
+        Assert.Equal("60", finding.Arguments[PrecheckArguments.DistinctCount]);
+        Assert.Equal(PrecheckReasons.TooManyDistinct, finding.Arguments[PrecheckArguments.Reason]);
 
         // Undetermined is not a refusal.
         Assert.True(result.CanImport);
@@ -196,7 +198,8 @@ public sealed class MappingPrecheckTests
         PrecheckFinding finding = result.Findings.First(f => f.Code == "value.type-mismatch");
 
         Assert.Equal(2, finding.AffectedRows);
-        Assert.Contains("de-DE", finding.Detail, StringComparison.Ordinal);
+        Assert.Equal("de-DE", finding.Arguments[PrecheckArguments.Culture]);
+        Assert.Equal("decimal", finding.Arguments[PrecheckArguments.Type]);
     }
 
     [Fact]
@@ -213,7 +216,7 @@ public sealed class MappingPrecheckTests
 
         Assert.Equal(PrecheckSeverity.Blocking, finding.Severity);
         Assert.False(result.CanImport);
-        Assert.Contains("No row can satisfy it", finding.Detail, StringComparison.Ordinal);
+        Assert.Equal(PrecheckReasons.NoRowCanSatisfy, finding.Arguments[PrecheckArguments.Reason]);
     }
 
     [Fact]
@@ -265,7 +268,7 @@ public sealed class MappingPrecheckTests
         PrecheckFinding finding = Assert.Single(result.Findings);
 
         Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
-        Assert.Contains("WEIRD", finding.Detail);
+        Assert.Contains("WEIRD", finding.Examples);
         Assert.True(result.CanImport);
     }
 

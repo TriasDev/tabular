@@ -84,7 +84,8 @@ public sealed class PrecheckAgreesWithTheImportTests
 
         PrecheckResult result = MappingPrecheck.Check(plan, schema, Profile("iso;x\nDE;1\n;2\nk.A.;3\n"));
 
-        Assert.Contains("At least 1 rows", Assert.Single(result.Findings, f => f.Code == "value.required").Detail);
+        PrecheckFinding atLeast = Assert.Single(result.Findings, f => f.Code == "value.required");
+        Assert.Equal((1, RowCountBound.AtLeast), (atLeast.AffectedRows, atLeast.AffectedRowsBound));
     }
 
     [Fact]
@@ -112,7 +113,7 @@ public sealed class PrecheckAgreesWithTheImportTests
 
         PrecheckResult result = MappingPrecheck.Check(plan, schema, Profile("iso;x\nDE;1\n;2\nk.A.;3\n"));
 
-        Assert.Contains("Some rows", Assert.Single(result.Findings, f => f.Code == "value.required").Detail);
+        Assert.Equal(RowCountBound.Unknown, Assert.Single(result.Findings, f => f.Code == "value.required").AffectedRowsBound);
     }
 
     [Fact]
@@ -124,7 +125,8 @@ public sealed class PrecheckAgreesWithTheImportTests
 
         PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("iso;x\nDE;1\n;2\nAT;3\n"));
 
-        Assert.Contains("Up to 1 rows", Assert.Single(result.Findings, f => f.Code == "value.required").Detail);
+        PrecheckFinding atMost = Assert.Single(result.Findings, f => f.Code == "value.required");
+        Assert.Equal((1, RowCountBound.AtMost), (atMost.AffectedRows, atMost.AffectedRowsBound));
     }
 
     [Fact]
@@ -180,7 +182,7 @@ public sealed class PrecheckAgreesWithTheImportTests
         PrecheckFinding finding = Assert.Single(result.Findings, f => f.Code == "value.not-allowed");
 
         Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
-        Assert.DoesNotContain("No row can satisfy", finding.Detail);
+        Assert.Equal(PrecheckReasons.ValuesFail, finding.Arguments[PrecheckArguments.Reason]);
         Assert.True(result.CanImport);
     }
 
@@ -196,7 +198,7 @@ public sealed class PrecheckAgreesWithTheImportTests
         PrecheckFinding finding = Assert.Single(result.Findings);
 
         Assert.Equal(PrecheckSeverity.Blocking, finding.Severity);
-        Assert.Contains("No row can satisfy", finding.Detail);
+        Assert.Equal(PrecheckReasons.NoRowCanSatisfy, finding.Arguments[PrecheckArguments.Reason]);
         Assert.False(result.CanImport);
     }
 
