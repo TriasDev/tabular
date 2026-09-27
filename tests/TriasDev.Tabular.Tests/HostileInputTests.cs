@@ -176,7 +176,9 @@ public sealed class HostileInputTests
         // even the quadratic version finished in well under a second, so any threshold loose enough
         // not to flake was also loose enough to pass the defect. A ratio does not care how fast the
         // machine is — four times the input costs four times as much when the cost is linear, and
-        // sixteen times when it is not.
+        // sixteen times when it is not. One run discarded first, so the once-per-process costs land
+        // there rather than in the small run, where they would flatter the ratio.
+        _ = AllocatedReadingAQuoteStorm(1_000);
         long small = AllocatedReadingAQuoteStorm(1_000);
         long large = AllocatedReadingAQuoteStorm(4_000);
 
