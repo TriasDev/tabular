@@ -35,7 +35,7 @@ public sealed class SheetIdentityTests
     {
         using XlsxCursor cursor = Workbook();
 
-        ExtractionSession session = TabularExtractor.Start(cursor, Plan("Returns", sheetIndex: 1), Schema, cancellationToken: TestContext.Current.CancellationToken);
+        ExtractionRun session = TabularExtractor.Extract(cursor, Plan("Returns", sheetIndex: 1), Schema, cancellationToken: TestContext.Current.CancellationToken);
 
         // Started, positioned past the header, and at the end of a sheet that holds nothing else.
         Assert.False(session.ReadRow(TestContext.Current.CancellationToken));
@@ -47,7 +47,7 @@ public sealed class SheetIdentityTests
         using XlsxCursor cursor = Workbook();
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(
-            () => TabularExtractor.Start(cursor, Plan("Returns", sheetIndex: 0), Schema, cancellationToken: TestContext.Current.CancellationToken));
+            () => TabularExtractor.Extract(cursor, Plan("Returns", sheetIndex: 0), Schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.SheetChanged, error.Code);
         Assert.Equal(0, error.SheetIndex);
@@ -59,7 +59,7 @@ public sealed class SheetIdentityTests
         using XlsxCursor cursor = Workbook();
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(
-            () => TabularExtractor.Start(cursor, Plan("orders"), Schema, cancellationToken: TestContext.Current.CancellationToken));
+            () => TabularExtractor.Extract(cursor, Plan("orders"), Schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.SheetChanged, error.Code);
     }
@@ -70,7 +70,7 @@ public sealed class SheetIdentityTests
         using CsvCursor cursor = new(new MemoryStream(Encoding.UTF8.GetBytes("name\na\n")), "t.csv");
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(
-            () => TabularExtractor.Start(cursor, Plan(sheetSource: "export/t.csv"), Schema, cancellationToken: TestContext.Current.CancellationToken));
+            () => TabularExtractor.Extract(cursor, Plan(sheetSource: "export/t.csv"), Schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.SheetChanged, error.Code);
     }
@@ -80,7 +80,7 @@ public sealed class SheetIdentityTests
     {
         using CsvCursor cursor = new(new MemoryStream(Encoding.UTF8.GetBytes("name\na\n")), "renamed.csv");
 
-        ExtractionSession session = TabularExtractor.Start(cursor, Plan(), Schema, cancellationToken: TestContext.Current.CancellationToken);
+        ExtractionRun session = TabularExtractor.Extract(cursor, Plan(), Schema, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(session.ReadRow(TestContext.Current.CancellationToken));
     }
@@ -91,7 +91,7 @@ public sealed class SheetIdentityTests
         using XlsxCursor cursor = Workbook();
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(
-            () => TabularExtractor.Start(cursor, Plan("Orders", sheetIndex: 5), Schema, cancellationToken: TestContext.Current.CancellationToken));
+            () => TabularExtractor.Extract(cursor, Plan("Orders", sheetIndex: 5), Schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.SheetMissing, error.Code);
     }

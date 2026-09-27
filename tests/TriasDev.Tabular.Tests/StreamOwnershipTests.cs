@@ -152,8 +152,8 @@ public sealed class StreamOwnershipTests
     }
 
     [Fact]
-    public void AnExtractionSessionDoesNotPretendToOwnAnything()
+    public void AnExtractionRunDoesNotPretendToOwnAnything()
     {
-        Assert.False(typeof(IDisposable).IsAssignableFrom(typeof(ExtractionSession)));
+        Assert.False(typeof(IDisposable).IsAssignableFrom(typeof(ExtractionRun)));
     }
 }

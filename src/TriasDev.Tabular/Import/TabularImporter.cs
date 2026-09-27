@@ -45,7 +45,7 @@ public static class TabularImporter
 
         ImportOptions effective = (options ?? ImportOptions.Default).Checked();
 
-        ExtractionSession session = TabularExtractor.Start(
+        ExtractionRun session = TabularExtractor.Extract(
             cursor,
             plan,
             schema,
@@ -107,7 +107,7 @@ public static class TabularImporter
 
         try
         {
-            ExtractionSession session = TabularExtractor.Start(
+            ExtractionRun session = TabularExtractor.Extract(
                 cursor,
                 plan,
                 schema,
@@ -149,7 +149,7 @@ public static class TabularImporter
 /// <typeparam name="T">What the mapper builds.</typeparam>
 public sealed class ImportRun<T> : IDisposable
 {
-    private readonly ExtractionSession _session;
+    private readonly ExtractionRun _session;
     private readonly ImportField[] _fields;
     private readonly FieldIndex _index;
     private readonly TabularRowMapper<T> _mapper;
@@ -165,7 +165,7 @@ public sealed class ImportRun<T> : IDisposable
     private bool _disposed;
 
     internal ImportRun(
-        ExtractionSession session,
+        ExtractionRun session,
         ImportSchema schema,
         FieldIndex index,
         TabularRowMapper<T> mapper,

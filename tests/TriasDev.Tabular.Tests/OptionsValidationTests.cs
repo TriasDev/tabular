@@ -96,7 +96,7 @@ public sealed class OptionsValidationTests
         // Zero used to stop a run at its first failure, which is what AllOrNothing is for.
         using CsvCursor cursor = new(Csv(), "t.csv");
 
-        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => TabularExtractor.Start(
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => TabularExtractor.Extract(
             cursor, Plan, Schema, new ExtractionOptions { MaxErrorRows = 0 }, TestContext.Current.CancellationToken));
 
         Assert.Contains(nameof(ExtractionOptions.MaxErrorRows), error.Message, StringComparison.Ordinal);

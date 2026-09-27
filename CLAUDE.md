@@ -52,7 +52,7 @@ under `src/TriasDev.Tabular` still group the code by layer:
   `Source`, `Dialect`, `Diagnostics`) live on `SheetProfile`, not `FileProfile` — an archive holds
   sources of different kinds.
 - **Mapping** — `ImportSchema`, `MappingPlan`, `MappingPlanValidator`, field constraints, `ImportPolicy`.
-- **Extraction** — `TabularExtractor.Start` → `ExtractionSession`: typed values per row, no entity.
+- **Extraction** — `TabularExtractor.Extract` → `ExtractionRun`: typed values per row, no entity.
 - **Import** — `TabularImporter` = extraction + the caller's mapper, exposed as `ImportRun<T>`
   (read once, by `ReadRows`, `ReadChunks` or `ReadAll(limit)`). `ImportField` declares fields that are both the schema and
   the accessor. `MappingPrecheck` judges a plan against a `FileProfile` before importing.

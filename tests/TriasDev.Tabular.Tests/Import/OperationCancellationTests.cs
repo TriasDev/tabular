@@ -33,7 +33,7 @@ public sealed class OperationCancellationTests
     public void ASessionReadStopsOnItsOwnToken()
     {
         using CsvCursor cursor = Cursor();
-        ExtractionSession session = TabularExtractor.Start(cursor, Plan, Schema, cancellationToken: TestContext.Current.CancellationToken);
+        ExtractionRun session = TabularExtractor.Extract(cursor, Plan, Schema, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(session.ReadRow(TestContext.Current.CancellationToken));
         Assert.ThrowsAny<OperationCanceledException>(() => session.ReadRow(Cancelled));

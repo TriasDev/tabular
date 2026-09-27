@@ -24,7 +24,7 @@ public static class TabularExtractor
     /// </param>
     /// <exception cref="MappingPlanException">The plan does not fit the schema.</exception>
     /// <exception cref="TabularStructureException">The file is not the one the plan was built against.</exception>
-    public static ExtractionSession Start(
+    public static ExtractionRun Extract(
         ITabularCursor cursor,
         MappingPlan plan,
         ImportSchema schema,
@@ -44,6 +44,6 @@ public static class TabularExtractor
             throw new MappingPlanException(faults);
         }
 
-        return new ExtractionSession(cursor, plan, schema, (options ?? ExtractionOptions.Default).Checked(), cancellationToken);
+        return new ExtractionRun(cursor, plan, schema, (options ?? ExtractionOptions.Default).Checked(), cancellationToken);
     }
 }

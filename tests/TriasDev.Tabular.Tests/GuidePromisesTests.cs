@@ -48,7 +48,7 @@ public sealed class GuidePromisesTests
         ImportSchema schema = new() { Fields = [ImportField.Text("f")] };
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(() =>
-            TabularExtractor.Start(cursor, OneBinding("f", headerRow: 5), schema, cancellationToken: TestContext.Current.CancellationToken));
+            TabularExtractor.Extract(cursor, OneBinding("f", headerRow: 5), schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.HeaderRowMissing, error.Code);
     }
