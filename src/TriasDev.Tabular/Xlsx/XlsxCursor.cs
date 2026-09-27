@@ -627,7 +627,8 @@ public sealed class XlsxCursor : ITabularCursor
                         : RawCell.Empty;
 
             case CellValueType.Boolean:
-                return RawCell.FromBoolean(text.SequenceEqual("1"));
+                // "1" as the format says, or "true" as the Open XML SDK writes it.
+                return RawCell.FromBoolean(text.SequenceEqual("1") || text.Equals("true", StringComparison.OrdinalIgnoreCase));
 
             case CellValueType.Error:
                 return RawCell.FromError(new string(text));
