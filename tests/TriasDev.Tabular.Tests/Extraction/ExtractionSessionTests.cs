@@ -11,19 +11,19 @@ public sealed class ExtractionSessionTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static TargetSchema Schema =>
+    private static ImportSchema Schema =>
         new()
         {
             Fields =
             [
-                new TargetField
+                new ImportField
                 {
                     Name = "countryIso3",
                     Type = ColumnType.Text,
                     Required = true,
                     Constraints = [new FieldConstraint.ExactLength(3)],
                 },
-                new TargetField { Name = "amount", Type = ColumnType.Decimal },
+                new ImportField { Name = "amount", Type = ColumnType.Decimal },
             ],
         };
 
@@ -33,8 +33,8 @@ public sealed class ExtractionSessionTests
             Culture = culture,
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "Land", TargetFieldName = "countryIso3" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "Betrag", TargetFieldName = "amount" },
+                new ColumnBinding { ColumnIndex = 0, Header = "Land", FieldName = "countryIso3" },
+                new ColumnBinding { ColumnIndex = 1, Header = "Betrag", FieldName = "amount" },
             ],
         };
 
@@ -43,7 +43,7 @@ public sealed class ExtractionSessionTests
     private static Run Extract(
         string text,
         MappingPlan? plan = null,
-        TargetSchema? schema = null,
+        ImportSchema? schema = null,
         ExtractionOptions? options = null)
     {
         using MemoryStream stream = new(Utf8NoBom.GetBytes(text), writable: false);
@@ -122,8 +122,8 @@ public sealed class ExtractionSessionTests
         RowError error = Assert.Single(run.Errors);
 
         Assert.Equal(3, error.RowNumber);
-        Assert.Equal(0, error.SourceColumnIndex);
-        Assert.Equal("countryIso3", error.TargetFieldName);
+        Assert.Equal(0, error.ColumnIndex);
+        Assert.Equal("countryIso3", error.FieldName);
         Assert.Equal("DEUX", error.RawValue);
     }
 
@@ -152,12 +152,12 @@ public sealed class ExtractionSessionTests
             Culture = "de-DE",
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "Land", TargetFieldName = "countryIso3" },
+                new ColumnBinding { ColumnIndex = 0, Header = "Land", FieldName = "countryIso3" },
                 new ColumnBinding
                 {
-                    SourceColumnIndex = 1,
-                    SourceHeader = "Betrag",
-                    TargetFieldName = "amount",
+                    ColumnIndex = 1,
+                    Header = "Betrag",
+                    FieldName = "amount",
                     TreatAsEmpty = ["k.A.", "-"],
                 },
             ],
@@ -261,7 +261,7 @@ public sealed class ExtractionSessionTests
 
         MappingPlan plan = new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "Betrag", TargetFieldName = "amount" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 1, Header = "Betrag", FieldName = "amount" }],
         };
 
         Assert.Throws<MappingPlanException>(() => TabularExtractor.Start(cursor, plan, Schema, cancellationToken: TestContext.Current.CancellationToken));

@@ -14,11 +14,11 @@ public sealed class TranslatedFieldTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static readonly TranslatedField Title = ImportField.Translated("title", ["en", "de"]).Require();
+    private static readonly TranslatedImportField Title = ImportField.Translated("title", ["en", "de"]).Require();
 
-    private static readonly TextField Id = ImportField.Text("id").Require();
+    private static readonly TextImportField Id = ImportField.Text("id").Require();
 
-    private static TargetSchema Schema => new() { Fields = [Id, .. Title] };
+    private static ImportSchema Schema => new() { Fields = [Id, .. Title] };
 
     [Fact]
     public void DeclaresOneOrdinaryFieldPerLanguage()
@@ -93,7 +93,7 @@ public sealed class TranslatedFieldTests
         // One error for the group, not one per declared language: the row has one thing wrong with
         // it, and a subscription with ten languages would otherwise get ten errors saying so.
         Assert.Equal("group.required", error.Code);
-        Assert.Equal("title", error.TargetFieldName);
+        Assert.Equal("title", error.FieldName);
     }
 
     [Fact]
@@ -101,13 +101,13 @@ public sealed class TranslatedFieldTests
     {
         MappingPlan plan = new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "id", TargetFieldName = "id" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "id", FieldName = "id" }],
         };
 
         MappingFault fault = Assert.Single(MappingPlanValidator.Validate(plan, Schema));
 
         Assert.Equal("mapping.required-group-unmapped", fault.Code);
-        Assert.Equal("title", fault.TargetFieldName);
+        Assert.Equal("title", fault.FieldName);
     }
 
     [Fact]
@@ -117,8 +117,8 @@ public sealed class TranslatedFieldTests
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "id", TargetFieldName = "id" },
-                new ColumnBinding { SourceColumnIndex = 2, SourceHeader = "title_de", TargetFieldName = "title.de" },
+                new ColumnBinding { ColumnIndex = 0, Header = "id", FieldName = "id" },
+                new ColumnBinding { ColumnIndex = 2, Header = "title_de", FieldName = "title.de" },
             ],
         };
 
@@ -169,9 +169,9 @@ public sealed class TranslatedFieldTests
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "id", TargetFieldName = "id" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "title_en", TargetFieldName = "title.en" },
-                new ColumnBinding { SourceColumnIndex = 2, SourceHeader = "title_de", TargetFieldName = "title.de" },
+                new ColumnBinding { ColumnIndex = 0, Header = "id", FieldName = "id" },
+                new ColumnBinding { ColumnIndex = 1, Header = "title_en", FieldName = "title.en" },
+                new ColumnBinding { ColumnIndex = 2, Header = "title_de", FieldName = "title.de" },
             ],
         };
 

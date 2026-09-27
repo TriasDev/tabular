@@ -14,7 +14,7 @@ internal sealed class FieldIndex
     private readonly Dictionary<string, int> _byName;
     private readonly Dictionary<string, (string Variant, int Position)[]> _byGroup;
 
-    public FieldIndex(TargetSchema schema)
+    public FieldIndex(ImportSchema schema)
     {
         // Through the shared index, so a duplicate name is refused here as it is everywhere else
         // rather than quietly resolving to whichever field was declared last.
@@ -39,7 +39,7 @@ internal sealed class FieldIndex
                 StringComparer.Ordinal);
     }
 
-    public (string Variant, int Position)[] PositionsOf(TranslatedField group)
+    public (string Variant, int Position)[] PositionsOf(TranslatedImportField group)
     {
         if (_byGroup.TryGetValue(group.Name, out (string Variant, int Position)[]? positions))
         {
@@ -52,7 +52,7 @@ internal sealed class FieldIndex
             nameof(group));
     }
 
-    public int PositionOf(TargetField field)
+    public int PositionOf(ImportField field)
     {
         if (_byName.TryGetValue(field.Name, out int position))
         {

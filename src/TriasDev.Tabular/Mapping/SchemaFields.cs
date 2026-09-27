@@ -21,15 +21,15 @@ internal static class SchemaFields
 {
     /// <summary>Indexes a schema's fields by name.</summary>
     /// <exception cref="ArgumentException">Two fields share a name.</exception>
-    public static Dictionary<string, TargetField> ByName(TargetSchema schema)
+    public static Dictionary<string, ImportField> ByName(ImportSchema schema)
     {
         ArgumentNullException.ThrowIfNull(schema);
 
-        Dictionary<string, TargetField> fields = new(schema.Fields.Count, StringComparer.Ordinal);
+        Dictionary<string, ImportField> fields = new(schema.Fields.Count, StringComparer.Ordinal);
 
         // TryAdd is the loop's work, not a filter over it, so the loop stays a loop.
 #pragma warning disable S3267
-        foreach (TargetField field in schema.Fields)
+        foreach (ImportField field in schema.Fields)
 #pragma warning restore S3267
         {
             if (!fields.TryAdd(field.Name, field))

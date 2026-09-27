@@ -6,18 +6,18 @@ namespace TriasDev.Tabular.Tests.Mapping;
 /// <summary>Pins what is wrong with a plan, decided without opening a file.</summary>
 public sealed class MappingPlanValidatorTests
 {
-    private static TargetSchema Schema =>
+    private static ImportSchema Schema =>
         new()
         {
             Fields =
             [
-                new TargetField { Name = "countryIso3", Type = ColumnType.Text, Required = true, Constraints = [new FieldConstraint.ExactLength(3)] },
-                new TargetField { Name = "amount", Type = ColumnType.Decimal },
+                new ImportField { Name = "countryIso3", Type = ColumnType.Text, Required = true, Constraints = [new FieldConstraint.ExactLength(3)] },
+                new ImportField { Name = "amount", Type = ColumnType.Decimal },
             ],
         };
 
     private static ColumnBinding Bind(int index, string field, string header = "h") =>
-        new() { SourceColumnIndex = index, SourceHeader = header, TargetFieldName = field };
+        new() { ColumnIndex = index, Header = header, FieldName = field };
 
     [Fact]
     public void AcceptsAPlanThatCoversTheSchema()
@@ -35,20 +35,20 @@ public sealed class MappingPlanValidatorTests
     {
         // It compared the value's number, which is zero for anything else: a range on a text field
         // judged zero, and one on a date field could never be satisfied. Neither said so.
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
-            Fields = [new TargetField { Name = "f", Type = type, Constraints = [new FieldConstraint.MinValue(1)] }],
+            Fields = [new ImportField { Name = "f", Type = type, Constraints = [new FieldConstraint.MinValue(1)] }],
         };
 
         MappingFault fault = Assert.Single(MappingPlanValidator.Validate(new MappingPlan { Bindings = [Bind(0, "f")] }, schema));
 
-        Assert.Equal((ErrorCodes.Mapping.ConstraintTypeMismatch, "f"), (fault.Code, fault.TargetFieldName));
+        Assert.Equal((ErrorCodes.Mapping.ConstraintTypeMismatch, "f"), (fault.Code, fault.FieldName));
     }
 
     [Fact]
     public void AcceptsARangeOnANumber()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Integer("n").AtLeast(0), ImportField.Decimal("d").AtMost(1)] };
+        ImportSchema schema = new() { Fields = [ImportField.Integer("n").AtLeast(0), ImportField.Decimal("d").AtMost(1)] };
 
         Assert.Empty(MappingPlanValidator.Validate(new MappingPlan { Bindings = [Bind(0, "n"), Bind(1, "d")] }, schema));
     }
@@ -69,7 +69,7 @@ public sealed class MappingPlanValidatorTests
         MappingFault fault = Assert.Single(MappingPlanValidator.Validate(plan, Schema));
 
         Assert.Equal("mapping.required-field-unmapped", fault.Code);
-        Assert.Equal("countryIso3", fault.TargetFieldName);
+        Assert.Equal("countryIso3", fault.FieldName);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class MappingPlanValidatorTests
         MappingFault fault = Assert.Single(MappingPlanValidator.Validate(plan, Schema));
 
         Assert.Equal("mapping.duplicate-binding", fault.Code);
-        Assert.Equal(2, fault.SourceColumnIndex);
+        Assert.Equal(2, fault.ColumnIndex);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class MappingPlanValidatorTests
         MappingFault fault = Assert.Single(MappingPlanValidator.Validate(plan, Schema));
 
         Assert.Equal("mapping.unknown-field", fault.Code);
-        Assert.Equal("nonsense", fault.TargetFieldName);
+        Assert.Equal("nonsense", fault.FieldName);
     }
 
     [Fact]

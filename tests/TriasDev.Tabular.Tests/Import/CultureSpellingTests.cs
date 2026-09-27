@@ -30,9 +30,9 @@ public sealed class CultureSpellingTests
         MappingPlan plan = new()
         {
             Culture = top.Culture,
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "amount", TargetFieldName = "amount" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "amount", FieldName = "amount" }],
         };
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount")] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("amount")] };
 
         Assert.Empty(MappingPlanValidator.Validate(plan, schema));
 

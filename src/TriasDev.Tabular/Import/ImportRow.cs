@@ -33,10 +33,10 @@ public readonly ref struct ImportRow
     public int RowNumber { get; }
 
     /// <summary>The text of a text field, or null when the row leaves it empty.</summary>
-    public string? this[TextField field] => Value(field).Text;
+    public string? this[TextImportField field] => Value(field).Text;
 
     /// <summary>The whole number of an integer field, or null when the row leaves it empty.</summary>
-    public long? this[IntegerField field]
+    public long? this[IntegerImportField field]
     {
         get
         {
@@ -46,7 +46,7 @@ public readonly ref struct ImportRow
     }
 
     /// <summary>The number of a decimal field, or null when the row leaves it empty.</summary>
-    public decimal? this[DecimalField field]
+    public decimal? this[DecimalImportField field]
     {
         get
         {
@@ -56,7 +56,7 @@ public readonly ref struct ImportRow
     }
 
     /// <summary>The date of a date field, or null when the row leaves it empty.</summary>
-    public DateTime? this[DateField field]
+    public DateTime? this[DateImportField field]
     {
         get
         {
@@ -66,7 +66,7 @@ public readonly ref struct ImportRow
     }
 
     /// <summary>The value of a boolean field, or null when the row leaves it empty.</summary>
-    public bool? this[BooleanField field]
+    public bool? this[BooleanImportField field]
     {
         get
         {
@@ -83,10 +83,10 @@ public readonly ref struct ImportRow
     /// plays no part: the rendering is the invariant one, so what is written here does not change
     /// with the machine reading it.
     /// </remarks>
-    public string? AsText(TargetField field) => Value(field).Text;
+    public string? AsText(ImportField field) => Value(field).Text;
 
     /// <summary>Whether the row carries anything for this field.</summary>
-    public bool Has(TargetField field) => Value(field).IsPresent;
+    public bool Has(ImportField field) => Value(field).IsPresent;
 
     /// <summary>
     /// Every language this row carries for one translated field, keyed by variant.
@@ -103,7 +103,7 @@ public readonly ref struct ImportRow
     /// moment the row advances.
     /// </para>
     /// </remarks>
-    public Dictionary<string, string> Translations(TranslatedField group)
+    public Dictionary<string, string> Translations(TranslatedImportField group)
     {
         ArgumentNullException.ThrowIfNull(group);
 
@@ -123,7 +123,7 @@ public readonly ref struct ImportRow
         return values;
     }
 
-    private MappedValue Value(TargetField field)
+    private MappedValue Value(ImportField field)
     {
         ArgumentNullException.ThrowIfNull(field);
 

@@ -15,9 +15,9 @@ public sealed class InvariantGlobalizationTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static readonly DecimalField Amount = ImportField.Decimal("amount");
+    private static readonly DecimalImportField Amount = ImportField.Decimal("amount");
 
-    private static readonly TargetSchema Schema = new() { Fields = [Amount] };
+    private static readonly ImportSchema Schema = new() { Fields = [Amount] };
 
     private static CsvCursor Csv() =>
         new(new MemoryStream(Utf8NoBom.GetBytes("amount;x\n1.5;a\n2.25;b\n"), writable: false), "t.csv");
@@ -25,7 +25,7 @@ public sealed class InvariantGlobalizationTests
     private static MappingPlan Plan(string? culture) => new()
     {
         Culture = culture,
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "amount", TargetFieldName = "amount" }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "amount", FieldName = "amount" }],
     };
 
     [Fact]

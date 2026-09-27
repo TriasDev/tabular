@@ -13,12 +13,12 @@ FileProfile profile = TabularAnalyzer.Analyze(cursor);
 // written in exactly one place.
 static class Fields
 {
-    public static readonly TextField Name    = ImportField.Text("name").Require().MaxLength(255);
-    public static readonly TextField Country = ImportField.Text("countryCode").Require().ExactLength(2);
-    public static readonly DateField Signed  = ImportField.Date("signedOn");
+    public static readonly TextImportField Name    = ImportField.Text("name").Require().MaxLength(255);
+    public static readonly TextImportField Country = ImportField.Text("countryCode").Require().ExactLength(2);
+    public static readonly DateImportField Signed  = ImportField.Date("signedOn");
 }
 
-static readonly TargetSchema Schema = new() { Fields = [Fields.Name, Fields.Country, Fields.Signed] };
+static readonly ImportSchema Schema = new() { Fields = [Fields.Name, Fields.Country, Fields.Signed] };
 
 // One expression turns a row into your own type. It knows nothing about cursors, positions, or the
 // order the schema declares.
@@ -131,7 +131,7 @@ A finding says *these rows will fail*, or *no row can succeed*, or *this cannot 
 here*. It never says the rest is fine: an allowed-value set is measured against a bounded sample, and
 a rule spanning two fields is invisible to facts about one.
 
-`TargetSchema.Policy` decides what a partial success means. `BestEffort` imports what fits;
+`ImportSchema.Policy` decides what a partial success means. `BestEffort` imports what fits;
 `AllOrNothing` refuses a file that would import partially. That is the programmer's call, not the
 uploader's — whether half an import beats none depends on what is being imported, and only whoever
 declared the target knows.
@@ -161,7 +161,7 @@ silent corruption starts.
 A catalogue carries `Title#en` beside `Title#de` — two columns saying one thing. Declared once:
 
 ```csharp
-public static readonly TranslatedField Title = ImportField.Translated("title", ["en", "de"]).Require();
+public static readonly TranslatedImportField Title = ImportField.Translated("title", ["en", "de"]).Require();
 ```
 
 Underneath these are ordinary fields with ordinary names, `title.en` and `title.de`, each fed by one
@@ -295,12 +295,12 @@ A pattern checks an identifier's shape; many identifiers also carry a check digi
 cannot see. `Must` declares a rule from a predicate, under a code of the caller's choosing:
 
 ```csharp
-public static readonly TextField Isin = ImportField.Text("isin")
+public static readonly TextImportField Isin = ImportField.Text("isin")
     .Require()
     .ExactLength(12)
     .Must("isin.check-digit", CheckDigits.Luhn);
 
-public static readonly TextField Lei = ImportField.Text("lei")
+public static readonly TextImportField Lei = ImportField.Text("lei")
     .ExactLength(20)
     .Must("lei.check-digits", CheckDigits.Mod97);
 ```

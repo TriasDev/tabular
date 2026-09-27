@@ -20,7 +20,7 @@ public sealed class PrecheckAgreesWithTheImportTests
         // It used to: the profile measured " DE " as four characters and the import saw two, so a
         // length rule was judged against values the read would never produce. Trimming is part of
         // reading now, so both halves see one string.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").ExactLength(2)] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").ExactLength(2)] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("iso\n DE \n AT\nCH \n"));
 
@@ -33,7 +33,7 @@ public sealed class PrecheckAgreesWithTheImportTests
     {
         // "k.A." is not a country that failed to be allowed. Extraction reads it as absent, so
         // judging it against the allowed set faults a file for saying it has nothing to say.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").AllowedValues(["DE", "AT"])] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").AllowedValues(["DE", "AT"])] };
 
         MappingPlan plan = new()
         {
@@ -41,9 +41,9 @@ public sealed class PrecheckAgreesWithTheImportTests
             [
                 new ColumnBinding
                 {
-                    SourceColumnIndex = 0,
-                    SourceHeader = "iso",
-                    TargetFieldName = "iso",
+                    ColumnIndex = 0,
+                    Header = "iso",
+                    FieldName = "iso",
                     TreatAsEmpty = ["k.A."],
                 },
             ],
@@ -62,7 +62,7 @@ public sealed class PrecheckAgreesWithTheImportTests
         // Every column bound, so the only uncertainty is the one direction: those rows were counted
         // as values and will be read as absent. (A single-column sheet cannot show this at all — a
         // row empty in its only column is blank, and analysis no longer counts blank rows.)
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("iso").Require(), ImportField.Text("x")],
         };
@@ -73,12 +73,12 @@ public sealed class PrecheckAgreesWithTheImportTests
             [
                 new ColumnBinding
                 {
-                    SourceColumnIndex = 0,
-                    SourceHeader = "iso",
-                    TargetFieldName = "iso",
+                    ColumnIndex = 0,
+                    Header = "iso",
+                    FieldName = "iso",
                     TreatAsEmpty = ["k.A."],
                 },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "x", TargetFieldName = "x" },
+                new ColumnBinding { ColumnIndex = 1, Header = "x", FieldName = "x" },
             ],
         };
 
@@ -94,7 +94,7 @@ public sealed class PrecheckAgreesWithTheImportTests
         // true number is higher; and the import skips a row whose mapped columns are all empty while
         // analysis keeps any row with a value anywhere, so where the sheet has unbound columns the
         // true number is lower. Neither direction is known, so no number is offered as one.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
 
         MappingPlan plan = new()
         {
@@ -102,9 +102,9 @@ public sealed class PrecheckAgreesWithTheImportTests
             [
                 new ColumnBinding
                 {
-                    SourceColumnIndex = 0,
-                    SourceHeader = "iso",
-                    TargetFieldName = "iso",
+                    ColumnIndex = 0,
+                    Header = "iso",
+                    FieldName = "iso",
                     TreatAsEmpty = ["k.A."],
                 },
             ],
@@ -120,7 +120,7 @@ public sealed class PrecheckAgreesWithTheImportTests
     {
         // Analysis kept the middle row because another column carried a value; the import will skip
         // it, because every column it was told about is empty there.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("iso;x\nDE;1\n;2\nAT;3\n"));
 
@@ -133,7 +133,7 @@ public sealed class PrecheckAgreesWithTheImportTests
         // The real header and everything above it were measured as data, so every fact describes a
         // different file. Undetermined rather than blocking: the file is very likely fine and it is
         // the profile that is stale.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").ExactLength(2)] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").ExactLength(2)] };
 
         MappingPlan plan = Plan() with { HeaderRowIndex = 2 };
 
@@ -150,7 +150,7 @@ public sealed class PrecheckAgreesWithTheImportTests
     public void JudgesAProfileMeasuredAgainstTheHeaderRowTheMappingNames()
     {
         // And once the file is analysed again under the right row, the answer is a real one.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").ExactLength(2)] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").ExactLength(2)] };
 
         MappingPlan plan = Plan() with { HeaderRowIndex = 1 };
         FileProfile profile = Profile("Country list\niso\nDE\nAT\n", new AnalysisOptions { HeaderRowIndex = 1 });
@@ -164,7 +164,7 @@ public sealed class PrecheckAgreesWithTheImportTests
         // The case that made the precheck refuse importable files. Every value in the column is a
         // stranger, but an empty cell in an optional field is not a failure, so the rows that hold
         // nothing import and only the one bad row fails.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").AllowedValues(["DE", "AT"])] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").AllowedValues(["DE", "AT"])] };
 
         StringBuilder file = new("iso;other\n");
 
@@ -189,7 +189,7 @@ public sealed class PrecheckAgreesWithTheImportTests
     {
         // The certainty is still available where it is real: no empty cells, so every row carries one
         // of these values and none of them is allowed.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").AllowedValues(["DE", "AT"])] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").AllowedValues(["DE", "AT"])] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("iso\nXX\nZZ\n"));
 
@@ -205,7 +205,7 @@ public sealed class PrecheckAgreesWithTheImportTests
     {
         // A required field turns an empty cell into a failure of its own, so "no value fits" does
         // settle the row.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Require().AllowedValues(["DE"])] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require().AllowedValues(["DE"])] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("iso;x\n;1\nXX;2\n"));
 
@@ -216,7 +216,7 @@ public sealed class PrecheckAgreesWithTheImportTests
     private static MappingPlan Plan() =>
         new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "iso", TargetFieldName = "iso" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "iso", FieldName = "iso" }],
         };
 
     private static FileProfile Profile(string csv, AnalysisOptions? options = null)

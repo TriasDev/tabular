@@ -18,7 +18,7 @@ public static class MappingPlanValidator
     /// All of it, not the first: a user who fixes one fault and is told about the next has to upload
     /// again to learn about the third.
     /// </remarks>
-    public static IReadOnlyList<MappingFault> Validate(MappingPlan plan, TargetSchema schema)
+    public static IReadOnlyList<MappingFault> Validate(MappingPlan plan, ImportSchema schema)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(schema);
@@ -40,26 +40,26 @@ public static class MappingPlanValidator
     /// </summary>
     private static HashSet<string> CheckBindings(
         MappingPlan plan,
-        Dictionary<string, TargetField> fields,
+        Dictionary<string, ImportField> fields,
         List<MappingFault> faults)
     {
         HashSet<string> bound = new(StringComparer.Ordinal);
 
         foreach (ColumnBinding binding in plan.Bindings)
         {
-            if (!fields.ContainsKey(binding.TargetFieldName))
+            if (!fields.ContainsKey(binding.FieldName))
             {
                 faults.Add(BindingFault(ErrorCodes.Mapping.UnknownField, binding));
 
                 continue;
             }
 
-            if (!bound.Add(binding.TargetFieldName))
+            if (!bound.Add(binding.FieldName))
             {
                 faults.Add(BindingFault(ErrorCodes.Mapping.DuplicateBinding, binding));
             }
 
-            if (binding.SourceColumnIndex < 0)
+            if (binding.ColumnIndex < 0)
             {
                 faults.Add(BindingFault(ErrorCodes.Mapping.InvalidColumn, binding));
             }
@@ -71,16 +71,16 @@ public static class MappingPlanValidator
     private static MappingFault BindingFault(string code, ColumnBinding binding) => new()
     {
         Code = code,
-        TargetFieldName = binding.TargetFieldName,
-        SourceColumnIndex = binding.SourceColumnIndex,
+        FieldName = binding.FieldName,
+        ColumnIndex = binding.ColumnIndex,
     };
 
-    private static void CheckRequiredFields(TargetSchema schema, HashSet<string> bound, List<MappingFault> faults)
+    private static void CheckRequiredFields(ImportSchema schema, HashSet<string> bound, List<MappingFault> faults)
     {
-        foreach (TargetField field in schema.Fields
+        foreach (ImportField field in schema.Fields
             .Where(f => f.Required && f.Group is null && !bound.Contains(f.Name)))
         {
-            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.RequiredFieldUnmapped, TargetFieldName = field.Name });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.RequiredFieldUnmapped, FieldName = field.Name });
         }
     }
 
@@ -89,14 +89,14 @@ public static class MappingPlanValidator
     /// alone is a complete file, and demanding an English column would refuse it for saying nothing
     /// wrong.
     /// </remarks>
-    private static void CheckRequiredGroups(TargetSchema schema, HashSet<string> bound, List<MappingFault> faults)
+    private static void CheckRequiredGroups(ImportSchema schema, HashSet<string> bound, List<MappingFault> faults)
     {
-        foreach (IGrouping<string, TargetField> group in schema.Fields
+        foreach (IGrouping<string, ImportField> group in schema.Fields
             .Where(f => f.Required && f.Group is not null)
             .GroupBy(f => f.Group!, StringComparer.Ordinal)
             .Where(group => !group.Any(f => bound.Contains(f.Name))))
         {
-            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.RequiredGroupUnmapped, TargetFieldName = group.Key });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.RequiredGroupUnmapped, FieldName = group.Key });
         }
     }
 
@@ -105,13 +105,13 @@ public static class MappingPlanValidator
     /// Reported for every such field, bound or not: it is a fault of the schema, and it would stay
     /// silent until the day somebody bound the field.
     /// </remarks>
-    private static void CheckConstraintTypes(TargetSchema schema, List<MappingFault> faults)
+    private static void CheckConstraintTypes(ImportSchema schema, List<MappingFault> faults)
     {
-        foreach (TargetField field in schema.Fields.Where(f =>
+        foreach (ImportField field in schema.Fields.Where(f =>
             f.Type is not (ColumnType.Integer or ColumnType.Decimal)
             && f.Constraints.Any(c => c is FieldConstraint.MinValue or FieldConstraint.MaxValue)))
         {
-            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.ConstraintTypeMismatch, TargetFieldName = field.Name });
+            faults.Add(new MappingFault { Code = ErrorCodes.Mapping.ConstraintTypeMismatch, FieldName = field.Name });
         }
     }
 

@@ -21,18 +21,18 @@ namespace TriasDev.Tabular;
 /// Spread into a schema with <c>Fields = [.. Title, .. Text]</c>.
 /// </para>
 /// </remarks>
-public sealed class TranslatedField : IEnumerable<TargetField>
+public sealed class TranslatedImportField : IEnumerable<ImportField>
 {
-    private readonly TextField[] _fields;
+    private readonly TextImportField[] _fields;
 
-    internal TranslatedField(string name, IEnumerable<string> variants, bool required = false)
+    internal TranslatedImportField(string name, IEnumerable<string> variants, bool required = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(variants);
 
         Name = name;
 
-        List<TextField> fields = [];
+        List<TextImportField> fields = [];
         HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (string variant in variants)
@@ -47,7 +47,7 @@ public sealed class TranslatedField : IEnumerable<TargetField>
                 throw new ArgumentException($"The variant '{variant}' is declared twice.", nameof(variants));
             }
 
-            fields.Add(new TextField
+            fields.Add(new TextImportField
             {
                 Name = $"{name}.{variant}",
                 Type = ColumnType.Text,
@@ -69,11 +69,11 @@ public sealed class TranslatedField : IEnumerable<TargetField>
     public string Name { get; }
 
     /// <summary>The members, one per variant, in the order they were declared.</summary>
-    public IReadOnlyList<TextField> Fields => _fields;
+    public IReadOnlyList<TextImportField> Fields => _fields;
 
     /// <summary>The member for one variant, for a mapper that wants a single language.</summary>
     /// <exception cref="ArgumentException">The variant was not declared.</exception>
-    public TextField this[string variant] =>
+    public TextImportField this[string variant] =>
         _fields.FirstOrDefault(f => string.Equals(f.Variant, variant, StringComparison.OrdinalIgnoreCase))
         ?? throw new ArgumentException(
             $"'{Name}' has no variant '{variant}'. It has: "
@@ -87,10 +87,10 @@ public sealed class TranslatedField : IEnumerable<TargetField>
     /// At least one, never a particular one: a catalogue translated into German alone is a complete
     /// catalogue, and a rule naming English would refuse it for saying nothing wrong.
     /// </remarks>
-    public TranslatedField Require() => new(Name, _fields.Select(f => f.Variant!), required: true);
+    public TranslatedImportField Require() => new(Name, _fields.Select(f => f.Variant!), required: true);
 
     /// <inheritdoc />
-    public IEnumerator<TargetField> GetEnumerator() => _fields.AsEnumerable<TargetField>().GetEnumerator();
+    public IEnumerator<ImportField> GetEnumerator() => _fields.AsEnumerable<ImportField>().GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

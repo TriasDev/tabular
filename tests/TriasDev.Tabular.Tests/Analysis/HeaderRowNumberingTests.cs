@@ -39,7 +39,7 @@ public sealed class HeaderRowNumberingTests
     [Fact]
     public void ImportsFromTheRowBelowThatHeader()
     {
-        TextField name = ImportField.Text("name");
+        TextImportField name = ImportField.Text("name");
         using MemoryStream stream = new(SheetWithHeaderOnRowThree(), writable: false);
         using XlsxCursor cursor = new(stream);
 
@@ -48,9 +48,9 @@ public sealed class HeaderRowNumberingTests
             new MappingPlan
             {
                 HeaderRowIndex = 2,
-                Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "name", TargetFieldName = "name" }],
+                Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "name", FieldName = "name" }],
             },
-            new TargetSchema { Fields = [name] },
+            new ImportSchema { Fields = [name] },
             row => row[name],
             cancellationToken: TestContext.Current.CancellationToken);
 

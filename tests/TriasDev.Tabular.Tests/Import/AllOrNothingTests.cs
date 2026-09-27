@@ -13,18 +13,18 @@ public sealed class AllOrNothingTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static readonly IntegerField Count = ImportField.Integer("count").Require();
+    private static readonly IntegerImportField Count = ImportField.Integer("count").Require();
 
     private static readonly MappingPlan Plan = new()
     {
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "count", TargetFieldName = "count" }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "count", FieldName = "count" }],
     };
 
     private static ImportRun<long> Run(ImportPolicy policy, string csv) =>
         TabularImporter.Import(
             new CsvCursor(new MemoryStream(Utf8NoBom.GetBytes(csv), writable: false), "test.csv"),
             Plan,
-            new TargetSchema { Fields = [Count], Policy = policy },
+            new ImportSchema { Fields = [Count], Policy = policy },
             row => row[Count]!.Value,
             cancellationToken: TestContext.Current.CancellationToken);
 

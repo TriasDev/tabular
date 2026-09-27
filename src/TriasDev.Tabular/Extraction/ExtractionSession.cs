@@ -40,7 +40,7 @@ public sealed class ExtractionSession
     internal ExtractionSession(
         ITabularCursor cursor,
         MappingPlan plan,
-        TargetSchema schema,
+        ImportSchema schema,
         ExtractionOptions options,
         CancellationToken cancellationToken)
     {
@@ -53,7 +53,7 @@ public sealed class ExtractionSession
             ? CultureInfo.GetCultureInfo(name)
             : CultureInfo.InvariantCulture;
 
-        TargetField[] fields = [.. schema.Fields];
+        ImportField[] fields = [.. schema.Fields];
         _values = new MappedValue[fields.Length];
         _present = new bool[fields.Length];
 
@@ -73,7 +73,7 @@ public sealed class ExtractionSession
 
         foreach (ColumnBinding binding in plan.Bindings)
         {
-            if (positions.TryGetValue(binding.TargetFieldName, out int position))
+            if (positions.TryGetValue(binding.FieldName, out int position))
             {
                 mappings.Add(new Mapped(
                     binding,
@@ -105,7 +105,7 @@ public sealed class ExtractionSession
                     // The column to point at when nothing was there to point at. The first mapped
                     // member is the least surprising: it is where the person looking expected the
                     // value to be.
-                    mappings.FirstOrDefault(m => g.Any(f => f.position == m.Position)).Binding?.SourceColumnIndex ?? -1)),
+                    mappings.FirstOrDefault(m => g.Any(f => f.position == m.Position)).Binding?.ColumnIndex ?? -1)),
         ];
 
         Position();
@@ -276,20 +276,20 @@ public sealed class ExtractionSession
     {
         foreach ((ColumnBinding binding, _, _, _) in _mappings)
         {
-            string actual = binding.SourceColumnIndex < header.Length
-                ? header[binding.SourceColumnIndex].AsText() ?? string.Empty
+            string actual = binding.ColumnIndex < header.Length
+                ? header[binding.ColumnIndex].AsText() ?? string.Empty
                 : string.Empty;
 
-            if (!string.Equals(actual, binding.SourceHeader, StringComparison.Ordinal))
+            if (!string.Equals(actual, binding.Header, StringComparison.Ordinal))
             {
                 throw new TabularStructureException(
                     TabularStructureException.HeaderChanged,
-                    $"Column {binding.SourceColumnIndex} was mapped as '{binding.SourceHeader}' and now reads "
+                    $"Column {binding.ColumnIndex} was mapped as '{binding.Header}' and now reads "
                     + $"'{actual}'. The file is not the one the mapping was built against.")
                 {
                     SheetIndex = _plan.SheetIndex,
-                    SourceColumnIndex = binding.SourceColumnIndex,
-                    ExpectedHeader = binding.SourceHeader,
+                    ColumnIndex = binding.ColumnIndex,
+                    ExpectedHeader = binding.Header,
                     ActualHeader = actual,
                 };
             }
@@ -302,7 +302,7 @@ public sealed class ExtractionSession
         // may hold millions, so an enumerator and a closure per row would be paid for on every one.
         for (int i = 0; i < _mappings.Length; i++)
         {
-            int index = _mappings[i].Binding.SourceColumnIndex;
+            int index = _mappings[i].Binding.ColumnIndex;
 
             if (index < row.Length && !row[index].IsEmpty)
             {
@@ -335,10 +335,10 @@ public sealed class ExtractionSession
 
         for (int b = 0; b < _mappings.Length; b++)
         {
-            (ColumnBinding binding, int position, TargetField field, HashSet<string> emptyEquivalents) = _mappings[b];
+            (ColumnBinding binding, int position, ImportField field, HashSet<string> emptyEquivalents) = _mappings[b];
 
-            RawCell cell = binding.SourceColumnIndex < row.Length
-                ? row[binding.SourceColumnIndex]
+            RawCell cell = binding.ColumnIndex < row.Length
+                ? row[binding.ColumnIndex]
                 : RawCell.Empty;
 
             string? text = Normalise(cell, emptyEquivalents);
@@ -402,8 +402,8 @@ public sealed class ExtractionSession
                 _errors.Add(new RowError
                 {
                     RowNumber = CurrentRowNumber,
-                    SourceColumnIndex = group.SourceColumnIndex,
-                    TargetFieldName = group.Name,
+                    ColumnIndex = group.ColumnIndex,
+                    FieldName = group.Name,
                     Code = ErrorCodes.Group.Required,
                     RawValue = null,
                 });
@@ -459,19 +459,19 @@ public sealed class ExtractionSession
         _errors.Add(new RowError
         {
             RowNumber = CurrentRowNumber,
-            SourceColumnIndex = binding.SourceColumnIndex,
-            TargetFieldName = binding.TargetFieldName,
+            ColumnIndex = binding.ColumnIndex,
+            FieldName = binding.FieldName,
             Code = code,
             RawValue = raw,
         });
 
     /// <summary>A group that needs one of its members, and where its positions sit in a row.</summary>
-    private readonly record struct RequiredGroup(string Name, int[] Positions, int SourceColumnIndex);
+    private readonly record struct RequiredGroup(string Name, int[] Positions, int ColumnIndex);
 
     /// <summary>A binding resolved to the field it feeds.</summary>
     private readonly record struct Mapped(
         ColumnBinding Binding,
         int Position,
-        TargetField Field,
+        ImportField Field,
         HashSet<string> EmptyEquivalents);
 }

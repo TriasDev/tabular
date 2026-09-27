@@ -27,7 +27,7 @@ public static class TabularExtractor
     public static ExtractionSession Start(
         ITabularCursor cursor,
         MappingPlan plan,
-        TargetSchema schema,
+        ImportSchema schema,
         ExtractionOptions? options = null,
         CancellationToken cancellationToken = default)
     {

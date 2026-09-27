@@ -16,7 +16,7 @@ public sealed class ExceptionModelTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static readonly TextField Name = ImportField.Text("name");
+    private static readonly TextImportField Name = ImportField.Text("name");
 
     [Fact]
     public void NamesTheBoundAFileExceeded()
@@ -58,13 +58,13 @@ public sealed class ExceptionModelTests
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(() => TabularImporter.Import(
             cursor,
-            new MappingPlan { Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "name", TargetFieldName = "name" }] },
-            new TargetSchema { Fields = [Name] },
+            new MappingPlan { Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "name", FieldName = "name" }] },
+            new ImportSchema { Fields = [Name] },
             row => row[Name],
             cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.HeaderChanged, error.Code);
-        Assert.Equal(0, error.SourceColumnIndex);
+        Assert.Equal(0, error.ColumnIndex);
         Assert.Equal("name", error.ExpectedHeader);
         Assert.Equal("renamed", error.ActualHeader);
     }
@@ -74,8 +74,8 @@ public sealed class ExceptionModelTests
     {
         // The same fault was ArgumentException through the extractor and TabularStructureException
         // through the importer's stream overload.
-        MappingPlan plan = new() { Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "x", TargetFieldName = "nope" }] };
-        TargetSchema schema = new() { Fields = [Name] };
+        MappingPlan plan = new() { Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "x", FieldName = "nope" }] };
+        ImportSchema schema = new() { Fields = [Name] };
 
         using CsvCursor cursor = new(new MemoryStream(Utf8NoBom.GetBytes("x\n1\n"), writable: false), "t.csv");
         using MemoryStream stream = new(Utf8NoBom.GetBytes("x\n1\n"), writable: false);

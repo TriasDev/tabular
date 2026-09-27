@@ -15,13 +15,13 @@ namespace TriasDev.Tabular.Tests;
 /// </summary>
 public sealed class OptionsValidationTests
 {
-    private static readonly TextField Name = ImportField.Text("name");
+    private static readonly TextImportField Name = ImportField.Text("name");
 
-    private static readonly TargetSchema Schema = new() { Fields = [Name] };
+    private static readonly ImportSchema Schema = new() { Fields = [Name] };
 
     private static readonly MappingPlan Plan = new()
     {
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "name", TargetFieldName = "name" }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "name", FieldName = "name" }],
     };
 
     private static MemoryStream Csv() => new(Encoding.UTF8.GetBytes("name;x\na;b\n"), writable: false);

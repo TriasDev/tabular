@@ -222,12 +222,12 @@ public sealed class SecondRoundFixesTests
         // They disagreed, and the disagreement was structural: the profiler applied a shape test and
         // the extractor did not. So "3/15" was text to one half and March of the current year to the
         // other, and the precheck blocked files the import accepted. One rule, in one place, now.
-        TargetSchema schema = new() { Fields = [ImportField.Date("when")] };
+        ImportSchema schema = new() { Fields = [ImportField.Date("when")] };
 
         MappingPlan plan = new()
         {
             Culture = "en-US",
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "when", TargetFieldName = "when" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "when", FieldName = "when" }],
         };
 
         using MemoryStream stream = new(Utf8NoBom.GetBytes("when\n3/15\n2023-05-06\n"), writable: false);
@@ -237,7 +237,7 @@ public sealed class SecondRoundFixesTests
             "t.csv",
             plan,
             schema,
-            row => row[schema.Fields[0] as DateField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
+            row => row[schema.Fields[0] as DateImportField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
 
         run.All(cancellationToken: TestContext.Current.CancellationToken);
 

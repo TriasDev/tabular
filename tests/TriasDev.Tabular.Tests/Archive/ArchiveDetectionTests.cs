@@ -14,9 +14,9 @@ public sealed class ArchiveDetectionTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    private static readonly TextField Name = ImportField.Text("name");
+    private static readonly TextImportField Name = ImportField.Text("name");
 
-    private static readonly TargetSchema Schema = new() { Fields = [Name] };
+    private static readonly ImportSchema Schema = new() { Fields = [Name] };
 
     private static ITabularCursor Open(byte[] content, string name = "upload") =>
         TabularFile.Open(new MemoryStream(content, writable: false), name, cancellationToken: Token);

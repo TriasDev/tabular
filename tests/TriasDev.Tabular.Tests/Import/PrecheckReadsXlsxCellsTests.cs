@@ -20,7 +20,7 @@ public sealed class PrecheckReadsXlsxCellsTests
         // The profile keeps a distinct value as text, rendered invariantly. Read back under de-DE,
         // where the point is a group separator, 1234.5 becomes 12345 — so the precheck refused a
         // German workbook that imports perfectly. The extractor never parses such a cell at all.
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount").AtMost(9999)] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("amount").AtMost(9999)] };
 
         MappingPlan plan = Plan("amount") with { Culture = "de-DE" };
 
@@ -33,7 +33,7 @@ public sealed class PrecheckReadsXlsxCellsTests
     [Fact]
     public void StillRefusesAWorkbooksOwnNumberThatIsGenuinelyOutOfRange()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount").AtMost(100)] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("amount").AtMost(100)] };
 
         MappingPlan plan = Plan("amount") with { Culture = "de-DE" };
 
@@ -46,7 +46,7 @@ public sealed class PrecheckReadsXlsxCellsTests
         // Rendered as 1E+17, which NumberStyles.Number rejects — so the value used to be dropped as
         // unreadable and every rule about it skipped, while the import read the double natively and
         // failed every row.
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount").AtMost(5)] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("amount").AtMost(5)] };
 
         PrecheckResult result = MappingPrecheck.Check(
             Plan("amount"),
@@ -62,7 +62,7 @@ public sealed class PrecheckReadsXlsxCellsTests
         // A rule on the date makes the precheck rebuild each distinct value and judge it. Without
         // one it returned early — every cell native, nothing to check — and this test passed for a
         // reason other than its name. Under de-DE on purpose: a native date is not re-read as text.
-        TargetSchema schema = new() { Fields = [ImportField.Date("when").Must("when.in-january", d => d.Month == 1)] };
+        ImportSchema schema = new() { Fields = [ImportField.Date("when").Must("when.in-january", d => d.Month == 1)] };
 
         PrecheckResult result = MappingPrecheck.Check(
             Plan("when") with { Culture = "de-DE" },
@@ -81,8 +81,8 @@ public sealed class PrecheckReadsXlsxCellsTests
     {
         // A column of native numbers "had already answered" the type question, so the precheck said
         // nothing — and then every row of the import failed as a type mismatch.
-        TargetField field = kind == "date" ? ImportField.Date("v2") : ImportField.Boolean("v2");
-        TargetSchema schema = new() { Fields = [field] };
+        ImportField field = kind == "date" ? ImportField.Date("v2") : ImportField.Boolean("v2");
+        ImportSchema schema = new() { Fields = [field] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan("v2"), schema, Profile("45123", "45124"));
 
@@ -93,7 +93,7 @@ public sealed class PrecheckReadsXlsxCellsTests
     [Fact]
     public void WarnsAboutAWorkbooksOwnFractionsMappedToAWholeNumberField()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Integer("count")] };
+        ImportSchema schema = new() { Fields = [ImportField.Integer("count")] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan("count"), schema, Profile("1", "2", "2.5"));
 
@@ -107,7 +107,7 @@ public sealed class PrecheckReadsXlsxCellsTests
     {
         // Native cells do not depend on a culture, so a plan's culture outside the profiled set does
         // not make them "undetermined".
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount")] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("amount")] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan("amount") with { Culture = "fr-FR" }, schema, Profile("1.5", "2"));
 
@@ -120,7 +120,7 @@ public sealed class PrecheckReadsXlsxCellsTests
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "v", TargetFieldName = field },
+                new ColumnBinding { ColumnIndex = 0, Header = "v", FieldName = field },
             ],
         };
 

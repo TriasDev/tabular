@@ -28,13 +28,13 @@ public sealed class ZonedDateTests
     [InlineData("2024-01-15T10:00:00")]
     public void ImportsAZonedTimestampFromCsvAsTheClockTimeItStates(string written)
     {
-        DateField when = ImportField.Date("when");
+        DateImportField when = ImportField.Date("when");
         using CsvCursor cursor = new(new MemoryStream(Utf8NoBom.GetBytes($"when;x\n{written};a\n"), writable: false), "t.csv");
 
         using ImportRun<DateTime?> run = TabularImporter.Import(
             cursor,
-            new MappingPlan { Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "when", TargetFieldName = "when" }] },
-            new TargetSchema { Fields = [when] },
+            new MappingPlan { Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "when", FieldName = "when" }] },
+            new ImportSchema { Fields = [when] },
             row => row[when],
             cancellationToken: TestContext.Current.CancellationToken);
 

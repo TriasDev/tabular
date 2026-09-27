@@ -20,13 +20,13 @@ public sealed class StreamOwnershipTests
 
     private static readonly byte[] BrokenZip = [0x50, 0x4B, 0x03, 0x04, .. new byte[64]];
 
-    private static readonly TextField Name = ImportField.Text("name");
+    private static readonly TextImportField Name = ImportField.Text("name");
 
-    private static readonly TargetSchema Schema = new() { Fields = [Name] };
+    private static readonly ImportSchema Schema = new() { Fields = [Name] };
 
     private static readonly MappingPlan Plan = new()
     {
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "name", TargetFieldName = "name" }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "name", FieldName = "name" }],
     };
 
     private sealed class TrackedStream(byte[] content) : MemoryStream(content, writable: false)
@@ -144,7 +144,7 @@ public sealed class StreamOwnershipTests
     public void AnImportFromAStreamClosesItEvenWhenThePlanIsRefused()
     {
         TrackedStream stream = new(Csv);
-        MappingPlan unknownField = Plan with { Bindings = [Plan.Bindings[0] with { TargetFieldName = "nope" }] };
+        MappingPlan unknownField = Plan with { Bindings = [Plan.Bindings[0] with { FieldName = "nope" }] };
 
         Assert.Throws<MappingPlanException>(() => TabularImporter.Import(stream, "t.csv", unknownField, Schema, row => row[Name], cancellationToken: TestContext.Current.CancellationToken));
 

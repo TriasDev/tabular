@@ -351,11 +351,11 @@ public sealed class ReviewFixesTests
         // Padding below the data is expected and uninteresting. A row carrying a note in a column
         // nobody mapped is a record the run drops, and dropping records without a word is the worse
         // mistake — harder to notice than a number that does not add up.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso")] };
 
         MappingPlan plan = new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "iso", TargetFieldName = "iso" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "iso", FieldName = "iso" }],
         };
 
         // Row 1 imports. Row 2 is padding. Row 3 carries a note in the unmapped column.
@@ -366,7 +366,7 @@ public sealed class ReviewFixesTests
             "t.csv",
             plan,
             schema,
-            row => row[schema.Fields[0] as TextField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
+            row => row[schema.Fields[0] as TextImportField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
 
         run.All(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -378,11 +378,11 @@ public sealed class ReviewFixesTests
     [Fact]
     public void CountsNoSuchRowWhenEveryDroppedRowIsPadding()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso")] };
 
         MappingPlan plan = new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "iso", TargetFieldName = "iso" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "iso", FieldName = "iso" }],
         };
 
         using MemoryStream stream = new(Utf8NoBom.GetBytes("iso\nDE\n\n\n"), writable: false);
@@ -392,7 +392,7 @@ public sealed class ReviewFixesTests
             "t.csv",
             plan,
             schema,
-            row => row[schema.Fields[0] as TextField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
+            row => row[schema.Fields[0] as TextImportField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
 
         run.All(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -405,11 +405,11 @@ public sealed class ReviewFixesTests
         // Opening a file is not free — a csv's head is read to detect the dialect, a package's whole
         // central directory to open it — and a mapping that does not fit its schema is answerable
         // without any of that.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
 
         MappingPlan plan = new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "x", TargetFieldName = "other" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "x", FieldName = "other" }],
         };
 
         CountingStream stream = new(Utf8NoBom.GetBytes("iso\nDE\n"));

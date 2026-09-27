@@ -21,7 +21,7 @@ public sealed class PrecheckSpeaksUpTests
         // Neither check could see it: the required check found no empty cells, because the profiler
         // counted those values as values; the allowed-value check subtracted them and found nothing
         // left to disallow. Between them they held the proof and returned in silence.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
 
         MappingPlan plan = Plan(treatAsEmpty: ["k.A."]);
 
@@ -36,7 +36,7 @@ public sealed class PrecheckSpeaksUpTests
     [Fact]
     public void SpeaksAboutAPatternNoValueMatches()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Matching("^[A-Z]{2}$")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Matching("^[A-Z]{2}$")] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("iso\ngermany\nfrance\n"));
 
@@ -50,7 +50,7 @@ public sealed class PrecheckSpeaksUpTests
     [Fact]
     public void SpeaksAboutARangeNoValueReaches()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount").AtLeast(100)] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("amount").AtLeast(100)] };
 
         PrecheckResult result = MappingPrecheck.Check(
             Plan(field: "amount"),
@@ -70,14 +70,14 @@ public sealed class PrecheckSpeaksUpTests
         // non-number as zero, so this rule is one no value of this field could ever satisfy. A fault
         // in the schema rather than in the file, and this is the only place anybody would find out.
         //
-        // Not expressible through ImportField — TextField has no range method, which is the better
-        // defence — but TargetField is public and its constraint list is open, so the guard earns its
+        // Not expressible through ImportField — TextImportField has no range method, which is the better
+        // defence — but ImportField is public and its constraint list is open, so the guard earns its
         // place for whoever builds a schema without the fluent API.
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields =
             [
-                new TargetField
+                new ImportField
                 {
                     Name = "iso",
                     Type = ColumnType.Text,
@@ -98,13 +98,13 @@ public sealed class PrecheckSpeaksUpTests
     {
         // Extraction refuses the whole run over this, and the precheck never mentioned it — the one
         // fault that kills a run outright was the one it could not see.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso")] };
 
         MappingPlan plan = new()
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "country", TargetFieldName = "iso" },
+                new ColumnBinding { ColumnIndex = 0, Header = "country", FieldName = "iso" },
             ],
         };
 
@@ -122,12 +122,12 @@ public sealed class PrecheckSpeaksUpTests
         // A column absent from a stale profile is absent from a fresh one too — moving the header
         // down only removes rows from consideration — so this verdict survives what the rest does
         // not. Returning early on the stale profile threw it away and let the mapping pass.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
 
         MappingPlan plan = new()
         {
             HeaderRowIndex = 1,
-            Bindings = [new ColumnBinding { SourceColumnIndex = 5, SourceHeader = string.Empty, TargetFieldName = "iso" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 5, Header = string.Empty, FieldName = "iso" }],
         };
 
         PrecheckResult result = MappingPrecheck.Check(plan, schema, Profile("iso\nDE\n"));
@@ -150,7 +150,7 @@ public sealed class PrecheckSpeaksUpTests
         string pattern,
         bool importable)
     {
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [Raw(type, new FieldConstraint.Pattern(pattern))],
         };
@@ -166,7 +166,7 @@ public sealed class PrecheckSpeaksUpTests
         // A date written 1/2/2024 is eight characters in the file and ten as yyyy-MM-dd. The precheck
         // used to answer "not determined" here, which was honest but weak; reading the value the way
         // the extractor does makes it answerable.
-        TargetSchema schema = new() { Fields = [Raw(ColumnType.Date, new FieldConstraint.MaxLength(9))] };
+        ImportSchema schema = new() { Fields = [Raw(ColumnType.Date, new FieldConstraint.MaxLength(9))] };
 
         MappingPlan plan = Plan() with { Culture = "en-US" };
 
@@ -181,7 +181,7 @@ public sealed class PrecheckSpeaksUpTests
     {
         // It compared the profile's best-reading culture against a plan that said otherwise, so a
         // German file of 1.500 and 2.500 was refused for holding 1.5 and 2.5.
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("iso").AtLeast(100)] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("iso").AtLeast(100)] };
 
         MappingPlan plan = Plan() with { Culture = "de-DE" };
 
@@ -194,7 +194,7 @@ public sealed class PrecheckSpeaksUpTests
         // The empty cell sits in a row whose only mapped column is this one — so the import skips the
         // row entirely and never sees the gap. Analysis kept it, because another column carried a
         // value. A warning about rows that may not exist, not a refusal.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Unique()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Unique()] };
 
         PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("iso;note\nA1;a\n;b\nA2;c\n"));
 
@@ -208,7 +208,7 @@ public sealed class PrecheckSpeaksUpTests
     public void StillRefusesAUniqueColumnWhenEveryColumnIsMapped()
     {
         // Nothing is unbound, so the empty row is one the import will read and fail.
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("iso").Unique(), ImportField.Text("note")],
         };
@@ -217,8 +217,8 @@ public sealed class PrecheckSpeaksUpTests
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = string.Empty, TargetFieldName = "iso" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = string.Empty, TargetFieldName = "note" },
+                new ColumnBinding { ColumnIndex = 0, Header = string.Empty, FieldName = "iso" },
+                new ColumnBinding { ColumnIndex = 1, Header = string.Empty, FieldName = "note" },
             ],
         };
 
@@ -233,7 +233,7 @@ public sealed class PrecheckSpeaksUpTests
         // It reported "1 rows repeat a value already used" for a column saying k.A. twice. The import
         // reads both as absent and repeats nothing — but it does read them, and finds no value, which
         // is the other way a column fails to identify its rows.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Unique()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Unique()] };
 
         PrecheckFinding finding = Assert.Single(
             MappingPrecheck.Check(Plan(treatAsEmpty: ["k.A."]), schema, Profile("iso\n1\nk.A.\nk.A.\n2\n")).Findings,
@@ -248,14 +248,14 @@ public sealed class PrecheckSpeaksUpTests
     {
         // A binding naming a column that does not exist used to make the bound count reach the
         // sheet's width, so the hedge on an uncertain number dropped silently.
-        TargetSchema schema = new() { Fields = [ImportField.Text("iso").Require(), ImportField.Text("ghost")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require(), ImportField.Text("ghost")] };
 
         MappingPlan plan = new()
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = string.Empty, TargetFieldName = "iso" },
-                new ColumnBinding { SourceColumnIndex = 7, SourceHeader = string.Empty, TargetFieldName = "ghost" },
+                new ColumnBinding { ColumnIndex = 0, Header = string.Empty, FieldName = "iso" },
+                new ColumnBinding { ColumnIndex = 7, Header = string.Empty, FieldName = "ghost" },
             ],
         };
 
@@ -264,7 +264,7 @@ public sealed class PrecheckSpeaksUpTests
         Assert.Contains("Up to", Assert.Single(result.Findings, f => f.Code == "value.required").Detail);
     }
 
-    private static TargetField Raw(ColumnType type, FieldConstraint constraint) =>
+    private static ImportField Raw(ColumnType type, FieldConstraint constraint) =>
         new() { Name = "iso", Type = type, Constraints = [constraint] };
 
     [Fact]
@@ -272,16 +272,16 @@ public sealed class PrecheckSpeaksUpTests
     {
         // Required on a group member means "at least one of the group", so an empty cell in this
         // column is not a failure of its own — the certainty rule was reading it as one.
-        TranslatedField title = ImportField.Translated("title", ["en", "de"]).Require();
+        TranslatedImportField title = ImportField.Translated("title", ["en", "de"]).Require();
 
-        TargetSchema schema = new() { Fields = [.. title] };
+        ImportSchema schema = new() { Fields = [.. title] };
 
         MappingPlan plan = new()
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "en", TargetFieldName = "title.en" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "de", TargetFieldName = "title.de" },
+                new ColumnBinding { ColumnIndex = 0, Header = "en", FieldName = "title.en" },
+                new ColumnBinding { ColumnIndex = 1, Header = "de", FieldName = "title.de" },
             ],
         };
 
@@ -295,14 +295,14 @@ public sealed class PrecheckSpeaksUpTests
     {
         // "0 rows repeat a value already used" is a sentence that refutes itself. Two different
         // faults were wearing one message.
-        TargetSchema schema = new() { Fields = [ImportField.Text("id").Unique(), ImportField.Text("x")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("id").Unique(), ImportField.Text("x")] };
 
         MappingPlan plan = new()
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "id", TargetFieldName = "id" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "x", TargetFieldName = "x" },
+                new ColumnBinding { ColumnIndex = 0, Header = "id", FieldName = "id" },
+                new ColumnBinding { ColumnIndex = 1, Header = "x", FieldName = "x" },
             ],
         };
 
@@ -319,7 +319,7 @@ public sealed class PrecheckSpeaksUpTests
     {
         // The second cause of "not determined" arrived with a fix and inherited the first one's
         // explanation: a column with no values was reported as holding more than the profile tracks.
-        TargetSchema schema = new() { Fields = [ImportField.Text("id").Unique()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("id").Unique()] };
 
         PrecheckFinding finding = Assert.Single(
             MappingPrecheck.Check(Plan(field: "id"), schema, Profile("id\n")).Findings);
@@ -335,9 +335,9 @@ public sealed class PrecheckSpeaksUpTests
             [
                 new ColumnBinding
                 {
-                    SourceColumnIndex = 0,
-                    SourceHeader = string.Empty,
-                    TargetFieldName = field,
+                    ColumnIndex = 0,
+                    Header = string.Empty,
+                    FieldName = field,
                     TreatAsEmpty = treatAsEmpty ?? [],
                 },
             ],

@@ -13,14 +13,14 @@ public sealed class CustomRuleTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static readonly TextField Isin =
+    private static readonly TextImportField Isin =
         ImportField.Text("isin").Require().Must("isin.check-digit", CheckDigits.Luhn);
 
-    private static readonly TargetSchema Schema = new() { Fields = [Isin] };
+    private static readonly ImportSchema Schema = new() { Fields = [Isin] };
 
     private static MappingPlan Plan() => new()
     {
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "isin", TargetFieldName = "isin" }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "isin", FieldName = "isin" }],
     };
 
     private static CsvCursor Cursor(string csv) =>
@@ -46,7 +46,7 @@ public sealed class CustomRuleTests
 
         Assert.Equal("isin.check-digit", error.Code);
         Assert.Equal(3, error.RowNumber);
-        Assert.Equal("isin", error.TargetFieldName);
+        Assert.Equal("isin", error.FieldName);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class CustomRuleTests
         // An empty cell is the required check's business; a rule written for values should not have
         // to guard against there being none.
         int asked = 0;
-        TextField optional = ImportField.Text("isin").Must("isin.check-digit", v =>
+        TextImportField optional = ImportField.Text("isin").Must("isin.check-digit", v =>
         {
             asked++;
             return CheckDigits.Luhn(v);
@@ -78,7 +78,7 @@ public sealed class CustomRuleTests
         using ImportRun<string?> run = TabularImporter.Import(
             cursor,
             Plan(),
-            new TargetSchema { Fields = [optional] },
+            new ImportSchema { Fields = [optional] },
             row => row[optional],
             cancellationToken: TestContext.Current.CancellationToken);
 
@@ -102,9 +102,9 @@ public sealed class CustomRuleTests
     [Fact]
     public void TypesTheRuleByTheField()
     {
-        IntegerField even = ImportField.Integer("n").Must("n.even", n => n % 2 == 0);
-        DecimalField positive = ImportField.Decimal("amount").Must("amount.positive", d => d > 0);
-        DateField notFuture = ImportField.Date("on").Must("on.not-future", d => d <= new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Unspecified));
+        IntegerImportField even = ImportField.Integer("n").Must("n.even", n => n % 2 == 0);
+        DecimalImportField positive = ImportField.Decimal("amount").Must("amount.positive", d => d > 0);
+        DateImportField notFuture = ImportField.Date("on").Must("on.not-future", d => d <= new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Unspecified));
 
         using CsvCursor cursor = Cursor("n;amount;on\n3;-1,5;2031-01-01\n4;2,5;2024-01-01\n");
         using ImportRun<string> run = TabularImporter.Import(
@@ -114,12 +114,12 @@ public sealed class CustomRuleTests
                 Culture = "de-DE",
                 Bindings =
                 [
-                    new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "n", TargetFieldName = "n" },
-                    new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "amount", TargetFieldName = "amount" },
-                    new ColumnBinding { SourceColumnIndex = 2, SourceHeader = "on", TargetFieldName = "on" },
+                    new ColumnBinding { ColumnIndex = 0, Header = "n", FieldName = "n" },
+                    new ColumnBinding { ColumnIndex = 1, Header = "amount", FieldName = "amount" },
+                    new ColumnBinding { ColumnIndex = 2, Header = "on", FieldName = "on" },
                 ],
             },
-            new TargetSchema { Fields = [even, positive, notFuture] },
+            new ImportSchema { Fields = [even, positive, notFuture] },
             _ => "ok",
             cancellationToken: TestContext.Current.CancellationToken);
 

@@ -188,9 +188,9 @@ while (cursor.ReadRow())
 
 ```csharp
 // 3. Import it into your own type: fields declared once, a plan from the headers, a check, typed rows.
-TextField name = ImportField.Text("name").Require().MaxLength(100);
-DecimalField amount = ImportField.Decimal("amount").Require();
-TargetSchema schema = new() { Fields = [name, amount] };
+TextImportField name = ImportField.Text("name").Require().MaxLength(100);
+DecimalImportField amount = ImportField.Decimal("amount").Require();
+ImportSchema schema = new() { Fields = [name, amount] };
 
 MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], schema, culture: "de-DE");
 PrecheckResult check = MappingPrecheck.Check(plan, schema, profile);   // before reading the file again
