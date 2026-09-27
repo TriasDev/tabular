@@ -76,6 +76,6 @@ public sealed class InvariantGlobalizationTests
         using CsvCursor cursor = Csv();
         using ImportRun<decimal?> run = TabularImporter.Import(cursor, Plan(""), Schema, row => row[Amount], cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal([1.5m, 2.25m], run.All(cancellationToken: TestContext.Current.CancellationToken).Items);
+        Assert.Equal([1.5m, 2.25m], run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);
     }
 }

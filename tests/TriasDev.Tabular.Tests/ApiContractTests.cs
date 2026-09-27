@@ -86,7 +86,7 @@ public sealed class ApiContractTests
         run.Dispose();
         run.Dispose();
 
-        Assert.Throws<ObjectDisposedException>(() => run.Rows(TestContext.Current.CancellationToken).ToList());
+        Assert.Throws<ObjectDisposedException>(() => run.ReadRows(TestContext.Current.CancellationToken).ToList());
     }
 
     [Fact]
@@ -95,8 +95,8 @@ public sealed class ApiContractTests
         using CsvCursor cursor = new(Csv(), "t.csv");
         using ImportRun<string?> run = TabularImporter.Import(cursor, Plan, Schema, row => row[Name], cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Single(run.Rows(TestContext.Current.CancellationToken));
-        Assert.Throws<InvalidOperationException>(() => run.Rows(TestContext.Current.CancellationToken).ToList());
+        Assert.Single(run.ReadRows(TestContext.Current.CancellationToken));
+        Assert.Throws<InvalidOperationException>(() => run.ReadRows(TestContext.Current.CancellationToken).ToList());
     }
 
     [Theory]
@@ -109,7 +109,7 @@ public sealed class ApiContractTests
         using CsvCursor cursor = new(Csv(), "t.csv");
         using ImportRun<string?> run = TabularImporter.Import(cursor, Plan, Schema, row => row[Name], cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => run.InChunks(size, TestContext.Current.CancellationToken));
+        Assert.Throws<ArgumentOutOfRangeException>(() => run.ReadChunks(size, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class ApiContractTests
         using CsvCursor cursor = new(Csv(), "t.csv");
         using ImportRun<string?> run = TabularImporter.Import(cursor, Plan, Schema, row => row[Name], cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => run.All(limit: 0, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Throws<ArgumentOutOfRangeException>(() => run.ReadAll(limit: 0, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

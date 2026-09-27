@@ -55,6 +55,10 @@
 *REMOVED*TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.DecimalField! field].get -> decimal?
 *REMOVED*TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.IntegerField! field].get -> long?
 *REMOVED*TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.TextField! field].get -> string?
+*REMOVED*TriasDev.Tabular.ImportRun<T>.All(int limit = 100000, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportResult<T>!
+*REMOVED*TriasDev.Tabular.ImportRun<T>.GetEnumerator() -> System.Collections.Generic.IEnumerator<TriasDev.Tabular.ImportOutcome<T>!>!
+*REMOVED*TriasDev.Tabular.ImportRun<T>.InChunks(int size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IEnumerable<TriasDev.Tabular.ImportChunk<T>!>!
+*REMOVED*TriasDev.Tabular.ImportRun<T>.Rows(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IEnumerable<TriasDev.Tabular.ImportOutcome<T>!>!
 *REMOVED*TriasDev.Tabular.IntegerField
 *REMOVED*TriasDev.Tabular.IntegerField.AtLeast(long value) -> TriasDev.Tabular.IntegerField!
 *REMOVED*TriasDev.Tabular.IntegerField.AtMost(long value) -> TriasDev.Tabular.IntegerField!
@@ -267,6 +271,15 @@ TriasDev.Tabular.DecimalImportField.DecimalImportField() -> void
 TriasDev.Tabular.DecimalImportField.Must(string! code, System.Func<decimal, bool>! rule) -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Require() -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Unique() -> TriasDev.Tabular.DecimalImportField!
+TriasDev.Tabular.ExtractionSummary.<Clone>$() -> TriasDev.Tabular.ExtractionSummary!
+TriasDev.Tabular.ExtractionSummary.Equals(TriasDev.Tabular.ExtractionSummary? other) -> bool
+TriasDev.Tabular.ExtractionSummary.ErrorCount.init -> void
+TriasDev.Tabular.ExtractionSummary.RowsFailed.init -> void
+TriasDev.Tabular.ExtractionSummary.RowsProduced.init -> void
+TriasDev.Tabular.ExtractionSummary.RowsRead.init -> void
+TriasDev.Tabular.ExtractionSummary.RowsSkipped.init -> void
+TriasDev.Tabular.ExtractionSummary.RowsWithNothingMapped.init -> void
+TriasDev.Tabular.ExtractionSummary.StoppedEarly.init -> void
 TriasDev.Tabular.FieldConstraint.ExactLength.ExactLength(int length) -> void
 TriasDev.Tabular.FieldConstraint.MaxLength.MaxLength(int length) -> void
 TriasDev.Tabular.FieldConstraint.MaxValue.MaxValue(decimal maximum) -> void
@@ -300,6 +313,9 @@ TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.DateImportField! field].get -> 
 TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.DecimalImportField! field].get -> decimal?
 TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.IntegerImportField! field].get -> long?
 TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.TextImportField! field].get -> string?
+TriasDev.Tabular.ImportRun<T>.ReadAll(int limit = 100000, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportResult<T>!
+TriasDev.Tabular.ImportRun<T>.ReadChunks(int size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IEnumerable<TriasDev.Tabular.ImportChunk<T>!>!
+TriasDev.Tabular.ImportRun<T>.ReadRows(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IEnumerable<TriasDev.Tabular.ImportOutcome<T>!>!
 TriasDev.Tabular.ImportSchema
 TriasDev.Tabular.ImportSchema.Fields.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.ImportField!>!
 TriasDev.Tabular.ImportSchema.Fields.init -> void
@@ -380,8 +396,13 @@ const TriasDev.Tabular.PrecheckReasons.ValuesFail = "values-fail" -> string!
 override TriasDev.Tabular.CursorDiagnostics.Equals(object? obj) -> bool
 override TriasDev.Tabular.CursorDiagnostics.GetHashCode() -> int
 override TriasDev.Tabular.CursorDiagnostics.ToString() -> string!
+override TriasDev.Tabular.ExtractionSummary.Equals(object? obj) -> bool
+override TriasDev.Tabular.ExtractionSummary.GetHashCode() -> int
+override TriasDev.Tabular.ExtractionSummary.ToString() -> string!
 static TriasDev.Tabular.CursorDiagnostics.operator !=(TriasDev.Tabular.CursorDiagnostics? left, TriasDev.Tabular.CursorDiagnostics? right) -> bool
 static TriasDev.Tabular.CursorDiagnostics.operator ==(TriasDev.Tabular.CursorDiagnostics? left, TriasDev.Tabular.CursorDiagnostics? right) -> bool
+static TriasDev.Tabular.ExtractionSummary.operator !=(TriasDev.Tabular.ExtractionSummary? left, TriasDev.Tabular.ExtractionSummary? right) -> bool
+static TriasDev.Tabular.ExtractionSummary.operator ==(TriasDev.Tabular.ExtractionSummary? left, TriasDev.Tabular.ExtractionSummary? right) -> bool
 static TriasDev.Tabular.ImportField.Boolean(string! name) -> TriasDev.Tabular.BooleanImportField!
 static TriasDev.Tabular.ImportField.Date(string! name) -> TriasDev.Tabular.DateImportField!
 static TriasDev.Tabular.ImportField.Decimal(string! name) -> TriasDev.Tabular.DecimalImportField!

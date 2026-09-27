@@ -132,7 +132,7 @@ public sealed class ArchiveDetectionTests
 
         using (ImportRun<string?> run = TabularImporter.Import(stream, "upload.zip", plan, Schema, row => row[Name], cancellationToken: Token))
         {
-            IReadOnlyList<string?> names = run.All(cancellationToken: Token).Items;
+            IReadOnlyList<string?> names = run.ReadAll(cancellationToken: Token).Items;
             Assert.Equal(20_000, names.Count);
             Assert.Equal("n19999", names[^1]);
         }

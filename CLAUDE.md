@@ -54,5 +54,5 @@ under `src/TriasDev.Tabular` still group the code by layer:
 - **Mapping** — `ImportSchema`, `MappingPlan`, `MappingPlanValidator`, field constraints, `ImportPolicy`.
 - **Extraction** — `TabularExtractor.Start` → `ExtractionSession`: typed values per row, no entity.
 - **Import** — `TabularImporter` = extraction + the caller's mapper, exposed as `ImportRun<T>`
-  (row-at-a-time, `InChunks`, `All(limit)`). `ImportField` declares fields that are both the schema and
+  (read once, by `ReadRows`, `ReadChunks` or `ReadAll(limit)`). `ImportField` declares fields that are both the schema and
   the accessor. `MappingPrecheck` judges a plan against a `FileProfile` before importing.

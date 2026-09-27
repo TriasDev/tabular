@@ -29,7 +29,7 @@ and a row is normally over in a few hundred characters.
 
 Every operation that reads takes a token, last parameter, as the BCL's do: `Open`, `Analyze`,
 `Start` and `Import` for the work they do up front, and `ExtractionSession.ReadRow`,
-`ImportRun.Rows`, `InChunks` and `All` for the reading. The token a run was started with keeps
+`ImportRun.ReadRows`, `ReadChunks` and `ReadAll` for the reading. The token a run was started with keeps
 applying to every read of it, so either one stops the run — a plain `foreach` over the run, which
 cannot pass a token, is stopped by the run's.
 

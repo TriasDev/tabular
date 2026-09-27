@@ -49,7 +49,7 @@ has one sheet anyway. A plan written by hand can leave both null.
 using FileStream file = File.OpenRead(path);
 using ImportRun<Customer> run = TabularImporter.Import(file, Path.GetFileName(path), plan, Schema, Build);
 
-foreach (ImportOutcome<Customer> outcome in run)
+foreach (ImportOutcome<Customer> outcome in run.ReadRows(cancellationToken))
 {
     if (outcome.HasErrors)
     {
@@ -84,20 +84,25 @@ handful; a nightly load of five million rows has nobody to show them to.
 ## Three ways to read a run, over one core
 
 ```csharp
-foreach (ImportOutcome<Customer> outcome in run) { }        // a row at a time
+foreach (ImportOutcome<Customer> outcome in run.ReadRows()) { }   // a row at a time
 
-foreach (ImportChunk<Customer> chunk in run.InChunks(100_000))
+foreach (ImportChunk<Customer> chunk in run.ReadChunks(100_000))
 {
     await repository.BulkInsertAsync(chunk.Items);          // a batch at a time
     Report(chunk.Errors);
 }
 
-ImportResult<Customer> result = run.All(limit: 50_000);     // all of it, with a ceiling
+ImportResult<Customer> result = run.ReadAll(limit: 50_000);   // all of it, with a ceiling
 ```
 
-Five million rows are not five million inserts, which is what `InChunks` is for: each batch carries
+Five million rows are not five million inserts, which is what `ReadChunks` is for: each batch carries
 what was built and the failures from the same window, so the report keeps pace with the writing.
-`All` holds a ceiling because a convenience that quietly consumes a machine is not a convenience.
+`ReadAll` holds a ceiling because a convenience that quietly consumes a machine is not a convenience.
+
+A run reads its file once, by one of the three: a second read of any kind throws, rather than
+quietly returning nothing. `ReadRows` is lazy and counts as a read from the first row it hands out.
+Each takes a token; the one the run was started with stops it too. `Summary` is a snapshot of the
+counts as they stand when it is taken — take it again once the run is read out.
 
 ## If you need the values rather than an entity
 
@@ -138,7 +143,7 @@ declared the target knows.
 
 Under `AllOrNothing` the precheck blocks on any finding it is sure of, and the run itself stops at
 the first row that fails (`Summary.StoppedEarly`). `All()` then returns no items, only the error, and
-the batch from `InChunks` that holds the failure carries no items. What a streaming run cannot do is
+the batch from `ReadChunks` that holds the failure carries no items. What a streaming run cannot do is
 take back batches it handed out before the failure: a caller writing batch by batch commits once, at
 the end, or rolls back.
 

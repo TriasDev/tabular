@@ -1,16 +1,21 @@
 namespace TriasDev.Tabular;
 
-/// <summary>What a run amounted to, available once it has been read out.</summary>
-public sealed class ExtractionSummary
+/// <summary>What a run amounted to, as it stood when this was taken.</summary>
+/// <remarks>
+/// A snapshot: the run's own counters keep moving while it reads, and a summary taken before the
+/// end keeps the numbers it had. Take it again, or take the one an <see cref="ImportResult{T}"/>
+/// carries, for the final count.
+/// </remarks>
+public sealed record ExtractionSummary
 {
     /// <summary>Data rows the reader saw, including those skipped and those that failed.</summary>
-    public int RowsRead { get; internal set; }
+    public int RowsRead { get; init; }
 
     /// <summary>Rows that produced values.</summary>
-    public int RowsProduced { get; internal set; }
+    public int RowsProduced { get; init; }
 
     /// <summary>Rows whose mapped cells were all empty.</summary>
-    public int RowsSkipped { get; internal set; }
+    public int RowsSkipped { get; init; }
 
     /// <summary>
     /// How many of the skipped rows held a value, just not in any mapped column.
@@ -29,13 +34,13 @@ public sealed class ExtractionSummary
     /// uploaded the file see that a hundred of their rows went nowhere.
     /// </para>
     /// </remarks>
-    public int RowsWithNothingMapped { get; internal set; }
+    public int RowsWithNothingMapped { get; init; }
 
     /// <summary>Rows that produced errors instead of values.</summary>
-    public int RowsFailed { get; internal set; }
+    public int RowsFailed { get; init; }
 
     /// <summary>Errors reported across every row.</summary>
-    public int ErrorCount { get; internal set; }
+    public int ErrorCount { get; init; }
 
     /// <summary>
     /// True when the run stopped at its error limit rather than at the end of the file.
@@ -44,5 +49,5 @@ public sealed class ExtractionSummary
     /// The distinction a caller must not lose: a run that stopped early has not seen the rest of the
     /// file, so "no further errors" would be a claim nobody checked.
     /// </remarks>
-    public bool StoppedEarly { get; internal set; }
+    public bool StoppedEarly { get; init; }
 }
