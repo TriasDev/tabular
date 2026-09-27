@@ -275,9 +275,11 @@ internal sealed class SheetScanner : IDisposable
         _position = end;
         Kind = XmlNodeKind.Text;
 
-        if (_buffer.AsSpan(start, _valueLength).Contains('&'))
+        // An entity to resolve, or a line end to read as XML reads it: a carriage return, alone or
+        // before a line feed, is a line feed. Only a character reference keeps one.
+        if (_buffer.AsSpan(start, _valueLength).IndexOfAny('&', '\r') >= 0)
         {
-            Decode(start, _valueLength);
+            Decode(start, _valueLength, resolveEntities: true);
         }
 
         return _valueLength > 0;
@@ -299,6 +301,12 @@ internal sealed class SheetScanner : IDisposable
         _valueStart = start;
         _valueLength = end - start;
         _position = end + 3;
+
+        if (_buffer.AsSpan(start, _valueLength).Contains('\r'))
+        {
+            Decode(start, _valueLength, resolveEntities: false);
+        }
+
         return true;
     }
 
@@ -679,13 +687,14 @@ internal sealed class SheetScanner : IDisposable
     }
 
     /// <summary>
-    /// Resolves XML entities into the scratch buffer.
+    /// Resolves XML entities into the scratch buffer, and reads line ends as XML does.
     /// </summary>
     /// <remarks>
-    /// Only reached when the text actually contains an ampersand, which in a worksheet means a string
-    /// cell holding one of five characters. Numbers and dates never take this path.
+    /// Only reached when the text actually contains an ampersand or a carriage return, which in a
+    /// worksheet means a string cell holding one of five characters or a line end written as it is.
+    /// Numbers and dates never take this path. CDATA holds no entities, so it asks for line ends only.
     /// </remarks>
-    private void Decode(int from, int length)
+    private void Decode(int from, int length, bool resolveEntities)
     {
         if (_decoded.Length < length)
         {
@@ -700,38 +709,49 @@ internal sealed class SheetScanner : IDisposable
         {
             char c = _buffer[i];
 
-            if (c != '&')
+            if (c == '\r')
+            {
+                _decoded[written++] = '\n';
+                i += i + 1 < end && _buffer[i + 1] == '\n' ? 2 : 1;
+            }
+            else if (c == '&' && resolveEntities)
+            {
+                i = ResolveEntity(i, end, ref written);
+            }
+            else
             {
                 _decoded[written++] = c;
                 i++;
-                continue;
             }
-
-            int semicolon = -1;
-
-            for (int j = i + 1; j < end && j <= i + 12; j++)
-            {
-                if (_buffer[j] == ';')
-                {
-                    semicolon = j;
-                    break;
-                }
-            }
-
-            if (semicolon < 0)
-            {
-                _decoded[written++] = c;    // a stray ampersand, which is not our problem to reject
-                i++;
-                continue;
-            }
-
-            ReadOnlySpan<char> entity = _buffer.AsSpan(i + 1, semicolon - i - 1);
-            written += WriteEntity(entity, _decoded.AsSpan(written));
-            i = semicolon + 1;
         }
 
         _decodedLength = written;
         _valueIsDecoded = true;
+    }
+
+    /// <summary>Writes the entity that starts at <paramref name="at"/>, and says where the text goes on.</summary>
+    private int ResolveEntity(int at, int end, ref int written)
+    {
+        int semicolon = -1;
+
+        for (int j = at + 1; j < end && j <= at + 12; j++)
+        {
+            if (_buffer[j] == ';')
+            {
+                semicolon = j;
+                break;
+            }
+        }
+
+        if (semicolon < 0)
+        {
+            _decoded[written++] = '&';      // a stray ampersand, which is not our problem to reject
+            return at + 1;
+        }
+
+        ReadOnlySpan<char> entity = _buffer.AsSpan(at + 1, semicolon - at - 1);
+        written += WriteEntity(entity, _decoded.AsSpan(written));
+        return semicolon + 1;
     }
 
     /// <summary>
