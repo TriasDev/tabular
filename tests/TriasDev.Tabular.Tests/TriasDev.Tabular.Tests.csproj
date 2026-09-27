@@ -4,4 +4,9 @@
     <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
   </ItemGroup>
 
+  <!-- Embedded rather than copied, so a test finds its file wherever the assembly runs. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\Producers\*" Exclude="Fixtures\Producers\*.md" LogicalName="Producers/%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>
