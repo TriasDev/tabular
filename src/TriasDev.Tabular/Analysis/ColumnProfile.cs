@@ -7,5 +7,5 @@ public sealed record ColumnProfile
     public required ColumnFacts Facts { get; init; }
 
     /// <summary>What those counts suggest, most convincing first.</summary>
-    public required IReadOnlyList<TypeHypothesis> Hypotheses { get; init; }
+    public required IReadOnlyList<TypeHypothesis> Hypotheses { get; init => field = Equatable.List(value); }
 }

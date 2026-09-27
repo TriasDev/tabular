@@ -33,7 +33,7 @@ public sealed record ColumnFacts
     public required int BooleanCount { get; init; }
 
     /// <summary>How the values fare under each culture tried.</summary>
-    public required IReadOnlyList<CultureParseCounts> ParseCounts { get; init; }
+    public required IReadOnlyList<CultureParseCounts> ParseCounts { get; init => field = Equatable.List(value); }
 
     /// <summary>Smallest numeric value under the culture that parsed most of them.</summary>
     public required decimal? MinNumeric { get; init; }
@@ -55,7 +55,7 @@ public sealed record ColumnFacts
     /// beyond that. A workbook does declare, and a column of real dates is worth distinguishing from
     /// a column of text that looks like dates.
     /// </remarks>
-    public required IReadOnlyDictionary<RawCellKind, int> NativeKinds { get; init; }
+    public required IReadOnlyDictionary<RawCellKind, int> NativeKinds { get; init => field = Equatable.Dictionary(value); }
 
     /// <summary>How many different values the column holds.</summary>
     public required int DistinctCount { get; init; }
@@ -92,10 +92,10 @@ public sealed record ColumnFacts
     /// prevent. These are the most frequent among those tracked, which is enough to let someone look
     /// into a column and recognise what is in it.
     /// </remarks>
-    public required IReadOnlyList<ValueFrequency> DistinctSamples { get; init; }
+    public required IReadOnlyList<ValueFrequency> DistinctSamples { get; init => field = Equatable.List(value); }
 
     /// <summary>The first non-empty values, in file order.</summary>
-    public required IReadOnlyList<string> Samples { get; init; }
+    public required IReadOnlyList<string> Samples { get; init => field = Equatable.List(value); }
 
     /// <summary>
     /// The column's distinct values, where there were few enough of them to keep.
@@ -105,7 +105,7 @@ public sealed record ColumnFacts
     /// <see cref="DistinctValuesAreComplete"/>, which is the only thing that makes this set safe to
     /// draw a conclusion from.
     /// </remarks>
-    public required IReadOnlyList<string> DistinctValues { get; init; }
+    public required IReadOnlyList<string> DistinctValues { get; init => field = Equatable.List(value); }
 
     /// <summary>
     /// Whether <see cref="DistinctValues"/> is every value the column holds.

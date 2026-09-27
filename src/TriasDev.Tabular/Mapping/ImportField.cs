@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 
 namespace TriasDev.Tabular;
 
@@ -22,8 +24,34 @@ namespace TriasDev.Tabular;
 /// configuration, say — where <c>new ImportField { Name = …, Type = … }</c> is the declaration.
 /// </para>
 /// </remarks>
-public record ImportField
+public class ImportField
 {
+    /// <summary>Declares a field; <see cref="Name"/> and <see cref="Type"/> must be set.</summary>
+    public ImportField()
+    {
+    }
+
+    /// <summary>A copy of another field, which the typed fields' rules start from.</summary>
+    /// <remarks>
+    /// A class, not a record: a field carries rules that hold delegates and compiled patterns, for
+    /// which equality by value means nothing. Two fields are the same field only if they are the same
+    /// instance. The rules still never change a field — each returns a copy with one more rule.
+    /// </remarks>
+    /// <param name="original">The field to copy.</param>
+    [SetsRequiredMembers]
+    protected ImportField(ImportField original)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+
+        Name = original.Name;
+        Type = original.Type;
+        Required = original.Required;
+        Constraints = original.Constraints;
+        MustBeUnique = original.MustBeUnique;
+        Group = original.Group;
+        Variant = original.Variant;
+    }
+
     /// <summary>How the field is addressed in a mapping.</summary>
     public required string Name { get; init; }
 

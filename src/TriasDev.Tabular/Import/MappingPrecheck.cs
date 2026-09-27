@@ -38,7 +38,7 @@ public sealed record PrecheckFinding : ITabularProblem
     public RowCountBound AffectedRowsBound { get; init; }
 
     /// <summary>Up to five of the values that fail, in ordinal order, as the profile kept them.</summary>
-    public IReadOnlyList<string> Examples { get; init; } = [];
+    public IReadOnlyList<string> Examples { get; init => field = Equatable.List(value); } = Equatable.Empty<string>();
 
     /// <summary>
     /// The values a message for this code needs, by the names in <see cref="PrecheckArguments"/>;
@@ -48,7 +48,7 @@ public sealed record PrecheckFinding : ITabularProblem
     /// Data rather than a sentence: a UI fills its own template for the code, in its own language.
     /// Which names each code carries is listed on the documentation's error-code page.
     /// </remarks>
-    public IReadOnlyDictionary<string, string> Arguments { get; init; } = NoArguments;
+    public IReadOnlyDictionary<string, string> Arguments { get; init => field = Equatable.Dictionary(value); } = Equatable.Dictionary(NoArguments);
 
     internal static IReadOnlyDictionary<string, string> NoArguments { get; } = new Dictionary<string, string>(0);
 }
@@ -72,7 +72,11 @@ public enum RowCountBound
 /// <summary>What a precheck concluded.</summary>
 /// <param name="CanImport">Whether the import may proceed at all.</param>
 /// <param name="Findings">What the measurements showed, worst first.</param>
-public sealed record PrecheckResult(bool CanImport, IReadOnlyList<PrecheckFinding> Findings);
+public sealed record PrecheckResult(bool CanImport, IReadOnlyList<PrecheckFinding> Findings)
+{
+    /// <summary>What the measurements showed, worst first.</summary>
+    public IReadOnlyList<PrecheckFinding> Findings { get; init => field = Equatable.List(value); } = Equatable.List(Findings);
+}
 
 /// <summary>
 /// Judges a mapping against what analysis already measured, without reading the file again.

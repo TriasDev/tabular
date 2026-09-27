@@ -1,11 +1,24 @@
+using System.Diagnostics.CodeAnalysis;
+
 
 namespace TriasDev.Tabular;
 
 /// <summary>A field whose values are text.</summary>
-public sealed record TextImportField : ImportField
+public sealed class TextImportField : ImportField
 {
+    /// <summary>Declares the field; <see cref="ImportField.Text"/> is the usual way.</summary>
+    public TextImportField()
+    {
+    }
+
+    [SetsRequiredMembers]
+    private TextImportField(TextImportField original)
+        : base(original)
+    {
+    }
+
     /// <summary>Declares that a row without this field is invalid.</summary>
-    public TextImportField Require() => this with { Required = true };
+    public TextImportField Require() => new(this) { Required = true };
 
     /// <summary>
     /// Declares that every row must carry a different value.
@@ -14,7 +27,7 @@ public sealed record TextImportField : ImportField
     /// Checked against the profile before the import runs, not row by row: whether a value repeats
     /// is a property of the column and no single row can show it.
     /// </remarks>
-    public TextImportField Unique() => this with { MustBeUnique = true };
+    public TextImportField Unique() => new(this) { MustBeUnique = true };
 
     /// <summary>The value must have exactly this many characters.</summary>
     public TextImportField ExactLength(int length) => With(new FieldConstraint.ExactLength(length));
@@ -42,14 +55,25 @@ public sealed record TextImportField : ImportField
     }
 
     private TextImportField With(FieldConstraint constraint) =>
-        this with { Constraints = [.. Constraints, constraint] };
+        new(this) { Constraints = [.. Constraints, constraint] };
 }
 
 /// <summary>A field whose values are whole numbers.</summary>
-public sealed record IntegerImportField : ImportField
+public sealed class IntegerImportField : ImportField
 {
+    /// <summary>Declares the field; <see cref="ImportField.Integer"/> is the usual way.</summary>
+    public IntegerImportField()
+    {
+    }
+
+    [SetsRequiredMembers]
+    private IntegerImportField(IntegerImportField original)
+        : base(original)
+    {
+    }
+
     /// <summary>Declares that a row without this field is invalid.</summary>
-    public IntegerImportField Require() => this with { Required = true };
+    public IntegerImportField Require() => new(this) { Required = true };
 
     /// <summary>
     /// Declares that every row must carry a different value.
@@ -58,7 +82,7 @@ public sealed record IntegerImportField : ImportField
     /// Checked against the profile before the import runs, not row by row: whether a value repeats
     /// is a property of the column and no single row can show it.
     /// </remarks>
-    public IntegerImportField Unique() => this with { MustBeUnique = true };
+    public IntegerImportField Unique() => new(this) { MustBeUnique = true };
 
     /// <summary>The value must not be below this one.</summary>
     public IntegerImportField AtLeast(long value) => With(new FieldConstraint.MinValue(value));
@@ -74,14 +98,25 @@ public sealed record IntegerImportField : ImportField
     }
 
     private IntegerImportField With(FieldConstraint constraint) =>
-        this with { Constraints = [.. Constraints, constraint] };
+        new(this) { Constraints = [.. Constraints, constraint] };
 }
 
 /// <summary>A field whose values are numbers with a fractional part.</summary>
-public sealed record DecimalImportField : ImportField
+public sealed class DecimalImportField : ImportField
 {
+    /// <summary>Declares the field; <see cref="ImportField.Decimal"/> is the usual way.</summary>
+    public DecimalImportField()
+    {
+    }
+
+    [SetsRequiredMembers]
+    private DecimalImportField(DecimalImportField original)
+        : base(original)
+    {
+    }
+
     /// <summary>Declares that a row without this field is invalid.</summary>
-    public DecimalImportField Require() => this with { Required = true };
+    public DecimalImportField Require() => new(this) { Required = true };
 
     /// <summary>
     /// Declares that every row must carry a different value.
@@ -90,7 +125,7 @@ public sealed record DecimalImportField : ImportField
     /// Checked against the profile before the import runs, not row by row: whether a value repeats
     /// is a property of the column and no single row can show it.
     /// </remarks>
-    public DecimalImportField Unique() => this with { MustBeUnique = true };
+    public DecimalImportField Unique() => new(this) { MustBeUnique = true };
 
     /// <summary>The value must not be below this one.</summary>
     public DecimalImportField AtLeast(decimal value) => With(new FieldConstraint.MinValue(value));
@@ -106,14 +141,25 @@ public sealed record DecimalImportField : ImportField
     }
 
     private DecimalImportField With(FieldConstraint constraint) =>
-        this with { Constraints = [.. Constraints, constraint] };
+        new(this) { Constraints = [.. Constraints, constraint] };
 }
 
 /// <summary>A field whose values are dates.</summary>
-public sealed record DateImportField : ImportField
+public sealed class DateImportField : ImportField
 {
+    /// <summary>Declares the field; <see cref="ImportField.Date"/> is the usual way.</summary>
+    public DateImportField()
+    {
+    }
+
+    [SetsRequiredMembers]
+    private DateImportField(DateImportField original)
+        : base(original)
+    {
+    }
+
     /// <summary>Declares that a row without this field is invalid.</summary>
-    public DateImportField Require() => this with { Required = true };
+    public DateImportField Require() => new(this) { Required = true };
 
     /// <summary>
     /// Declares that every row must carry a different value.
@@ -122,19 +168,30 @@ public sealed record DateImportField : ImportField
     /// Checked against the profile before the import runs, not row by row: whether a value repeats
     /// is a property of the column and no single row can show it.
     /// </remarks>
-    public DateImportField Unique() => this with { MustBeUnique = true };
+    public DateImportField Unique() => new(this) { MustBeUnique = true };
 
     /// <summary>Adds a rule of the caller's own, reported under its code when a value fails it.</summary>
     public DateImportField Must(string code, Func<DateTime, bool> rule)
     {
         ArgumentNullException.ThrowIfNull(rule);
-        return this with { Constraints = [.. Constraints, new FieldConstraint.Rule(code, v => rule(v.Date))] };
+        return new(this) { Constraints = [.. Constraints, new FieldConstraint.Rule(code, v => rule(v.Date))] };
     }
 }
 
 /// <summary>A field whose values are true or false.</summary>
-public sealed record BooleanImportField : ImportField
+public sealed class BooleanImportField : ImportField
 {
+    /// <summary>Declares the field; <see cref="ImportField.Boolean"/> is the usual way.</summary>
+    public BooleanImportField()
+    {
+    }
+
+    [SetsRequiredMembers]
+    private BooleanImportField(BooleanImportField original)
+        : base(original)
+    {
+    }
+
     /// <summary>Declares that a row without this field is invalid.</summary>
-    public BooleanImportField Require() => this with { Required = true };
+    public BooleanImportField Require() => new(this) { Required = true };
 }

@@ -21,5 +21,5 @@ public sealed record ColumnBinding
     public required string FieldName { get; init; }
 
     /// <summary>Values to read as absent, such as a placeholder a spreadsheet uses for "unknown".</summary>
-    public IReadOnlyList<string> TreatAsEmpty { get; init; } = [];
+    public IReadOnlyList<string> TreatAsEmpty { get; init => field = Equatable.List(value); } = Equatable.Empty<string>();
 }

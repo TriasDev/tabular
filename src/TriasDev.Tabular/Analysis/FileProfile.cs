@@ -14,12 +14,12 @@ public sealed record FileProfile
     public required TabularFormat Format { get; init; }
 
     /// <summary>One entry per sheet, in file order.</summary>
-    public required IReadOnlyList<SheetProfile> Sheets { get; init; }
+    public required IReadOnlyList<SheetProfile> Sheets { get; init => field = Equatable.List(value); }
 
     /// <summary>What the reader had to repair to get through the file, every sheet together.</summary>
     /// <remarks>Taken when the pass ended: reading the cursor on does not change it.</remarks>
     public required CursorDiagnostics Diagnostics { get; init; }
 
     /// <summary>The files of an archive that were not read as tables, and why; empty for any other file.</summary>
-    public IReadOnlyList<SkippedEntry> SkippedEntries { get; init; } = [];
+    public IReadOnlyList<SkippedEntry> SkippedEntries { get; init => field = Equatable.List(value); } = Equatable.Empty<SkippedEntry>();
 }

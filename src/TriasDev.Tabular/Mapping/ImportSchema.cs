@@ -1,7 +1,7 @@
 namespace TriasDev.Tabular;
 
 /// <summary>What a caller wants an import to produce.</summary>
-public sealed record ImportSchema
+public sealed class ImportSchema
 {
     /// <summary>The fields, in the order a caller wants them.</summary>
     public required IReadOnlyList<ImportField> Fields { get; init; }

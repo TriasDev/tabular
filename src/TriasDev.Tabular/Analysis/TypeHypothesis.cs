@@ -38,5 +38,5 @@ public sealed record TypeHypothesis
     public required int UnmatchedCount { get; init; }
 
     /// <summary>Where the values it does not account for stand, up to the configured limit.</summary>
-    public required IReadOnlyList<ValueLocation> Outliers { get; init; }
+    public required IReadOnlyList<ValueLocation> Outliers { get; init => field = Equatable.List(value); }
 }
