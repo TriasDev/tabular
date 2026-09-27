@@ -91,7 +91,7 @@ public sealed class ArchiveCursor : ITabularCursor
                     "The archive holds no file that can be read as a table.");
             }
 
-            MoveToSheet(0);
+            MoveToSheet(0, cancellationToken);
         }
         catch
         {
@@ -173,7 +173,12 @@ public sealed class ArchiveCursor : ITabularCursor
     }
 
     /// <inheritdoc />
-    public bool MoveToSheet(int index)
+    /// <remarks>
+    /// Moving to a workbook's sheet copies the workbook out of the archive, which the token can stop.
+    /// A move stopped there has closed the file it left, so the cursor refuses to read until a move
+    /// succeeds.
+    /// </remarks>
+    public bool MoveToSheet(int index, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -182,15 +187,16 @@ public sealed class ArchiveCursor : ITabularCursor
             return false;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         (int source, int local) = _origins[index];
 
         // A csv file is always opened afresh, so a sheet moved back to starts from its first row.
         if (source != _innerSource || _sources[source].Format == TabularFormat.Csv)
         {
-            OpenSource(source);
+            OpenSource(source, cancellationToken);
         }
 
-        if (!_inner!.MoveToSheet(local))
+        if (!_inner!.MoveToSheet(local, cancellationToken))
         {
             return false;
         }
@@ -204,9 +210,15 @@ public sealed class ArchiveCursor : ITabularCursor
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        if (_inner is null)
+        {
+            throw new InvalidOperationException(
+                "A move to another sheet was stopped part-way, so there is no sheet to read. Move to a sheet first.");
+        }
+
         try
         {
-            return _inner!.ReadRow(cancellationToken);
+            return _inner.ReadRow(cancellationToken);
         }
         catch (InvalidDataException e)
         {
@@ -469,7 +481,7 @@ public sealed class ArchiveCursor : ITabularCursor
         _skipped.Add(new SkippedEntry { Path = entry.FullName, Reason = reason });
 
     /// <summary>Closes the file being read, keeping its repairs, and opens another.</summary>
-    private void OpenSource(int index)
+    private void OpenSource(int index, CancellationToken cancellationToken)
     {
         CloseInner();
 
@@ -478,7 +490,7 @@ public sealed class ArchiveCursor : ITabularCursor
         if (source.Format != TabularFormat.Csv)
         {
             // Held while its sheets are read, released when the cursor moves to another file.
-            _inner = OpenWorkbook(source.Format, Buffer(source.Entry, CancellationToken.None), leaveOpen: false, CancellationToken.None);
+            _inner = OpenWorkbook(source.Format, Buffer(source.Entry, cancellationToken), leaveOpen: false, cancellationToken);
             _innerSource = index;
             return;
         }

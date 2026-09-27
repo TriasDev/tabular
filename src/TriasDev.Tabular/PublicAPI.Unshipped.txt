@@ -1,4 +1,5 @@
 #nullable enable
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.MoveToSheet(int index) -> bool
 *REMOVED*TriasDev.Tabular.BooleanField
 *REMOVED*TriasDev.Tabular.BooleanField.BooleanField() -> void
 *REMOVED*TriasDev.Tabular.BooleanField.Equals(TriasDev.Tabular.BooleanField? other) -> bool
@@ -9,6 +10,7 @@
 *REMOVED*TriasDev.Tabular.ColumnBinding.SourceHeader.init -> void
 *REMOVED*TriasDev.Tabular.ColumnBinding.TargetFieldName.get -> string!
 *REMOVED*TriasDev.Tabular.ColumnBinding.TargetFieldName.init -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.MoveToSheet(int index) -> bool
 *REMOVED*TriasDev.Tabular.DateField
 *REMOVED*TriasDev.Tabular.DateField.DateField() -> void
 *REMOVED*TriasDev.Tabular.DateField.Equals(TriasDev.Tabular.DateField? other) -> bool
@@ -47,6 +49,7 @@
 *REMOVED*TriasDev.Tabular.FieldConstraint.MinValue.Value.init -> void
 *REMOVED*TriasDev.Tabular.FieldConstraint.Pattern.Equals(TriasDev.Tabular.FieldConstraint.Pattern? other) -> bool
 *REMOVED*TriasDev.Tabular.FieldConstraint.Rule.Equals(TriasDev.Tabular.FieldConstraint.Rule? other) -> bool
+*REMOVED*TriasDev.Tabular.ITabularCursor.MoveToSheet(int index) -> bool
 *REMOVED*TriasDev.Tabular.ImportRow.AsText(TriasDev.Tabular.TargetField! field) -> string?
 *REMOVED*TriasDev.Tabular.ImportRow.Has(TriasDev.Tabular.TargetField! field) -> bool
 *REMOVED*TriasDev.Tabular.ImportRow.Translations(TriasDev.Tabular.TranslatedField! group) -> System.Collections.Generic.Dictionary<string!, string!>!
@@ -71,6 +74,7 @@
 *REMOVED*TriasDev.Tabular.MappingFault.SourceColumnIndex.init -> void
 *REMOVED*TriasDev.Tabular.MappingFault.TargetFieldName.get -> string?
 *REMOVED*TriasDev.Tabular.MappingFault.TargetFieldName.init -> void
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.MoveToSheet(int index) -> bool
 *REMOVED*TriasDev.Tabular.PrecheckFinding.Detail.get -> string!
 *REMOVED*TriasDev.Tabular.PrecheckFinding.Detail.init -> void
 *REMOVED*TriasDev.Tabular.PrecheckFinding.SourceColumnIndex.get -> int
@@ -128,6 +132,7 @@
 *REMOVED*TriasDev.Tabular.TranslatedField.Name.get -> string!
 *REMOVED*TriasDev.Tabular.TranslatedField.Require() -> TriasDev.Tabular.TranslatedField!
 *REMOVED*TriasDev.Tabular.TranslatedField.this[string! variant].get -> TriasDev.Tabular.TextField!
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.MoveToSheet(int index) -> bool
 *REMOVED*abstract TriasDev.Tabular.FieldConstraint.<Clone>$() -> TriasDev.Tabular.FieldConstraint!
 *REMOVED*override TriasDev.Tabular.BooleanField.<Clone>$() -> TriasDev.Tabular.BooleanField!
 *REMOVED*override TriasDev.Tabular.BooleanField.Equals(object? obj) -> bool
@@ -248,6 +253,7 @@
 *REMOVED*virtual TriasDev.Tabular.TargetField.EqualityContract.get -> System.Type!
 *REMOVED*virtual TriasDev.Tabular.TargetField.Equals(TriasDev.Tabular.TargetField? other) -> bool
 *REMOVED*virtual TriasDev.Tabular.TargetField.PrintMembers(System.Text.StringBuilder! builder) -> bool
+TriasDev.Tabular.Archive.ArchiveCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.BooleanImportField
 TriasDev.Tabular.BooleanImportField.BooleanImportField() -> void
 TriasDev.Tabular.BooleanImportField.Require() -> TriasDev.Tabular.BooleanImportField!
@@ -257,6 +263,7 @@ TriasDev.Tabular.ColumnBinding.FieldName.get -> string!
 TriasDev.Tabular.ColumnBinding.FieldName.init -> void
 TriasDev.Tabular.ColumnBinding.Header.get -> string!
 TriasDev.Tabular.ColumnBinding.Header.init -> void
+TriasDev.Tabular.Csv.CsvCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.CursorDiagnostics.<Clone>$() -> TriasDev.Tabular.CursorDiagnostics!
 TriasDev.Tabular.CursorDiagnostics.Equals(TriasDev.Tabular.CursorDiagnostics? other) -> bool
 TriasDev.Tabular.DateImportField
@@ -285,6 +292,7 @@ TriasDev.Tabular.FieldConstraint.MaxLength.MaxLength(int length) -> void
 TriasDev.Tabular.FieldConstraint.MaxValue.MaxValue(decimal maximum) -> void
 TriasDev.Tabular.FieldConstraint.MinLength.MinLength(int length) -> void
 TriasDev.Tabular.FieldConstraint.MinValue.MinValue(decimal minimum) -> void
+TriasDev.Tabular.ITabularCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.ITabularProblem
 TriasDev.Tabular.ITabularProblem.Code.get -> string!
 TriasDev.Tabular.ITabularProblem.ColumnIndex.get -> int?
@@ -333,6 +341,7 @@ TriasDev.Tabular.MappingFault.ColumnIndex.get -> int?
 TriasDev.Tabular.MappingFault.ColumnIndex.init -> void
 TriasDev.Tabular.MappingFault.FieldName.get -> string?
 TriasDev.Tabular.MappingFault.FieldName.init -> void
+TriasDev.Tabular.Ods.OdsCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.PrecheckArguments
 TriasDev.Tabular.PrecheckFinding.AffectedRowsBound.get -> TriasDev.Tabular.RowCountBound
 TriasDev.Tabular.PrecheckFinding.AffectedRowsBound.init -> void
@@ -372,6 +381,7 @@ TriasDev.Tabular.TranslatedImportField.GetEnumerator() -> System.Collections.Gen
 TriasDev.Tabular.TranslatedImportField.Name.get -> string!
 TriasDev.Tabular.TranslatedImportField.Require() -> TriasDev.Tabular.TranslatedImportField!
 TriasDev.Tabular.TranslatedImportField.this[string! variant].get -> TriasDev.Tabular.TextImportField!
+TriasDev.Tabular.Xlsx.XlsxCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 const TriasDev.Tabular.PrecheckArguments.ActualHeader = "actualHeader" -> string!
 const TriasDev.Tabular.PrecheckArguments.BoundColumns = "boundColumns" -> string!
 const TriasDev.Tabular.PrecheckArguments.Culture = "culture" -> string!

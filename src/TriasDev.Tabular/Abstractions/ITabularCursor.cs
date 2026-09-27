@@ -37,7 +37,13 @@ public interface ITabularCursor : IDisposable
     /// <summary>
     /// Moves to a sheet and positions before its first row. Returns false when no such sheet exists.
     /// </summary>
-    bool MoveToSheet(int index);
+    /// <param name="index">The sheet, as <see cref="SheetInfo.Index"/> numbers it.</param>
+    /// <param name="cancellationToken">
+    /// Stops the move. Moving can be work of its own — an OpenDocument cursor reads forward through
+    /// its content to the sheet, an archive copies a workbook out of itself — so the token is checked
+    /// on the way. A move it stops leaves the cursor refusing to read until it is moved again.
+    /// </param>
+    bool MoveToSheet(int index, CancellationToken cancellationToken = default);
 
     /// <summary>Advances to the next row. Returns false at the end of the sheet.</summary>
     /// <param name="cancellationToken">

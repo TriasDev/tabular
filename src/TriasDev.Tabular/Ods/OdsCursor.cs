@@ -166,10 +166,11 @@ public sealed class OdsCursor : ITabularCursor
 
     /// <inheritdoc />
     /// <remarks>
-    /// Reads forward through the content part to the sheet, from the top when it lies behind. The
-    /// interface gives this no token; the constructor's first move is cancellable, later ones are not.
+    /// Reads forward through the content part to the sheet, from the top when it lies behind, and
+    /// checks the token on the way. Stopped half-way, the scanner stands in rows of neither sheet, so
+    /// the cursor refuses to read until a move succeeds.
     /// </remarks>
-    public bool MoveToSheet(int index) => MoveTo(index, CancellationToken.None);
+    public bool MoveToSheet(int index, CancellationToken cancellationToken = default) => MoveTo(index, cancellationToken);
 
     private bool MoveTo(int index, CancellationToken cancellationToken)
     {
@@ -180,6 +181,8 @@ public sealed class OdsCursor : ITabularCursor
             return false;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Forward from where the scanner stands if it can get there; from the top of the part if the
         // sheet lies behind it.
         if (_scanner is null || index < _tablesEntered)
@@ -189,15 +192,25 @@ public sealed class OdsCursor : ITabularCursor
 
         int sinceCheck = 0;
 
-        while (_tablesEntered <= index)
+        try
         {
-            if (!_scanner!.Read())
+            while (_tablesEntered <= index)
             {
-                throw Truncated();
-            }
+                if (!_scanner!.Read())
+                {
+                    throw Truncated();
+                }
 
-            Checkpoint(ref sinceCheck, cancellationToken);
-            EnterOrLeaveScope(_scanner, index);
+                Checkpoint(ref sinceCheck, cancellationToken);
+                EnterOrLeaveScope(_scanner, index);
+            }
+        }
+        catch
+        {
+            // Part-way to the sheet: reading on would hand out rows of whichever sheet the scanner
+            // stopped in, under the name of the one it left.
+            _faulted = true;
+            throw;
         }
 
         CurrentSheetIndex = index;

@@ -76,7 +76,7 @@ public sealed class ArchiveCursorCsvTests
 
         for (int i = 0; i < 3; i++)
         {
-            Assert.True(cursor.MoveToSheet(i));
+            Assert.True(cursor.MoveToSheet(i, TestContext.Current.CancellationToken));
             Assert.Equal(delimiters[i], cursor.Dialect!.Delimiter);
             List<string?[]> rows = ReadAll(cursor);
             Assert.Equal(2, rows.Count);
@@ -152,19 +152,19 @@ public sealed class ArchiveCursorCsvTests
         List<string?[]> first = ReadAll(cursor);
         Assert.Equal(1, cursor.Diagnostics.RecoveredUnterminatedQuotes);
 
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         ReadAll(cursor);
         Assert.Equal(2, cursor.Diagnostics.RecoveredUnterminatedQuotes);
 
-        Assert.True(cursor.MoveToSheet(0));
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
         Assert.Equal(2, cursor.Diagnostics.RecoveredUnterminatedQuotes);
         Assert.Equal(first, ReadAll(cursor));
         Assert.Equal(3, cursor.Diagnostics.RecoveredUnterminatedQuotes);
 
         // Moving to the sheet already being read starts it over too.
-        Assert.True(cursor.MoveToSheet(0));
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
         Assert.Equal(first, ReadAll(cursor));
-        Assert.False(cursor.MoveToSheet(2));
+        Assert.False(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -239,7 +239,7 @@ public sealed class ArchiveCursorCsvTests
         ReadAll(cursor);
         Assert.InRange(cursor.ReadFraction.GetValueOrDefault(), 0.45, 0.55);
 
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         ReadAll(cursor);
         Assert.Equal(1d, cursor.ReadFraction.GetValueOrDefault(), 3);
     }

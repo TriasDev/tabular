@@ -28,7 +28,7 @@ public sealed class CursorDialectTests
 
         public CsvDialect? Dialect => inner.Dialect;
 
-        public bool MoveToSheet(int index) => inner.MoveToSheet(index);
+        public bool MoveToSheet(int index, CancellationToken cancellationToken = default) => inner.MoveToSheet(index, cancellationToken);
 
         public bool ReadRow(CancellationToken cancellationToken = default) => inner.ReadRow(cancellationToken);
 

@@ -211,7 +211,7 @@ public sealed class ExtractionSession
     /// </summary>
     private void Position()
     {
-        if (!_cursor.MoveToSheet(_plan.SheetIndex))
+        if (!_cursor.MoveToSheet(_plan.SheetIndex, _cancellationToken))
         {
             throw new TabularStructureException(
                 TabularStructureException.SheetMissing,

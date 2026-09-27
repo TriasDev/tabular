@@ -70,11 +70,11 @@ public sealed class OdsCursorTests
         Assert.All(cursor.Sheets, s => Assert.Equal(TabularFormat.Ods, s.Format));
         Assert.Equal(TabularFormat.Ods, cursor.Format);
 
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal("r", Assert.Single(ReadAll(cursor))[0].AsText());
-        Assert.True(cursor.MoveToSheet(0));
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
         Assert.Equal("o", Assert.Single(ReadAll(cursor))[0].AsText());
-        Assert.False(cursor.MoveToSheet(2));
+        Assert.False(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -92,9 +92,9 @@ public sealed class OdsCursorTests
         using OdsCursor cursor = Open(package);
 
         Assert.Equal(["R&D <2024> ☺", "Übersicht", ""], cursor.Sheets.Select(s => s.Name));
-        Assert.True(cursor.MoveToSheet(2));
+        Assert.True(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
         Assert.Equal("third", Assert.Single(ReadAll(cursor))[0].AsText());
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal("second", Assert.Single(ReadAll(cursor))[0].AsText());
     }
 

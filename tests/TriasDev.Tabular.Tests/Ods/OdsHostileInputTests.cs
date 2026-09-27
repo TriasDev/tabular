@@ -108,12 +108,12 @@ public sealed class OdsHostileInputTests
 
         Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
         Assert.Equal([["outer"], ["a2"]], ReadAll(cursor));
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal([["b"]], ReadAll(cursor));
 
         // The same sheet by index, whichever way the cursor got there.
         using OdsCursor direct = Open(new OdsPackage().WithRawContent(Content(body)));
-        Assert.True(direct.MoveToSheet(1));
+        Assert.True(direct.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal([["b"]], ReadAll(direct));
     }
 
@@ -146,7 +146,7 @@ public sealed class OdsHostileInputTests
 
                 try
                 {
-                    Assert.True(cursor.MoveToSheet(i));
+                    Assert.True(cursor.MoveToSheet(i, TestContext.Current.CancellationToken));
                     List<string?[]> rows = ReadAll(cursor);
 
                     // Every real table holds one row, the first letter of its name in lower case; a sheet

@@ -215,8 +215,8 @@ public sealed class CsvCursorTests
         Assert.Equal(TabularFormat.Csv, cursor.Format);
         Assert.Single(cursor.Sheets);
         Assert.Equal("export.csv", cursor.Sheets[0].Name);
-        Assert.True(cursor.MoveToSheet(0));
-        Assert.False(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.False(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
     }
 
     [Fact]

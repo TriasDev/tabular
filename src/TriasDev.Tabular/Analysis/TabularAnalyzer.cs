@@ -118,7 +118,7 @@ internal sealed class AnalysisRun
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!cursor.MoveToSheet(sheet.Index))
+            if (!cursor.MoveToSheet(sheet.Index, cancellationToken))
             {
                 continue;
             }

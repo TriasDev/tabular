@@ -158,7 +158,7 @@ public sealed class ProducerQuirksTests
         using XlsxCursor cursor = new(stream);
 
         Assert.Equal(["First", "Second"], cursor.Sheets.Select(s => s.Name));
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.Equal("second", cursor.CurrentRow[0].AsText());
     }
@@ -356,7 +356,7 @@ public sealed class ProducerQuirksTests
 
         Assert.Throws<TabularFormatException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
 
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.Equal("a", cursor.CurrentRow[0].AsText());
     }
