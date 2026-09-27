@@ -99,6 +99,13 @@ not a licence to test implementation details elsewhere.
 `GoldenFixtureTests` holds both cursors to the golden fixtures. The parser candidates from the
 ADR-0001 spike were removed once the decision was recorded; they remain in git history.
 
+`Fuzz/` writes random tables and workbooks in each format — every quoting, spelling and repeat the
+format allows — and reads them back exactly; it also breaks files at random and expects them read or
+refused with a `TabularException`, never anything else and never a hang. The cases are seeded and
+run a few hundred each by default. For a long local run set `TABULAR_FUZZ_CASES` (say `20000`); a
+failure names its seed, which `TABULAR_FUZZ_SEED` replays alone, and `TABULAR_FUZZ_DUMP` names a
+folder to keep that case's file in. A found failure becomes a named test beside the code it fixes.
+
 Write the failing test first: a fix comes with the test that failed before it, and a new behaviour
 with the test that pins it.
 

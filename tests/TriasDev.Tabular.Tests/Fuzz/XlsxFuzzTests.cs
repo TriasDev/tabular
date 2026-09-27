@@ -28,42 +28,48 @@ public sealed class XlsxFuzzTests
         foreach ((int seed, Random random) in FuzzCases.Generate(300))
         {
             List<FuzzSheet> workbook = FuzzSheets.Workbook(random);
-            List<string> shared = [];
-            XlsxPackage package = new XlsxPackage().WithStyles(Styles);
-
-            // The 1904 system counts from its own epoch, and holds no date before it.
-            DateTime epoch = Epoch1900;
-
-            if (random.Chance(0.2) && workbook.SelectMany(s => s.Rows).SelectMany(r => r.Cells).All(c => c.Kind != FuzzKind.Date || c.Date >= Epoch1904))
-            {
-                epoch = Epoch1904;
-                package = package.WithDate1904();
-            }
-
-            foreach (FuzzSheet sheet in workbook)
-            {
-                string rows = Rows(sheet, shared, epoch, random);
-
-                package = random.Chance(0.3)
-                    ? package.WithRawSheet(sheet.Name,
-                        """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">"""
-                        + """<dimension ref="A1:H20"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="3" width="12" customWidth="1"/></cols>"""
-                        + $"<sheetData>{rows}</sheetData>"
-                        + """<mergeCells count="1"><mergeCell ref="J1:K1"/></mergeCells><pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>""")
-                    : package.WithSheet(sheet.Name, rows);
-            }
-
-            if (shared.Count > 0)
-            {
-                package = package.WithSharedStrings(string.Concat(shared));
-            }
-
-            byte[] file = package.Build();
+            byte[] file = Write(workbook, random);
             FuzzCases.Keep(seed, ".xlsx", file);
 
-            using XlsxCursor cursor = new(new MemoryStream(file));
+            using XlsxCursor cursor = new(new MemoryStream(file), cancellationToken: TestContext.Current.CancellationToken);
             FuzzSheets.AssertReadsAs(workbook, cursor, seed, blankRowsAreRead: true);
         }
+    }
+
+    /// <summary>The workbook as an xlsx package, each value spelt one of the ways the format allows.</summary>
+    internal static byte[] Write(List<FuzzSheet> workbook, Random random)
+    {
+        List<string> shared = [];
+        XlsxPackage package = new XlsxPackage().WithStyles(Styles);
+
+        // The 1904 system counts from its own epoch, and holds no date before it.
+        DateTime epoch = Epoch1900;
+
+        if (random.Chance(0.2) && workbook.SelectMany(s => s.Rows).SelectMany(r => r.Cells).All(c => c.Kind != FuzzKind.Date || c.Date >= Epoch1904))
+        {
+            epoch = Epoch1904;
+            package = package.WithDate1904();
+        }
+
+        foreach (FuzzSheet sheet in workbook)
+        {
+            string rows = Rows(sheet, shared, epoch, random);
+
+            package = random.Chance(0.3)
+                ? package.WithRawSheet(sheet.Name,
+                    """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">"""
+                    + """<dimension ref="A1:H20"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="3" width="12" customWidth="1"/></cols>"""
+                    + $"<sheetData>{rows}</sheetData>"
+                    + """<mergeCells count="1"><mergeCell ref="J1:K1"/></mergeCells><pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>""")
+                : package.WithSheet(sheet.Name, rows);
+        }
+
+        if (shared.Count > 0)
+        {
+            package = package.WithSharedStrings(string.Concat(shared));
+        }
+
+        return package.Build();
     }
 
     private static string Rows(FuzzSheet sheet, List<string> shared, DateTime epoch, Random random)
