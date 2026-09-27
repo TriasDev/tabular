@@ -43,7 +43,7 @@ public sealed class XlsxCursorTests
         using MemoryStream stream = new(TwoSheets(), writable: false);
         using XlsxCursor cursor = new(stream);
 
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal(1, cursor.CurrentSheetIndex);
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.Equal("c", cursor.CurrentRow[0].Text);
@@ -56,8 +56,8 @@ public sealed class XlsxCursorTests
         using MemoryStream stream = new(TwoSheets(), writable: false);
         using XlsxCursor cursor = new(stream);
 
-        Assert.False(cursor.MoveToSheet(2));
-        Assert.False(cursor.MoveToSheet(-1));
+        Assert.False(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
+        Assert.False(cursor.MoveToSheet(-1, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class XlsxCursorTests
         using XlsxCursor cursor = new(stream);
 
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
-        Assert.True(cursor.MoveToSheet(0));
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.Equal("a", cursor.CurrentRow[0].Text);
     }

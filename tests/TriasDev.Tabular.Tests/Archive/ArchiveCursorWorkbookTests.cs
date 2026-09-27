@@ -73,13 +73,13 @@ public sealed class ArchiveCursorWorkbookTests
         Assert.Equal([TabularFormat.Csv, TabularFormat.Xlsx, TabularFormat.Xlsx, TabularFormat.Ods], cursor.Sheets.Select(s => s.Format));
 
         using XlsxCursor plain = new(new MemoryStream(xlsx));
-        Assert.True(plain.MoveToSheet(1));
+        Assert.True(plain.MoveToSheet(1, TestContext.Current.CancellationToken));
 
-        Assert.True(cursor.MoveToSheet(2));
+        Assert.True(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
         Assert.Null(cursor.Dialect);
         Assert.Equal(ReadAll(plain), ReadAll(cursor));
 
-        Assert.True(cursor.MoveToSheet(3));
+        Assert.True(cursor.MoveToSheet(3, TestContext.Current.CancellationToken));
         Assert.Equal("o1", Assert.Single(ReadAll(cursor))[0]);
     }
 
@@ -94,7 +94,7 @@ public sealed class ArchiveCursorWorkbookTests
         Assert.Equal(["Sheet1", "Sheet1"], cursor.Sheets.Select(s => s.Name));
         Assert.Equal(["2025/report.xlsx", "2026/report.xlsx"], cursor.Sheets.Select(s => s.Source));
         Assert.Equal("old", Assert.Single(ReadAll(cursor))[0]);
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal("new", Assert.Single(ReadAll(cursor))[0]);
     }
 
@@ -232,13 +232,13 @@ public sealed class ArchiveCursorWorkbookTests
 
         using ArchiveCursor cursor = Open(new ZipArchiveBuilder().With("a.csv", "h\n1\n").With("b.xlsx", xlsx).Build());
 
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.True(cursor.ReadRow(Token));
-        Assert.True(cursor.MoveToSheet(2));
+        Assert.True(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
         Assert.Equal("c", Assert.Single(ReadAll(cursor))[0]);
-        Assert.True(cursor.MoveToSheet(0));
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
         Assert.Equal(2, ReadAll(cursor).Count);
-        Assert.True(cursor.MoveToSheet(1));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal([["a"], ["b"]], ReadAll(cursor));
         Assert.Equal(1, cursor.CurrentSheetIndex);
     }

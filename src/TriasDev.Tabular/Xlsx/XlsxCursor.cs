@@ -194,7 +194,7 @@ public sealed class XlsxCursor : ITabularCursor
             _date1904 = date1904;
             _styleIsDate = ReadDateStyles(cancellationToken);
 
-            MoveToSheet(0);
+            MoveToSheet(0, cancellationToken);
         }
         catch (Exception malformed) when (malformed is XmlException or InvalidDataException)
         {
@@ -330,9 +330,10 @@ public sealed class XlsxCursor : ITabularCursor
     public ReadOnlySpan<RawCell> CurrentRow => _cells.AsSpan(0, _cellCount);
 
     /// <inheritdoc />
-    public bool MoveToSheet(int index)
+    public bool MoveToSheet(int index, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (index < 0 || index >= _sheetPaths.Length)
         {

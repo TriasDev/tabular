@@ -73,7 +73,7 @@ public sealed class ApiContractTests
             cursor.Dispose();
 
             Assert.Throws<ObjectDisposedException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
-            Assert.Throws<ObjectDisposedException>(() => cursor.MoveToSheet(0));
+            Assert.Throws<ObjectDisposedException>(() => cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
         }
     }
 
