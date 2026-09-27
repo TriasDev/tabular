@@ -46,7 +46,7 @@ internal static class FuzzSheets
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static readonly string[] TextPieces =
-        ["a", "Z", "7", " ", "  ", "ä", "ß", "€", "😀", "<", ">", "&", "\"", "'", "\n", "\t", "\r", "]]>", "k.A.", "2024-01-15", "-1,5"];
+        ["a", "Z", "7", " ", "  ", "ä", "ß", "€", "😀", "<", ">", "&", "\"", "'", "\n", "\t", "\r", "]]>", "k.A.", "2024-01-15", "-1,5", "_x000D_", "_x"];
 
     private static readonly string[] NamePieces = ["S", "x", "ä", "&", "<", "'", "\"", "1", " "];
 
@@ -175,7 +175,7 @@ internal static class FuzzSheets
         '"' => random.Pick("\"", "&quot;"),
         '\'' => random.Pick("'", "&apos;"),
         '\r' => random.Pick("&#13;", "&#xD;"),
-        '\n' => random.Pick("\n", "&#10;"),
+        '\n' => random.Pick("\n", "&#10;", "\r\n"),
         '\t' => random.Pick("\t", "&#9;"),
         _ when random.Chance(0.05) => $"&#{(int)c};",
         _ => c.ToString(),

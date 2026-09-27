@@ -125,6 +125,9 @@ public sealed class XlsxFuzzTests
 
     private static string Text(string text, string reference, List<string> shared, Random random)
     {
+        // An underscore that would start one of the format's own escapes is escaped itself, as writers do.
+        text = text.Replace("_x", "_x005F_x", StringComparison.Ordinal);
+
         switch (random.Next(4))
         {
             case 0:
