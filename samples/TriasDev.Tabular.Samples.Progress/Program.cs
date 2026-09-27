@@ -24,7 +24,7 @@ using ITabularCursor cursor = TabularFile.Open(file, Path.GetFileName(path), can
 
 try
 {
-    FileProfile profile = new TabularAnalyzer().Analyze(cursor, new ConsoleProgressBar(), cancel.Token);
+    FileProfile profile = TabularAnalyzer.Analyze(cursor, progress: new ConsoleProgressBar(), cancellationToken: cancel.Token);
 
     Console.WriteLine();
     Console.WriteLine($"{profile.Sheets.Sum(s => s.RowCount):N0} rows, {profile.Sheets[0].Columns.Count} columns");

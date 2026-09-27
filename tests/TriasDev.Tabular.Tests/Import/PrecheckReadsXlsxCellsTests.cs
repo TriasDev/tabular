@@ -149,6 +149,6 @@ public sealed class PrecheckReadsXlsxCellsTests
         using MemoryStream stream = new(package, writable: false);
         using XlsxCursor cursor = new(stream);
 
-        return new TabularAnalyzer().Analyze(cursor);
+        return TabularAnalyzer.Analyze(cursor);
     }
 }

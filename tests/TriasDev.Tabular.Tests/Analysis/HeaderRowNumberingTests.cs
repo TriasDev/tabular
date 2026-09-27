@@ -30,8 +30,7 @@ public sealed class HeaderRowNumberingTests
         using MemoryStream stream = new(SheetWithHeaderOnRowThree(), writable: false);
         using XlsxCursor cursor = new(stream);
 
-        SheetProfile sheet = new TabularAnalyzer(new AnalysisOptions { HeaderRowIndex = 2 })
-            .Analyze(cursor, TestContext.Current.CancellationToken).Sheets[0];
+        SheetProfile sheet = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { HeaderRowIndex = 2 }, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
 
         Assert.Equal("name", Assert.Single(sheet.Columns).Facts.Header);
         Assert.Equal(2, sheet.RowCount);
@@ -68,8 +67,7 @@ public sealed class HeaderRowNumberingTests
         using MemoryStream stream = new(SheetWithHeaderOnRowThree(), writable: false);
         using XlsxCursor cursor = new(stream);
 
-        SheetProfile sheet = new TabularAnalyzer(new AnalysisOptions { HeaderRowIndex = 1 })
-            .Analyze(cursor, TestContext.Current.CancellationToken).Sheets[0];
+        SheetProfile sheet = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { HeaderRowIndex = 1 }, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
 
         Assert.Equal("name", Assert.Single(sheet.Columns).Facts.Header);
     }

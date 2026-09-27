@@ -53,7 +53,7 @@ public sealed class CustomRuleTests
     public void JudgesTheRuleInThePrecheckAgainstTheDistinctValues()
     {
         using CsvCursor cursor = Cursor("isin\nUS0378331005\nUS0378331006\nDE0007164600\nXX0000000001\n");
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         PrecheckResult check = MappingPrecheck.Check(Plan(), Schema, profile);
 

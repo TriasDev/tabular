@@ -20,16 +20,38 @@ namespace TriasDev.Tabular;
 /// the row it used, so a mapping naming a different one can be told that its facts do not apply.
 /// </para>
 /// </remarks>
-public sealed class TabularAnalyzer
+public static class TabularAnalyzer
+{
+    /// <summary>Analyses every sheet of a file and profiles every column of each.</summary>
+    /// <param name="cursor">The file, opened.</param>
+    /// <param name="options">How to profile, or null for the defaults; checked here, before anything is read.</param>
+    /// <param name="progress">
+    /// Told every <see cref="AnalysisOptions.ProgressInterval"/> data rows and once when done, on the
+    /// analysing thread; null to report nothing. <see cref="Progress{T}"/> posts each report to the
+    /// context it was created on, which suits a UI; an implementation of its own receives them
+    /// synchronously.
+    /// </param>
+    /// <param name="cancellationToken">Stops the analysis, including inside a single read.</param>
+    /// <exception cref="ArgumentException">An option is out of range, or names an unknown culture.</exception>
+    public static FileProfile Analyze(
+        ITabularCursor cursor,
+        AnalysisOptions? options = null,
+        IProgress<AnalysisProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+        return new AnalysisRun(options ?? AnalysisOptions.Default).Analyze(cursor, progress, cancellationToken);
+    }
+}
+
+/// <summary>One analysis with its options checked: the state a pass carries, never kept after it.</summary>
+internal sealed class AnalysisRun
 {
     private readonly AnalysisOptions _options;
 
-    /// <summary>Creates an analyzer.</summary>
-    /// <param name="options">How to profile, or null for the defaults.</param>
-    /// <exception cref="ArgumentException">An option is out of range, or names an unknown culture.</exception>
-    public TabularAnalyzer(AnalysisOptions? options = null)
+    public AnalysisRun(AnalysisOptions options)
     {
-        _options = Prepare(options ?? AnalysisOptions.Default);
+        _options = Prepare(options);
     }
 
     /// <summary>
@@ -79,28 +101,11 @@ public sealed class TabularAnalyzer
     }
 
 
-    /// <summary>Reads every sheet of an open cursor and profiles every column of each.</summary>
-    /// <param name="cursor">A cursor positioned at the start of the file.</param>
-    /// <param name="cancellationToken">Stops the pass.</param>
-    public FileProfile Analyze(ITabularCursor cursor, CancellationToken cancellationToken = default) =>
-        Analyze(cursor, progress: null, cancellationToken);
-
-    /// <summary>Analyses every sheet of a file, reporting how far it has got as it goes.</summary>
-    /// <param name="cursor">The file, opened.</param>
-    /// <param name="progress">
-    /// Told every <see cref="AnalysisOptions.ProgressInterval"/> data rows and once when done, on the
-    /// analysing thread; null to report nothing. <see cref="Progress{T}"/> posts each report to the
-    /// context it was created on, which suits a UI; an implementation of its own receives them
-    /// synchronously.
-    /// </param>
-    /// <param name="cancellationToken">Stops the analysis, including inside a single read.</param>
     public FileProfile Analyze(
         ITabularCursor cursor,
         IProgress<AnalysisProgress>? progress,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(cursor);
-
         ProgressReporter reporter = new(progress, cursor, _options.ProgressInterval, _options.ProgressStep);
 
         // One budget for the file, not one per column: the alternative multiplies the ceiling by the

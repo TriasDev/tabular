@@ -103,7 +103,7 @@ public sealed class SheetIdentityTests
         // import is certain to refuse it. Nothing about the columns is judged — they belong to a
         // sheet the plan was not built for.
         using XlsxCursor cursor = Workbook();
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         PrecheckResult result = MappingPrecheck.Check(Plan("Returns", sheetIndex: 0), Schema, profile);
 

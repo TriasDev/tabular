@@ -1,1 +1,5 @@
 #nullable enable
+*REMOVED*TriasDev.Tabular.TabularAnalyzer.Analyze(TriasDev.Tabular.ITabularCursor! cursor, System.IProgress<TriasDev.Tabular.AnalysisProgress!>? progress, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.FileProfile!
+*REMOVED*TriasDev.Tabular.TabularAnalyzer.Analyze(TriasDev.Tabular.ITabularCursor! cursor, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.FileProfile!
+*REMOVED*TriasDev.Tabular.TabularAnalyzer.TabularAnalyzer(TriasDev.Tabular.AnalysisOptions? options = null) -> void
+static TriasDev.Tabular.TabularAnalyzer.Analyze(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.AnalysisOptions? options = null, System.IProgress<TriasDev.Tabular.AnalysisProgress!>? progress = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.FileProfile!

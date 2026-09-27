@@ -104,7 +104,7 @@ public static class Program
                 _ => new CsvCursor(stream, "benchmark.csv"),
             };
 
-            FileProfile profile = new TabularAnalyzer(AnalysisOptions).Analyze(cursor);
+            FileProfile profile = TabularAnalyzer.Analyze(cursor, AnalysisOptions);
 
             // Reported through the row channel so the driver's counters mean something comparable:
             // one entry per data row, of the width the sheet had.

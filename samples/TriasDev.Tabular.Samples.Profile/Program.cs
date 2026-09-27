@@ -16,7 +16,7 @@ string path = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory,
 using FileStream file = File.OpenRead(path);
 using ITabularCursor cursor = TabularFile.Open(file, Path.GetFileName(path));
 
-FileProfile profile = new TabularAnalyzer().Analyze(cursor);
+FileProfile profile = TabularAnalyzer.Analyze(cursor);
 SheetProfile sheet = profile.Sheets[0];
 
 var summary = new

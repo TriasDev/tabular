@@ -4,7 +4,7 @@
 using FileStream file = File.OpenRead(path);
 using CsvCursor cursor = new(file, Path.GetFileName(path));
 
-FileProfile profile = new TabularAnalyzer().Analyze(cursor);
+FileProfile profile = TabularAnalyzer.Analyze(cursor);
 // hand `profile` to a mapping screen, or build the plan from the headers (below)
 ```
 

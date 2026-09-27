@@ -128,7 +128,7 @@ public sealed class MappingPrecheckTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes(csv), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
 
-        return new TabularAnalyzer(options).Analyze(cursor);
+        return TabularAnalyzer.Analyze(cursor, options);
     }
 
     /// <summary>A plan binding one column to one field, for the reference-set cases.</summary>

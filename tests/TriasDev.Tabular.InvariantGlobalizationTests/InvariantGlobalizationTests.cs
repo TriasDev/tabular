@@ -40,7 +40,7 @@ public sealed class InvariantGlobalizationTests
     {
         using CsvCursor cursor = Csv();
 
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         ColumnProfile column = profile.Sheets[0].Columns[0];
         Assert.Equal([""], column.Facts.ParseCounts.Select(c => c.Culture));
@@ -52,8 +52,7 @@ public sealed class InvariantGlobalizationTests
     {
         using CsvCursor cursor = Csv();
 
-        FileProfile profile = new TabularAnalyzer(new AnalysisOptions { Cultures = ["de-DE"] })
-            .Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { Cultures = ["de-DE"] }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal([""], profile.Sheets[0].Columns[0].Facts.ParseCounts.Select(c => c.Culture));
     }
@@ -64,7 +63,7 @@ public sealed class InvariantGlobalizationTests
         Assert.Contains(MappingPlanValidator.Validate(Plan("de-DE"), Schema), f => f.Code == ErrorCodes.Mapping.UnknownCulture);
 
         using CsvCursor cursor = Csv();
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
         PrecheckResult result = MappingPrecheck.Check(Plan("de-DE"), Schema, profile);
 
         Assert.False(result.CanImport);

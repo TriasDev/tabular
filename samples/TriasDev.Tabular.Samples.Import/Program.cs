@@ -26,7 +26,7 @@ FileProfile profile;
 using (FileStream file = File.OpenRead(path))
 using (ITabularCursor cursor = TabularFile.Open(file, Path.GetFileName(path)))
 {
-    profile = new TabularAnalyzer().Analyze(cursor);
+    profile = TabularAnalyzer.Analyze(cursor);
 }
 
 MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], schema, culture: "de-DE");

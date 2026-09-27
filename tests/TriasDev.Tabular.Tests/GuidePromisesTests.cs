@@ -18,7 +18,7 @@ public sealed class GuidePromisesTests
     private static FileProfile Profile(string csv, AnalysisOptions? options = null)
     {
         using CsvCursor cursor = new(new MemoryStream(Utf8NoBom.GetBytes(csv), writable: false), "t.csv");
-        return new TabularAnalyzer(options).Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        return TabularAnalyzer.Analyze(cursor, options, cancellationToken: TestContext.Current.CancellationToken);
     }
 
     private static MappingPlan OneBinding(string field, string? culture = null, int headerRow = 0) => new()

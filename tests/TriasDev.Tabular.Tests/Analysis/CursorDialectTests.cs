@@ -42,7 +42,7 @@ public sealed class CursorDialectTests
         // the format still said csv.
         using Wrapped cursor = new(new CsvCursor(new MemoryStream(Encoding.UTF8.GetBytes("a;b\n1;2\n")), "t.csv"));
 
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(';', profile.Sheets[0].Dialect?.Delimiter);
     }

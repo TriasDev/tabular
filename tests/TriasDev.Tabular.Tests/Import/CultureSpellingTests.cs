@@ -21,7 +21,7 @@ public sealed class CultureSpellingTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes("amount;x\n1.5;a\n2.25;b\n3;c\n"), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
 
-        FileProfile profile = new TabularAnalyzer(new AnalysisOptions { Cultures = [""] }).Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { Cultures = [""] }, cancellationToken: TestContext.Current.CancellationToken);
         TypeHypothesis top = profile.Sheets[0].Columns[0].Hypotheses[0];
 
         Assert.Equal(ColumnType.Decimal, top.Type);

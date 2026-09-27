@@ -459,6 +459,6 @@ public sealed class ReviewFixesTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes(csv), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
 
-        return new TabularAnalyzer().Analyze(cursor);
+        return TabularAnalyzer.Analyze(cursor);
     }
 }

@@ -18,7 +18,7 @@ public sealed class TabularAnalyzerTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes(text), writable: false);
         using CsvCursor cursor = new(stream, "export.csv");
 
-        return new TabularAnalyzer(options).Analyze(cursor);
+        return TabularAnalyzer.Analyze(cursor, options);
     }
 
     private static FileProfile AnalyzeXlsx(byte[] content)
@@ -26,7 +26,7 @@ public sealed class TabularAnalyzerTests
         using MemoryStream stream = new(content, writable: false);
         using XlsxCursor cursor = new(stream);
 
-        return new TabularAnalyzer().Analyze(cursor);
+        return TabularAnalyzer.Analyze(cursor);
     }
 
     [Fact]
@@ -184,6 +184,6 @@ public sealed class TabularAnalyzerTests
 
         cancellation.Cancel();
 
-        Assert.Throws<OperationCanceledException>(() => new TabularAnalyzer().Analyze(cursor, cancellation.Token));
+        Assert.Throws<OperationCanceledException>(() => TabularAnalyzer.Analyze(cursor, cancellationToken: cancellation.Token));
     }
 }
