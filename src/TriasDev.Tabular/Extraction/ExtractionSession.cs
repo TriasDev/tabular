@@ -112,7 +112,9 @@ public sealed class ExtractionSession
     }
 
     /// <summary>What the run amounted to. Complete once the rows have been read out.</summary>
-    public ExtractionSummary Summary { get; } = new();
+    public ExtractionSummary Summary => _counters.Snapshot();
+
+    private readonly ExtractionCounters _counters = new();
 
     /// <summary>The current row's number as the file counts it.</summary>
     public int CurrentRowNumber { get; private set; }
@@ -158,14 +160,14 @@ public sealed class ExtractionSession
             _cancellationToken.ThrowIfCancellationRequested();
             cancellationToken.ThrowIfCancellationRequested();
 
-            Summary.RowsRead++;
+            _counters.RowsRead++;
             CurrentRowNumber = _cursor.CurrentRowNumber;
 
             ReadOnlySpan<RawCell> row = _cursor.CurrentRow;
 
             if (IsBlank(row))
             {
-                Summary.RowsSkipped++;
+                _counters.RowsSkipped++;
 
                 // Told apart, because they are different things. Padding below the data is expected
                 // and uninteresting; a row holding a note in a column nobody mapped is a record this
@@ -173,7 +175,7 @@ public sealed class ExtractionSession
                 // needed.
                 if (!IsEntirelyBlank(row))
                 {
-                    Summary.RowsWithNothingMapped++;
+                    _counters.RowsWithNothingMapped++;
                 }
 
                 continue;
@@ -183,19 +185,19 @@ public sealed class ExtractionSession
 
             if (CurrentRowHasErrors)
             {
-                Summary.RowsFailed++;
-                Summary.ErrorCount += _errors.Count;
+                _counters.RowsFailed++;
+                _counters.ErrorCount += _errors.Count;
 
-                if (Summary.RowsFailed >= _errorLimit)
+                if (_counters.RowsFailed >= _errorLimit)
                 {
-                    Summary.StoppedEarly = true;
+                    _counters.StoppedEarly = true;
                     _finished = true;
                 }
 
                 return true;
             }
 
-            Summary.RowsProduced++;
+            _counters.RowsProduced++;
             return true;
         }
 

@@ -54,7 +54,7 @@ using ImportRun<Customer> run = TabularImporter.Import(
     again, Path.GetFileName(path), plan, schema,
     row => new Customer(row[name]!, row[country], row[signedOn], row[amount]!.Value));
 
-foreach (ImportOutcome<Customer> outcome in run)
+foreach (ImportOutcome<Customer> outcome in run.ReadRows())
 {
     if (outcome.HasErrors)
     {

@@ -45,7 +45,7 @@ public sealed class OperationCancellationTests
         using CsvCursor cursor = Cursor();
         using ImportRun<string?> run = Run(cursor, TestContext.Current.CancellationToken);
 
-        Assert.ThrowsAny<OperationCanceledException>(() => run.Rows(Cancelled).ToList());
+        Assert.ThrowsAny<OperationCanceledException>(() => run.ReadRows(Cancelled).ToList());
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class OperationCancellationTests
         using CsvCursor cursor = Cursor();
         using ImportRun<string?> run = Run(cursor, TestContext.Current.CancellationToken);
 
-        Assert.ThrowsAny<OperationCanceledException>(() => run.InChunks(10, Cancelled).ToList());
+        Assert.ThrowsAny<OperationCanceledException>(() => run.ReadChunks(10, Cancelled).ToList());
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class OperationCancellationTests
         using CsvCursor cursor = Cursor();
         using ImportRun<string?> run = Run(cursor, TestContext.Current.CancellationToken);
 
-        Assert.ThrowsAny<OperationCanceledException>(() => run.All(cancellationToken: Cancelled));
+        Assert.ThrowsAny<OperationCanceledException>(() => run.ReadAll(cancellationToken: Cancelled));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class OperationCancellationTests
         using CsvCursor cursor = Cursor();
         using ImportRun<string?> run = Run(cursor, source.Token);
 
-        using IEnumerator<ImportOutcome<string?>> rows = run.Rows(TestContext.Current.CancellationToken).GetEnumerator();
+        using IEnumerator<ImportOutcome<string?>> rows = run.ReadRows(TestContext.Current.CancellationToken).GetEnumerator();
 
         Assert.True(rows.MoveNext());
         source.Cancel();

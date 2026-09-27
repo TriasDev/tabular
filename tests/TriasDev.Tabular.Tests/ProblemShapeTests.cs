@@ -30,7 +30,7 @@ public sealed class ProblemShapeTests
         };
 
         using ImportRun<string?> run = TabularImporter.Import(Csv(), "t.csv", plan, Schema, row => row[Name], cancellationToken: TestContext.Current.CancellationToken);
-        RowError error = Assert.Single(run.All(cancellationToken: TestContext.Current.CancellationToken).Errors);
+        RowError error = Assert.Single(run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Errors);
         Assert.Equal("value.required|name|0", Describe(error));
 
         MappingFault fault = Assert.Single(MappingPlanValidator.Validate(

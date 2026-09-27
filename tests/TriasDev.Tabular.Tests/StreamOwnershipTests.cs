@@ -134,7 +134,7 @@ public sealed class StreamOwnershipTests
 
         using (ImportRun<string?> run = TabularImporter.Import(stream, "t.csv", Plan, Schema, row => row[Name], options, TestContext.Current.CancellationToken))
         {
-            Assert.Single(run.All(cancellationToken: TestContext.Current.CancellationToken).Items);
+            Assert.Single(run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);
         }
 
         Assert.Equal(!leaveOpen, stream.IsDisposed);

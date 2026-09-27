@@ -60,7 +60,7 @@ public sealed class TypedWorkbookImportTests
             row => (row[Count], row[Amount], row[Signed], row[Active], row[Note]),
             cancellationToken: TestContext.Current.CancellationToken);
 
-        return [.. run.Rows(TestContext.Current.CancellationToken)];
+        return [.. run.ReadRows(TestContext.Current.CancellationToken)];
     }
 
     [Fact]

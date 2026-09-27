@@ -35,7 +35,7 @@ public sealed class NumberGroupingTests
             },
             cancellationToken: TestContext.Current.CancellationToken);
 
-        return [.. run];
+        return [.. run.ReadRows(TestContext.Current.CancellationToken)];
     }
 
     [Fact]

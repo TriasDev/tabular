@@ -43,7 +43,7 @@ public sealed class TranslatedFieldTests
                 return row.RowNumber;
             });
 
-        run.All(cancellationToken: TestContext.Current.CancellationToken);
+        run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(titles);
         Assert.Equal("Security Organization", titles["en"]);
@@ -65,7 +65,7 @@ public sealed class TranslatedFieldTests
                 return row.RowNumber;
             });
 
-        run.All(cancellationToken: TestContext.Current.CancellationToken);
+        run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(["de"], titles!.Keys);
     }
@@ -77,7 +77,7 @@ public sealed class TranslatedFieldTests
         // refuse it for saying nothing wrong.
         using ImportRun<int> run = Run("id;title_en;title_de\nS1;;Nur Deutsch\n", row => row.RowNumber);
 
-        ImportOutcome<int>[] outcomes = [.. run];
+        ImportOutcome<int>[] outcomes = [.. run.ReadRows(TestContext.Current.CancellationToken)];
 
         Assert.Empty(Assert.Single(outcomes).Errors);
     }
@@ -87,7 +87,7 @@ public sealed class TranslatedFieldTests
     {
         using ImportRun<int> run = Run("id;title_en;title_de\nS1;;\n", row => row.RowNumber);
 
-        ImportOutcome<int> outcome = Assert.Single([.. run]);
+        ImportOutcome<int> outcome = Assert.Single([.. run.ReadRows(TestContext.Current.CancellationToken)]);
         RowError error = Assert.Single(outcome.Errors);
 
         // One error for the group, not one per declared language: the row has one thing wrong with
@@ -158,7 +158,7 @@ public sealed class TranslatedFieldTests
             "id;title_en;title_de\nS1;One;Eins\nS2;Two;\n",
             row => row.RowNumber);
 
-        run.All(cancellationToken: TestContext.Current.CancellationToken);
+        run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, run.Coverage.Single(c => c.Field == "title.en").Filled);
         Assert.Equal(1, run.Coverage.Single(c => c.Field == "title.de").Filled);

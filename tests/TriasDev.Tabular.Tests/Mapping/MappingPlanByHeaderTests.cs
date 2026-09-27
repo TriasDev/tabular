@@ -104,7 +104,7 @@ public sealed class MappingPlanByHeaderTests
         using CsvCursor stored = new(new MemoryStream(Utf8NoBom.GetBytes("name;x\na;b\n")), "3f2a.tmp");
         using ImportRun<string?> run = TabularImporter.Import(stored, plan, schema, row => row[name], cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(["a"], run.All(cancellationToken: TestContext.Current.CancellationToken).Items);
+        Assert.Equal(["a"], run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);
     }
 
     [Fact]

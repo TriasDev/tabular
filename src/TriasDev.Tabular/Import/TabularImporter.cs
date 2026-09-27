@@ -147,7 +147,7 @@ public static class TabularImporter
 /// disagree about what the file contains. A run is read once.
 /// </remarks>
 /// <typeparam name="T">What the mapper builds.</typeparam>
-public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
+public sealed class ImportRun<T> : IDisposable
 {
     private readonly ExtractionSession _session;
     private readonly ImportField[] _fields;
@@ -182,7 +182,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
         _allOrNothing = schema.Policy == ImportPolicy.AllOrNothing;
     }
 
-    /// <summary>What the run amounted to. Complete once it has been read out.</summary>
+    /// <summary>What the run amounted to, as it stands now; a snapshot, final once the run has been read out.</summary>
     public ExtractionSummary Summary => _session.Summary;
 
     /// <summary>
@@ -219,20 +219,21 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     /// </summary>
     public IReadOnlyList<ImportPreviewRow> Preview => _preview;
 
-    /// <summary>Reads the file one row at a time; the run's own token stops it.</summary>
-    public IEnumerator<ImportOutcome<T>> GetEnumerator() => Rows().GetEnumerator();
-
     /// <summary>Reads the file one row at a time.</summary>
     /// <param name="cancellationToken">
     /// Stops the read. The token the run was started with stops it too.
     /// </param>
-    public IEnumerable<ImportOutcome<T>> Rows(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Lazy: the file is read as the sequence is enumerated, and the run counts as read from the first
+    /// row it hands out. A run is read once — by this, <see cref="ReadChunks"/> or <see cref="ReadAll"/>.
+    /// </remarks>
+    public IEnumerable<ImportOutcome<T>> ReadRows(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_read)
         {
-            throw new InvalidOperationException("A run is read once; start another to read the file again.");
+            throw new InvalidOperationException("An import run reads its file once; start another to read the file again.");
         }
 
         _read = true;
@@ -256,7 +257,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     /// A batch closes when it has <paramref name="size"/> items, so a run of nothing but failures
     /// still reports them — at the end, in a final batch carrying no items.
     /// </remarks>
-    public IEnumerable<ImportChunk<T>> InChunks(int size, CancellationToken cancellationToken = default)
+    public IEnumerable<ImportChunk<T>> ReadChunks(int size, CancellationToken cancellationToken = default)
     {
         // Checked here rather than in the iterator, which would only run on the first MoveNext.
         ArgumentOutOfRangeException.ThrowIfLessThan(size, 1);
@@ -271,7 +272,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
         int first = 0;
         int last = 0;
 
-        foreach (ImportOutcome<T> outcome in Rows(cancellationToken))
+        foreach (ImportOutcome<T> outcome in ReadRows(cancellationToken))
         {
             if (first == 0)
             {
@@ -321,14 +322,14 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
     /// <param name="cancellationToken">
     /// Stops the read. The token the run was started with stops it too.
     /// </param>
-    public ImportResult<T> All(int limit = 100_000, CancellationToken cancellationToken = default)
+    public ImportResult<T> ReadAll(int limit = 100_000, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
         List<T> items = [];
         List<RowError> errors = [];
 
-        foreach (ImportOutcome<T> outcome in Rows(cancellationToken))
+        foreach (ImportOutcome<T> outcome in ReadRows(cancellationToken))
         {
             if (outcome.HasErrors)
             {
@@ -340,7 +341,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
             {
                 throw new InvalidOperationException(
                     $"The file holds more than the {limit} items this call will keep. Read it in "
-                    + $"batches with {nameof(InChunks)} instead.");
+                    + $"batches with {nameof(ReadChunks)} instead.");
             }
 
             items.Add(outcome.Value);
@@ -392,8 +393,6 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
 
         _preview.Add(new ImportPreviewRow { RowNumber = row.RowNumber, Values = values });
     }
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     /// <inheritdoc />
     public void Dispose()

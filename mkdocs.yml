@@ -75,7 +75,7 @@ plugins:
            (`MappingPlan.ByHeader(sheetProfile, schema)` or by hand); optionally judge it with
            `MappingPrecheck.Check(plan, schema, profile)`.
         3. `TabularImporter.Import(stream, name, plan, schema, row => new MyType(row[field], ...))`
-           returns an `ImportRun<T>`: iterate outcomes (value or `RowError`s), or use `InChunks` / `All(limit)`.
+           returns an `ImportRun<T>`: read it once: `ReadRows(ct)` for outcomes (a value or `RowError`s), `ReadChunks(size, ct)` or `ReadAll(limit, ct)`.
 
         Rules that are easy to get wrong: a row (`CurrentRow`, `ImportRow`) is a view over a reused
         buffer — copy what you keep before the next read. Row errors carry codes such as

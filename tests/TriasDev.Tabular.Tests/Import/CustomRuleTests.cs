@@ -37,7 +37,7 @@ public sealed class CustomRuleTests
             row => row[Isin]!,
             cancellationToken: TestContext.Current.CancellationToken);
 
-        List<ImportOutcome<string>> outcomes = [.. run];
+        List<ImportOutcome<string>> outcomes = [.. run.ReadRows(TestContext.Current.CancellationToken)];
 
         Assert.Equal(["US0378331005", "DE0007164600"], outcomes.Where(o => !o.HasErrors).Select(o => o.Value));
 
@@ -83,7 +83,7 @@ public sealed class CustomRuleTests
             row => row[optional],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.All(run, o => Assert.False(o.HasErrors));
+        Assert.All(run.ReadRows(TestContext.Current.CancellationToken), o => Assert.False(o.HasErrors));
         Assert.Equal(1, asked);
     }
 
@@ -124,7 +124,7 @@ public sealed class CustomRuleTests
             _ => "ok",
             cancellationToken: TestContext.Current.CancellationToken);
 
-        List<ImportOutcome<string>> outcomes = [.. run];
+        List<ImportOutcome<string>> outcomes = [.. run.ReadRows(TestContext.Current.CancellationToken)];
 
         Assert.Equal(
             ["amount.positive", "n.even", "on.not-future"],

@@ -37,7 +37,7 @@ public sealed class AllOrNothingTests
         // the caller learns at the first failure, not after reading the rest of the file.
         using ImportRun<long> run = Run(ImportPolicy.AllOrNothing, OneBadRow);
 
-        List<ImportOutcome<long>> outcomes = [.. run];
+        List<ImportOutcome<long>> outcomes = [.. run.ReadRows(TestContext.Current.CancellationToken)];
 
         Assert.Equal(3, outcomes.Count);
         Assert.True(outcomes[^1].HasErrors);
@@ -49,7 +49,7 @@ public sealed class AllOrNothingTests
     {
         using ImportRun<long> run = Run(ImportPolicy.AllOrNothing, OneBadRow);
 
-        ImportResult<long> result = run.All(cancellationToken: TestContext.Current.CancellationToken);
+        ImportResult<long> result = run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(result.Items);
         Assert.Single(result.Errors);
@@ -60,7 +60,7 @@ public sealed class AllOrNothingTests
     {
         using ImportRun<long> run = Run(ImportPolicy.AllOrNothing, "count;x\n1;a\n2;a\n");
 
-        Assert.Equal([1L, 2L], run.All(cancellationToken: TestContext.Current.CancellationToken).Items);
+        Assert.Equal([1L, 2L], run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class AllOrNothingTests
     {
         using ImportRun<long> run = Run(ImportPolicy.AllOrNothing, OneBadRow);
 
-        List<ImportChunk<long>> chunks = [.. run.InChunks(10, TestContext.Current.CancellationToken)];
+        List<ImportChunk<long>> chunks = [.. run.ReadChunks(10, TestContext.Current.CancellationToken)];
 
         ImportChunk<long> chunk = Assert.Single(chunks);
         Assert.Empty(chunk.Items);
@@ -80,7 +80,7 @@ public sealed class AllOrNothingTests
     {
         using ImportRun<long> run = Run(ImportPolicy.BestEffort, OneBadRow);
 
-        ImportResult<long> result = run.All(cancellationToken: TestContext.Current.CancellationToken);
+        ImportResult<long> result = run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal([1L, 2L, 4L, 5L], result.Items);
         Assert.False(run.Summary.StoppedEarly);

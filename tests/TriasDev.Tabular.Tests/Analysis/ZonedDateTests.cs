@@ -38,7 +38,7 @@ public sealed class ZonedDateTests
             row => row[when],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        DateTime value = Assert.Single(run).Value!.Value;
+        DateTime value = Assert.Single(run.ReadRows(TestContext.Current.CancellationToken)).Value!.Value;
 
         Assert.Equal(new DateTime(2024, 1, 15, 10, 0, 0, DateTimeKind.Unspecified), value);
         Assert.Equal(DateTimeKind.Unspecified, value.Kind);

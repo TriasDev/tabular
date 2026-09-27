@@ -199,7 +199,7 @@ using FileStream again = File.OpenRead("customers.xlsx");
 using ImportRun<Customer> run = TabularImporter.Import(again, "customers.xlsx", plan, schema,
     row => new Customer(row[name]!, row[amount]!.Value));
 
-foreach (ImportOutcome<Customer> outcome in run)
+foreach (ImportOutcome<Customer> outcome in run.ReadRows(cancellationToken))
 {
     if (outcome.HasErrors)
         Console.WriteLine($"row {outcome.RowNumber}: {outcome.Errors[0].Code}");   // e.g. value.required

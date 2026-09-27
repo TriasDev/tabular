@@ -54,7 +54,7 @@ public sealed class HeaderRowNumberingTests
             row => row[name],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        List<ImportOutcome<string?>> outcomes = [.. run];
+        List<ImportOutcome<string?>> outcomes = [.. run.ReadRows(TestContext.Current.CancellationToken)];
 
         Assert.Equal(["first", "second"], outcomes.Select(o => o.Value));
         Assert.Equal([4, 5], outcomes.Select(o => o.RowNumber));
