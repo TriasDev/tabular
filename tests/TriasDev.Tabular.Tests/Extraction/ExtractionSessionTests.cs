@@ -7,7 +7,7 @@ using Xunit;
 namespace TriasDev.Tabular.Tests.Extraction;
 
 /// <summary>Pins what a run produces: values, errors, and what it says about itself afterwards.</summary>
-public sealed class ExtractionSessionTests
+public sealed class ExtractionRunTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
@@ -48,7 +48,7 @@ public sealed class ExtractionSessionTests
     {
         using MemoryStream stream = new(Utf8NoBom.GetBytes(text), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
-        ExtractionSession session = TabularExtractor.Start(cursor, plan ?? Plan(), schema ?? Schema, options);
+        ExtractionRun session = TabularExtractor.Extract(cursor, plan ?? Plan(), schema ?? Schema, options);
 
         List<string?[]> values = [];
         List<RowError> errors = [];
@@ -236,7 +236,7 @@ public sealed class ExtractionSessionTests
         using CsvCursor cursor = new(stream, "test.csv");
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(
-            () => TabularExtractor.Start(cursor, Plan(), Schema, cancellationToken: TestContext.Current.CancellationToken));
+            () => TabularExtractor.Extract(cursor, Plan(), Schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("Land", error.Message, StringComparison.Ordinal);
     }
@@ -249,7 +249,7 @@ public sealed class ExtractionSessionTests
 
         MappingPlan plan = Plan() with { SheetIndex = 3 };
 
-        Assert.Throws<TabularStructureException>(() => TabularExtractor.Start(cursor, plan, Schema, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Throws<TabularStructureException>(() => TabularExtractor.Extract(cursor, plan, Schema, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -264,7 +264,7 @@ public sealed class ExtractionSessionTests
             Bindings = [new ColumnBinding { ColumnIndex = 1, Header = "Betrag", FieldName = "amount" }],
         };
 
-        Assert.Throws<MappingPlanException>(() => TabularExtractor.Start(cursor, plan, Schema, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Throws<MappingPlanException>(() => TabularExtractor.Extract(cursor, plan, Schema, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -280,7 +280,7 @@ public sealed class ExtractionSessionTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes(text.ToString()), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
         using CancellationTokenSource cancellation = new();
-        ExtractionSession session = TabularExtractor.Start(
+        ExtractionRun session = TabularExtractor.Extract(
             cursor,
             Plan(),
             Schema,

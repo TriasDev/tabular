@@ -58,7 +58,7 @@ A project dropped into `src/` or `tests/` needs no settings of its own.
   Hostile-input tests pin these; a new structure read from a file needs its own bound.
 - **Cancellation is passed into `ReadRow`**, not only checked between rows, because single reads can
   be expensive on hostile files. Every reading operation takes a token as its last parameter; the
-  token given to `Start`/`Import` still applies to the whole run.
+  token given to `Extract`/`Import` still applies to the whole run.
 - **A stream handed over is closed on every path**, failures included, unless the caller asked for
   `leaveOpen`. New entry points follow the same rule.
 - **Options are checked where they are handed over** (`OptionChecks`), never discovered mid-read.

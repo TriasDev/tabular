@@ -81,7 +81,7 @@ public sealed class ExceptionModelTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes("x\n1\n"), writable: false);
 
         MappingPlanException viaExtractor = Assert.Throws<MappingPlanException>(
-            () => TabularExtractor.Start(cursor, plan, schema, cancellationToken: TestContext.Current.CancellationToken));
+            () => TabularExtractor.Extract(cursor, plan, schema, cancellationToken: TestContext.Current.CancellationToken));
         MappingPlanException viaImporter = Assert.Throws<MappingPlanException>(
             () => TabularImporter.Import(stream, "t.csv", plan, schema, row => row[Name], cancellationToken: TestContext.Current.CancellationToken));
 

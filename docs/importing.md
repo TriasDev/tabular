@@ -106,7 +106,7 @@ counts as they stand when it is taken — take it again once the run is read out
 
 ## If you need the values rather than an entity
 
-`TabularExtractor.Start` is the layer underneath, and hands back typed values without building
+`TabularExtractor.Extract` is the layer underneath, and hands back typed values without building
 anything. `TabularImporter` is that plus your mapper, and is what a caller normally wants.
 
 A workbook, an OpenDocument spreadsheet or a zip archive is the same call. Which kind of file it is

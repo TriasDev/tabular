@@ -16,7 +16,7 @@ namespace TriasDev.Tabular;
 /// entity, which is how silent corruption starts.
 /// </para>
 /// </remarks>
-public sealed class ExtractionSession
+public sealed class ExtractionRun
 {
     private readonly ITabularCursor _cursor;
     private readonly MappingPlan _plan;
@@ -37,7 +37,7 @@ public sealed class ExtractionSession
     /// </summary>
     private readonly int _errorLimit;
 
-    internal ExtractionSession(
+    internal ExtractionRun(
         ITabularCursor cursor,
         MappingPlan plan,
         ImportSchema schema,

@@ -25,6 +25,13 @@
 *REMOVED*TriasDev.Tabular.DecimalField.Must(string! code, System.Func<decimal, bool>! rule) -> TriasDev.Tabular.DecimalField!
 *REMOVED*TriasDev.Tabular.DecimalField.Require() -> TriasDev.Tabular.DecimalField!
 *REMOVED*TriasDev.Tabular.DecimalField.Unique() -> TriasDev.Tabular.DecimalField!
+*REMOVED*TriasDev.Tabular.ExtractionSession
+*REMOVED*TriasDev.Tabular.ExtractionSession.CurrentErrors.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.RowError!>!
+*REMOVED*TriasDev.Tabular.ExtractionSession.CurrentRowHasErrors.get -> bool
+*REMOVED*TriasDev.Tabular.ExtractionSession.CurrentRowNumber.get -> int
+*REMOVED*TriasDev.Tabular.ExtractionSession.CurrentValues.get -> System.ReadOnlySpan<TriasDev.Tabular.MappedValue>
+*REMOVED*TriasDev.Tabular.ExtractionSession.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.ExtractionSession.Summary.get -> TriasDev.Tabular.ExtractionSummary!
 *REMOVED*TriasDev.Tabular.FieldConstraint.AllowedValues.Equals(TriasDev.Tabular.FieldConstraint.AllowedValues? other) -> bool
 *REMOVED*TriasDev.Tabular.FieldConstraint.ExactLength.Deconstruct(out int Length) -> void
 *REMOVED*TriasDev.Tabular.FieldConstraint.ExactLength.Equals(TriasDev.Tabular.FieldConstraint.ExactLength? other) -> bool
@@ -278,6 +285,13 @@ TriasDev.Tabular.DecimalImportField.DecimalImportField() -> void
 TriasDev.Tabular.DecimalImportField.Must(string! code, System.Func<decimal, bool>! rule) -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Require() -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Unique() -> TriasDev.Tabular.DecimalImportField!
+TriasDev.Tabular.ExtractionRun
+TriasDev.Tabular.ExtractionRun.CurrentErrors.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.RowError!>!
+TriasDev.Tabular.ExtractionRun.CurrentRowHasErrors.get -> bool
+TriasDev.Tabular.ExtractionRun.CurrentRowNumber.get -> int
+TriasDev.Tabular.ExtractionRun.CurrentValues.get -> System.ReadOnlySpan<TriasDev.Tabular.MappedValue>
+TriasDev.Tabular.ExtractionRun.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+TriasDev.Tabular.ExtractionRun.Summary.get -> TriasDev.Tabular.ExtractionSummary!
 TriasDev.Tabular.ExtractionSummary.<Clone>$() -> TriasDev.Tabular.ExtractionSummary!
 TriasDev.Tabular.ExtractionSummary.Equals(TriasDev.Tabular.ExtractionSummary? other) -> bool
 TriasDev.Tabular.ExtractionSummary.ErrorCount.init -> void
@@ -424,6 +438,6 @@ static TriasDev.Tabular.MappingPlan.ByHeader(TriasDev.Tabular.SheetProfile! shee
 static TriasDev.Tabular.MappingPlanValidator.Validate(TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema) -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.MappingFault!>!
 static TriasDev.Tabular.MappingPrecheck.Check(TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.FileProfile! profile) -> TriasDev.Tabular.PrecheckResult!
 static TriasDev.Tabular.TabularAnalyzer.Analyze(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.AnalysisOptions? options = null, System.IProgress<TriasDev.Tabular.AnalysisProgress!>? progress = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.FileProfile!
-static TriasDev.Tabular.TabularExtractor.Start(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.ExtractionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ExtractionSession!
+static TriasDev.Tabular.TabularExtractor.Extract(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.ExtractionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ExtractionRun!
 static TriasDev.Tabular.TabularImporter.Import<T>(System.IO.Stream! stream, string! name, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.TabularRowMapper<T>! mapper, TriasDev.Tabular.ImportOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportRun<T>!
 static TriasDev.Tabular.TabularImporter.Import<T>(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.TabularRowMapper<T>! mapper, TriasDev.Tabular.ImportOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportRun<T>!
