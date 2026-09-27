@@ -111,4 +111,19 @@ public sealed class StrayQuotePairTests
         Assert.Equal(["2", "small", "b"], rows[2]);
         Assert.Equal(1, diagnostics.RecoveredUnterminatedQuotes);
     }
+
+    [Fact]
+    public void KeepsAMultiLineFieldWhoseFirstLineWouldOverfillTheRecordAsOneValue()
+    {
+        // A record's worth of delimiters and a line break, but read as a stray quote its line would
+        // hold six fields in a table of five: the quote cannot have been stray, so the value stands.
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read(
+            "a;b;c;d;e\n" +
+            "1;2;3;\"x;y;q\nz;w;v\";5\n" +
+            "6;7;8;9;10\n");
+
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(["1", "2", "3", "x;y;q\nz;w;v", "5"], rows[1]);
+        Assert.True(diagnostics.IsClean);
+    }
 }
