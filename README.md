@@ -164,7 +164,7 @@ using FileStream file = File.OpenRead("customers.xlsx");       // or .csv — de
 using ITabularCursor cursor = TabularFile.Open(file, "customers.xlsx");
 
 // 1. What is in it?
-FileProfile profile = new TabularAnalyzer().Analyze(cursor);
+FileProfile profile = TabularAnalyzer.Analyze(cursor);
 
 foreach (ColumnProfile column in profile.Sheets[0].Columns)
 {

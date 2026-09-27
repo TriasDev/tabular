@@ -18,7 +18,7 @@ public sealed class MappingPlanByHeaderTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes(csv), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
 
-        return new TabularAnalyzer(options).Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
+        return TabularAnalyzer.Analyze(cursor, options, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class MappingPlanByHeaderTests
             .WithSheet("Orders", """<row r="1"><c r="A1" t="inlineStr"><is><t>name</t></is></c></row>""")
             .Build();
         using TriasDev.Tabular.Xlsx.XlsxCursor cursor = new(new MemoryStream(workbook), cancellationToken: TestContext.Current.CancellationToken);
-        SheetProfile sheet = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
+        SheetProfile sheet = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
 
         MappingPlan plan = MappingPlan.ByHeader(sheet, new TargetSchema { Fields = [ImportField.Text("name")] });
 

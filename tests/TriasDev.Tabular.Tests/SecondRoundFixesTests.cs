@@ -466,7 +466,7 @@ public sealed class SecondRoundFixesTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes(csv), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
 
-        return new TabularAnalyzer(options).Analyze(cursor);
+        return TabularAnalyzer.Analyze(cursor, options);
     }
 
     private static byte[] SharedStringWorkbook(int entries, int charsEach)

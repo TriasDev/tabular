@@ -66,6 +66,6 @@ public sealed class SchemaFieldsTests
         using MemoryStream stream = new(Utf8NoBom.GetBytes("code\nA1\n"), writable: false);
         using CsvCursor cursor = new(stream, "t.csv");
 
-        return new TabularAnalyzer().Analyze(cursor);
+        return TabularAnalyzer.Analyze(cursor);
     }
 }

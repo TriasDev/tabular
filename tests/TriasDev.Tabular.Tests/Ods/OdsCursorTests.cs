@@ -307,7 +307,7 @@ public sealed class OdsCursorTests
         using ITabularCursor cursor = TabularFile.Open(stream, "upload", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.IsType<OdsCursor>(cursor);
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(TabularFormat.Ods, profile.Format);
     }
 

@@ -1,16 +1,25 @@
+using System.Text;
+
+using TriasDev.Tabular.Csv;
 
 using Xunit;
 
 namespace TriasDev.Tabular.Tests.Analysis;
 
-/// <summary>Options are checked when the analyzer is made, not discovered deep inside a run.</summary>
+/// <summary>Options are checked when they are handed to the analysis, not discovered deep inside a run.</summary>
 public sealed class AnalysisOptionsValidationTests
 {
+    private static FileProfile Analyze(AnalysisOptions? options = null)
+    {
+        using CsvCursor cursor = new(new MemoryStream(Encoding.UTF8.GetBytes("a\n1\n")), "t.csv");
+        return TabularAnalyzer.Analyze(cursor, options, cancellationToken: TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     public void RefusesAnEmptyCultureList()
     {
         // It used to reach the profiler, which took the first culture and threw IndexOutOfRange.
-        Assert.Throws<ArgumentException>(() => new TabularAnalyzer(new AnalysisOptions { Cultures = [] }));
+        Assert.Throws<ArgumentException>(() => Analyze(new AnalysisOptions { Cultures = [] }));
     }
 
     [Fact]
@@ -18,7 +27,7 @@ public sealed class AnalysisOptionsValidationTests
     {
         // A typo would otherwise be dropped in silence, and the column read under fewer cultures than
         // the caller asked for.
-        Assert.Throws<ArgumentException>(() => new TabularAnalyzer(new AnalysisOptions { Cultures = ["", "not-a-culture"] }));
+        Assert.Throws<ArgumentException>(() => Analyze(new AnalysisOptions { Cultures = ["", "not-a-culture"] }));
     }
 
     [Theory]
@@ -38,7 +47,7 @@ public sealed class AnalysisOptionsValidationTests
             _ => new AnalysisOptions { OutlierSampleSize = -1 },
         };
 
-        Assert.ThrowsAny<ArgumentException>(() => new TabularAnalyzer(options));
+        Assert.ThrowsAny<ArgumentException>(() => Analyze(options));
     }
 
     [Theory]
@@ -46,10 +55,10 @@ public sealed class AnalysisOptionsValidationTests
     [InlineData(1.1)]
     public void RefusesAConfidenceOrStepOutsideZeroToOne(double value)
     {
-        Assert.ThrowsAny<ArgumentException>(() => new TabularAnalyzer(new AnalysisOptions { MinimumHypothesisConfidence = value }));
-        Assert.ThrowsAny<ArgumentException>(() => new TabularAnalyzer(new AnalysisOptions { ProgressStep = value }));
+        Assert.ThrowsAny<ArgumentException>(() => Analyze(new AnalysisOptions { MinimumHypothesisConfidence = value }));
+        Assert.ThrowsAny<ArgumentException>(() => Analyze(new AnalysisOptions { ProgressStep = value }));
     }
 
     [Fact]
-    public void AcceptsTheDefaults() => Assert.NotNull(new TabularAnalyzer());
+    public void AcceptsTheDefaults() => Assert.NotNull(Analyze());
 }

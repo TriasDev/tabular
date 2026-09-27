@@ -22,7 +22,7 @@ public sealed class SheetProfileSourceTests
     {
         using CsvCursor cursor = Csv("a;b\n1;2\n");
 
-        SheetProfile sheet = Assert.Single(new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets);
+        SheetProfile sheet = Assert.Single(TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets);
 
         Assert.Equal(TabularFormat.Csv, sheet.Format);
         Assert.Null(sheet.Source);
@@ -37,7 +37,7 @@ public sealed class SheetProfileSourceTests
             .Build();
         using XlsxCursor cursor = new(new MemoryStream(workbook), cancellationToken: TestContext.Current.CancellationToken);
 
-        SheetProfile sheet = Assert.Single(new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets);
+        SheetProfile sheet = Assert.Single(TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets);
 
         Assert.Equal(TabularFormat.Xlsx, sheet.Format);
         Assert.Null(sheet.Dialect);
@@ -55,7 +55,7 @@ public sealed class SheetProfileSourceTests
         }
 
         using CsvCursor cursor = Csv(text.ToString());
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, Assert.Single(profile.Sheets).Diagnostics.RecoveredUnterminatedQuotes);
         Assert.Equal(1, profile.Diagnostics.RecoveredUnterminatedQuotes);
@@ -67,7 +67,7 @@ public sealed class SheetProfileSourceTests
         // The profile used to hand out the cursor's own object, so anything the cursor counted after
         // the pass showed up in a profile a user was mapping against.
         using CsvCursor cursor = Csv("a;b\n1;2\n");
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         cursor.Diagnostics.RecoveredUnterminatedQuotes++;
 

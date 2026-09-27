@@ -351,7 +351,7 @@ public sealed class HostileInputTests
         using MemoryStream stream = new(content, writable: false);
         using XlsxCursor cursor = new(stream);
 
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(16_384, Assert.Single(profile.Sheets).Columns.Count);
     }

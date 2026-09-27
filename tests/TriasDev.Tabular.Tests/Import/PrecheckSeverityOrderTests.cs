@@ -30,8 +30,7 @@ public sealed class PrecheckSeverityOrderTests
 
         using MemoryStream stream = new(Utf8NoBom.GetBytes(csv), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");
-        FileProfile profile = new TabularAnalyzer(new AnalysisOptions { RetainedDistinctValues = 10 })
-            .Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { RetainedDistinctValues = 10 }, cancellationToken: TestContext.Current.CancellationToken);
 
         TargetSchema schema = new()
         {

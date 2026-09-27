@@ -27,7 +27,7 @@ public sealed class ArchiveCursorOptionsTests
         using CsvCursor cursor = new(new MemoryStream(Encoding.UTF8.GetBytes("a;b\n1;2\n"), writable: false), "t.csv");
 
         Assert.Empty(((ITabularCursor)cursor).SkippedEntries);
-        Assert.Empty(new TabularAnalyzer().Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).SkippedEntries);
+        Assert.Empty(TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).SkippedEntries);
     }
 
     [Fact]

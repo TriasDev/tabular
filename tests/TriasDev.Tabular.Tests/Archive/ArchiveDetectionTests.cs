@@ -102,7 +102,7 @@ public sealed class ArchiveDetectionTests
             .Build();
 
         using ITabularCursor cursor = Open(archive);
-        FileProfile profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: Token);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: Token);
 
         Assert.Equal(TabularFormat.Zip, profile.Format);
         Assert.Equal(["a/orders.csv", "b/stock.xlsx"], profile.Sheets.Select(s => s.Source));
@@ -122,7 +122,7 @@ public sealed class ArchiveDetectionTests
 
         using (ITabularCursor cursor = Open(archive))
         {
-            profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: Token);
+            profile = TabularAnalyzer.Analyze(cursor, cancellationToken: Token);
         }
 
         MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[1], Schema);
@@ -151,7 +151,7 @@ public sealed class ArchiveDetectionTests
 
         using (ITabularCursor cursor = Open(before))
         {
-            profile = new TabularAnalyzer().Analyze(cursor, cancellationToken: Token);
+            profile = TabularAnalyzer.Analyze(cursor, cancellationToken: Token);
         }
 
         MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], Schema);

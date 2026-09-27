@@ -67,7 +67,7 @@ plugins:
 
         The flow is two independent reads of the same file, with no state kept between them:
 
-        1. `TabularFile.Open(stream, name)` returns an `ITabularCursor`; `new TabularAnalyzer().Analyze(cursor)`
+        1. `TabularFile.Open(stream, name)` returns an `ITabularCursor`; `TabularAnalyzer.Analyze(cursor)`
            returns a `FileProfile` (per sheet `SheetProfile`, per column measured `ColumnFacts` and ranked
            `TypeHypothesis` suggestions).
         2. Declare fields with `ImportField.Text/Integer/Decimal/Date/Boolean(...)` and rules

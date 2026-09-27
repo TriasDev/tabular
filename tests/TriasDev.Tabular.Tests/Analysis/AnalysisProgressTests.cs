@@ -39,8 +39,7 @@ public sealed class AnalysisProgressTests
         using CsvCursor cursor = new(stream, "test.csv");
         Recorder recorder = new();
 
-        new TabularAnalyzer(new AnalysisOptions { ProgressInterval = 10, ProgressStep = 0 })
-            .Analyze(cursor, recorder, TestContext.Current.CancellationToken);
+        TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 10, ProgressStep = 0 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal([10L, 20L, 25L], recorder.Reports.Select(r => r.RowsRead));
         Assert.True(recorder.Reports[^1].IsComplete);
@@ -56,8 +55,7 @@ public sealed class AnalysisProgressTests
         using CsvCursor cursor = new(stream, "test.csv");
         Recorder recorder = new();
 
-        new TabularAnalyzer(new AnalysisOptions { ProgressInterval = 500, ProgressStep = 0 })
-            .Analyze(cursor, recorder, TestContext.Current.CancellationToken);
+        TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 500, ProgressStep = 0 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         List<double> fractions = [.. recorder.Reports.Select(r => r.Fraction ?? -1)];
 
@@ -83,8 +81,7 @@ public sealed class AnalysisProgressTests
         });
         Recorder recorder = new();
 
-        new TabularAnalyzer(new AnalysisOptions { ProgressInterval = 10 })
-            .Analyze(cursor, recorder, TestContext.Current.CancellationToken);
+        TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 10 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         // With no length there is no percentage to step by, so the row interval alone decides.
         Assert.Equal([10L, 20L, 30L, 30L], recorder.Reports.Select(r => r.RowsRead));
@@ -109,8 +106,7 @@ public sealed class AnalysisProgressTests
         using XlsxCursor cursor = new(stream);
         Recorder recorder = new();
 
-        new TabularAnalyzer(new AnalysisOptions { ProgressInterval = 10, ProgressStep = 0 })
-            .Analyze(cursor, recorder, TestContext.Current.CancellationToken);
+        TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 10, ProgressStep = 0 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         // The header row of each sheet is not a data row: 20 + 10.
         Assert.Equal([10L, 20L, 30L, 30L], recorder.Reports.Select(r => r.RowsRead));
@@ -131,8 +127,7 @@ public sealed class AnalysisProgressTests
         using CsvCursor cursor = new(stream, "test.csv");
         Recorder recorder = new();
 
-        new TabularAnalyzer(new AnalysisOptions { ProgressInterval = 1_000, ProgressStep = 0.1 })
-            .Analyze(cursor, recorder, TestContext.Current.CancellationToken);
+        TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 1_000, ProgressStep = 0.1 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         List<double> fractions = [.. recorder.Reports.SkipLast(1).Select(r => r.Fraction!.Value)];
 
@@ -149,7 +144,7 @@ public sealed class AnalysisProgressTests
         using CsvCursor cursor = new(stream, "test.csv");
         Recorder recorder = new();
 
-        new TabularAnalyzer().Analyze(cursor, recorder, TestContext.Current.CancellationToken);
+        TabularAnalyzer.Analyze(cursor, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.InRange(recorder.Reports.Count, 1, 3);
         Assert.True(recorder.Reports[^1].IsComplete);
@@ -164,7 +159,7 @@ public sealed class AnalysisProgressTests
         {
             using MemoryStream stream = new(content, writable: false);
             using CsvCursor cursor = new(stream, "test.csv");
-            return new TabularAnalyzer().Analyze(cursor, progress, TestContext.Current.CancellationToken);
+            return TabularAnalyzer.Analyze(cursor, progress: progress, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         FileProfile without = Profile(null);

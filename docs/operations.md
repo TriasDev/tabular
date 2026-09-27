@@ -42,7 +42,7 @@ wants to say how far it has got:
 IProgress<AnalysisProgress> progress = new Progress<AnalysisProgress>(p =>
     Console.WriteLine($"{p.SheetName}: {p.RowsRead:N0} rows, {p.Fraction:P0}"));
 
-FileProfile profile = new TabularAnalyzer().Analyze(cursor, progress, cancellationToken);
+FileProfile profile = TabularAnalyzer.Analyze(cursor, progress: progress, cancellationToken: cancellationToken);
 ```
 
 The fraction is taken from how much of the file the reader has consumed — a csv's stream position
