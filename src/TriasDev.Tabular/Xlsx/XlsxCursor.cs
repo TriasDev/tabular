@@ -633,7 +633,7 @@ public sealed class XlsxCursor : ITabularCursor
                 return RawCell.FromError(new string(text));
 
             case CellValueType.Text:
-                return RawCell.FromText(new string(text));
+                return RawCell.FromText(OoxmlEscapes.Decode(new string(text)));
 
             case CellValueType.IsoDate:
                 return DateReading.TryParseAsWritten(
@@ -716,7 +716,7 @@ public sealed class XlsxCursor : ITabularCursor
             switch (scanner.Kind)
             {
                 case XmlNodeKind.EndElement when scanner.Name.SequenceEqual("is"):
-                    return _inlineText.ToString();
+                    return OoxmlEscapes.Decode(_inlineText.ToString());
 
                 case XmlNodeKind.EndElement:
                     inText &= !scanner.Name.SequenceEqual("t");
@@ -905,7 +905,7 @@ public sealed class XlsxCursor : ITabularCursor
                     + "characters allowed.");
             }
 
-            values.Add(item);
+            values.Add(OoxmlEscapes.Decode(item));
         }
 
         // Both the list and the array it is copied into are alive for the length of this statement,
