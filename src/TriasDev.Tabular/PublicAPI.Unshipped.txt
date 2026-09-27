@@ -43,6 +43,8 @@
 *REMOVED*TriasDev.Tabular.MappingFault.SourceColumnIndex.init -> void
 *REMOVED*TriasDev.Tabular.MappingFault.TargetFieldName.get -> string?
 *REMOVED*TriasDev.Tabular.MappingFault.TargetFieldName.init -> void
+*REMOVED*TriasDev.Tabular.PrecheckFinding.Detail.get -> string!
+*REMOVED*TriasDev.Tabular.PrecheckFinding.Detail.init -> void
 *REMOVED*TriasDev.Tabular.PrecheckFinding.SourceColumnIndex.get -> int
 *REMOVED*TriasDev.Tabular.PrecheckFinding.SourceColumnIndex.init -> void
 *REMOVED*TriasDev.Tabular.PrecheckFinding.TargetFieldName.get -> string!
@@ -232,10 +234,23 @@ TriasDev.Tabular.MappingFault.ColumnIndex.get -> int?
 TriasDev.Tabular.MappingFault.ColumnIndex.init -> void
 TriasDev.Tabular.MappingFault.FieldName.get -> string?
 TriasDev.Tabular.MappingFault.FieldName.init -> void
-TriasDev.Tabular.PrecheckFinding.ColumnIndex.get -> int
+TriasDev.Tabular.PrecheckArguments
+TriasDev.Tabular.PrecheckFinding.AffectedRowsBound.get -> TriasDev.Tabular.RowCountBound
+TriasDev.Tabular.PrecheckFinding.AffectedRowsBound.init -> void
+TriasDev.Tabular.PrecheckFinding.Arguments.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+TriasDev.Tabular.PrecheckFinding.Arguments.init -> void
+TriasDev.Tabular.PrecheckFinding.ColumnIndex.get -> int?
 TriasDev.Tabular.PrecheckFinding.ColumnIndex.init -> void
-TriasDev.Tabular.PrecheckFinding.FieldName.get -> string!
+TriasDev.Tabular.PrecheckFinding.Examples.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TriasDev.Tabular.PrecheckFinding.Examples.init -> void
+TriasDev.Tabular.PrecheckFinding.FieldName.get -> string?
 TriasDev.Tabular.PrecheckFinding.FieldName.init -> void
+TriasDev.Tabular.PrecheckReasons
+TriasDev.Tabular.RowCountBound
+TriasDev.Tabular.RowCountBound.AtLeast = 1 -> TriasDev.Tabular.RowCountBound
+TriasDev.Tabular.RowCountBound.AtMost = 2 -> TriasDev.Tabular.RowCountBound
+TriasDev.Tabular.RowCountBound.Exact = 0 -> TriasDev.Tabular.RowCountBound
+TriasDev.Tabular.RowCountBound.Unknown = 3 -> TriasDev.Tabular.RowCountBound
 TriasDev.Tabular.RowError.ColumnIndex.get -> int
 TriasDev.Tabular.RowError.ColumnIndex.init -> void
 TriasDev.Tabular.RowError.FieldName.get -> string!
@@ -259,6 +274,27 @@ TriasDev.Tabular.TranslatedImportField.GetEnumerator() -> System.Collections.Gen
 TriasDev.Tabular.TranslatedImportField.Name.get -> string!
 TriasDev.Tabular.TranslatedImportField.Require() -> TriasDev.Tabular.TranslatedImportField!
 TriasDev.Tabular.TranslatedImportField.this[string! variant].get -> TriasDev.Tabular.TextImportField!
+const TriasDev.Tabular.PrecheckArguments.ActualHeader = "actualHeader" -> string!
+const TriasDev.Tabular.PrecheckArguments.BoundColumns = "boundColumns" -> string!
+const TriasDev.Tabular.PrecheckArguments.Culture = "culture" -> string!
+const TriasDev.Tabular.PrecheckArguments.DistinctCount = "distinctCount" -> string!
+const TriasDev.Tabular.PrecheckArguments.ExpectedHeader = "expectedHeader" -> string!
+const TriasDev.Tabular.PrecheckArguments.FailingCount = "failingCount" -> string!
+const TriasDev.Tabular.PrecheckArguments.PlanHeaderRow = "planHeaderRow" -> string!
+const TriasDev.Tabular.PrecheckArguments.ProfileHeaderRow = "profileHeaderRow" -> string!
+const TriasDev.Tabular.PrecheckArguments.ReadableCount = "readableCount" -> string!
+const TriasDev.Tabular.PrecheckArguments.Reason = "reason" -> string!
+const TriasDev.Tabular.PrecheckArguments.SheetIndex = "sheetIndex" -> string!
+const TriasDev.Tabular.PrecheckArguments.Type = "type" -> string!
+const TriasDev.Tabular.PrecheckReasons.EmptyCells = "empty-cells" -> string!
+const TriasDev.Tabular.PrecheckReasons.EveryValueIsNothing = "every-value-is-nothing" -> string!
+const TriasDev.Tabular.PrecheckReasons.NoRowCanSatisfy = "no-row-can-satisfy" -> string!
+const TriasDev.Tabular.PrecheckReasons.NoValues = "no-values" -> string!
+const TriasDev.Tabular.PrecheckReasons.NotProfiled = "not-profiled" -> string!
+const TriasDev.Tabular.PrecheckReasons.Repeats = "repeats" -> string!
+const TriasDev.Tabular.PrecheckReasons.SpelledAsNothing = "spelled-as-nothing" -> string!
+const TriasDev.Tabular.PrecheckReasons.TooManyDistinct = "too-many-distinct" -> string!
+const TriasDev.Tabular.PrecheckReasons.ValuesFail = "values-fail" -> string!
 override TriasDev.Tabular.BooleanImportField.<Clone>$() -> TriasDev.Tabular.BooleanImportField!
 override TriasDev.Tabular.BooleanImportField.Equals(object? obj) -> bool
 override TriasDev.Tabular.BooleanImportField.GetHashCode() -> int

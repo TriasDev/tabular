@@ -25,20 +25,48 @@ public sealed record PrecheckFinding : ITabularProblem
     /// <summary>How much it matters.</summary>
     public required PrecheckSeverity Severity { get; init; }
 
-    /// <summary>The field it concerns.</summary>
-    public required string FieldName { get; init; }
+    /// <summary>The field it concerns, or null when it concerns the plan as a whole.</summary>
+    public string? FieldName { get; init; }
 
-    /// <summary>The column feeding that field.</summary>
-    public required int ColumnIndex { get; init; }
+    /// <summary>The column feeding that field, or null when it concerns no column.</summary>
+    public int? ColumnIndex { get; init; }
 
     /// <summary>How many rows it affects, where the measurements can say.</summary>
     public int? AffectedRows { get; init; }
 
-    /// <summary>What the measurements showed, in words.</summary>
-    public required string Detail { get; init; }
+    /// <summary>How far <see cref="AffectedRows"/> can be trusted, and in which direction.</summary>
+    public RowCountBound AffectedRowsBound { get; init; }
 
-    /// <inheritdoc />
-    int? ITabularProblem.ColumnIndex => ColumnIndex;
+    /// <summary>Up to five of the values that fail, in ordinal order, as the profile kept them.</summary>
+    public IReadOnlyList<string> Examples { get; init; } = [];
+
+    /// <summary>
+    /// The values a message for this code needs, by the names in <see cref="PrecheckArguments"/>;
+    /// numbers written invariantly.
+    /// </summary>
+    /// <remarks>
+    /// Data rather than a sentence: a UI fills its own template for the code, in its own language.
+    /// Which names each code carries is listed on the documentation's error-code page.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string> Arguments { get; init; } = NoArguments;
+
+    internal static IReadOnlyDictionary<string, string> NoArguments { get; } = new Dictionary<string, string>(0);
+}
+
+/// <summary>How far a count of rows can be trusted.</summary>
+public enum RowCountBound
+{
+    /// <summary>The count is exact.</summary>
+    Exact = 0,
+
+    /// <summary>At least this many; the true number may be higher.</summary>
+    AtLeast = 1,
+
+    /// <summary>At most this many; the true number may be lower.</summary>
+    AtMost = 2,
+
+    /// <summary>Neither direction is known; the count is only indicative.</summary>
+    Unknown = 3,
 }
 
 /// <summary>What a precheck concluded.</summary>
@@ -92,9 +120,7 @@ public static class MappingPrecheck
                     {
                         Code = ErrorCodes.Mapping.InvalidSheet,
                         Severity = PrecheckSeverity.Blocking,
-                        FieldName = string.Empty,
-                        ColumnIndex = -1,
-                        Detail = $"The file has no sheet at index {plan.SheetIndex}.",
+                        Arguments = Args((PrecheckArguments.SheetIndex, N(plan.SheetIndex))),
                     },
                 ]);
         }
@@ -111,9 +137,7 @@ public static class MappingPrecheck
                     {
                         Code = ErrorCodes.Structure.SheetChanged,
                         Severity = PrecheckSeverity.Blocking,
-                        FieldName = string.Empty,
-                        ColumnIndex = -1,
-                        Detail = $"The sheet at index {plan.SheetIndex} is not the one the mapping was built for.",
+                        Arguments = Args((PrecheckArguments.SheetIndex, N(plan.SheetIndex))),
                     },
                 ]);
         }
@@ -130,9 +154,7 @@ public static class MappingPrecheck
                     {
                         Code = ErrorCodes.Mapping.UnknownCulture,
                         Severity = PrecheckSeverity.Blocking,
-                        FieldName = string.Empty,
-                        ColumnIndex = -1,
-                        Detail = $"The culture '{plan.Culture}' is not available on this runtime.",
+                        Arguments = Args((PrecheckArguments.Culture, plan.Culture ?? string.Empty)),
                     },
                 ]);
         }
@@ -153,11 +175,7 @@ public static class MappingPrecheck
             {
                 Code = ErrorCodes.Mapping.StaleProfile,
                 Severity = PrecheckSeverity.Undetermined,
-                FieldName = string.Empty,
-                ColumnIndex = -1,
-                Detail = $"The file was analysed with row {sheet.HeaderRowIndex} as the header and the "
-                    + $"mapping names row {plan.HeaderRowIndex}, so nothing measured about the values "
-                    + "applies. Analyse it again to have those checked.",
+                Arguments = Args((PrecheckArguments.ProfileHeaderRow, N(sheet.HeaderRowIndex)), (PrecheckArguments.PlanHeaderRow, N(plan.HeaderRowIndex))),
             });
         }
 
@@ -178,7 +196,6 @@ public static class MappingPrecheck
                     Severity = PrecheckSeverity.Blocking,
                     FieldName = field.Name,
                     ColumnIndex = binding.ColumnIndex,
-                    Detail = $"The sheet has no column at index {binding.ColumnIndex}.",
                 });
 
                 continue;
@@ -260,10 +277,7 @@ public static class MappingPrecheck
                 FieldName = group.Key,
                 ColumnIndex = bound[0].Index,
                 AffectedRows = sheet.RowCount,
-                Detail = bound.Count == 1
-                    ? "The column mapped to this field is empty from top to bottom, and a row needs one of its languages."
-                    : $"All {bound.Count} columns mapped to this field are empty from top to bottom, "
-                      + "and a row needs one of its languages.",
+                Arguments = Args((PrecheckArguments.BoundColumns, N(bound.Count))),
             });
         }
     }
@@ -277,15 +291,17 @@ public static class MappingPrecheck
         List<PrecheckFinding> findings)
     {
         string? culture = plan.Culture;
-        void Add(string code, PrecheckSeverity severity, string detail, int? rows = null) =>
+        void Add(string code, PrecheckSeverity severity, Evidence evidence) =>
             findings.Add(new PrecheckFinding
             {
                 Code = code,
                 Severity = severity,
                 FieldName = field.Name,
                 ColumnIndex = binding.ColumnIndex,
-                AffectedRows = rows,
-                Detail = detail,
+                AffectedRows = evidence.Rows,
+                AffectedRowsBound = evidence.Bound,
+                Examples = evidence.Examples ?? [],
+                Arguments = evidence.Arguments ?? PrecheckFinding.NoArguments,
             });
 
         CheckRequired(field, binding, facts, sheet, plan, Add);
@@ -307,7 +323,7 @@ public static class MappingPrecheck
         ColumnFacts facts,
         SheetProfile sheet,
         MappingPlan plan,
-        Action<string, PrecheckSeverity, string, int?> add)
+        AddFinding add)
     {
         if (!field.Required || field.Group is not null)
         {
@@ -331,18 +347,14 @@ public static class MappingPrecheck
             add(
                 ErrorCodes.Value.Required,
                 PrecheckSeverity.Blocking,
-                "Every value in this column is one of the spellings of nothing the mapping "
-                + "declares, so no row carries a value for a field that requires one.",
-                sheet.RowCount);
+                new Evidence(sheet.RowCount, Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.EveryValueIsNothing))));
         }
         else if (facts.EmptyCount > 0)
         {
             add(
                 ErrorCodes.Value.Required,
                 PrecheckSeverity.Warning,
-                $"{Describe(facts.EmptyCount, binding, sheet, plan)} leave this column empty and "
-                + "the field is required.",
-                facts.EmptyCount);
+                new Evidence(facts.EmptyCount, EmptyCountBound(binding, sheet, plan), Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.EmptyCells))));
         }
     }
 
@@ -357,7 +369,7 @@ public static class MappingPrecheck
         ColumnFacts facts,
         SheetProfile sheet,
         MappingPlan plan,
-        Action<string, PrecheckSeverity, string, int?> add)
+        AddFinding add)
     {
         if (!field.MustBeUnique)
         {
@@ -381,9 +393,7 @@ public static class MappingPrecheck
             add(
                 NotUnique,
                 PrecheckSeverity.Blocking,
-                "Some rows spell this column's value as nothing, so they carry no value at all, and "
-                + "a field that identifies a record must do so for every row.",
-                null);
+                new Evidence(Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.SpelledAsNothing))));
         }
         else if (facts.IsUnique == false)
         {
@@ -403,28 +413,22 @@ public static class MappingPrecheck
                 NotUnique,
                 certain ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
                 repeats > 0
-                    ? $"{repeats} rows repeat a value already used, and this field identifies a record."
-                    : $"{Describe(facts.EmptyCount, binding, sheet, plan)} leave this column empty, and a "
-                      + "field that identifies a record must do so for every row.",
-                repeats > 0 ? repeats : facts.EmptyCount);
+                    ? new Evidence(repeats, Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.Repeats)))
+                    : new Evidence(facts.EmptyCount, EmptyCountBound(binding, sheet, plan), Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.EmptyCells))));
         }
         else if (facts.IsUnique is null && facts.NonEmptyCount == 0 && facts.EmptyCount == 0)
         {
             add(
                 NotUnique,
                 PrecheckSeverity.Undetermined,
-                "The column holds no values at all, so whether it identifies its rows was not "
-                + "established.",
-                null);
+                new Evidence(Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.NoValues))));
         }
         else if (facts.IsUnique is null)
         {
             add(
                 NotUnique,
                 PrecheckSeverity.Undetermined,
-                "There were more distinct values than the profile tracks, so uniqueness was not "
-                + "established.",
-                null);
+                new Evidence(Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.TooManyDistinct), (PrecheckArguments.DistinctCount, N(facts.DistinctCount)))));
         }
     }
 
@@ -456,7 +460,7 @@ public static class MappingPrecheck
         ColumnBinding binding,
         ColumnFacts facts,
         string? culture,
-        Action<string, PrecheckSeverity, string, int?> add)
+        AddFinding add)
     {
         if (field.Constraints.Count == 0 || facts.NonEmptyCount == 0)
         {
@@ -485,16 +489,14 @@ public static class MappingPrecheck
     private static void ReportRulesUnchecked(
         ImportField field,
         ColumnFacts facts,
-        Action<string, PrecheckSeverity, string, int?> add)
+        AddFinding add)
     {
         foreach (FieldConstraint constraint in field.Constraints)
         {
             add(
                 constraint.Code,
                 PrecheckSeverity.Undetermined,
-                $"The column holds {facts.DistinctCount} distinct values, more than the profile "
-                + "keeps, so this rule was not checked here.",
-                null);
+                new Evidence(Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.TooManyDistinct), (PrecheckArguments.DistinctCount, N(facts.DistinctCount)))));
         }
     }
 
@@ -536,7 +538,7 @@ public static class MappingPrecheck
         ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
-        Action<string, PrecheckSeverity, string, int?> add)
+        AddFinding add)
     {
         // A value that does not read as the field's type never reaches the constraint: extraction
         // fails it as a type mismatch first, and CheckType reports that.
@@ -556,11 +558,12 @@ public static class MappingPrecheck
         add(
             constraint.Code,
             none ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
-            $"{failing.Count} of {readable} distinct values fail this rule: "
-            + string.Join(", ", failing.Take(5).Order(StringComparer.Ordinal))
-            + (failing.Count > 5 ? $" and {failing.Count - 5} more" : string.Empty) + "."
-            + (none ? " No row can satisfy it." : string.Empty),
-            null);
+            new Evidence(
+                Examples: [.. failing.Order(StringComparer.Ordinal).Take(5)],
+                Arguments: Args(
+                    (PrecheckArguments.Reason, none ? PrecheckReasons.NoRowCanSatisfy : PrecheckReasons.ValuesFail),
+                    (PrecheckArguments.FailingCount, N(failing.Count)),
+                    (PrecheckArguments.ReadableCount, N(readable)))));
     }
 
     /// <summary>
@@ -638,22 +641,37 @@ public static class MappingPrecheck
     /// Two things pull it apart. The binding's spellings of nothing were counted as values, so the
     /// true number is higher. And the import skips a row whose <em>mapped</em> columns are all empty
     /// while analysis keeps any row with a value anywhere, so where the sheet has columns the plan
-    /// does not bind, the true number is lower. When both apply, neither direction is known and the
-    /// number is not offered as one.
+    /// does not bind, the true number is lower. When both apply, neither direction is known.
     /// </remarks>
-    private static string Describe(int count, ColumnBinding binding, SheetProfile sheet, MappingPlan plan)
+    private static RowCountBound EmptyCountBound(ColumnBinding binding, SheetProfile sheet, MappingPlan plan)
     {
         bool understated = binding.TreatAsEmpty.Count > 0;
         bool overstated = !AllColumnsBound(sheet, plan);
 
         return (understated, overstated) switch
         {
-            (true, true) => "Some rows",
-            (true, false) => $"At least {count} rows",
-            (false, true) => $"Up to {count} rows",
-            _ => $"{count} rows",
+            (true, true) => RowCountBound.Unknown,
+            (true, false) => RowCountBound.AtLeast,
+            (false, true) => RowCountBound.AtMost,
+            _ => RowCountBound.Exact,
         };
     }
+
+    /// <summary>Records a finding about the field under inspection.</summary>
+    private delegate void AddFinding(string code, PrecheckSeverity severity, Evidence evidence);
+
+    /// <summary>What a finding carries beyond its code: the rows, the failing values, the named values.</summary>
+    private readonly record struct Evidence(
+        int? Rows = null,
+        RowCountBound Bound = RowCountBound.Exact,
+        IReadOnlyList<string>? Examples = null,
+        IReadOnlyDictionary<string, string>? Arguments = null);
+
+    private static IReadOnlyDictionary<string, string> Args(params (string Key, string Value)[] values) =>
+        values.ToDictionary(v => v.Key, v => v.Value, StringComparer.Ordinal);
+
+    /// <summary>A number as an argument: invariant, so every UI reads it alike.</summary>
+    private static string N(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Whether the plan binds every column the sheet has.
@@ -682,7 +700,7 @@ public static class MappingPrecheck
     private static void CheckHeader(
         ColumnBinding binding,
         ColumnFacts facts,
-        Action<string, PrecheckSeverity, string, int?> add)
+        AddFinding add)
     {
         if (binding.Header.Length == 0 || string.Equals(binding.Header, facts.Header, StringComparison.Ordinal))
         {
@@ -692,9 +710,7 @@ public static class MappingPrecheck
         add(
             ErrorCodes.Mapping.HeaderChanged,
             PrecheckSeverity.Blocking,
-            $"This column was mapped as '{binding.Header}' and now reads '{facts.Header}'. "
-            + "The import will refuse the file.",
-            null);
+            new Evidence(Arguments: Args((PrecheckArguments.ExpectedHeader, binding.Header), (PrecheckArguments.ActualHeader, facts.Header))));
     }
 
     private static bool CannotBeSatisfiedByAnyRow(ImportField field, ColumnBinding binding, ColumnFacts facts) =>
@@ -705,7 +721,7 @@ public static class MappingPrecheck
         ImportField field,
         ColumnFacts facts,
         string? culture,
-        Action<string, PrecheckSeverity, string, int?> add)
+        AddFinding add)
     {
         if (field.Type == ColumnType.Text || facts.NonEmptyCount == 0)
         {
@@ -722,7 +738,7 @@ public static class MappingPrecheck
 
         // One spelling of the invariant culture everywhere: the empty name, as .NET itself names it.
         string name = culture ?? string.Empty;
-        string shown = name.Length == 0 ? "the invariant culture" : name;
+        string type = field.Type.ToString().ToLowerInvariant();
         CultureParseCounts? counts = facts.ParseCounts.FirstOrDefault(c => c.Culture == name)
             // Native values read the same under every culture, so any culture's figures answer for a
             // column made of nothing else.
@@ -733,8 +749,7 @@ public static class MappingPrecheck
             add(
                 ErrorCodes.Value.TypeMismatch,
                 PrecheckSeverity.Undetermined,
-                $"The file was not profiled under {shown}, so this could not be judged.",
-                null);
+                new Evidence(Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.NotProfiled), (PrecheckArguments.Culture, name), (PrecheckArguments.Type, type))));
 
             return;
         }
@@ -758,10 +773,14 @@ public static class MappingPrecheck
         add(
             ErrorCodes.Value.TypeMismatch,
             readable == 0 ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
-            $"{failing} of {facts.NonEmptyCount} values do not read as "
-            + $"{field.Type.ToString().ToLowerInvariant()} under {shown}."
-            + (readable == 0 ? " None of them do." : string.Empty),
-            failing);
+            new Evidence(
+                failing,
+                Arguments: Args(
+                    (PrecheckArguments.Reason, readable == 0 ? PrecheckReasons.NoRowCanSatisfy : PrecheckReasons.ValuesFail),
+                    (PrecheckArguments.Culture, name),
+                    (PrecheckArguments.Type, type),
+                    (PrecheckArguments.FailingCount, N(failing)),
+                    (PrecheckArguments.ReadableCount, N(facts.NonEmptyCount)))));
     }
 
     private static int Native(ColumnFacts facts, RawCellKind kind) =>

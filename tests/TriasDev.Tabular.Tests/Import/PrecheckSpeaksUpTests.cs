@@ -44,7 +44,7 @@ public sealed class PrecheckSpeaksUpTests
 
         Assert.Equal("value.pattern", finding.Code);
         Assert.Equal(PrecheckSeverity.Blocking, finding.Severity);
-        Assert.Contains("france", finding.Detail);
+        Assert.Contains("france", finding.Examples);
     }
 
     [Fact]
@@ -239,8 +239,7 @@ public sealed class PrecheckSpeaksUpTests
             MappingPrecheck.Check(Plan(treatAsEmpty: ["k.A."]), schema, Profile("iso\n1\nk.A.\nk.A.\n2\n")).Findings,
             f => f.Code == "value.not-unique");
 
-        Assert.DoesNotContain("repeat", finding.Detail);
-        Assert.Contains("nothing", finding.Detail);
+        Assert.Equal(PrecheckReasons.SpelledAsNothing, finding.Arguments[PrecheckArguments.Reason]);
     }
 
     [Fact]
@@ -261,7 +260,7 @@ public sealed class PrecheckSpeaksUpTests
 
         PrecheckResult result = MappingPrecheck.Check(plan, schema, Profile("iso;a;b\nX;1;n\n;2;n\nZ;3;n\n"));
 
-        Assert.Contains("Up to", Assert.Single(result.Findings, f => f.Code == "value.required").Detail);
+        Assert.Equal(RowCountBound.AtMost, Assert.Single(result.Findings, f => f.Code == "value.required").AffectedRowsBound);
     }
 
     private static ImportField Raw(ColumnType type, FieldConstraint constraint) =>
@@ -310,7 +309,7 @@ public sealed class PrecheckSpeaksUpTests
             MappingPrecheck.Check(plan, schema, Profile("id;x\nA1;1\n;2\nA2;3\n")).Findings,
             f => f.Code == "value.not-unique");
 
-        Assert.Contains("leave this column empty", finding.Detail);
+        Assert.Equal(PrecheckReasons.EmptyCells, finding.Arguments[PrecheckArguments.Reason]);
         Assert.Equal(1, finding.AffectedRows);
     }
 
@@ -325,7 +324,7 @@ public sealed class PrecheckSpeaksUpTests
             MappingPrecheck.Check(Plan(field: "id"), schema, Profile("id\n")).Findings);
 
         Assert.Equal(PrecheckSeverity.Undetermined, finding.Severity);
-        Assert.Contains("no values at all", finding.Detail);
+        Assert.Equal(PrecheckReasons.NoValues, finding.Arguments[PrecheckArguments.Reason]);
     }
 
     private static MappingPlan Plan(IReadOnlyList<string>? treatAsEmpty = null, string field = "iso") =>
