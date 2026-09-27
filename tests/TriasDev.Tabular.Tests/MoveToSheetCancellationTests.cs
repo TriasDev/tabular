@@ -53,7 +53,7 @@ public sealed class MoveToSheetCancellationTests
         // the scanner stands in rows that belong to neither the sheet it left nor the one it sought.
         byte[] package = TwoSheetOds(20_000);
         using CancellationTokenSource cancel = new();
-        CancelAfterStream stream = new(package, cancel, afterBytes: long.MaxValue);
+        CancellingStream stream = new(package, cancel);
         using OdsCursor cursor = new(stream);
 
         // Counted from here: opening read the whole part for the sheet names already.
@@ -82,7 +82,7 @@ public sealed class MoveToSheetCancellationTests
             .With("b.xlsx", new XlsxPackage().WithSheet("S", rows.ToString()).Build(), System.IO.Compression.CompressionLevel.NoCompression)
             .Build();
         using CancellationTokenSource cancel = new();
-        CancelAfterStream stream = new(archive, cancel, afterBytes: long.MaxValue);
+        CancellingStream stream = new(archive, cancel);
         using ArchiveCursor cursor = new(stream);
 
         stream.CancelAfter(archive.Length / 3);
@@ -101,34 +101,5 @@ public sealed class MoveToSheetCancellationTests
         using ITabularCursor cursor = Open("ods");
 
         Assert.ThrowsAny<OperationCanceledException>(() => TabularAnalyzer.Analyze(cursor, cancellationToken: Cancelled));
-    }
-
-    /// <summary>A stream over bytes that cancels a token once a given number of them has been read.</summary>
-    private sealed class CancelAfterStream(byte[] content, CancellationTokenSource cancel, long afterBytes) : MemoryStream(content, writable: false)
-    {
-        private long _read;
-        private long _after = afterBytes;
-
-        public void CancelAfter(long bytes)
-        {
-            _read = 0;
-            _after = bytes;
-        }
-
-        public override int Read(byte[] buffer, int offset, int count) => Count(base.Read(buffer, offset, count));
-
-        public override int Read(Span<byte> buffer) => Count(base.Read(buffer));
-
-        private int Count(int read)
-        {
-            _read += read;
-
-            if (_read >= _after)
-            {
-                cancel.Cancel();
-            }
-
-            return read;
-        }
     }
 }

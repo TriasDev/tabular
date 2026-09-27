@@ -29,17 +29,6 @@ public sealed class StreamOwnershipTests
         Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "name", FieldName = "name" }],
     };
 
-    private sealed class TrackedStream(byte[] content) : MemoryStream(content, writable: false)
-    {
-        public bool IsDisposed { get; private set; }
-
-        protected override void Dispose(bool disposing)
-        {
-            IsDisposed = true;
-            base.Dispose(disposing);
-        }
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

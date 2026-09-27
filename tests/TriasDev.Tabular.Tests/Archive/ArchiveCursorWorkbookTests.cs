@@ -125,13 +125,13 @@ public sealed class ArchiveCursorWorkbookTests
     public void RefusesAWorkbookLargerThanItsBudgetAndClosesTheStream()
     {
         byte[] archive = new ZipArchiveBuilder().With("a.csv", "h\n1\n").With("b.xlsx", Workbook(("S", InlineRow(1, "x")))).Build();
-        TrackingStream stream = new(archive);
+        TrackedStream stream = new(archive);
 
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => new ArchiveCursor(
             stream, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxEmbeddedWorkbookBytes = 200 } }, Token));
 
         Assert.Equal(nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes), error.Limit);
-        Assert.True(stream.WasDisposed);
+        Assert.True(stream.IsDisposed);
     }
 
     [Fact]
@@ -265,16 +265,5 @@ public sealed class ArchiveCursorWorkbookTests
         }
 
         return builder.Build();
-    }
-
-    private sealed class TrackingStream(byte[] content) : MemoryStream(content, writable: false)
-    {
-        public bool WasDisposed { get; private set; }
-
-        protected override void Dispose(bool disposing)
-        {
-            WasDisposed = true;
-            base.Dispose(disposing);
-        }
     }
 }

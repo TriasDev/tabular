@@ -172,45 +172,45 @@ public sealed class ArchiveCursorCsvTests
     {
         byte[] archive = new ZipArchiveBuilder().With("a.csv", "a\n1\n").With("b.csv", "a\n1\n").With("c.csv", new string('x', 5000)).Build();
 
-        TrackingStream entries = new(archive);
+        TrackedStream entries = new(archive);
         TabularLimitException tooMany = Assert.Throws<TabularLimitException>(() => new ArchiveCursor(
             entries, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxEntries = 2 } }, Token));
         Assert.Equal(nameof(ArchiveCursorOptions.MaxEntries), tooMany.Limit);
-        Assert.True(entries.WasDisposed);
+        Assert.True(entries.IsDisposed);
 
-        TrackingStream bytes = new(archive);
+        TrackedStream bytes = new(archive);
         TabularLimitException tooLarge = Assert.Throws<TabularLimitException>(() => new ArchiveCursor(
             bytes, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxUncompressedBytes = 4096 } }, Token));
         Assert.Equal(nameof(ArchiveCursorOptions.MaxUncompressedBytes), tooLarge.Limit);
-        Assert.True(bytes.WasDisposed);
+        Assert.True(bytes.IsDisposed);
     }
 
     [Fact]
     public void RefusesAnArchiveWithNothingToReadAndClosesTheStream()
     {
         byte[] binary = [0x89, 0x50, 0x4E, 0x47, .. Enumerable.Repeat((byte)0, 600)];
-        TrackingStream stream = new(new ZipArchiveBuilder().With("photo.png", binary).With(".DS_Store", "x").Build());
+        TrackedStream stream = new(new ZipArchiveBuilder().With("photo.png", binary).With(".DS_Store", "x").Build());
 
         TabularFormatException error = Assert.Throws<TabularFormatException>(() => new ArchiveCursor(stream, null, Token));
 
         Assert.Equal(TabularFormatException.Unsupported, error.Code);
-        Assert.True(stream.WasDisposed);
+        Assert.True(stream.IsDisposed);
     }
 
     [Fact]
     public void LeavesTheStreamOpenWhenAskedToOnFailureAndOnDispose()
     {
-        TrackingStream failing = new(new ZipArchiveBuilder().With("photo.png", [0, 0, 0, 0, 0, 0, 0, 0]).Build());
+        TrackedStream failing = new(new ZipArchiveBuilder().With("photo.png", [0, 0, 0, 0, 0, 0, 0, 0]).Build());
         Assert.Throws<TabularFormatException>(() => new ArchiveCursor(failing, new TabularOpenOptions { LeaveOpen = true }, Token));
-        Assert.False(failing.WasDisposed);
+        Assert.False(failing.IsDisposed);
 
-        TrackingStream kept = new(new ZipArchiveBuilder().With("a.csv", "a\n1\n").Build());
+        TrackedStream kept = new(new ZipArchiveBuilder().With("a.csv", "a\n1\n").Build());
         new ArchiveCursor(kept, new TabularOpenOptions { LeaveOpen = true }, Token).Dispose();
-        Assert.False(kept.WasDisposed);
+        Assert.False(kept.IsDisposed);
 
-        TrackingStream closed = new(new ZipArchiveBuilder().With("a.csv", "a\n1\n").Build());
+        TrackedStream closed = new(new ZipArchiveBuilder().With("a.csv", "a\n1\n").Build());
         new ArchiveCursor(closed, null, Token).Dispose();
-        Assert.True(closed.WasDisposed);
+        Assert.True(closed.IsDisposed);
     }
 
     [Fact]
@@ -259,17 +259,6 @@ public sealed class ArchiveCursorCsvTests
             ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(
                 () => Open(archive, new TabularOpenOptions { Archive = options }));
             Assert.Contains(name, error.Message, StringComparison.Ordinal);
-        }
-    }
-
-    private sealed class TrackingStream(byte[] content) : MemoryStream(content, writable: false)
-    {
-        public bool WasDisposed { get; private set; }
-
-        protected override void Dispose(bool disposing)
-        {
-            WasDisposed = true;
-            base.Dispose(disposing);
         }
     }
 }
