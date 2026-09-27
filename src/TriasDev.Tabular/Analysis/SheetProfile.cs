@@ -36,7 +36,7 @@ public sealed record SheetProfile
     public required int RowCount { get; init; }
 
     /// <summary>One entry per column, in file order.</summary>
-    public required IReadOnlyList<ColumnProfile> Columns { get; init; }
+    public required IReadOnlyList<ColumnProfile> Columns { get; init => field = Equatable.List(value); }
 
     /// <summary>
     /// The row the header was read from, zero-based.

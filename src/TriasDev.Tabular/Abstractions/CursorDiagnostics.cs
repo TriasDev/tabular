@@ -9,7 +9,7 @@ namespace TriasDev.Tabular;
 /// import of five million rows — but a recovery nobody is told about is indistinguishable from
 /// correct reading, and that is the actual defect. Hence the counts.
 /// </remarks>
-public sealed class CursorDiagnostics
+public sealed record CursorDiagnostics
 {
     /// <summary>
     /// Quoted fields that were never closed and had to be abandoned at the configured bound, their

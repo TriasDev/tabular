@@ -11,7 +11,7 @@ namespace TriasDev.Tabular;
 /// to be expressible without code; and a closed set is what keeps the library from growing a rules
 /// language nobody asked for.
 /// </remarks>
-public abstract record FieldConstraint
+public abstract class FieldConstraint
 {
     /// <summary>
     /// Closes the hierarchy: only the rules nested below can exist.
@@ -32,57 +32,92 @@ public abstract record FieldConstraint
     public abstract bool IsSatisfiedBy(in MappedValue value);
 
     /// <summary>The value must have exactly this many characters.</summary>
-    public sealed record ExactLength(int Length) : FieldConstraint
+    public sealed class ExactLength(int length) : FieldConstraint
     {
+        /// <summary>The number of characters a value must have.</summary>
+        public int Length { get; } = length;
+
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.ExactLength;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => value.Text?.Length == Length;
+
+        /// <inheritdoc />
+        public override string ToString() =>
+            string.Create(CultureInfo.InvariantCulture, $"ExactLength({Length})");
     }
 
     /// <summary>The value must have at least this many characters.</summary>
-    public sealed record MinLength(int Length) : FieldConstraint
+    public sealed class MinLength(int length) : FieldConstraint
     {
+        /// <summary>The fewest characters a value may have.</summary>
+        public int Length { get; } = length;
+
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.MinLength;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => value.Text?.Length >= Length;
+
+        /// <inheritdoc />
+        public override string ToString() =>
+            string.Create(CultureInfo.InvariantCulture, $"MinLength({Length})");
     }
 
     /// <summary>The value must have at most this many characters.</summary>
-    public sealed record MaxLength(int Length) : FieldConstraint
+    public sealed class MaxLength(int length) : FieldConstraint
     {
+        /// <summary>The most characters a value may have.</summary>
+        public int Length { get; } = length;
+
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.MaxLength;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => value.Text?.Length <= Length;
+
+        /// <inheritdoc />
+        public override string ToString() =>
+            string.Create(CultureInfo.InvariantCulture, $"MaxLength({Length})");
     }
 
     /// <summary>The value must not be below this one.</summary>
     /// <remarks>A value that is not a number does not satisfy a rule about numbers. See
     /// <see cref="IsNumber"/>.</remarks>
-    public sealed record MinValue(decimal Value) : FieldConstraint
+    public sealed class MinValue(decimal minimum) : FieldConstraint
     {
+        /// <summary>The smallest number allowed.</summary>
+        public decimal Value { get; } = minimum;
+
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.OutOfRange;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => IsNumber(value) && value.Number >= Value;
+
+        /// <inheritdoc />
+        public override string ToString() =>
+            string.Create(CultureInfo.InvariantCulture, $"MinValue({Value})");
     }
 
     /// <summary>The value must not be above this one.</summary>
     /// <remarks>A value that is not a number does not satisfy a rule about numbers. See
     /// <see cref="IsNumber"/>.</remarks>
-    public sealed record MaxValue(decimal Value) : FieldConstraint
+    public sealed class MaxValue(decimal maximum) : FieldConstraint
     {
+        /// <summary>The largest number allowed.</summary>
+        public decimal Value { get; } = maximum;
+
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.OutOfRange;
 
         /// <inheritdoc />
         public override bool IsSatisfiedBy(in MappedValue value) => IsNumber(value) && value.Number <= Value;
+
+        /// <inheritdoc />
+        public override string ToString() =>
+            string.Create(CultureInfo.InvariantCulture, $"MaxValue({Value})");
     }
 
     /// <summary>
@@ -98,7 +133,7 @@ public abstract record FieldConstraint
         value.IsPresent && value.Type is ColumnType.Integer or ColumnType.Decimal;
 
     /// <summary>The value must be one of these.</summary>
-    public sealed record AllowedValues : FieldConstraint
+    public sealed class AllowedValues : FieldConstraint
     {
         private readonly HashSet<string> _allowed;
 
@@ -144,7 +179,7 @@ public abstract record FieldConstraint
     /// away would turn one upload into an outage.
     /// </para>
     /// </remarks>
-    public sealed record Pattern : FieldConstraint
+    public sealed class Pattern : FieldConstraint
     {
         private static readonly TimeSpan Budget = TimeSpan.FromMilliseconds(100);
 
@@ -221,7 +256,7 @@ public abstract record FieldConstraint
     /// defect in the caller and ends the run, rather than passing or failing values silently.
     /// </para>
     /// </remarks>
-    public sealed record Rule : FieldConstraint
+    public sealed class Rule : FieldConstraint
     {
         private readonly Func<MappedValue, bool> _predicate;
 

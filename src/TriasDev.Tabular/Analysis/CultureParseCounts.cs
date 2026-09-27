@@ -22,8 +22,8 @@ public sealed record CultureParseCounts
     public required int Date { get; init; }
 
     /// <summary>Values that did not read as a number, up to the configured limit.</summary>
-    public required IReadOnlyList<ValueLocation> NumericOutliers { get; init; }
+    public required IReadOnlyList<ValueLocation> NumericOutliers { get; init => field = Equatable.List(value); }
 
     /// <summary>Values that did not read as a date, up to the configured limit.</summary>
-    public required IReadOnlyList<ValueLocation> DateOutliers { get; init; }
+    public required IReadOnlyList<ValueLocation> DateOutliers { get; init => field = Equatable.List(value); }
 }

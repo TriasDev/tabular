@@ -14,7 +14,7 @@ public sealed record AnalysisOptions
     /// written by English-speaking software, and files written by a program that used neither. A
     /// caller who knows better can say so.
     /// </remarks>
-    public IReadOnlyList<string> Cultures { get; init; } = ["", "de-DE", "en-US"];
+    public IReadOnlyList<string> Cultures { get; init => field = Equatable.List(value); } = Equatable.List(["", "de-DE", "en-US"]);
 
     /// <summary>
     /// How many values may be tracked for exact distinct counting across the whole file.

@@ -48,7 +48,7 @@ public sealed record MappingPlan
     public string? Culture { get; init; }
 
     /// <summary>What each mapped column feeds.</summary>
-    public required IReadOnlyList<ColumnBinding> Bindings { get; init; }
+    public required IReadOnlyList<ColumnBinding> Bindings { get; init => field = Equatable.List(value); }
 
     /// <summary>
     /// A plan binding every column whose header names a field, ignoring case, spaces and the

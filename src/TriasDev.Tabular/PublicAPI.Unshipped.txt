@@ -23,6 +23,30 @@
 *REMOVED*TriasDev.Tabular.DecimalField.Must(string! code, System.Func<decimal, bool>! rule) -> TriasDev.Tabular.DecimalField!
 *REMOVED*TriasDev.Tabular.DecimalField.Require() -> TriasDev.Tabular.DecimalField!
 *REMOVED*TriasDev.Tabular.DecimalField.Unique() -> TriasDev.Tabular.DecimalField!
+*REMOVED*TriasDev.Tabular.FieldConstraint.AllowedValues.Equals(TriasDev.Tabular.FieldConstraint.AllowedValues? other) -> bool
+*REMOVED*TriasDev.Tabular.FieldConstraint.ExactLength.Deconstruct(out int Length) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.ExactLength.Equals(TriasDev.Tabular.FieldConstraint.ExactLength? other) -> bool
+*REMOVED*TriasDev.Tabular.FieldConstraint.ExactLength.ExactLength(int Length) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.ExactLength.Length.init -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.FieldConstraint(TriasDev.Tabular.FieldConstraint! original) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxLength.Deconstruct(out int Length) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxLength.Equals(TriasDev.Tabular.FieldConstraint.MaxLength? other) -> bool
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxLength.Length.init -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxLength.MaxLength(int Length) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxValue.Deconstruct(out decimal Value) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxValue.Equals(TriasDev.Tabular.FieldConstraint.MaxValue? other) -> bool
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxValue.MaxValue(decimal Value) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MaxValue.Value.init -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinLength.Deconstruct(out int Length) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinLength.Equals(TriasDev.Tabular.FieldConstraint.MinLength? other) -> bool
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinLength.Length.init -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinLength.MinLength(int Length) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinValue.Deconstruct(out decimal Value) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinValue.Equals(TriasDev.Tabular.FieldConstraint.MinValue? other) -> bool
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinValue.MinValue(decimal Value) -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.MinValue.Value.init -> void
+*REMOVED*TriasDev.Tabular.FieldConstraint.Pattern.Equals(TriasDev.Tabular.FieldConstraint.Pattern? other) -> bool
+*REMOVED*TriasDev.Tabular.FieldConstraint.Rule.Equals(TriasDev.Tabular.FieldConstraint.Rule? other) -> bool
 *REMOVED*TriasDev.Tabular.ImportRow.AsText(TriasDev.Tabular.TargetField! field) -> string?
 *REMOVED*TriasDev.Tabular.ImportRow.Has(TriasDev.Tabular.TargetField! field) -> bool
 *REMOVED*TriasDev.Tabular.ImportRow.Translations(TriasDev.Tabular.TranslatedField! group) -> System.Collections.Generic.Dictionary<string!, string!>!
@@ -100,6 +124,7 @@
 *REMOVED*TriasDev.Tabular.TranslatedField.Name.get -> string!
 *REMOVED*TriasDev.Tabular.TranslatedField.Require() -> TriasDev.Tabular.TranslatedField!
 *REMOVED*TriasDev.Tabular.TranslatedField.this[string! variant].get -> TriasDev.Tabular.TextField!
+*REMOVED*abstract TriasDev.Tabular.FieldConstraint.<Clone>$() -> TriasDev.Tabular.FieldConstraint!
 *REMOVED*override TriasDev.Tabular.BooleanField.<Clone>$() -> TriasDev.Tabular.BooleanField!
 *REMOVED*override TriasDev.Tabular.BooleanField.Equals(object? obj) -> bool
 *REMOVED*override TriasDev.Tabular.BooleanField.GetHashCode() -> int
@@ -112,6 +137,34 @@
 *REMOVED*override TriasDev.Tabular.DecimalField.Equals(object? obj) -> bool
 *REMOVED*override TriasDev.Tabular.DecimalField.GetHashCode() -> int
 *REMOVED*override TriasDev.Tabular.DecimalField.ToString() -> string!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.AllowedValues.<Clone>$() -> TriasDev.Tabular.FieldConstraint.AllowedValues!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.AllowedValues.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.AllowedValues.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.AllowedValues.ToString() -> string!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.ExactLength.<Clone>$() -> TriasDev.Tabular.FieldConstraint.ExactLength!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.ExactLength.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.ExactLength.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MaxLength.<Clone>$() -> TriasDev.Tabular.FieldConstraint.MaxLength!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MaxLength.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MaxLength.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MaxValue.<Clone>$() -> TriasDev.Tabular.FieldConstraint.MaxValue!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MaxValue.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MaxValue.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MinLength.<Clone>$() -> TriasDev.Tabular.FieldConstraint.MinLength!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MinLength.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MinLength.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MinValue.<Clone>$() -> TriasDev.Tabular.FieldConstraint.MinValue!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MinValue.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.MinValue.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.Pattern.<Clone>$() -> TriasDev.Tabular.FieldConstraint.Pattern!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.Pattern.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.Pattern.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.Rule.<Clone>$() -> TriasDev.Tabular.FieldConstraint.Rule!
+*REMOVED*override TriasDev.Tabular.FieldConstraint.Rule.Equals(object? obj) -> bool
+*REMOVED*override TriasDev.Tabular.FieldConstraint.Rule.GetHashCode() -> int
+*REMOVED*override TriasDev.Tabular.FieldConstraint.ToString() -> string!
 *REMOVED*override TriasDev.Tabular.IntegerField.<Clone>$() -> TriasDev.Tabular.IntegerField!
 *REMOVED*override TriasDev.Tabular.IntegerField.Equals(object? obj) -> bool
 *REMOVED*override TriasDev.Tabular.IntegerField.GetHashCode() -> int
@@ -129,6 +182,14 @@
 *REMOVED*override sealed TriasDev.Tabular.BooleanField.Equals(TriasDev.Tabular.TargetField? other) -> bool
 *REMOVED*override sealed TriasDev.Tabular.DateField.Equals(TriasDev.Tabular.TargetField? other) -> bool
 *REMOVED*override sealed TriasDev.Tabular.DecimalField.Equals(TriasDev.Tabular.TargetField? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.AllowedValues.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.ExactLength.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.MaxLength.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.MaxValue.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.MinLength.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.MinValue.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.Pattern.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*override sealed TriasDev.Tabular.FieldConstraint.Rule.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
 *REMOVED*override sealed TriasDev.Tabular.IntegerField.Equals(TriasDev.Tabular.TargetField? other) -> bool
 *REMOVED*override sealed TriasDev.Tabular.TextField.Equals(TriasDev.Tabular.TargetField? other) -> bool
 *REMOVED*static TriasDev.Tabular.BooleanField.operator !=(TriasDev.Tabular.BooleanField? left, TriasDev.Tabular.BooleanField? right) -> bool
@@ -137,6 +198,24 @@
 *REMOVED*static TriasDev.Tabular.DateField.operator ==(TriasDev.Tabular.DateField? left, TriasDev.Tabular.DateField? right) -> bool
 *REMOVED*static TriasDev.Tabular.DecimalField.operator !=(TriasDev.Tabular.DecimalField? left, TriasDev.Tabular.DecimalField? right) -> bool
 *REMOVED*static TriasDev.Tabular.DecimalField.operator ==(TriasDev.Tabular.DecimalField? left, TriasDev.Tabular.DecimalField? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.AllowedValues.operator !=(TriasDev.Tabular.FieldConstraint.AllowedValues? left, TriasDev.Tabular.FieldConstraint.AllowedValues? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.AllowedValues.operator ==(TriasDev.Tabular.FieldConstraint.AllowedValues? left, TriasDev.Tabular.FieldConstraint.AllowedValues? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.ExactLength.operator !=(TriasDev.Tabular.FieldConstraint.ExactLength? left, TriasDev.Tabular.FieldConstraint.ExactLength? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.ExactLength.operator ==(TriasDev.Tabular.FieldConstraint.ExactLength? left, TriasDev.Tabular.FieldConstraint.ExactLength? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MaxLength.operator !=(TriasDev.Tabular.FieldConstraint.MaxLength? left, TriasDev.Tabular.FieldConstraint.MaxLength? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MaxLength.operator ==(TriasDev.Tabular.FieldConstraint.MaxLength? left, TriasDev.Tabular.FieldConstraint.MaxLength? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MaxValue.operator !=(TriasDev.Tabular.FieldConstraint.MaxValue? left, TriasDev.Tabular.FieldConstraint.MaxValue? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MaxValue.operator ==(TriasDev.Tabular.FieldConstraint.MaxValue? left, TriasDev.Tabular.FieldConstraint.MaxValue? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MinLength.operator !=(TriasDev.Tabular.FieldConstraint.MinLength? left, TriasDev.Tabular.FieldConstraint.MinLength? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MinLength.operator ==(TriasDev.Tabular.FieldConstraint.MinLength? left, TriasDev.Tabular.FieldConstraint.MinLength? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MinValue.operator !=(TriasDev.Tabular.FieldConstraint.MinValue? left, TriasDev.Tabular.FieldConstraint.MinValue? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.MinValue.operator ==(TriasDev.Tabular.FieldConstraint.MinValue? left, TriasDev.Tabular.FieldConstraint.MinValue? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.Pattern.operator !=(TriasDev.Tabular.FieldConstraint.Pattern? left, TriasDev.Tabular.FieldConstraint.Pattern? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.Pattern.operator ==(TriasDev.Tabular.FieldConstraint.Pattern? left, TriasDev.Tabular.FieldConstraint.Pattern? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.Rule.operator !=(TriasDev.Tabular.FieldConstraint.Rule? left, TriasDev.Tabular.FieldConstraint.Rule? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.Rule.operator ==(TriasDev.Tabular.FieldConstraint.Rule? left, TriasDev.Tabular.FieldConstraint.Rule? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.operator !=(TriasDev.Tabular.FieldConstraint? left, TriasDev.Tabular.FieldConstraint? right) -> bool
+*REMOVED*static TriasDev.Tabular.FieldConstraint.operator ==(TriasDev.Tabular.FieldConstraint? left, TriasDev.Tabular.FieldConstraint? right) -> bool
 *REMOVED*static TriasDev.Tabular.ImportField.Boolean(string! name) -> TriasDev.Tabular.BooleanField!
 *REMOVED*static TriasDev.Tabular.ImportField.Date(string! name) -> TriasDev.Tabular.DateField!
 *REMOVED*static TriasDev.Tabular.ImportField.Decimal(string! name) -> TriasDev.Tabular.DecimalField!
@@ -158,13 +237,15 @@
 *REMOVED*static TriasDev.Tabular.TargetSchema.operator ==(TriasDev.Tabular.TargetSchema? left, TriasDev.Tabular.TargetSchema? right) -> bool
 *REMOVED*static TriasDev.Tabular.TextField.operator !=(TriasDev.Tabular.TextField? left, TriasDev.Tabular.TextField? right) -> bool
 *REMOVED*static TriasDev.Tabular.TextField.operator ==(TriasDev.Tabular.TextField? left, TriasDev.Tabular.TextField? right) -> bool
+*REMOVED*virtual TriasDev.Tabular.FieldConstraint.EqualityContract.get -> System.Type!
+*REMOVED*virtual TriasDev.Tabular.FieldConstraint.Equals(TriasDev.Tabular.FieldConstraint? other) -> bool
+*REMOVED*virtual TriasDev.Tabular.FieldConstraint.PrintMembers(System.Text.StringBuilder! builder) -> bool
 *REMOVED*virtual TriasDev.Tabular.TargetField.<Clone>$() -> TriasDev.Tabular.TargetField!
 *REMOVED*virtual TriasDev.Tabular.TargetField.EqualityContract.get -> System.Type!
 *REMOVED*virtual TriasDev.Tabular.TargetField.Equals(TriasDev.Tabular.TargetField? other) -> bool
 *REMOVED*virtual TriasDev.Tabular.TargetField.PrintMembers(System.Text.StringBuilder! builder) -> bool
 TriasDev.Tabular.BooleanImportField
 TriasDev.Tabular.BooleanImportField.BooleanImportField() -> void
-TriasDev.Tabular.BooleanImportField.Equals(TriasDev.Tabular.BooleanImportField? other) -> bool
 TriasDev.Tabular.BooleanImportField.Require() -> TriasDev.Tabular.BooleanImportField!
 TriasDev.Tabular.ColumnBinding.ColumnIndex.get -> int
 TriasDev.Tabular.ColumnBinding.ColumnIndex.init -> void
@@ -172,9 +253,10 @@ TriasDev.Tabular.ColumnBinding.FieldName.get -> string!
 TriasDev.Tabular.ColumnBinding.FieldName.init -> void
 TriasDev.Tabular.ColumnBinding.Header.get -> string!
 TriasDev.Tabular.ColumnBinding.Header.init -> void
+TriasDev.Tabular.CursorDiagnostics.<Clone>$() -> TriasDev.Tabular.CursorDiagnostics!
+TriasDev.Tabular.CursorDiagnostics.Equals(TriasDev.Tabular.CursorDiagnostics? other) -> bool
 TriasDev.Tabular.DateImportField
 TriasDev.Tabular.DateImportField.DateImportField() -> void
-TriasDev.Tabular.DateImportField.Equals(TriasDev.Tabular.DateImportField? other) -> bool
 TriasDev.Tabular.DateImportField.Must(string! code, System.Func<System.DateTime, bool>! rule) -> TriasDev.Tabular.DateImportField!
 TriasDev.Tabular.DateImportField.Require() -> TriasDev.Tabular.DateImportField!
 TriasDev.Tabular.DateImportField.Unique() -> TriasDev.Tabular.DateImportField!
@@ -182,10 +264,14 @@ TriasDev.Tabular.DecimalImportField
 TriasDev.Tabular.DecimalImportField.AtLeast(decimal value) -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.AtMost(decimal value) -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.DecimalImportField() -> void
-TriasDev.Tabular.DecimalImportField.Equals(TriasDev.Tabular.DecimalImportField? other) -> bool
 TriasDev.Tabular.DecimalImportField.Must(string! code, System.Func<decimal, bool>! rule) -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Require() -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Unique() -> TriasDev.Tabular.DecimalImportField!
+TriasDev.Tabular.FieldConstraint.ExactLength.ExactLength(int length) -> void
+TriasDev.Tabular.FieldConstraint.MaxLength.MaxLength(int length) -> void
+TriasDev.Tabular.FieldConstraint.MaxValue.MaxValue(decimal maximum) -> void
+TriasDev.Tabular.FieldConstraint.MinLength.MinLength(int length) -> void
+TriasDev.Tabular.FieldConstraint.MinValue.MinValue(decimal minimum) -> void
 TriasDev.Tabular.ITabularProblem
 TriasDev.Tabular.ITabularProblem.Code.get -> string!
 TriasDev.Tabular.ITabularProblem.ColumnIndex.get -> int?
@@ -215,8 +301,6 @@ TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.DecimalImportField! field].get 
 TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.IntegerImportField! field].get -> long?
 TriasDev.Tabular.ImportRow.this[TriasDev.Tabular.TextImportField! field].get -> string?
 TriasDev.Tabular.ImportSchema
-TriasDev.Tabular.ImportSchema.<Clone>$() -> TriasDev.Tabular.ImportSchema!
-TriasDev.Tabular.ImportSchema.Equals(TriasDev.Tabular.ImportSchema? other) -> bool
 TriasDev.Tabular.ImportSchema.Fields.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.ImportField!>!
 TriasDev.Tabular.ImportSchema.Fields.init -> void
 TriasDev.Tabular.ImportSchema.ImportSchema() -> void
@@ -225,7 +309,6 @@ TriasDev.Tabular.ImportSchema.Policy.init -> void
 TriasDev.Tabular.IntegerImportField
 TriasDev.Tabular.IntegerImportField.AtLeast(long value) -> TriasDev.Tabular.IntegerImportField!
 TriasDev.Tabular.IntegerImportField.AtMost(long value) -> TriasDev.Tabular.IntegerImportField!
-TriasDev.Tabular.IntegerImportField.Equals(TriasDev.Tabular.IntegerImportField? other) -> bool
 TriasDev.Tabular.IntegerImportField.IntegerImportField() -> void
 TriasDev.Tabular.IntegerImportField.Must(string! code, System.Func<long, bool>! rule) -> TriasDev.Tabular.IntegerImportField!
 TriasDev.Tabular.IntegerImportField.Require() -> TriasDev.Tabular.IntegerImportField!
@@ -259,7 +342,6 @@ TriasDev.Tabular.TabularStructureException.ColumnIndex.get -> int?
 TriasDev.Tabular.TabularStructureException.ColumnIndex.init -> void
 TriasDev.Tabular.TextImportField
 TriasDev.Tabular.TextImportField.AllowedValues(System.Collections.Generic.IEnumerable<string!>! values, bool ignoreCase = false) -> TriasDev.Tabular.TextImportField!
-TriasDev.Tabular.TextImportField.Equals(TriasDev.Tabular.TextImportField? other) -> bool
 TriasDev.Tabular.TextImportField.ExactLength(int length) -> TriasDev.Tabular.TextImportField!
 TriasDev.Tabular.TextImportField.Matching(string! pattern) -> TriasDev.Tabular.TextImportField!
 TriasDev.Tabular.TextImportField.MaxLength(int length) -> TriasDev.Tabular.TextImportField!
@@ -295,55 +377,17 @@ const TriasDev.Tabular.PrecheckReasons.Repeats = "repeats" -> string!
 const TriasDev.Tabular.PrecheckReasons.SpelledAsNothing = "spelled-as-nothing" -> string!
 const TriasDev.Tabular.PrecheckReasons.TooManyDistinct = "too-many-distinct" -> string!
 const TriasDev.Tabular.PrecheckReasons.ValuesFail = "values-fail" -> string!
-override TriasDev.Tabular.BooleanImportField.<Clone>$() -> TriasDev.Tabular.BooleanImportField!
-override TriasDev.Tabular.BooleanImportField.Equals(object? obj) -> bool
-override TriasDev.Tabular.BooleanImportField.GetHashCode() -> int
-override TriasDev.Tabular.BooleanImportField.ToString() -> string!
-override TriasDev.Tabular.DateImportField.<Clone>$() -> TriasDev.Tabular.DateImportField!
-override TriasDev.Tabular.DateImportField.Equals(object? obj) -> bool
-override TriasDev.Tabular.DateImportField.GetHashCode() -> int
-override TriasDev.Tabular.DateImportField.ToString() -> string!
-override TriasDev.Tabular.DecimalImportField.<Clone>$() -> TriasDev.Tabular.DecimalImportField!
-override TriasDev.Tabular.DecimalImportField.Equals(object? obj) -> bool
-override TriasDev.Tabular.DecimalImportField.GetHashCode() -> int
-override TriasDev.Tabular.DecimalImportField.ToString() -> string!
-override TriasDev.Tabular.ImportField.Equals(object? obj) -> bool
-override TriasDev.Tabular.ImportField.GetHashCode() -> int
-override TriasDev.Tabular.ImportField.ToString() -> string!
-override TriasDev.Tabular.ImportSchema.Equals(object? obj) -> bool
-override TriasDev.Tabular.ImportSchema.GetHashCode() -> int
-override TriasDev.Tabular.ImportSchema.ToString() -> string!
-override TriasDev.Tabular.IntegerImportField.<Clone>$() -> TriasDev.Tabular.IntegerImportField!
-override TriasDev.Tabular.IntegerImportField.Equals(object? obj) -> bool
-override TriasDev.Tabular.IntegerImportField.GetHashCode() -> int
-override TriasDev.Tabular.IntegerImportField.ToString() -> string!
-override TriasDev.Tabular.TextImportField.<Clone>$() -> TriasDev.Tabular.TextImportField!
-override TriasDev.Tabular.TextImportField.Equals(object? obj) -> bool
-override TriasDev.Tabular.TextImportField.GetHashCode() -> int
-override TriasDev.Tabular.TextImportField.ToString() -> string!
-override sealed TriasDev.Tabular.BooleanImportField.Equals(TriasDev.Tabular.ImportField? other) -> bool
-override sealed TriasDev.Tabular.DateImportField.Equals(TriasDev.Tabular.ImportField? other) -> bool
-override sealed TriasDev.Tabular.DecimalImportField.Equals(TriasDev.Tabular.ImportField? other) -> bool
-override sealed TriasDev.Tabular.IntegerImportField.Equals(TriasDev.Tabular.ImportField? other) -> bool
-override sealed TriasDev.Tabular.TextImportField.Equals(TriasDev.Tabular.ImportField? other) -> bool
-static TriasDev.Tabular.BooleanImportField.operator !=(TriasDev.Tabular.BooleanImportField? left, TriasDev.Tabular.BooleanImportField? right) -> bool
-static TriasDev.Tabular.BooleanImportField.operator ==(TriasDev.Tabular.BooleanImportField? left, TriasDev.Tabular.BooleanImportField? right) -> bool
-static TriasDev.Tabular.DateImportField.operator !=(TriasDev.Tabular.DateImportField? left, TriasDev.Tabular.DateImportField? right) -> bool
-static TriasDev.Tabular.DateImportField.operator ==(TriasDev.Tabular.DateImportField? left, TriasDev.Tabular.DateImportField? right) -> bool
-static TriasDev.Tabular.DecimalImportField.operator !=(TriasDev.Tabular.DecimalImportField? left, TriasDev.Tabular.DecimalImportField? right) -> bool
-static TriasDev.Tabular.DecimalImportField.operator ==(TriasDev.Tabular.DecimalImportField? left, TriasDev.Tabular.DecimalImportField? right) -> bool
+override TriasDev.Tabular.CursorDiagnostics.Equals(object? obj) -> bool
+override TriasDev.Tabular.CursorDiagnostics.GetHashCode() -> int
+override TriasDev.Tabular.CursorDiagnostics.ToString() -> string!
+static TriasDev.Tabular.CursorDiagnostics.operator !=(TriasDev.Tabular.CursorDiagnostics? left, TriasDev.Tabular.CursorDiagnostics? right) -> bool
+static TriasDev.Tabular.CursorDiagnostics.operator ==(TriasDev.Tabular.CursorDiagnostics? left, TriasDev.Tabular.CursorDiagnostics? right) -> bool
 static TriasDev.Tabular.ImportField.Boolean(string! name) -> TriasDev.Tabular.BooleanImportField!
 static TriasDev.Tabular.ImportField.Date(string! name) -> TriasDev.Tabular.DateImportField!
 static TriasDev.Tabular.ImportField.Decimal(string! name) -> TriasDev.Tabular.DecimalImportField!
 static TriasDev.Tabular.ImportField.Integer(string! name) -> TriasDev.Tabular.IntegerImportField!
 static TriasDev.Tabular.ImportField.Text(string! name) -> TriasDev.Tabular.TextImportField!
 static TriasDev.Tabular.ImportField.Translated(string! name, System.Collections.Generic.IEnumerable<string!>! variants) -> TriasDev.Tabular.TranslatedImportField!
-static TriasDev.Tabular.ImportField.operator !=(TriasDev.Tabular.ImportField? left, TriasDev.Tabular.ImportField? right) -> bool
-static TriasDev.Tabular.ImportField.operator ==(TriasDev.Tabular.ImportField? left, TriasDev.Tabular.ImportField? right) -> bool
-static TriasDev.Tabular.ImportSchema.operator !=(TriasDev.Tabular.ImportSchema? left, TriasDev.Tabular.ImportSchema? right) -> bool
-static TriasDev.Tabular.ImportSchema.operator ==(TriasDev.Tabular.ImportSchema? left, TriasDev.Tabular.ImportSchema? right) -> bool
-static TriasDev.Tabular.IntegerImportField.operator !=(TriasDev.Tabular.IntegerImportField? left, TriasDev.Tabular.IntegerImportField? right) -> bool
-static TriasDev.Tabular.IntegerImportField.operator ==(TriasDev.Tabular.IntegerImportField? left, TriasDev.Tabular.IntegerImportField? right) -> bool
 static TriasDev.Tabular.MappingPlan.ByHeader(TriasDev.Tabular.SheetProfile! sheet, TriasDev.Tabular.ImportSchema! schema, System.Func<string!, TriasDev.Tabular.ImportField!, bool>! matches, string? culture = null) -> TriasDev.Tabular.MappingPlan!
 static TriasDev.Tabular.MappingPlan.ByHeader(TriasDev.Tabular.SheetProfile! sheet, TriasDev.Tabular.ImportSchema! schema, string? culture = null) -> TriasDev.Tabular.MappingPlan!
 static TriasDev.Tabular.MappingPlanValidator.Validate(TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema) -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.MappingFault!>!
@@ -352,9 +396,3 @@ static TriasDev.Tabular.TabularAnalyzer.Analyze(TriasDev.Tabular.ITabularCursor!
 static TriasDev.Tabular.TabularExtractor.Start(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.ExtractionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ExtractionSession!
 static TriasDev.Tabular.TabularImporter.Import<T>(System.IO.Stream! stream, string! name, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.TabularRowMapper<T>! mapper, TriasDev.Tabular.ImportOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportRun<T>!
 static TriasDev.Tabular.TabularImporter.Import<T>(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.TabularRowMapper<T>! mapper, TriasDev.Tabular.ImportOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportRun<T>!
-static TriasDev.Tabular.TextImportField.operator !=(TriasDev.Tabular.TextImportField? left, TriasDev.Tabular.TextImportField? right) -> bool
-static TriasDev.Tabular.TextImportField.operator ==(TriasDev.Tabular.TextImportField? left, TriasDev.Tabular.TextImportField? right) -> bool
-virtual TriasDev.Tabular.ImportField.<Clone>$() -> TriasDev.Tabular.ImportField!
-virtual TriasDev.Tabular.ImportField.EqualityContract.get -> System.Type!
-virtual TriasDev.Tabular.ImportField.Equals(TriasDev.Tabular.ImportField? other) -> bool
-virtual TriasDev.Tabular.ImportField.PrintMembers(System.Text.StringBuilder! builder) -> bool

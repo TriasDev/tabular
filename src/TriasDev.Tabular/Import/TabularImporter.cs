@@ -416,4 +416,11 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
 public sealed record ImportResult<T>(
     IReadOnlyList<T> Items,
     IReadOnlyList<RowError> Errors,
-    ExtractionSummary Summary);
+    ExtractionSummary Summary)
+{
+    /// <summary>What was built.</summary>
+    public IReadOnlyList<T> Items { get; init => field = Equatable.List(value); } = Equatable.List(Items);
+
+    /// <summary>Why rows produced nothing.</summary>
+    public IReadOnlyList<RowError> Errors { get; init => field = Equatable.List(value); } = Equatable.List(Errors);
+}

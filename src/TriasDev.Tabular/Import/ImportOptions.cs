@@ -65,5 +65,5 @@ public sealed record ImportPreviewRow
     public required int RowNumber { get; init; }
 
     /// <summary>Each field's value rendered as text, invariantly.</summary>
-    public required IReadOnlyDictionary<string, string?> Values { get; init; }
+    public required IReadOnlyDictionary<string, string?> Values { get; init => field = Equatable.Dictionary(value); }
 }
