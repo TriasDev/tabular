@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.3.0](https://github.com/TriasDev/tabular/compare/v0.2.0...v0.3.0) (2026-09-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* TabularExtractor.Start → TabularExtractor.Extract, and ExtractionSession → ExtractionRun; its members are unchanged.
+* precheck argument keys renamed — readableCount → judgedCount (PrecheckArguments.ReadableCount → JudgedCount), profileHeaderRow → profileHeaderRowIndex, planHeaderRow → planHeaderRowIndex, boundColumns → boundColumnCount. A schema with a typed field whose Type is not its class's is refused with ArgumentException. The constraints, now classes, no longer have init setters on Length and Value.
+* the public API is reshaped once for 1.0. Old → new:
+    - `new TabularAnalyzer(options).Analyze(cursor, progress, ct)` → `TabularAnalyzer.Analyze(cursor, options, progress, ct)`
+    - `TargetField` → `ImportField` (also the factory: `ImportField.Text(...)` and the others)
+    - `TextField` / `IntegerField` / `DecimalField` / `DateField` / `BooleanField` → `TextImportField` / `IntegerImportField` / `DecimalImportField` / `DateImportField` / `BooleanImportField`
+    - `TranslatedField` → `TranslatedImportField`; `TargetSchema` → `ImportSchema`
+    - `SourceColumnIndex` → `ColumnIndex` and `TargetFieldName` → `FieldName` on `ColumnBinding`, `RowError`, `MappingFault`, `PrecheckFinding`; `TabularStructureException.SourceColumnIndex` → `ColumnIndex`; `ColumnBinding.SourceHeader` → `Header`
+    - new `ITabularProblem`, implemented by `RowError`, `MappingFault`, `PrecheckFinding`
+    - `PrecheckFinding.Detail` removed → `AffectedRowsBound`, `Examples`, `Arguments` (`PrecheckArguments`, `PrecheckReasons`); `PrecheckFinding.FieldName` / `ColumnIndex` are nullable
+    - `foreach (var o in run)` → `run.ReadRows(ct)`; `Rows` → `ReadRows`, `InChunks` → `ReadChunks`, `All` → `ReadAll`; `ImportRun<T>` is not an `IEnumerable`
+    - `ExtractionSummary` is an immutable record; `Summary` properties return snapshots
+    - fields, `ImportSchema` and constraints are classes (no `with`, reference equality); plans, bindings, options, profiles and results compare by value; `CursorDiagnostics` is a record
+    - `ITabularCursor.MoveToSheet(int)` → `MoveToSheet(int, CancellationToken = default)`
+* ITabularCursor.MoveToSheet(int) is MoveToSheet(int, CancellationToken = default); a cursor implemented outside the library must add the parameter.
+* ImportRun<T> no longer implements IEnumerable; `foreach (var o in run)` is `foreach (var o in run.ReadRows(ct))`. Rows → ReadRows, InChunks → ReadChunks, All → ReadAll. ExtractionSummary is an immutable record: ImportRun<T>.Summary and ExtractionSession.Summary return a snapshot rather than a live object.
+* ImportField (and TextImportField and the other typed fields), ImportSchema, FieldConstraint and its nested rules are classes, not records: `with` expressions, value equality and deconstruction on them are gone. CursorDiagnostics is a record. Collections in MappingPlan, ColumnBinding, AnalysisOptions, FileProfile, SheetProfile, ColumnProfile, ColumnFacts, CultureParseCounts, TypeHypothesis, PrecheckFinding, PrecheckResult, ImportPreviewRow and ImportResult compare by value.
+* PrecheckFinding.Detail is removed; its data is in AffectedRowsBound, Examples and Arguments. PrecheckFinding.FieldName is string? and ColumnIndex is int?, null where a finding concerns no field or column.
+* renamed types — TargetField → ImportField (now also the factory; the static class ImportField is merged into it), TextField → TextImportField, IntegerField → IntegerImportField, DecimalField → DecimalImportField, DateField → DateImportField, BooleanField → BooleanImportField, TranslatedField → TranslatedImportField, TargetSchema → ImportSchema. Renamed members — SourceColumnIndex → ColumnIndex and TargetFieldName → FieldName on ColumnBinding, RowError, MappingFault and PrecheckFinding; TabularStructureException.SourceColumnIndex → ColumnIndex; ColumnBinding.SourceHeader → Header. A plan stored with the old property names must be migrated.
+* `new TabularAnalyzer(options).Analyze(cursor, progress, ct)` is now `TabularAnalyzer.Analyze(cursor, options, progress, ct)`; the constructor and the instance overloads are gone.
+
+### Features
+
+* an import run reads once, through ReadRows, ReadChunks or ReadAll ([53a5248](https://github.com/TriasDev/tabular/commit/53a5248988c8bcb8029a200d1fc7c8de017f2d19))
+* MoveToSheet takes a cancellation token ([362737a](https://github.com/TriasDev/tabular/commit/362737a01318eded2f99ab160346cd6133dadec6))
+* precheck findings carry their data instead of an English sentence ([d45f2ee](https://github.com/TriasDev/tabular/commit/d45f2ee2aa435ea3c0758fed2945cf4ceeb81a3c))
+* TabularAnalyzer is static, its options passed to Analyze ([47a84e7](https://github.com/TriasDev/tabular/commit/47a84e7740189ba27307ebb77ad220b429fb26e1))
+
+
+### Bug Fixes
+
+* findings of the final reviews of the 1.0 API ([b7e5bd3](https://github.com/TriasDev/tabular/commit/b7e5bd33dee740e62994faeba30e74b9f2cf8d24))
+
+
+### Documentation
+
+* the documentation follows the 1.0 API ([f80cf99](https://github.com/TriasDev/tabular/commit/f80cf99fcee454ebfaa4a01d839d86b603961c2d))
+
+
+### Code Refactoring
+
+* data compares by value; fields, constraints and schemas are classes ([b947e0b](https://github.com/TriasDev/tabular/commit/b947e0b84dd262b83db8ac482154354ee0550c8f))
+* TabularExtractor.Extract returns an ExtractionRun ([4c53e2a](https://github.com/TriasDev/tabular/commit/4c53e2a5bdf0e14c374bf86ff3550a62381777bb))
+* unique names for fields and schemas; one shape for a problem ([fec1071](https://github.com/TriasDev/tabular/commit/fec1071db8f081c12029fb97b257ada4b64ab2b0))
+
 ## [0.2.0](https://github.com/TriasDev/tabular/compare/v0.1.0...v0.2.0) (2026-09-26)
 
 
