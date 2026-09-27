@@ -44,6 +44,14 @@ public sealed class SheetMarkupTests
     }
 
     [Fact]
+    public void ReadsAValueWhoseCdataIsFollowedByText()
+    {
+        string row = FirstRow("""<row r="1"><c r="A1" t="str"><f>A2</f><v><![CDATA[a ]]>7<![CDATA[&]]>b</v></c><c r="B1"><v><![CDATA[4]]>2</v></c></row>""");
+
+        Assert.Equal("a 7&b|42", row);
+    }
+
+    [Fact]
     public void ReadsPastAProcessingInstructionBetweenRows()
     {
         byte[] workbook = new XlsxPackage()
