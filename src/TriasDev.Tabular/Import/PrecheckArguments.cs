@@ -17,14 +17,14 @@ public static class PrecheckArguments
     /// <summary>The culture the plan reads under, <c>""</c> for the invariant one.</summary>
     public const string Culture = "culture";
 
-    /// <summary>The header row the profile was measured against.</summary>
-    public const string ProfileHeaderRow = "profileHeaderRow";
+    /// <summary>The header row the profile was measured against, zero-based: <c>2</c> is the row a person calls row 3.</summary>
+    public const string ProfileHeaderRowIndex = "profileHeaderRowIndex";
 
-    /// <summary>The header row the plan names.</summary>
-    public const string PlanHeaderRow = "planHeaderRow";
+    /// <summary>The header row the plan names, zero-based, as <see cref="MappingPlan.HeaderRowIndex"/> is.</summary>
+    public const string PlanHeaderRowIndex = "planHeaderRowIndex";
 
     /// <summary>How many columns are bound to a group of fields.</summary>
-    public const string BoundColumns = "boundColumns";
+    public const string BoundColumnCount = "boundColumnCount";
 
     /// <summary>Which of a code's several causes this is; one of <see cref="PrecheckReasons"/>.</summary>
     public const string Reason = "reason";
@@ -35,8 +35,11 @@ public static class PrecheckArguments
     /// <summary>How many values fail: distinct values for a rule, values for a type.</summary>
     public const string FailingCount = "failingCount";
 
-    /// <summary>How many values were judged: distinct readable values for a rule, values for a type.</summary>
-    public const string ReadableCount = "readableCount";
+    /// <summary>
+    /// How many values were judged, <see cref="FailingCount"/> of them failing: for a rule, the column's
+    /// distinct values that read as the field's type; for a type, every value the column holds.
+    /// </summary>
+    public const string JudgedCount = "judgedCount";
 
     /// <summary>The header the plan recorded for the column.</summary>
     public const string ExpectedHeader = "expectedHeader";

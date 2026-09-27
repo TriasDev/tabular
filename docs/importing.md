@@ -269,8 +269,8 @@ Declared once, it is enforced twice, and the two are not the same thing:
 
 - **On import**, per row: a row carrying `ZZ` is refused with `value.not-allowed`. That is the
   guarantee.
-- **In a precheck**, per *distinct value*: "2 of 5 distinct values are not allowed: QQ, ZZ". That is
-  the suggestion, and it is what lets a screen say *this is your country column* — or *this is not*,
+- **In a precheck**, per *distinct value*: a `value.not-allowed` finding with `failingCount` 2 of
+  `judgedCount` 5 and the `Examples` `QQ` and `ZZ`. That is the suggestion, and it is what lets a screen say *this is your country column* — or *this is not*,
   when every value is a stranger.
 
 The second is affordable because a column of codes is low-cardinality by nature — ISO 3166 has some

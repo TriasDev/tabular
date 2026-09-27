@@ -60,7 +60,7 @@ public sealed class CustomRuleTests
         PrecheckFinding finding = Assert.Single(check.Findings, f => f.Code == "isin.check-digit");
         Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
         Assert.Equal("2", finding.Arguments[PrecheckArguments.FailingCount]);
-        Assert.Equal("4", finding.Arguments[PrecheckArguments.ReadableCount]);
+        Assert.Equal("4", finding.Arguments[PrecheckArguments.JudgedCount]);
     }
 
     [Fact]

@@ -42,8 +42,8 @@ public sealed partial class PrecheckArgumentsTests
         PrecheckFinding finding = Assert.Single(MappingPrecheck.Check(plan, Schema, Profile("a\nname\nx\n")).Findings);
 
         Assert.Equal(ErrorCodes.Mapping.StaleProfile, finding.Code);
-        Assert.Equal("0", finding.Arguments[PrecheckArguments.ProfileHeaderRow]);
-        Assert.Equal("1", finding.Arguments[PrecheckArguments.PlanHeaderRow]);
+        Assert.Equal("0", finding.Arguments[PrecheckArguments.ProfileHeaderRowIndex]);
+        Assert.Equal("1", finding.Arguments[PrecheckArguments.PlanHeaderRowIndex]);
         Assert.Null(finding.FieldName);
         Assert.Null(finding.ColumnIndex);
     }

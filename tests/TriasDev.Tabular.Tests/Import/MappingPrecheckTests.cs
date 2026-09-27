@@ -63,7 +63,7 @@ public sealed class MappingPrecheckTests
         Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
         Assert.Equal(["QQ", "ZZ"], finding.Examples);
         Assert.Equal("2", finding.Arguments[PrecheckArguments.FailingCount]);
-        Assert.Equal("5", finding.Arguments[PrecheckArguments.ReadableCount]);
+        Assert.Equal("5", finding.Arguments[PrecheckArguments.JudgedCount]);
         Assert.True(result.CanImport);
     }
 

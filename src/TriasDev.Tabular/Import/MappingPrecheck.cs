@@ -34,7 +34,10 @@ public sealed record PrecheckFinding : ITabularProblem
     /// <summary>How many rows it affects, where the measurements can say.</summary>
     public int? AffectedRows { get; init; }
 
-    /// <summary>How far <see cref="AffectedRows"/> can be trusted, and in which direction.</summary>
+    /// <summary>
+    /// How far <see cref="AffectedRows"/> can be trusted, and in which direction; meaningless when
+    /// <see cref="AffectedRows"/> is null.
+    /// </summary>
     public RowCountBound AffectedRowsBound { get; init; }
 
     /// <summary>Up to five of the values that fail, in ordinal order, as the profile kept them.</summary>
@@ -179,7 +182,7 @@ public static class MappingPrecheck
             {
                 Code = ErrorCodes.Mapping.StaleProfile,
                 Severity = PrecheckSeverity.Undetermined,
-                Arguments = Args((PrecheckArguments.ProfileHeaderRow, N(sheet.HeaderRowIndex)), (PrecheckArguments.PlanHeaderRow, N(plan.HeaderRowIndex))),
+                Arguments = Args((PrecheckArguments.ProfileHeaderRowIndex, N(sheet.HeaderRowIndex)), (PrecheckArguments.PlanHeaderRowIndex, N(plan.HeaderRowIndex))),
             });
         }
 
@@ -281,7 +284,7 @@ public static class MappingPrecheck
                 FieldName = group.Key,
                 ColumnIndex = bound[0].Index,
                 AffectedRows = sheet.RowCount,
-                Arguments = Args((PrecheckArguments.BoundColumns, N(bound.Count))),
+                Arguments = Args((PrecheckArguments.BoundColumnCount, N(bound.Count))),
             });
         }
     }
@@ -567,7 +570,7 @@ public static class MappingPrecheck
                 Arguments: Args(
                     (PrecheckArguments.Reason, none ? PrecheckReasons.NoRowCanSatisfy : PrecheckReasons.ValuesFail),
                     (PrecheckArguments.FailingCount, N(failing.Count)),
-                    (PrecheckArguments.ReadableCount, N(readable)))));
+                    (PrecheckArguments.JudgedCount, N(readable)))));
     }
 
     /// <summary>
@@ -784,7 +787,7 @@ public static class MappingPrecheck
                     (PrecheckArguments.Culture, name),
                     (PrecheckArguments.Type, type),
                     (PrecheckArguments.FailingCount, N(failing)),
-                    (PrecheckArguments.ReadableCount, N(facts.NonEmptyCount)))));
+                    (PrecheckArguments.JudgedCount, N(facts.NonEmptyCount)))));
     }
 
     private static int Native(ColumnFacts facts, RawCellKind kind) =>

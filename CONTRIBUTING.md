@@ -124,13 +124,19 @@ Commit titles:
 
 1. Every push to `main` updates an open pull request, "chore(main): release x.y.z", with the next
    version (in `VersionPrefix`, `src/Directory.Build.props`) and the `CHANGELOG.md` entry.
-2. Before merging it, move the lines of `PublicAPI.Unshipped.txt` into `PublicAPI.Shipped.txt` in that
-   pull request — what ships is what the next version must stay compatible with.
+2. Before merging it, move `PublicAPI.Unshipped.txt` into `PublicAPI.Shipped.txt` in that pull request
+   — what ships is what the next version must stay compatible with. A `*REMOVED*X` line deletes `X`
+   from Shipped rather than being moved; every other line is appended. Keep `main` quiet meanwhile:
+   release-please rewrites its branch whenever the changelog changes. Bring `main` into that branch
+   first (`gh pr update-branch`), so CI checks exactly what is released.
 3. Merging it tags the release and creates the GitHub release. The `publish` job then waits for an
    approval on the `nuget` environment, and pushes the package and its symbols to nuget.org through
    Trusted Publishing — no API key is stored anywhere.
-4. After the first release: remove `release-as` from `release-please-config.json`, and set
-   `PackageValidationBaselineVersion` to the released version so package validation compares against it.
+4. After every release, set `PackageValidationBaselineVersion` to the released version so package
+   validation compares against it, and delete `src/TriasDev.Tabular/CompatibilitySuppressions.xml` if
+   there is one: it records breaks against the previous baseline, which no longer applies. Until 1.0
+   a release may break the API on purpose; such a release regenerates that file with
+   `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` and reviews every entry in it.
 
 ## Docs to consult
 

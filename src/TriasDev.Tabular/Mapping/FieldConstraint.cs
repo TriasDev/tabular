@@ -85,10 +85,10 @@ public abstract class FieldConstraint
     /// <summary>The value must not be below this one.</summary>
     /// <remarks>A value that is not a number does not satisfy a rule about numbers. See
     /// <see cref="IsNumber"/>.</remarks>
-    public sealed class MinValue(decimal minimum) : FieldConstraint
+    public sealed class MinValue(decimal value) : FieldConstraint
     {
         /// <summary>The smallest number allowed.</summary>
-        public decimal Value { get; } = minimum;
+        public decimal Value { get; } = value;
 
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.OutOfRange;
@@ -104,10 +104,10 @@ public abstract class FieldConstraint
     /// <summary>The value must not be above this one.</summary>
     /// <remarks>A value that is not a number does not satisfy a rule about numbers. See
     /// <see cref="IsNumber"/>.</remarks>
-    public sealed class MaxValue(decimal maximum) : FieldConstraint
+    public sealed class MaxValue(decimal value) : FieldConstraint
     {
         /// <summary>The largest number allowed.</summary>
-        public decimal Value { get; } = maximum;
+        public decimal Value { get; } = value;
 
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.OutOfRange;

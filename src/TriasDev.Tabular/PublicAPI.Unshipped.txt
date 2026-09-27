@@ -289,9 +289,9 @@ TriasDev.Tabular.ExtractionSummary.RowsWithNothingMapped.init -> void
 TriasDev.Tabular.ExtractionSummary.StoppedEarly.init -> void
 TriasDev.Tabular.FieldConstraint.ExactLength.ExactLength(int length) -> void
 TriasDev.Tabular.FieldConstraint.MaxLength.MaxLength(int length) -> void
-TriasDev.Tabular.FieldConstraint.MaxValue.MaxValue(decimal maximum) -> void
+TriasDev.Tabular.FieldConstraint.MaxValue.MaxValue(decimal value) -> void
 TriasDev.Tabular.FieldConstraint.MinLength.MinLength(int length) -> void
-TriasDev.Tabular.FieldConstraint.MinValue.MinValue(decimal minimum) -> void
+TriasDev.Tabular.FieldConstraint.MinValue.MinValue(decimal value) -> void
 TriasDev.Tabular.ITabularCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.ITabularProblem
 TriasDev.Tabular.ITabularProblem.Code.get -> string!
@@ -383,14 +383,14 @@ TriasDev.Tabular.TranslatedImportField.Require() -> TriasDev.Tabular.TranslatedI
 TriasDev.Tabular.TranslatedImportField.this[string! variant].get -> TriasDev.Tabular.TextImportField!
 TriasDev.Tabular.Xlsx.XlsxCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 const TriasDev.Tabular.PrecheckArguments.ActualHeader = "actualHeader" -> string!
-const TriasDev.Tabular.PrecheckArguments.BoundColumns = "boundColumns" -> string!
+const TriasDev.Tabular.PrecheckArguments.BoundColumnCount = "boundColumnCount" -> string!
 const TriasDev.Tabular.PrecheckArguments.Culture = "culture" -> string!
 const TriasDev.Tabular.PrecheckArguments.DistinctCount = "distinctCount" -> string!
 const TriasDev.Tabular.PrecheckArguments.ExpectedHeader = "expectedHeader" -> string!
 const TriasDev.Tabular.PrecheckArguments.FailingCount = "failingCount" -> string!
-const TriasDev.Tabular.PrecheckArguments.PlanHeaderRow = "planHeaderRow" -> string!
-const TriasDev.Tabular.PrecheckArguments.ProfileHeaderRow = "profileHeaderRow" -> string!
-const TriasDev.Tabular.PrecheckArguments.ReadableCount = "readableCount" -> string!
+const TriasDev.Tabular.PrecheckArguments.JudgedCount = "judgedCount" -> string!
+const TriasDev.Tabular.PrecheckArguments.PlanHeaderRowIndex = "planHeaderRowIndex" -> string!
+const TriasDev.Tabular.PrecheckArguments.ProfileHeaderRowIndex = "profileHeaderRowIndex" -> string!
 const TriasDev.Tabular.PrecheckArguments.Reason = "reason" -> string!
 const TriasDev.Tabular.PrecheckArguments.SheetIndex = "sheetIndex" -> string!
 const TriasDev.Tabular.PrecheckArguments.Type = "type" -> string!
