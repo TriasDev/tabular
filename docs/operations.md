@@ -28,10 +28,10 @@ The token is checked on a stride rather than per character, because the check is
 and a row is normally over in a few hundred characters.
 
 Every operation that reads takes a token, last parameter, as the BCL's do: `Open`, `Analyze`,
-`Start` and `Import` for the work they do up front, and `ExtractionSession.ReadRow`,
-`ImportRun.ReadRows`, `ReadChunks` and `ReadAll` for the reading. The token a run was started with keeps
-applying to every read of it, so either one stops the run — a plain `foreach` over the run, which
-cannot pass a token, is stopped by the run's.
+`Start` and `Import` for the work they do up front, `ITabularCursor.MoveToSheet` for moving between
+sheets, and `ExtractionSession.ReadRow`, `ImportRun.ReadRows`, `ReadChunks` and `ReadAll` for the
+reading. The token a run was started with keeps applying to every read of it, so either one stops
+the run — a read given no token is stopped by the run's.
 
 ## Progress
 

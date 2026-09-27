@@ -70,6 +70,9 @@ public sealed class OdsCursor : ITabularCursor
     private bool _disposed;
     private bool _faulted;
 
+    /// <summary>Whether the fault is a move stopped part-way, which a successful move repairs.</summary>
+    private bool _moveStopped;
+
     /// <summary>Opens a cursor over an OpenDocument spreadsheet.</summary>
     /// <param name="stream">The package. Must be seekable.</param>
     /// <param name="options">Bounds, or null for the defaults.</param>
@@ -208,8 +211,13 @@ public sealed class OdsCursor : ITabularCursor
         catch
         {
             // Part-way to the sheet: reading on would hand out rows of whichever sheet the scanner
-            // stopped in, under the name of the one it left.
+            // stopped in, under the name of the one it left. The scanner goes too — the node it read
+            // last was never counted, so the next move starts over from the top rather than trusting
+            // a tally that is one short.
             _faulted = true;
+            _moveStopped = true;
+            _scanner?.Dispose();
+            _scanner = null;
             throw;
         }
 
@@ -219,6 +227,7 @@ public sealed class OdsCursor : ITabularCursor
         _repeatsLeft = 0;
         _sheetEnded = false;
         _faulted = false;
+        _moveStopped = false;
         return true;
     }
 
@@ -269,7 +278,9 @@ public sealed class OdsCursor : ITabularCursor
         if (_faulted)
         {
             throw new InvalidOperationException(
-                "A read failed part-way through a row, so this cursor cannot continue. Open the file again to read it.");
+                _moveStopped
+                    ? "A move to another sheet was stopped part-way, so there is no sheet to read. Move to a sheet first."
+                    : "A read failed part-way through a row, so this cursor cannot continue. Open the file again to read it.");
         }
 
         cancellationToken.ThrowIfCancellationRequested();

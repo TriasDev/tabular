@@ -196,9 +196,19 @@ public sealed class ArchiveCursor : ITabularCursor
             OpenSource(source, cancellationToken);
         }
 
-        if (!_inner!.MoveToSheet(local, cancellationToken))
+        try
         {
-            return false;
+            if (!_inner!.MoveToSheet(local, cancellationToken))
+            {
+                return false;
+            }
+        }
+        catch
+        {
+            // The workbook is open but not at the sheet asked for; reading on would hand out its
+            // other sheet under the index of the one the cursor left.
+            CloseInner();
+            throw;
         }
 
         CurrentSheetIndex = index;

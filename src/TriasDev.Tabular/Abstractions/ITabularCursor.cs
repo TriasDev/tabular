@@ -41,7 +41,8 @@ public interface ITabularCursor : IDisposable
     /// <param name="cancellationToken">
     /// Stops the move. Moving can be work of its own — an OpenDocument cursor reads forward through
     /// its content to the sheet, an archive copies a workbook out of itself — so the token is checked
-    /// on the way. A move it stops leaves the cursor refusing to read until it is moved again.
+    /// on the way. A move it stops part-way leaves the cursor refusing to read until it is moved again;
+    /// one it stops at its start changes nothing.
     /// </param>
     bool MoveToSheet(int index, CancellationToken cancellationToken = default);
 

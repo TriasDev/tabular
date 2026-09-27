@@ -32,6 +32,16 @@ internal static class SchemaFields
         foreach (ImportField field in schema.Fields)
 #pragma warning restore S3267
         {
+            if (DeclaredType(field) is { } declared && declared != field.Type)
+            {
+                // Its class decides how a row hands its value out, its Type how the cell is read: a
+                // date field read as text would hand out no date at all, and say nothing about it.
+                throw new ArgumentException(
+                    $"The field '{field.Name}' is a {field.GetType().Name} but declares the type {field.Type}; "
+                    + "leave Type as the factory sets it, or declare a plain ImportField.",
+                    nameof(schema));
+            }
+
             if (!fields.TryAdd(field.Name, field))
             {
                 throw new ArgumentException(
@@ -43,4 +53,15 @@ internal static class SchemaFields
 
         return fields;
     }
+
+    /// <summary>The type a typed field's class stands for, or null for a plain one.</summary>
+    private static ColumnType? DeclaredType(ImportField field) => field switch
+    {
+        TextImportField => ColumnType.Text,
+        IntegerImportField => ColumnType.Integer,
+        DecimalImportField => ColumnType.Decimal,
+        DateImportField => ColumnType.Date,
+        BooleanImportField => ColumnType.Boolean,
+        _ => null,
+    };
 }
