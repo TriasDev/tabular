@@ -25,7 +25,7 @@ public sealed class MappingPlanByHeaderTests
     public void BindsColumnsWhoseHeadersNameTheFieldsIgnoringCaseAndSeparators()
     {
         SheetProfile sheet = Sheet("Postal Code;ignored;COUNTRY_code;title-en\n80331;x;DE;a\n");
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("postalCode"), ImportField.Text("countryCode"), ImportField.Text("title.en")],
         };
@@ -34,29 +34,29 @@ public sealed class MappingPlanByHeaderTests
 
         Assert.Equal(
             [(0, "Postal Code", "postalCode"), (2, "COUNTRY_code", "countryCode"), (3, "title-en", "title.en")],
-            plan.Bindings.Select(b => (b.SourceColumnIndex, b.SourceHeader, b.TargetFieldName)));
+            plan.Bindings.Select(b => (b.ColumnIndex, b.Header, b.FieldName)));
         Assert.Empty(MappingPlanValidator.Validate(plan, schema));
     }
 
     [Fact]
     public void LeavesAnUnmatchedRequiredFieldForTheValidatorToReport()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Text("name"), ImportField.Text("iban").Require()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("name"), ImportField.Text("iban").Require()] };
 
         MappingPlan plan = MappingPlan.ByHeader(Sheet("name;account\na;b\n"), schema);
 
-        Assert.Equal(["name"], plan.Bindings.Select(b => b.TargetFieldName));
-        Assert.Contains(MappingPlanValidator.Validate(plan, schema), f => f.TargetFieldName == "iban");
+        Assert.Equal(["name"], plan.Bindings.Select(b => b.FieldName));
+        Assert.Contains(MappingPlanValidator.Validate(plan, schema), f => f.FieldName == "iban");
     }
 
     [Fact]
     public void BindsAFieldOnceWhenTwoColumnsCarryItsName()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Text("name")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("name")] };
 
         MappingPlan plan = MappingPlan.ByHeader(Sheet("name;Name\na;b\n"), schema);
 
-        Assert.Equal(0, Assert.Single(plan.Bindings).SourceColumnIndex);
+        Assert.Equal(0, Assert.Single(plan.Bindings).ColumnIndex);
         Assert.Empty(MappingPlanValidator.Validate(plan, schema));
     }
 
@@ -65,12 +65,12 @@ public sealed class MappingPlanByHeaderTests
     {
         SheetProfile sheet = Sheet("Export 2026\namount;x\n1,5;a\n", new AnalysisOptions { HeaderRowIndex = 1 });
 
-        MappingPlan plan = MappingPlan.ByHeader(sheet, new TargetSchema { Fields = [ImportField.Decimal("amount")] }, "de-DE");
+        MappingPlan plan = MappingPlan.ByHeader(sheet, new ImportSchema { Fields = [ImportField.Decimal("amount")] }, "de-DE");
 
         Assert.Equal(sheet.Index, plan.SheetIndex);
         Assert.Equal(1, plan.HeaderRowIndex);
         Assert.Equal("de-DE", plan.Culture);
-        Assert.Equal("amount", Assert.Single(plan.Bindings).SourceHeader);
+        Assert.Equal("amount", Assert.Single(plan.Bindings).Header);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class MappingPlanByHeaderTests
         using TriasDev.Tabular.Xlsx.XlsxCursor cursor = new(new MemoryStream(workbook), cancellationToken: TestContext.Current.CancellationToken);
         SheetProfile sheet = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
 
-        MappingPlan plan = MappingPlan.ByHeader(sheet, new TargetSchema { Fields = [ImportField.Text("name")] });
+        MappingPlan plan = MappingPlan.ByHeader(sheet, new ImportSchema { Fields = [ImportField.Text("name")] });
 
         Assert.Equal(("Orders", (string?)null), (plan.SheetName, plan.SheetSource));
     }
@@ -94,8 +94,8 @@ public sealed class MappingPlanByHeaderTests
         // says: an upload analysed as "Kunden.csv" and imported from its stored blob name is the same
         // file. Its only sheet is index 0, which already says which one.
         SheetProfile sheet = Sheet("name;x\na;b\n");
-        TextField name = ImportField.Text("name");
-        TargetSchema schema = new() { Fields = [name] };
+        TextImportField name = ImportField.Text("name");
+        ImportSchema schema = new() { Fields = [name] };
 
         MappingPlan plan = MappingPlan.ByHeader(sheet, schema);
 
@@ -112,23 +112,23 @@ public sealed class MappingPlanByHeaderTests
     {
         // A synonym list is the ordinary case: the file says "PLZ", the field is postalCode.
         Dictionary<string, string[]> synonyms = new(StringComparer.Ordinal) { ["postalCode"] = ["PLZ", "zip"] };
-        TargetSchema schema = new() { Fields = [ImportField.Text("postalCode")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("postalCode")] };
 
         MappingPlan plan = MappingPlan.ByHeader(
             Sheet("Ort;PLZ\nMünchen;80331\n"),
             schema,
             (header, field) => synonyms.TryGetValue(field.Name, out string[]? names) && names.Contains(header, StringComparer.OrdinalIgnoreCase));
 
-        Assert.Equal((1, "PLZ"), (Assert.Single(plan.Bindings).SourceColumnIndex, plan.Bindings[0].SourceHeader));
+        Assert.Equal((1, "PLZ"), (Assert.Single(plan.Bindings).ColumnIndex, plan.Bindings[0].Header));
     }
 
     [Fact]
     public void NeverBindsAnEmptyHeader()
     {
-        TargetSchema schema = new() { Fields = [ImportField.Text("x")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("x")] };
 
         MappingPlan plan = MappingPlan.ByHeader(Sheet(";x\na;b\n"), schema, (_, _) => true);
 
-        Assert.Equal(1, Assert.Single(plan.Bindings).SourceColumnIndex);
+        Assert.Equal(1, Assert.Single(plan.Bindings).ColumnIndex);
     }
 }

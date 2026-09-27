@@ -15,7 +15,7 @@ public sealed class SchemaFieldsTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static TargetSchema Doubled => new()
+    private static ImportSchema Doubled => new()
     {
         Fields = [ImportField.Text("code"), ImportField.Integer("code")],
     };
@@ -47,7 +47,7 @@ public sealed class SchemaFieldsTests
     [Fact]
     public void ASchemaThatNamesEachFieldOnceIsFine()
     {
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("code"), ImportField.Integer("amount")],
         };
@@ -58,7 +58,7 @@ public sealed class SchemaFieldsTests
     private static MappingPlan Plan() =>
         new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "code", TargetFieldName = "code" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "code", FieldName = "code" }],
         };
 
     private static FileProfile Profile()

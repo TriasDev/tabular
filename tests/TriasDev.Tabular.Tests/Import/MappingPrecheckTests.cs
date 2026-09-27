@@ -20,14 +20,14 @@ public sealed class MappingPrecheckTests
 
     private static class Fields
     {
-        public static readonly TextField Cid = ImportField.Text("cid").Require().Unique();
+        public static readonly TextImportField Cid = ImportField.Text("cid").Require().Unique();
 
-        public static readonly TextField Country = ImportField.Text("countryCode").Require().ExactLength(2);
+        public static readonly TextImportField Country = ImportField.Text("countryCode").Require().ExactLength(2);
 
-        public static readonly DecimalField Amount = ImportField.Decimal("amount");
+        public static readonly DecimalImportField Amount = ImportField.Decimal("amount");
     }
 
-    private static TargetSchema Schema(ImportPolicy policy = ImportPolicy.BestEffort) =>
+    private static ImportSchema Schema(ImportPolicy policy = ImportPolicy.BestEffort) =>
         new() { Fields = [Fields.Cid, Fields.Country, Fields.Amount], Policy = policy };
 
     private static MappingPlan Plan() =>
@@ -36,9 +36,9 @@ public sealed class MappingPrecheckTests
             Culture = "de-DE",
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "cid", TargetFieldName = "cid" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "country", TargetFieldName = "countryCode" },
-                new ColumnBinding { SourceColumnIndex = 2, SourceHeader = "amount", TargetFieldName = "amount" },
+                new ColumnBinding { ColumnIndex = 0, Header = "cid", FieldName = "cid" },
+                new ColumnBinding { ColumnIndex = 1, Header = "country", FieldName = "countryCode" },
+                new ColumnBinding { ColumnIndex = 2, Header = "amount", FieldName = "amount" },
             ],
         };
 
@@ -50,7 +50,7 @@ public sealed class MappingPrecheckTests
         // column's distinct values, exactly, because a column of codes holds few of them.
         FileProfile profile = Profile("code\nDE\nAT\nZZ\nDE\nCH\nQQ\n");
 
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("country").AllowedValues(["DE", "AT", "CH", "FR"])],
         };
@@ -73,7 +73,7 @@ public sealed class MappingPrecheckTests
         // succeed — and saying it here costs nothing, whereas discovering it costs a full read.
         FileProfile profile = Profile("code\nAcme GmbH\nTechCorp AG\n");
 
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("country").AllowedValues(["DE", "AT"])],
         };
@@ -89,7 +89,7 @@ public sealed class MappingPrecheckTests
     {
         FileProfile profile = Profile("code\nDE\nAT\nDE\n");
 
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("country").AllowedValues(["DE", "AT", "CH"])],
         };
@@ -107,7 +107,7 @@ public sealed class MappingPrecheckTests
             "code\n" + string.Concat(Enumerable.Range(0, 60).Select(i => $"v{i}\n")),
             new AnalysisOptions { RetainedDistinctValues = 10 });
 
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("country").AllowedValues(["DE", "AT"])],
         };
@@ -136,7 +136,7 @@ public sealed class MappingPrecheckTests
         new()
         {
             Culture = "de-DE",
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "code", TargetFieldName = field }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "code", FieldName = field }],
         };
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class MappingPrecheckTests
         PrecheckFinding finding = result.Findings.First(f => f.Code == "value.not-unique");
 
         Assert.Equal(PrecheckSeverity.Blocking, finding.Severity);
-        Assert.Equal("cid", finding.TargetFieldName);
+        Assert.Equal("cid", finding.FieldName);
         Assert.Equal(1, finding.AffectedRows);
     }
 
@@ -250,14 +250,14 @@ public sealed class MappingPrecheckTests
         // This case used to answer Undetermined, because the profile counted distinct values without
         // keeping them. It keeps them now, so the same question gets a real answer — and a warning
         // rather than a block, because one row is wrong and the rest are not.
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields = [ImportField.Text("status").AllowedValues(["ACTIVE", "INACTIVE"])],
         };
 
         MappingPlan plan = new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "status", TargetFieldName = "status" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "status", FieldName = "status" }],
         };
 
         PrecheckResult result = MappingPrecheck.Check(plan, schema, Profile("status\nACTIVE\nWEIRD\n"));

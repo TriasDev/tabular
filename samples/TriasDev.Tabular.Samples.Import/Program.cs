@@ -13,11 +13,11 @@ string path = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory,
 
 // --8<-- [start:schema]
 // The fields, declared once: they build the schema and read the values.
-TextField name = ImportField.Text("name").Require().MaxLength(100);
-TextField country = ImportField.Text("country").ExactLength(2);
-DateField signedOn = ImportField.Date("signed_on");
-DecimalField amount = ImportField.Decimal("amount").Require();
-TargetSchema schema = new() { Fields = [name, country, signedOn, amount] };
+TextImportField name = ImportField.Text("name").Require().MaxLength(100);
+TextImportField country = ImportField.Text("country").ExactLength(2);
+DateImportField signedOn = ImportField.Date("signed_on");
+DecimalImportField amount = ImportField.Decimal("amount").Require();
+ImportSchema schema = new() { Fields = [name, country, signedOn, amount] };
 // --8<-- [end:schema]
 
 // --8<-- [start:profile]
@@ -38,7 +38,7 @@ PrecheckResult check = MappingPrecheck.Check(plan, schema, profile);
 
 foreach (PrecheckFinding finding in check.Findings)
 {
-    Console.WriteLine($"precheck: {finding.Severity} {finding.Code} on {finding.TargetFieldName}");
+    Console.WriteLine($"precheck: {finding.Severity} {finding.Code} on {finding.FieldName}");
 }
 
 if (!check.CanImport)
@@ -60,7 +60,7 @@ foreach (ImportOutcome<Customer> outcome in run)
     {
         foreach (RowError error in outcome.Errors)
         {
-            Console.WriteLine($"row {error.RowNumber}, {error.TargetFieldName}: {error.Code} ({error.RawValue})");
+            Console.WriteLine($"row {error.RowNumber}, {error.FieldName}: {error.Code} ({error.RawValue})");
         }
 
         continue;

@@ -325,11 +325,11 @@ public sealed class HostileInputTests
         // though the file had said so. Both are now a reported type mismatch.
         byte[] content = Workbook($"""<row r="1"><c r="A1" t="inlineStr"><is><t>Wert</t></is></c></row><row r="2"><c r="A2"><v>{literal}</v></c></row>""");
 
-        TargetSchema schema = new() { Fields = [new TargetField { Name = "amount", Type = type }] };
+        ImportSchema schema = new() { Fields = [new ImportField { Name = "amount", Type = type }] };
 
         MappingPlan plan = new()
         {
-            Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "Wert", TargetFieldName = "amount" }],
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "Wert", FieldName = "amount" }],
         };
 
         using MemoryStream stream = new(content, writable: false);

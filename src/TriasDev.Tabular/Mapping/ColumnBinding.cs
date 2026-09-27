@@ -4,7 +4,7 @@ namespace TriasDev.Tabular;
 public sealed record ColumnBinding
 {
     /// <summary>The column's position in the sheet, zero-based.</summary>
-    public required int SourceColumnIndex { get; init; }
+    public required int ColumnIndex { get; init; }
 
     /// <summary>
     /// The header that stood at that position when the file was analysed.
@@ -15,10 +15,10 @@ public sealed record ColumnBinding
     /// this against what it finds and refuses a file that changed underneath — rather than loading
     /// street names into the country column and reporting success.
     /// </remarks>
-    public required string SourceHeader { get; init; }
+    public required string Header { get; init; }
 
     /// <summary>The field this column fills.</summary>
-    public required string TargetFieldName { get; init; }
+    public required string FieldName { get; init; }
 
     /// <summary>Values to read as absent, such as a placeholder a spreadsheet uses for "unknown".</summary>
     public IReadOnlyList<string> TreatAsEmpty { get; init; } = [];

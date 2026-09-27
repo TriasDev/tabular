@@ -14,14 +14,14 @@ namespace TriasDev.Tabular.Tests.Extraction;
 /// </summary>
 public sealed class SheetIdentityTests
 {
-    private static readonly TargetSchema Schema = new() { Fields = [ImportField.Text("name")] };
+    private static readonly ImportSchema Schema = new() { Fields = [ImportField.Text("name")] };
 
     private static MappingPlan Plan(string? sheetName = null, string? sheetSource = null, int sheetIndex = 0) => new()
     {
         SheetIndex = sheetIndex,
         SheetName = sheetName,
         SheetSource = sheetSource,
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "name", TargetFieldName = "name" }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "name", FieldName = "name" }],
     };
 
     private static XlsxCursor Workbook() =>

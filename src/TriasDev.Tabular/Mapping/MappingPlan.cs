@@ -13,7 +13,7 @@ public sealed record MappingPlan
     /// <see cref="SheetIndex"/>; null leaves it unchecked.
     /// </summary>
     /// <remarks>
-    /// A checksum, as <see cref="ColumnBinding.SourceHeader"/> is for a column. An index says where,
+    /// A checksum, as <see cref="ColumnBinding.Header"/> is for a column. An index says where,
     /// not what: a workbook whose tabs were reordered, or an archive whose entries were written in
     /// another order, puts a different sheet there, and importing it would load the wrong data under
     /// the right headers.
@@ -61,8 +61,8 @@ public sealed record MappingPlan
     /// The culture to read numbers and dates under — typically the one the top hypotheses name. The
     /// empty string or null is the invariant culture.
     /// </param>
-    /// <inheritdoc cref="ByHeader(SheetProfile, TargetSchema, Func{string, TargetField, bool}, string?)" path="/remarks"/>
-    public static MappingPlan ByHeader(SheetProfile sheet, TargetSchema schema, string? culture = null) =>
+    /// <inheritdoc cref="ByHeader(SheetProfile, ImportSchema, Func{string, ImportField, bool}, string?)" path="/remarks"/>
+    public static MappingPlan ByHeader(SheetProfile sheet, ImportSchema schema, string? culture = null) =>
         ByHeader(sheet, schema, NamesField, culture);
 
     /// <summary>
@@ -82,8 +82,8 @@ public sealed record MappingPlan
     /// </remarks>
     public static MappingPlan ByHeader(
         SheetProfile sheet,
-        TargetSchema schema,
-        Func<string, TargetField, bool> matches,
+        ImportSchema schema,
+        Func<string, ImportField, bool> matches,
         string? culture = null)
     {
         ArgumentNullException.ThrowIfNull(sheet);
@@ -96,7 +96,7 @@ public sealed record MappingPlan
         foreach (ColumnFacts column in sheet.Columns.Select(c => c.Facts).Where(c => c.Header.Length > 0))
         {
             string header = column.Header;
-            TargetField? field = schema.Fields.FirstOrDefault(f => !bound.Contains(f.Name) && matches(header, f));
+            ImportField? field = schema.Fields.FirstOrDefault(f => !bound.Contains(f.Name) && matches(header, f));
 
             if (field is null)
             {
@@ -106,9 +106,9 @@ public sealed record MappingPlan
             bound.Add(field.Name);
             bindings.Add(new ColumnBinding
             {
-                SourceColumnIndex = column.Index,
-                SourceHeader = header,
-                TargetFieldName = field.Name,
+                ColumnIndex = column.Index,
+                Header = header,
+                FieldName = field.Name,
             });
         }
 
@@ -126,7 +126,7 @@ public sealed record MappingPlan
         };
     }
 
-    private static bool NamesField(string header, TargetField field) =>
+    private static bool NamesField(string header, ImportField field) =>
         Normalised(header).Equals(Normalised(field.Name), StringComparison.Ordinal);
 
     private static string Normalised(string name)

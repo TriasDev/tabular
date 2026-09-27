@@ -35,7 +35,7 @@ public static class TabularImporter
     public static ImportRun<T> Import<T>(
         ITabularCursor cursor,
         MappingPlan plan,
-        TargetSchema schema,
+        ImportSchema schema,
         TabularRowMapper<T> mapper,
         ImportOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -81,7 +81,7 @@ public static class TabularImporter
         Stream stream,
         string name,
         MappingPlan plan,
-        TargetSchema schema,
+        ImportSchema schema,
         TabularRowMapper<T> mapper,
         ImportOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -123,7 +123,7 @@ public static class TabularImporter
         }
     }
 
-    private static void Validate(MappingPlan plan, TargetSchema schema)
+    private static void Validate(MappingPlan plan, ImportSchema schema)
     {
         // Before the file is touched. A mapping that does not fit its schema is a fault of the
         // mapping, and answering it costs nothing — whereas opening the file reads its head to
@@ -150,7 +150,7 @@ public static class TabularImporter
 public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
 {
     private readonly ExtractionSession _session;
-    private readonly TargetField[] _fields;
+    private readonly ImportField[] _fields;
     private readonly FieldIndex _index;
     private readonly TabularRowMapper<T> _mapper;
     private readonly ImportOptions _options;
@@ -166,7 +166,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
 
     internal ImportRun(
         ExtractionSession session,
-        TargetSchema schema,
+        ImportSchema schema,
         FieldIndex index,
         TabularRowMapper<T> mapper,
         ImportOptions options,
@@ -385,7 +385,7 @@ public sealed class ImportRun<T> : IEnumerable<ImportOutcome<T>>, IDisposable
 
         Dictionary<string, string?> values = new(StringComparer.Ordinal);
 
-        foreach (TargetField field in _fields)
+        foreach (ImportField field in _fields)
         {
             values[field.Name] = row.AsText(field);
         }

@@ -125,7 +125,7 @@ public sealed class TabularStructureException : TabularException
     public int? SheetIndex { get; init; }
 
     /// <summary>The column concerned, where there is one.</summary>
-    public int? SourceColumnIndex { get; init; }
+    public int? ColumnIndex { get; init; }
 
     /// <summary>The header the mapping recorded, for <see cref="HeaderChanged"/>.</summary>
     public string? ExpectedHeader { get; init; }

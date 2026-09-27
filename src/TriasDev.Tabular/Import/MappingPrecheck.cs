@@ -17,7 +17,7 @@ public enum PrecheckSeverity
 }
 
 /// <summary>Something the measurements say about a mapping, before the file is read again.</summary>
-public sealed record PrecheckFinding
+public sealed record PrecheckFinding : ITabularProblem
 {
     /// <summary>What is wrong, from the same catalog a row error uses where one applies.</summary>
     public required string Code { get; init; }
@@ -26,16 +26,19 @@ public sealed record PrecheckFinding
     public required PrecheckSeverity Severity { get; init; }
 
     /// <summary>The field it concerns.</summary>
-    public required string TargetFieldName { get; init; }
+    public required string FieldName { get; init; }
 
     /// <summary>The column feeding that field.</summary>
-    public required int SourceColumnIndex { get; init; }
+    public required int ColumnIndex { get; init; }
 
     /// <summary>How many rows it affects, where the measurements can say.</summary>
     public int? AffectedRows { get; init; }
 
     /// <summary>What the measurements showed, in words.</summary>
     public required string Detail { get; init; }
+
+    /// <inheritdoc />
+    int? ITabularProblem.ColumnIndex => ColumnIndex;
 }
 
 /// <summary>What a precheck concluded.</summary>
@@ -72,7 +75,7 @@ public static class MappingPrecheck
     /// <param name="plan">What a person decided in a mapping screen.</param>
     /// <param name="schema">The fields to fill.</param>
     /// <param name="profile">What analysis measured about the file.</param>
-    public static PrecheckResult Check(MappingPlan plan, TargetSchema schema, FileProfile profile)
+    public static PrecheckResult Check(MappingPlan plan, ImportSchema schema, FileProfile profile)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(schema);
@@ -89,8 +92,8 @@ public static class MappingPrecheck
                     {
                         Code = ErrorCodes.Mapping.InvalidSheet,
                         Severity = PrecheckSeverity.Blocking,
-                        TargetFieldName = string.Empty,
-                        SourceColumnIndex = -1,
+                        FieldName = string.Empty,
+                        ColumnIndex = -1,
                         Detail = $"The file has no sheet at index {plan.SheetIndex}.",
                     },
                 ]);
@@ -108,8 +111,8 @@ public static class MappingPrecheck
                     {
                         Code = ErrorCodes.Structure.SheetChanged,
                         Severity = PrecheckSeverity.Blocking,
-                        TargetFieldName = string.Empty,
-                        SourceColumnIndex = -1,
+                        FieldName = string.Empty,
+                        ColumnIndex = -1,
                         Detail = $"The sheet at index {plan.SheetIndex} is not the one the mapping was built for.",
                     },
                 ]);
@@ -127,14 +130,14 @@ public static class MappingPrecheck
                     {
                         Code = ErrorCodes.Mapping.UnknownCulture,
                         Severity = PrecheckSeverity.Blocking,
-                        TargetFieldName = string.Empty,
-                        SourceColumnIndex = -1,
+                        FieldName = string.Empty,
+                        ColumnIndex = -1,
                         Detail = $"The culture '{plan.Culture}' is not available on this runtime.",
                     },
                 ]);
         }
 
-        Dictionary<string, TargetField> fields = SchemaFields.ByName(schema);
+        Dictionary<string, ImportField> fields = SchemaFields.ByName(schema);
         List<PrecheckFinding> findings = [];
 
         // A profile measured against another header row describes another file: the real header and
@@ -150,8 +153,8 @@ public static class MappingPrecheck
             {
                 Code = ErrorCodes.Mapping.StaleProfile,
                 Severity = PrecheckSeverity.Undetermined,
-                TargetFieldName = string.Empty,
-                SourceColumnIndex = -1,
+                FieldName = string.Empty,
+                ColumnIndex = -1,
                 Detail = $"The file was analysed with row {sheet.HeaderRowIndex} as the header and the "
                     + $"mapping names row {plan.HeaderRowIndex}, so nothing measured about the values "
                     + "applies. Analyse it again to have those checked.",
@@ -160,12 +163,12 @@ public static class MappingPrecheck
 
         foreach (ColumnBinding binding in plan.Bindings)
         {
-            if (!fields.TryGetValue(binding.TargetFieldName, out TargetField? field))
+            if (!fields.TryGetValue(binding.FieldName, out ImportField? field))
             {
                 continue;                       // the plan validator owns this fault
             }
 
-            ColumnProfile? column = sheet.Columns.FirstOrDefault(c => c.Facts.Index == binding.SourceColumnIndex);
+            ColumnProfile? column = sheet.Columns.FirstOrDefault(c => c.Facts.Index == binding.ColumnIndex);
 
             if (column is null)
             {
@@ -173,9 +176,9 @@ public static class MappingPrecheck
                 {
                     Code = ErrorCodes.Mapping.InvalidColumn,
                     Severity = PrecheckSeverity.Blocking,
-                    TargetFieldName = field.Name,
-                    SourceColumnIndex = binding.SourceColumnIndex,
-                    Detail = $"The sheet has no column at index {binding.SourceColumnIndex}.",
+                    FieldName = field.Name,
+                    ColumnIndex = binding.ColumnIndex,
+                    Detail = $"The sheet has no column at index {binding.ColumnIndex}.",
                 });
 
                 continue;
@@ -226,11 +229,11 @@ public static class MappingPrecheck
     /// </remarks>
     private static void CheckRequiredGroups(
         MappingPlan plan,
-        TargetSchema schema,
+        ImportSchema schema,
         SheetProfile sheet,
         List<PrecheckFinding> findings)
     {
-        foreach (IGrouping<string, TargetField> group in schema.Fields
+        foreach (IGrouping<string, ImportField> group in schema.Fields
             .Where(f => f.Required && f.Group is not null)
             .GroupBy(f => f.Group!, StringComparer.Ordinal))
         {
@@ -239,8 +242,8 @@ public static class MappingPrecheck
             List<ColumnFacts> bound =
             [
                 .. plan.Bindings
-                    .Where(b => members.Contains(b.TargetFieldName))
-                    .Select(b => sheet.Columns.FirstOrDefault(c => c.Facts.Index == b.SourceColumnIndex))
+                    .Where(b => members.Contains(b.FieldName))
+                    .Select(b => sheet.Columns.FirstOrDefault(c => c.Facts.Index == b.ColumnIndex))
                     .Where(c => c is not null)
                     .Select(c => c!.Facts),
             ];
@@ -254,8 +257,8 @@ public static class MappingPrecheck
             {
                 Code = ErrorCodes.Group.Required,
                 Severity = PrecheckSeverity.Blocking,
-                TargetFieldName = group.Key,
-                SourceColumnIndex = bound[0].Index,
+                FieldName = group.Key,
+                ColumnIndex = bound[0].Index,
                 AffectedRows = sheet.RowCount,
                 Detail = bound.Count == 1
                     ? "The column mapped to this field is empty from top to bottom, and a row needs one of its languages."
@@ -266,7 +269,7 @@ public static class MappingPrecheck
     }
 
     private static void Inspect(
-        TargetField field,
+        ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
         SheetProfile sheet,
@@ -279,8 +282,8 @@ public static class MappingPrecheck
             {
                 Code = code,
                 Severity = severity,
-                TargetFieldName = field.Name,
-                SourceColumnIndex = binding.SourceColumnIndex,
+                FieldName = field.Name,
+                ColumnIndex = binding.ColumnIndex,
                 AffectedRows = rows,
                 Detail = detail,
             });
@@ -299,7 +302,7 @@ public static class MappingPrecheck
     /// column in an English file, which is not a fault at all.
     /// </remarks>
     private static void CheckRequired(
-        TargetField field,
+        ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
         SheetProfile sheet,
@@ -349,7 +352,7 @@ public static class MappingPrecheck
     /// The profile counted them exactly, unless its budget ran out.
     /// </remarks>
     private static void CheckUnique(
-        TargetField field,
+        ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
         SheetProfile sheet,
@@ -449,7 +452,7 @@ public static class MappingPrecheck
     /// </para>
     /// </remarks>
     private static void CheckRules(
-        TargetField field,
+        ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
         string? culture,
@@ -480,7 +483,7 @@ public static class MappingPrecheck
     }
 
     private static void ReportRulesUnchecked(
-        TargetField field,
+        ImportField field,
         ColumnFacts facts,
         Action<string, PrecheckSeverity, string, int?> add)
     {
@@ -503,7 +506,7 @@ public static class MappingPrecheck
     /// rendering.
     /// </remarks>
     private static List<(string Source, MappedValue Value, bool Readable)> ReadDistinctValues(
-        TargetField field,
+        ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
         string? culture)
@@ -530,7 +533,7 @@ public static class MappingPrecheck
     private static void JudgeConstraint(
         FieldConstraint constraint,
         List<(string Source, MappedValue Value, bool Readable)> read,
-        TargetField field,
+        ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
         Action<string, PrecheckSeverity, string, int?> add)
@@ -662,7 +665,7 @@ public static class MappingPrecheck
     /// </remarks>
     private static bool AllColumnsBound(SheetProfile sheet, MappingPlan plan)
     {
-        HashSet<int> bound = [.. plan.Bindings.Select(b => b.SourceColumnIndex)];
+        HashSet<int> bound = [.. plan.Bindings.Select(b => b.ColumnIndex)];
 
         return sheet.Columns.All(c => bound.Contains(c.Facts.Index));
     }
@@ -681,7 +684,7 @@ public static class MappingPrecheck
         ColumnFacts facts,
         Action<string, PrecheckSeverity, string, int?> add)
     {
-        if (binding.SourceHeader.Length == 0 || string.Equals(binding.SourceHeader, facts.Header, StringComparison.Ordinal))
+        if (binding.Header.Length == 0 || string.Equals(binding.Header, facts.Header, StringComparison.Ordinal))
         {
             return;
         }
@@ -689,17 +692,17 @@ public static class MappingPrecheck
         add(
             ErrorCodes.Mapping.HeaderChanged,
             PrecheckSeverity.Blocking,
-            $"This column was mapped as '{binding.SourceHeader}' and now reads '{facts.Header}'. "
+            $"This column was mapped as '{binding.Header}' and now reads '{facts.Header}'. "
             + "The import will refuse the file.",
             null);
     }
 
-    private static bool CannotBeSatisfiedByAnyRow(TargetField field, ColumnBinding binding, ColumnFacts facts) =>
+    private static bool CannotBeSatisfiedByAnyRow(ImportField field, ColumnBinding binding, ColumnFacts facts) =>
         (field.Required && field.Group is null)
         || (facts.EmptyCount == 0 && binding.TreatAsEmpty.Count == 0);
 
     private static void CheckType(
-        TargetField field,
+        ImportField field,
         ColumnFacts facts,
         string? culture,
         Action<string, PrecheckSeverity, string, int?> add)

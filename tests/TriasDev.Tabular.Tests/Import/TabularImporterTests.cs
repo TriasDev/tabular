@@ -21,20 +21,20 @@ public sealed class TabularImporterTests
     /// <summary>The fields, declared once and used both to build the schema and to read a row.</summary>
     private static class Fields
     {
-        public static readonly TextField Code = ImportField.Text("code").Require().ExactLength(3);
+        public static readonly TextImportField Code = ImportField.Text("code").Require().ExactLength(3);
 
-        public static readonly TextField Name = ImportField.Text("name").Require().MaxLength(50);
+        public static readonly TextImportField Name = ImportField.Text("name").Require().MaxLength(50);
 
-        public static readonly DecimalField Amount = ImportField.Decimal("amount");
+        public static readonly DecimalImportField Amount = ImportField.Decimal("amount");
 
-        public static readonly DateField Signed = ImportField.Date("signed");
+        public static readonly DateImportField Signed = ImportField.Date("signed");
 
-        public static readonly IntegerField Count = ImportField.Integer("count");
+        public static readonly IntegerImportField Count = ImportField.Integer("count");
 
-        public static readonly BooleanField Active = ImportField.Boolean("active");
+        public static readonly BooleanImportField Active = ImportField.Boolean("active");
     }
 
-    private static TargetSchema Schema { get; } = new()
+    private static ImportSchema Schema { get; } = new()
     {
         Fields = [Fields.Code, Fields.Name, Fields.Amount, Fields.Signed, Fields.Count, Fields.Active],
     };
@@ -50,12 +50,12 @@ public sealed class TabularImporterTests
             Culture = "en-US",
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = headers[0], TargetFieldName = "code" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = headers[1], TargetFieldName = "name" },
-                new ColumnBinding { SourceColumnIndex = 2, SourceHeader = headers[2], TargetFieldName = "amount" },
-                new ColumnBinding { SourceColumnIndex = 3, SourceHeader = headers[3], TargetFieldName = "signed" },
-                new ColumnBinding { SourceColumnIndex = 4, SourceHeader = headers[4], TargetFieldName = "count" },
-                new ColumnBinding { SourceColumnIndex = 5, SourceHeader = headers[5], TargetFieldName = "active" },
+                new ColumnBinding { ColumnIndex = 0, Header = headers[0], FieldName = "code" },
+                new ColumnBinding { ColumnIndex = 1, Header = headers[1], FieldName = "name" },
+                new ColumnBinding { ColumnIndex = 2, Header = headers[2], FieldName = "amount" },
+                new ColumnBinding { ColumnIndex = 3, Header = headers[3], FieldName = "signed" },
+                new ColumnBinding { ColumnIndex = 4, Header = headers[4], FieldName = "count" },
+                new ColumnBinding { ColumnIndex = 5, Header = headers[5], FieldName = "active" },
             ],
         };
 
@@ -99,7 +99,7 @@ public sealed class TabularImporterTests
     {
         // The schema declares code first and amount third. A mapper reading by position would break
         // silently the day someone reorders the declaration; reading by field cannot.
-        TargetSchema reordered = new()
+        ImportSchema reordered = new()
         {
             Fields = [Fields.Amount, Fields.Signed, Fields.Active, Fields.Count, Fields.Name, Fields.Code],
         };
@@ -125,7 +125,7 @@ public sealed class TabularImporterTests
     {
         // A field belonging to another target, or one removed from the schema, is a defect in the
         // caller — not a value that happens to be missing.
-        TextField stranger = ImportField.Text("nonsense");
+        TextImportField stranger = ImportField.Text("nonsense");
 
         using MemoryStream stream = new(Utf8NoBom.GetBytes($"{Headers}\nDEU;Acme;1;2023-01-15;1;true\n"), writable: false);
         using CsvCursor cursor = new(stream, "test.csv");

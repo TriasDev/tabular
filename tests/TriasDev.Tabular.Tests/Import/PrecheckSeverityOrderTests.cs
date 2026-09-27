@@ -32,7 +32,7 @@ public sealed class PrecheckSeverityOrderTests
         using CsvCursor cursor = new(stream, "test.csv");
         FileProfile profile = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { RetainedDistinctValues = 10 }, cancellationToken: TestContext.Current.CancellationToken);
 
-        TargetSchema schema = new()
+        ImportSchema schema = new()
         {
             Fields =
             [
@@ -46,9 +46,9 @@ public sealed class PrecheckSeverityOrderTests
         {
             Bindings =
             [
-                new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "varied", TargetFieldName = "country" },
-                new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "short", TargetFieldName = "code" },
-                new ColumnBinding { SourceColumnIndex = 2, SourceHeader = "amount", TargetFieldName = "amount" },
+                new ColumnBinding { ColumnIndex = 0, Header = "varied", FieldName = "country" },
+                new ColumnBinding { ColumnIndex = 1, Header = "short", FieldName = "code" },
+                new ColumnBinding { ColumnIndex = 2, Header = "amount", FieldName = "amount" },
             ],
         };
 

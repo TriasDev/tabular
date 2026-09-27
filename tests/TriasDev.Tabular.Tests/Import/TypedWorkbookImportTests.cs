@@ -15,13 +15,13 @@ namespace TriasDev.Tabular.Tests.Import;
 /// </remarks>
 public sealed class TypedWorkbookImportTests
 {
-    private static readonly IntegerField Count = ImportField.Integer("count");
-    private static readonly DecimalField Amount = ImportField.Decimal("amount");
-    private static readonly DateField Signed = ImportField.Date("signed");
-    private static readonly BooleanField Active = ImportField.Boolean("active");
-    private static readonly TextField Note = ImportField.Text("note");
+    private static readonly IntegerImportField Count = ImportField.Integer("count");
+    private static readonly DecimalImportField Amount = ImportField.Decimal("amount");
+    private static readonly DateImportField Signed = ImportField.Date("signed");
+    private static readonly BooleanImportField Active = ImportField.Boolean("active");
+    private static readonly TextImportField Note = ImportField.Text("note");
 
-    private static readonly TargetSchema Schema = new() { Fields = [Count, Amount, Signed, Active, Note] };
+    private static readonly ImportSchema Schema = new() { Fields = [Count, Amount, Signed, Active, Note] };
 
     private static readonly MappingPlan Plan = new()
     {
@@ -30,11 +30,11 @@ public sealed class TypedWorkbookImportTests
         Culture = "de-DE",
         Bindings =
         [
-            new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "count", TargetFieldName = "count" },
-            new ColumnBinding { SourceColumnIndex = 1, SourceHeader = "amount", TargetFieldName = "amount" },
-            new ColumnBinding { SourceColumnIndex = 2, SourceHeader = "signed", TargetFieldName = "signed" },
-            new ColumnBinding { SourceColumnIndex = 3, SourceHeader = "active", TargetFieldName = "active" },
-            new ColumnBinding { SourceColumnIndex = 4, SourceHeader = "note", TargetFieldName = "note" },
+            new ColumnBinding { ColumnIndex = 0, Header = "count", FieldName = "count" },
+            new ColumnBinding { ColumnIndex = 1, Header = "amount", FieldName = "amount" },
+            new ColumnBinding { ColumnIndex = 2, Header = "signed", FieldName = "signed" },
+            new ColumnBinding { ColumnIndex = 3, Header = "active", FieldName = "active" },
+            new ColumnBinding { ColumnIndex = 4, Header = "note", FieldName = "note" },
         ],
     };
 
@@ -95,7 +95,7 @@ public sealed class TypedWorkbookImportTests
             $"""<row r="2"><c r="A2"><v>{number}</v></c></row>"""));
 
         RowError error = Assert.Single(row.Errors);
-        Assert.Equal((ErrorCodes.Value.TypeMismatch, "count"), (error.Code, error.TargetFieldName));
+        Assert.Equal((ErrorCodes.Value.TypeMismatch, "count"), (error.Code, error.FieldName));
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class TypedWorkbookImportTests
         ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
             """<row r="2"><c r="B2"><v>1E+300</v></c></row>"""));
 
-        Assert.Equal("amount", Assert.Single(row.Errors).TargetFieldName);
+        Assert.Equal("amount", Assert.Single(row.Errors).FieldName);
     }
 
     [Fact]
@@ -114,6 +114,6 @@ public sealed class TypedWorkbookImportTests
             """<row r="2"><c r="A2" t="e"><v>#N/A</v></c></row>"""));
 
         RowError error = Assert.Single(row.Errors);
-        Assert.Equal((ErrorCodes.Value.TypeMismatch, "count"), (error.Code, error.TargetFieldName));
+        Assert.Equal((ErrorCodes.Value.TypeMismatch, "count"), (error.Code, error.FieldName));
     }
 }

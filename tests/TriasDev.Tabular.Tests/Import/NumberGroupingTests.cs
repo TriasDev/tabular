@@ -13,7 +13,7 @@ public sealed class NumberGroupingTests
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
-    private static List<ImportOutcome<decimal?>> Import(TargetField field, string culture, params string[] values)
+    private static List<ImportOutcome<decimal?>> Import(ImportField field, string culture, params string[] values)
     {
         // A second column fixes the delimiter as ';', so "1,5" is one value, not two columns.
         string csv = "value;other\n" + string.Join('\n', values.Select(v => v + ";x")) + "\n";
@@ -24,13 +24,13 @@ public sealed class NumberGroupingTests
             new MappingPlan
             {
                 Culture = culture,
-                Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "value", TargetFieldName = field.Name }],
+                Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "value", FieldName = field.Name }],
             },
-            new TargetSchema { Fields = [field] },
+            new ImportSchema { Fields = [field] },
             row => field switch
             {
-                DecimalField d => row[d],
-                IntegerField i => row[i],
+                DecimalImportField d => row[d],
+                IntegerImportField i => row[i],
                 _ => null,
             },
             cancellationToken: TestContext.Current.CancellationToken);

@@ -25,7 +25,7 @@ public sealed class GuidePromisesTests
     {
         Culture = culture,
         HeaderRowIndex = headerRow,
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "v", TargetFieldName = field }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "v", FieldName = field }],
     };
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class GuidePromisesTests
     public void RefusesAHeaderRowBeyondTheSheetsEnd()
     {
         using CsvCursor cursor = new(new MemoryStream(Utf8NoBom.GetBytes("v\na\n"), writable: false), "t.csv");
-        TargetSchema schema = new() { Fields = [ImportField.Text("f")] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("f")] };
 
         TabularStructureException error = Assert.Throws<TabularStructureException>(() =>
             TabularExtractor.Start(cursor, OneBinding("f", headerRow: 5), schema, cancellationToken: TestContext.Current.CancellationToken));
@@ -59,7 +59,7 @@ public sealed class GuidePromisesTests
         // Profiled under the invariant culture alone; the plan reads German. Nothing measured says
         // how the values read under de-DE, and a guess either way would be a claim about the file.
         FileProfile profile = Profile("v\n1,5\n2,5\n", new AnalysisOptions { Cultures = [""] });
-        TargetSchema schema = new() { Fields = [ImportField.Decimal("amount")] };
+        ImportSchema schema = new() { Fields = [ImportField.Decimal("amount")] };
 
         PrecheckResult result = MappingPrecheck.Check(OneBinding("amount", "de-DE"), schema, profile);
 
@@ -74,7 +74,7 @@ public sealed class GuidePromisesTests
         FileProfile profile = Profile(
             "v\n" + string.Concat(Enumerable.Range(0, 50).Select(i => $"id{i}\n")),
             new AnalysisOptions { DistinctTrackingBudget = 10 });
-        TargetSchema schema = new() { Fields = [ImportField.Text("id").Unique()] };
+        ImportSchema schema = new() { Fields = [ImportField.Text("id").Unique()] };
 
         PrecheckResult result = MappingPrecheck.Check(OneBinding("id"), schema, profile);
 

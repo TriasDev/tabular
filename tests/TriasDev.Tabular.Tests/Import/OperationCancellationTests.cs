@@ -12,13 +12,13 @@ namespace TriasDev.Tabular.Tests.Import;
 /// </summary>
 public sealed class OperationCancellationTests
 {
-    private static readonly TextField Name = ImportField.Text("name");
+    private static readonly TextImportField Name = ImportField.Text("name");
 
-    private static readonly TargetSchema Schema = new() { Fields = [Name] };
+    private static readonly ImportSchema Schema = new() { Fields = [Name] };
 
     private static readonly MappingPlan Plan = new()
     {
-        Bindings = [new ColumnBinding { SourceColumnIndex = 0, SourceHeader = "name", TargetFieldName = "name" }],
+        Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "name", FieldName = "name" }],
     };
 
     private static readonly CancellationToken Cancelled = new(canceled: true);
