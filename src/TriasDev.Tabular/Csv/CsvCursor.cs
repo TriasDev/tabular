@@ -226,6 +226,7 @@ public sealed class CsvCursor : ITabularCursor
         bool suppressQuote = false;         // set while replaying a field whose quote proved literal
         int quotedLines = 0;
         int quotedDelimiters = 0;
+        bool strayFits = true;
 
         int sinceCheck = 0;
 
@@ -349,7 +350,14 @@ public sealed class CsvCursor : ITabularCursor
                 // Mac line endings — the very files where one stray quote consumes everything.
                 bool endsLine = c == '\n' || (c == '\r' && PeekChar() != '\n');
 
-                if (endsLine && ++quotedLines > _options.MaxQuotedFieldLines)
+                if (endsLine && ++quotedLines == 1)
+                {
+                    // Read as a stray quote, the line it opened on ends here. If that line would then
+                    // hold more fields than a record, the quote was syntax after all.
+                    strayFits = _cellCount + quotedDelimiters < _recordColumns;
+                }
+
+                if (endsLine && quotedLines > _options.MaxQuotedFieldLines)
                 {
                     // This quote was never syntax. Replay everything it swallowed, with the quote
                     // itself as an ordinary character, and read the records that were hiding inside
@@ -368,9 +376,11 @@ public sealed class CsvCursor : ITabularCursor
                 // delimiters is not a multi-line value: it is a stray quote and the records it
                 // swallowed — whether a later quote would have closed it (#20) or none ever does. Caught
                 // here, as soon as it is true, rather than when the field closes or the bound trips,
-                // so the bound can be generous enough for genuine long notes (#10).
+                // so the bound can be generous enough for genuine long notes (#10). Not when the line the
+                // quote opened on would, read as a stray quote, hold more fields than a record: a
+                // written-out value that overfills its line was quoted on purpose.
                 if ((c == Dialect.Delimiter ? ++quotedDelimiters : quotedDelimiters) >= _strayQuoteDelimiters
-                    && quotedLines > 0)
+                    && quotedLines > 0 && strayFits)
                 {
                     Diagnostics.RecoveredStrayQuotes++;
                     ReplayQuotedField();
