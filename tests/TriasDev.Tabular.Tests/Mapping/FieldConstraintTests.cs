@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 
 using Xunit;
 
@@ -79,6 +80,17 @@ public sealed class FieldConstraintTests
 
         Assert.Equal(satisfied, constraint.IsSatisfiedBy(MappedValue.FromText(value)));
         Assert.Equal("[A-Z]{2}", constraint.Expression);
+    }
+
+    [Fact]
+    public void JudgesAPatternTheLinearEngineRunsWithoutAClock()
+    {
+        // The linear engine cannot run away, so a clock can only do harm there: the first match in a
+        // process builds the engine, and under load that took longer than the budget. .NET then
+        // answered false without a word — a valid value failed, found by running the suite thirty
+        // times. Only the backtracking fallback, which can run away, keeps the budget.
+        Assert.Equal(Regex.InfiniteMatchTimeout, new FieldConstraint.Pattern("[A-Z]{2}").MatchTimeout);
+        Assert.NotEqual(Regex.InfiniteMatchTimeout, new FieldConstraint.Pattern("(?=(a+)+b).*").MatchTimeout);
     }
 
     [Fact]
