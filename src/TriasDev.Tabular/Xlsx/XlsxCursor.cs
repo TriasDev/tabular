@@ -1264,7 +1264,7 @@ public sealed class XlsxCursor : ITabularCursor
 
         Dictionary<int, string> customFormats = [];
         List<int> cellFormats = [];
-        bool inCellXfs = false;
+        StyleSection section = StyleSection.Other;
 
         using Stream stream = part.Open();
         using XmlReader reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
@@ -1290,34 +1290,50 @@ public sealed class XlsxCursor : ITabularCursor
                     $"The style table holds more than the {_options.MaxCellFormats} cell formats allowed.");
             }
 
-            if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "cellXfs")
+            if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName is "cellXfs" or "numFmts")
             {
-                inCellXfs = false;
+                section = StyleSection.Other;
                 continue;
             }
 
             if (reader.NodeType == XmlNodeType.Element)
             {
-                inCellXfs = ReadStyleElement(reader, inCellXfs, customFormats, cellFormats);
+                section = ReadStyleElement(reader, section, customFormats, cellFormats);
             }
         }
 
         return FlattenDateStyles(cellFormats, customFormats);
     }
 
+    /// <summary>Where in the style table the reader is: only two of its lists describe cell formats.</summary>
+    private enum StyleSection
+    {
+        Other,
+        NumberFormats,
+        CellFormats,
+    }
+
     /// <summary>
-    /// Takes what one element of the style table contributes, and says whether the reader is now
-    /// inside <c>&lt;cellXfs&gt;</c>.
+    /// Takes what one element of the style table contributes, and says which section the reader is
+    /// now in.
     /// </summary>
-    private bool ReadStyleElement(
+    /// <remarks>
+    /// A <c>&lt;numFmt&gt;</c> counts only inside <c>&lt;numFmts&gt;</c>. A differential format under
+    /// <c>&lt;dxfs&gt;</c> — conditional formatting — carries one too, with an id the cell formats may
+    /// already use, and taken as a cell format it turned an amount column into dates (#48).
+    /// </remarks>
+    private StyleSection ReadStyleElement(
         XmlReader reader,
-        bool inCellXfs,
+        StyleSection section,
         Dictionary<int, string> customFormats,
         List<int> cellFormats)
     {
         switch (reader.LocalName)
         {
-            case "numFmt":
+            case "numFmts" when !reader.IsEmptyElement:
+                return StyleSection.NumberFormats;
+
+            case "numFmt" when section == StyleSection.NumberFormats:
                 string? code = reader.GetAttribute("formatCode");
 
                 if (code is not null && TryParseFormatId(reader, out int numFmtId))
@@ -1325,17 +1341,17 @@ public sealed class XlsxCursor : ITabularCursor
                     customFormats[numFmtId] = Bounded(code, "number format code");
                 }
 
-                return inCellXfs;
+                return section;
 
-            case "cellXfs":
-                return true;
+            case "cellXfs" when !reader.IsEmptyElement:
+                return StyleSection.CellFormats;
 
-            case "xf" when inCellXfs:
+            case "xf" when section == StyleSection.CellFormats:
                 cellFormats.Add(TryParseFormatId(reader, out int formatId) ? formatId : 0);
-                return true;
+                return section;
 
             default:
-                return inCellXfs;
+                return section;
         }
     }
 
