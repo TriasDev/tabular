@@ -161,6 +161,25 @@ defect in the caller and reads as one instead of arriving as an empty column.
 **A row is either values or errors, never both.** Half a row invites half an entity, which is how
 silent corruption starts.
 
+## A column that mixes decimal separators
+
+A hand-assembled file can hold `48,183604` in most rows and `34.020367` in one: a block pasted from
+another tool. Under `de-DE` the second is no number, and since a German group has exactly three digits
+it cannot be one either — its only reading is 34.020367. The profile counts such values per culture,
+as `CultureParseCounts.OtherSeparatorDecimals`, so a screen can say "1 value uses a decimal point"
+rather than show an unexplained outlier.
+
+Importing them is the caller's decision, per binding:
+
+```csharp
+new ColumnBinding { ColumnIndex = 1, FieldName = "lat", Header = "lat", AcceptOtherDecimalSeparator = true }
+```
+
+A decimal field then reads a value written with the other separator, where it can be read no other
+way: digits, that one separator, and not exactly three digits after it. `1.234` stays what the
+culture makes of it. The precheck judges the plan with the setting, and the run counts the values it
+read this way in `ExtractionSummary.OtherSeparatorDecimals`. It is off by default.
+
 ## A field the file says in several languages
 
 A catalogue carries `Title#en` beside `Title#de` — two columns saying one thing. Declared once:

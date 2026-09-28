@@ -33,7 +33,9 @@ internal static class NumberReading
     {
         value = 0;
 
-        if (!IsOtherSeparatorDecimal(text, format, out char other))
+        char other = OtherSeparatorOf(format);
+
+        if (!IsOtherSeparatorDecimal(text, other))
         {
             return false;
         }
@@ -47,23 +49,21 @@ internal static class NumberReading
         return decimal.TryParse(invariant, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out value);
     }
 
+    /// <summary>The decimal separator a culture does not use — <c>.</c> for <c>,</c> and back — or <c>\0</c>.</summary>
+    public static char OtherSeparatorOf(NumberFormatInfo format) => format.NumberDecimalSeparator switch
+    {
+        "," => '.',
+        "." => ',',
+        _ => '\0',
+    };
+
     /// <summary>
     /// Whether the value has the shape <see cref="TryReadOtherSeparator"/> reads, found without
     /// allocating or parsing: the profile asks it of every value that failed as a number, in every
     /// culture, and only counts.
     /// </summary>
-    public static bool IsOtherSeparatorDecimal(ReadOnlySpan<char> text, NumberFormatInfo format) =>
-        IsOtherSeparatorDecimal(text, format, out _);
-
-    private static bool IsOtherSeparatorDecimal(ReadOnlySpan<char> text, NumberFormatInfo format, out char other)
+    public static bool IsOtherSeparatorDecimal(ReadOnlySpan<char> text, char other)
     {
-        other = format.NumberDecimalSeparator switch
-        {
-            "," => '.',
-            "." => ',',
-            _ => '\0',
-        };
-
         ReadOnlySpan<char> body = text.Trim();
 
         if (other == '\0' || body.Length is 0 or > 30)
