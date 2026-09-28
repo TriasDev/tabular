@@ -1030,3 +1030,17 @@ static TriasDev.Tabular.TabularAnalyzer.Analyze(TriasDev.Tabular.ITabularCursor!
 static TriasDev.Tabular.TabularExtractor.Extract(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.ExtractionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ExtractionRun!
 static TriasDev.Tabular.TabularImporter.Import<T>(System.IO.Stream! stream, string! name, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.TabularRowMapper<T>! mapper, TriasDev.Tabular.ImportOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportRun<T>!
 static TriasDev.Tabular.TabularImporter.Import<T>(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.TabularRowMapper<T>! mapper, TriasDev.Tabular.ImportOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportRun<T>!
+TriasDev.Tabular.SheetInfo.Visibility.get -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetInfo.Visibility.init -> void
+TriasDev.Tabular.SheetProfile.Visibility.get -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetProfile.Visibility.init -> void
+TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetVisibility.Hidden = 1 -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetVisibility.VeryHidden = 2 -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetVisibility.Visible = 0 -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.ColumnBinding.AcceptOtherDecimalSeparator.get -> bool
+TriasDev.Tabular.ColumnBinding.AcceptOtherDecimalSeparator.init -> void
+TriasDev.Tabular.CultureParseCounts.OtherSeparatorDecimals.get -> int
+TriasDev.Tabular.CultureParseCounts.OtherSeparatorDecimals.init -> void
+TriasDev.Tabular.ExtractionSummary.OtherSeparatorDecimals.get -> int
+TriasDev.Tabular.ExtractionSummary.OtherSeparatorDecimals.init -> void

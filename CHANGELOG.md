@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.4.0](https://github.com/TriasDev/tabular/compare/v0.3.0...v0.4.0) (2026-09-28)
+
+
+### Features
+
+* count, and on request import, a decimal written with the other separator where it can be read no other way ([42c26ad](https://github.com/TriasDev/tabular/commit/42c26adb28a6e4974e70abad5bc982e36b1342cf))
+* say whether a sheet is hidden, on SheetInfo and SheetProfile ([#55](https://github.com/TriasDev/tabular/issues/55)) ([88820a6](https://github.com/TriasDev/tabular/commit/88820a67a26a6c6291ce9e4a46ba112a8782b627))
+
+
+### Bug Fixes
+
+* **analysis,import:** read a decimal written in exponential notation, in the profile and the import alike ([#52](https://github.com/TriasDev/tabular/issues/52)) ([b174704](https://github.com/TriasDev/tabular/commit/b174704ec909bcf6d38fb105b681cb217ff8b9b5))
+* **analysis:** empty cells past a row's last value are padding, not columns ([#53](https://github.com/TriasDev/tabular/issues/53)) ([f9783ba](https://github.com/TriasDev/tabular/commit/f9783ba6c2e8a3149b6c39460b0f145bf1044df5))
+* **analysis:** when the distinct budget runs out, settled and rightmost columns give theirs up, so the key keeps an answer ([#54](https://github.com/TriasDev/tabular/issues/54)) ([eea4c64](https://github.com/TriasDev/tabular/commit/eea4c6467053dce00592dfc6bcff3eeb5a1063f8))
+* **csv:** a quoted value whose line would overfill the record is not read as a stray quote ([69a7b47](https://github.com/TriasDev/tabular/commit/69a7b4792b9aac2d3deb1511215434cfc3105431))
+* **mapping:** a pattern on the linear engine runs without a clock, so a valid value cannot fail on a slow first match ([994cb1f](https://github.com/TriasDev/tabular/commit/994cb1f67ddf7964674cfd7b0fe7faa29274baef))
+* **xlsx,ods:** read a line end written as it is the way XML does, as a line feed ([fc203bb](https://github.com/TriasDev/tabular/commit/fc203bba43d4ccc0a70a2bc7808858cc7cbfa31f))
+* **xlsx:** a number format counts only inside numFmts, not in a conditional format's dxf ([43cbda2](https://github.com/TriasDev/tabular/commit/43cbda2fb7c78c8bf9d2ac9a98d54ac247a85bae))
+* **xlsx:** decode the _xHHHH_ escapes OOXML writers use for characters in strings ([6b1b0b4](https://github.com/TriasDev/tabular/commit/6b1b0b402ee2262957e154ce6f473bcb768fabad))
+* **xlsx:** read a boolean cell holding no xsd:boolean as its text, not as false ([58f7eb3](https://github.com/TriasDev/tabular/commit/58f7eb3c164f213c04494985f38a402a43cdc34e))
+* **xlsx:** read a boolean written as true or false, as the Open XML SDK writes it ([b13a703](https://github.com/TriasDev/tabular/commit/b13a703cedc26c3655281f4f98ba018f6cc2ff2c))
+* **xlsx:** read a value on past text that follows a CDATA section ([9b0d785](https://github.com/TriasDev/tabular/commit/9b0d785bb439af3f77cca0d89d209ed5090aedfb))
+
+
+### Performance Improvements
+
+* the other-separator check runs only on values that could be numbers, with the separator looked up once ([b9ba1c5](https://github.com/TriasDev/tabular/commit/b9ba1c5c386b49633d4be44abb0c5769d68ea045))
+
 ## [0.3.0](https://github.com/TriasDev/tabular/compare/v0.2.0...v0.3.0) (2026-09-27)
 
 
