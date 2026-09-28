@@ -35,6 +35,45 @@ internal static class ValueReading
         string text,
         ColumnType type,
         CultureInfo culture,
+        out MappedValue value) =>
+        TryRead(cell, text, type, culture, acceptOtherSeparator: false, out value, out _);
+
+    /// <summary>
+    /// Reads a value as the target field's type, and a decimal written with the other separator too
+    /// when the binding accepts it; says whether it was read that way.
+    /// </summary>
+    public static bool TryRead(
+        in RawCell cell,
+        string text,
+        ColumnType type,
+        CultureInfo culture,
+        bool acceptOtherSeparator,
+        out MappedValue value,
+        out bool readByOtherSeparator)
+    {
+        readByOtherSeparator = false;
+
+        if (TryReadAs(cell, text, type, culture, out value))
+        {
+            return true;
+        }
+
+        if (acceptOtherSeparator && type == ColumnType.Decimal && cell.Kind != RawCellKind.Number
+            && NumberReading.TryReadOtherSeparator(text, culture.NumberFormat, out decimal other))
+        {
+            value = MappedValue.FromDecimal(other);
+            readByOtherSeparator = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadAs(
+        in RawCell cell,
+        string text,
+        ColumnType type,
+        CultureInfo culture,
         out MappedValue value)
     {
         switch (type)

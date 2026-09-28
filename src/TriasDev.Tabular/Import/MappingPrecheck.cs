@@ -315,7 +315,7 @@ public static class MappingPrecheck
         CheckUnique(field, binding, facts, sheet, plan, Add);
         CheckHeader(binding, facts, Add);
         CheckRules(field, binding, facts, culture, Add);
-        CheckType(field, facts, culture, Add);
+        CheckType(field, binding, facts, culture, Add);
     }
 
     /// <summary>Whether a required field's column can supply a value for every row.</summary>
@@ -540,7 +540,7 @@ public static class MappingPrecheck
                 .Where(v => !nothing.Contains(v))
                 .Select(v =>
                 {
-                    bool ok = ValueReading.TryRead(Rebuild(v, declared), v, field.Type, reading, out MappedValue value);
+                    bool ok = ValueReading.TryRead(Rebuild(v, declared), v, field.Type, reading, binding.AcceptOtherDecimalSeparator, out MappedValue value, out _);
                     return (v, value, ok);
                 }),
         ];
@@ -733,6 +733,7 @@ public static class MappingPrecheck
 
     private static void CheckType(
         ImportField field,
+        ColumnBinding binding,
         ColumnFacts facts,
         string? culture,
         AddFinding add)
@@ -771,7 +772,8 @@ public static class MappingPrecheck
         int readable = field.Type switch
         {
             ColumnType.Integer => counts.Integer,
-            ColumnType.Decimal => counts.Integer + counts.Decimal,
+            // As the import will run it: with the values written the other way, when the binding takes them.
+            ColumnType.Decimal => counts.Integer + counts.Decimal + (binding.AcceptOtherDecimalSeparator ? counts.OtherSeparatorDecimals : 0),
             ColumnType.Date => counts.Date,
             ColumnType.Boolean => facts.BooleanCount,
             _ => facts.NonEmptyCount,

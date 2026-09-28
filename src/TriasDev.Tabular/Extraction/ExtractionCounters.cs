@@ -17,6 +17,8 @@ internal sealed class ExtractionCounters
 
     public bool StoppedEarly { get; set; }
 
+    public int OtherSeparatorDecimals { get; set; }
+
     public ExtractionSummary Snapshot() => new()
     {
         RowsRead = RowsRead,
@@ -26,5 +28,6 @@ internal sealed class ExtractionCounters
         RowsFailed = RowsFailed,
         ErrorCount = ErrorCount,
         StoppedEarly = StoppedEarly,
+        OtherSeparatorDecimals = OtherSeparatorDecimals,
     };
 }

@@ -21,6 +21,14 @@ public sealed record CultureParseCounts
     /// <summary>Non-empty values that read as a date.</summary>
     public required int Date { get; init; }
 
+    /// <summary>
+    /// Non-empty values that did not read as a number here only because they write the decimal
+    /// separator the other way, and can be read no other way: <c>34.020367</c> under a German reading.
+    /// They are also among the numeric outliers; a binding may accept them with
+    /// <see cref="ColumnBinding.AcceptOtherDecimalSeparator"/>.
+    /// </summary>
+    public int OtherSeparatorDecimals { get; init; }
+
     /// <summary>Values that did not read as a number, up to the configured limit.</summary>
     public required IReadOnlyList<ValueLocation> NumericOutliers { get; init => field = Equatable.List(value); }
 

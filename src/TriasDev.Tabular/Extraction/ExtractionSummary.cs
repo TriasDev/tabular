@@ -50,4 +50,10 @@ public sealed record ExtractionSummary
     /// file, so "no further errors" would be a claim nobody checked.
     /// </remarks>
     public bool StoppedEarly { get; init; }
+
+    /// <summary>
+    /// Values a decimal field read with the decimal separator written the other way, because its
+    /// binding accepts them (<see cref="ColumnBinding.AcceptOtherDecimalSeparator"/>).
+    /// </summary>
+    public int OtherSeparatorDecimals { get; init; }
 }

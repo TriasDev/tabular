@@ -387,6 +387,7 @@ internal sealed class ColumnProfiler
 
         private int _integer;
         private int _decimal;
+        private int _otherSeparator;
         private int _date;
 
         public int NumericCount => _integer + _decimal;
@@ -495,8 +496,17 @@ internal sealed class ColumnProfiler
                     Widen(number.Value);
                     break;
 
-                case NumberKind.None when _numericOutliers.Count < outlierLimit:
-                    _numericOutliers.Add(new ValueLocation { RowNumber = rowNumber, RawValue = text });
+                case NumberKind.None:
+                    if (NumberReading.IsOtherSeparatorDecimal(text, _culture.NumberFormat))
+                    {
+                        _otherSeparator++;
+                    }
+
+                    if (_numericOutliers.Count < outlierLimit)
+                    {
+                        _numericOutliers.Add(new ValueLocation { RowNumber = rowNumber, RawValue = text });
+                    }
+
                     break;
             }
 
@@ -573,6 +583,7 @@ internal sealed class ColumnProfiler
                 Culture = name,
                 Integer = _integer,
                 Decimal = _decimal,
+                OtherSeparatorDecimals = _otherSeparator,
                 Date = _date,
                 NumericOutliers = [.. _numericOutliers],
                 DateOutliers = [.. _dateOutliers],

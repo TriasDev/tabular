@@ -7,3 +7,9 @@ TriasDev.Tabular.SheetVisibility
 TriasDev.Tabular.SheetVisibility.Hidden = 1 -> TriasDev.Tabular.SheetVisibility
 TriasDev.Tabular.SheetVisibility.VeryHidden = 2 -> TriasDev.Tabular.SheetVisibility
 TriasDev.Tabular.SheetVisibility.Visible = 0 -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.ColumnBinding.AcceptOtherDecimalSeparator.get -> bool
+TriasDev.Tabular.ColumnBinding.AcceptOtherDecimalSeparator.init -> void
+TriasDev.Tabular.CultureParseCounts.OtherSeparatorDecimals.get -> int
+TriasDev.Tabular.CultureParseCounts.OtherSeparatorDecimals.init -> void
+TriasDev.Tabular.ExtractionSummary.OtherSeparatorDecimals.get -> int
+TriasDev.Tabular.ExtractionSummary.OtherSeparatorDecimals.init -> void

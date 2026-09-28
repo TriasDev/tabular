@@ -22,4 +22,17 @@ public sealed record ColumnBinding
 
     /// <summary>Values to read as absent, such as a placeholder a spreadsheet uses for "unknown".</summary>
     public IReadOnlyList<string> TreatAsEmpty { get; init => field = Equatable.List(value); } = Equatable.Empty<string>();
+
+    /// <summary>
+    /// Whether a decimal field reads a value that writes the decimal separator the other way from
+    /// the plan's culture, where that is the only way it can be read — <c>34.020367</c> under de-DE.
+    /// </summary>
+    /// <remarks>
+    /// Off by default: the reading is unambiguous, but it is still a guess about a file mixing two
+    /// conventions, and a person decides whether to make it. The profile counts such values per
+    /// culture (<see cref="CultureParseCounts.OtherSeparatorDecimals"/>), the precheck judges the plan
+    /// with this setting, and a run counts the values it read this way
+    /// (<see cref="ExtractionSummary.OtherSeparatorDecimals"/>), so the leniency is never silent.
+    /// </remarks>
+    public bool AcceptOtherDecimalSeparator { get; init; }
 }
