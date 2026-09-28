@@ -174,9 +174,10 @@ public abstract class FieldConstraint
     /// in name only. Anchors written into the pattern still work.
     /// </para>
     /// <para>
-    /// Bounded in time, and compiled without backtracking. A pattern arrives as data from a calling
-    /// domain and is applied to every row of a file a user chose; a pattern that can be made to run
-    /// away would turn one upload into an outage.
+    /// Compiled without backtracking, whose time is linear in the value, so it needs no clock. A
+    /// pattern arrives as data from a calling domain and is applied to every row of a file a user
+    /// chose; a pattern that can be made to run away would turn one upload into an outage. One that
+    /// needs backtracking — a lookaround, a backreference — is bounded in time instead.
     /// </para>
     /// </remarks>
     public sealed class Pattern : FieldConstraint
@@ -196,6 +197,9 @@ public abstract class FieldConstraint
 
         /// <summary>The pattern as it was given.</summary>
         public string Expression { get; }
+
+        /// <summary>How long one match may run: without limit on the linear engine, the budget on the fallback.</summary>
+        internal TimeSpan MatchTimeout => _expression.MatchTimeout;
 
         /// <inheritdoc />
         public override string Code => ErrorCodes.Value.Pattern;
@@ -224,8 +228,10 @@ public abstract class FieldConstraint
             try
             {
                 // The non-backtracking engine cannot run away by construction, which is worth more
-                // than the constructs it refuses to compile.
-                return new Regex(expression, RegexOptions.NonBacktracking | RegexOptions.CultureInvariant, Budget);
+                // than the constructs it refuses to compile. It gets no clock: a clock there only
+                // misjudges. The first match in a process builds the engine, under load that
+                // outran the budget, and .NET then answered false — a valid value failed.
+                return new Regex(expression, RegexOptions.NonBacktracking | RegexOptions.CultureInvariant, Regex.InfiniteMatchTimeout);
             }
             catch (NotSupportedException)
             {

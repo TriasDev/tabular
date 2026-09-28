@@ -180,8 +180,9 @@ x86 processor, and a table-driven one costs about half a second on the 572 MB cs
 come from a writer that gets sizes wrong.
 
 ### A pattern constraint is bounded per value, not per run
-The match timeout is 100 ms. A pattern using a lookaround falls back to the backtracking engine, and
-a million rows at 100 ms each is a run measured in hours. Compilation is not bounded at all: a
+A pattern runs on .NET's non-backtracking engine, whose time is linear in the value and which has no
+clock. One using a lookaround or a backreference falls back to the backtracking engine, bounded at
+100 ms a value, and a million rows at 100 ms each is a run measured in hours. Compilation is not bounded at all: a
 pattern with large counted quantifiers costs time and memory before any value is seen.
 
 **Matters when** patterns become admin-authored or config-driven rather than domain-authored.
