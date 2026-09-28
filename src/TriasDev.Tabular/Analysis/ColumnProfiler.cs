@@ -170,7 +170,7 @@ internal sealed class ColumnProfiler
             int twin = _numberTwin[i];
 
             _numberReads[i] = twin == i ? _cultures[i].ReadNumber(text, couldBeNumeric) : _numberReads[twin];
-            _cultures[i].AcceptText(text, rowNumber, _numberReads[i], couldBeDate);
+            _cultures[i].AcceptText(text, rowNumber, _numberReads[i], couldBeNumeric, couldBeDate);
         }
     }
 
@@ -385,6 +385,11 @@ internal sealed class ColumnProfiler
         private readonly List<ValueLocation> _numericOutliers = [];
         private readonly List<ValueLocation> _dateOutliers = [];
 
+        /// <summary>The decimal separator this culture does not use, looked up once rather than per value.</summary>
+        private char OtherSeparator { get; } = NumberReading.OtherSeparatorOf(name.Length == 0
+            ? CultureInfo.InvariantCulture.NumberFormat
+            : CultureInfo.GetCultureInfo(name).NumberFormat);
+
         private int _integer;
         private int _decimal;
         private int _otherSeparator;
@@ -482,7 +487,7 @@ internal sealed class ColumnProfiler
         /// <param name="rowNumber">Where it stands, for an outlier.</param>
         /// <param name="number">What <see cref="ReadNumber"/> made of it, here or under a twin culture.</param>
         /// <param name="couldBeDate">Whether the value has the shape of a date, asked once by the caller.</param>
-        public void AcceptText(string text, int rowNumber, NumberRead number, bool couldBeDate)
+        public void AcceptText(string text, int rowNumber, NumberRead number, bool couldBeNumeric, bool couldBeDate)
         {
             switch (number.Kind)
             {
@@ -497,7 +502,7 @@ internal sealed class ColumnProfiler
                     break;
 
                 case NumberKind.None:
-                    if (NumberReading.IsOtherSeparatorDecimal(text, _culture.NumberFormat))
+                    if (couldBeNumeric && NumberReading.IsOtherSeparatorDecimal(text, OtherSeparator))
                     {
                         _otherSeparator++;
                     }
