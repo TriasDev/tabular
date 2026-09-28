@@ -100,7 +100,7 @@ internal static class ValueReading
         }
 
         if (NumberReading.HasWellFormedGroups(text, culture.NumberFormat)
-            && decimal.TryParse(text, NumberStyles.Number, culture, out decimal fraction))
+            && decimal.TryParse(text, NumberReading.DecimalStyles, culture, out decimal fraction))
         {
             value = MappedValue.FromDecimal(fraction);
             return true;
