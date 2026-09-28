@@ -359,7 +359,7 @@ public sealed class ArchiveCursor : ITabularCursor
         }
 
         string name = Path.GetFileNameWithoutExtension(entry.Name);
-        AddSource(new Source(entry, TabularFormat.Csv, _options.Csv.Dialect ?? dialect), [name.Length > 0 ? name : entry.Name]);
+        AddSource(new Source(entry, TabularFormat.Csv, _options.Csv.Dialect ?? dialect), [(name.Length > 0 ? name : entry.Name, SheetVisibility.Visible)]);
     }
 
     /// <summary>
@@ -408,12 +408,12 @@ public sealed class ArchiveCursor : ITabularCursor
             return;
         }
 
-        List<string> names;
+        List<(string Name, SheetVisibility Visibility)> names;
 
         try
         {
             using ITabularCursor workbook = OpenWorkbook(format, buffer, leaveOpen: true, cancellationToken);
-            names = [.. workbook.Sheets.Select(sheet => sheet.Name)];
+            names = [.. workbook.Sheets.Select(sheet => (sheet.Name, sheet.Visibility))];
         }
         catch (TabularFormatException e)
         {
@@ -460,7 +460,7 @@ public sealed class ArchiveCursor : ITabularCursor
         return read == head.Length ? head : head[..read];
     }
 
-    private void AddSource(Source source, IReadOnlyList<string> sheetNames)
+    private void AddSource(Source source, IReadOnlyList<(string Name, SheetVisibility Visibility)> sheetNames)
     {
         int maxSheets = _options.Xlsx.MaxSheets;
 
@@ -480,7 +480,8 @@ public sealed class ArchiveCursor : ITabularCursor
             _sheets.Add(new SheetInfo
             {
                 Index = _sheets.Count,
-                Name = sheetNames[local],
+                Name = sheetNames[local].Name,
+                Visibility = sheetNames[local].Visibility,
                 Format = source.Format,
                 Source = source.Entry.FullName,
             });

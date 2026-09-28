@@ -17,6 +17,9 @@ public sealed record SheetProfile
     /// <summary>Where inside an archive the sheet's file lies, or null for a plain file.</summary>
     public string? Source { get; init; }
 
+    /// <summary>Whether the file's author left the sheet showing; see <see cref="SheetInfo.Visibility"/>.</summary>
+    public SheetVisibility Visibility { get; init; }
+
     /// <summary>
     /// How the sheet's file was punctuated and encoded, and how that was decided. Null for a
     /// workbook sheet.

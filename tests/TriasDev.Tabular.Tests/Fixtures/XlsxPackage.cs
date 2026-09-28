@@ -25,6 +25,7 @@ internal sealed class XlsxPackage
     private string _extraSheetsXml = string.Empty;
     private string _workbookTailXml = string.Empty;
     private string _relationshipNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+    private string?[] _states = [];
 
     /// <summary>Adds a worksheet whose <c>&lt;sheetData&gt;</c> children are supplied verbatim.</summary>
     public XlsxPackage WithSheet(string name, string rowsXml)
@@ -56,6 +57,13 @@ internal sealed class XlsxPackage
     public XlsxPackage WithStyles(string stylesXml)
     {
         _stylesXml = stylesXml;
+        return this;
+    }
+
+    /// <summary>Gives the worksheets a <c>state</c> attribute each, in order; null leaves it out.</summary>
+    public XlsxPackage WithSheetStates(params string?[] states)
+    {
+        _states = states;
         return this;
     }
 
@@ -206,7 +214,8 @@ internal sealed class XlsxPackage
         sb.Append("<sheets>");
         for (int i = 0; i < _sheets.Count; i++)
         {
-            sb.Append($"""<sheet name="{Escape(_sheets[i].Name)}" sheetId="{i + 1}" r:id="rId{i + 1}"/>""");
+            string state = i < _states.Length && _states[i] is { } value ? $""" state="{value}" """ : " ";
+            sb.Append($"""<sheet name="{Escape(_sheets[i].Name)}" sheetId="{i + 1}"{state}r:id="rId{i + 1}"/>""");
         }
         sb.Append(_extraSheetsXml);
         sb.Append("</sheets>");

@@ -18,6 +18,15 @@ LibreOffice declares after the last one cost nothing. Covered cells of a merge r
 sheets and rows read like any other, as in xlsx. A sheet is a table of the spreadsheet itself: a
 sub-table inside a cell, or the table a DDE link caches, is not one, and its text is not the cell's.
 
+## A sheet says whether it is hidden
+
+`SheetInfo.Visibility`, and `SheetProfile.Visibility` beside it, say whether the author left a sheet
+showing: `Visible`, `Hidden`, or `VeryHidden` (an xlsx sheet only code can show again). An xlsx sheet's
+comes from its `state`, an ods table's from its style's `table:display`; a csv's single sheet is
+always visible. Hidden sheets are still listed and read — lookup lists, instructions and calculations
+in a template are data too — so a screen offering sheets, or an upload picking one, decides what to
+do with them. A chart sheet, macro sheet or dialog sheet holds no cells and is not listed at all.
+
 ## A zip archive reads as one workbook
 
 A zip that is not itself a workbook is read as one: its sheets are the sheets of every file in it

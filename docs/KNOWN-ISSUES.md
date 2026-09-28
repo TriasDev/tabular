@@ -59,10 +59,6 @@ caller comparing the two formats sees the writer's differences, not the reader's
 Both are a spreadsheet as one plain XML document, without the zip. A file that opens with an XML
 declaration is refused as unsupported rather than read as csv. Matters if anyone sends one.
 
-### Chartsheets and hidden sheets are indistinguishable from ordinary ones
-`SheetInfo` carries a name and an index. A caller cannot tell a hidden sheet, or a chartsheet with no
-cells, from a sheet the user meant.
-
 ---
 
 ## Contracts looser than they read

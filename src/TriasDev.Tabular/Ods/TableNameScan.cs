@@ -37,12 +37,17 @@ internal sealed class TableNameScan
     /// </summary>
     private const int MaxTagBytes = 3 * 16 * 1024 * 1024;
 
-    /// <summary>The elements the pass keeps track of: a table, and a DDE link, whose cached table is no sheet.</summary>
+    /// <summary>
+    /// The elements the pass keeps track of: a table, and a DDE link, whose cached table is no sheet;
+    /// and, outside either, a style and its table properties, which say whether a table is shown.
+    /// </summary>
     private enum Scope
     {
         None,
         Table,
         DdeLink,
+        Style,
+        TableProperties,
     }
 
     private readonly Stream _stream;
@@ -50,6 +55,15 @@ internal sealed class TableNameScan
 
     /// <summary>How many tables and DDE links are open around the scan position.</summary>
     private int _depth;
+
+    /// <summary>The table style whose properties are being read, or null outside one.</summary>
+    private string? _tableStyle;
+
+    /// <summary>The table styles that set <c>table:display="false"</c>: a hidden sheet's.</summary>
+    private readonly HashSet<string> _hiddenStyles = new(StringComparer.Ordinal);
+
+    /// <summary>Each listed table's style name, to be judged once every style has been seen.</summary>
+    private readonly List<string?> _tableStyles = [];
     private byte[] _buffer = new byte[64 * 1024];
     private int _position;
     private int _length;
@@ -62,10 +76,10 @@ internal sealed class TableNameScan
     }
 
     /// <summary>
-    /// The tables' names in document order, or null when the part is not UTF-8 and the caller has
-    /// to tokenize it instead.
+    /// The tables' names and visibility in document order, or null when the part is not UTF-8 and the
+    /// caller has to tokenize it instead.
     /// </summary>
-    public static List<string>? TryRead(Stream content, int maxSheets, CancellationToken cancellationToken)
+    public static List<(string Name, SheetVisibility Visibility)>? TryRead(Stream content, int maxSheets, CancellationToken cancellationToken)
     {
         TableNameScan scan = new(content, cancellationToken);
 
@@ -74,8 +88,14 @@ internal sealed class TableNameScan
             return null;                    // a UTF-16 byte order mark
         }
 
-        return scan.Read(maxSheets, cancellationToken);
+        List<string> names = scan.Read(maxSheets, cancellationToken);
+
+        return [.. names.Select((name, i) => (name, scan.VisibilityOf(scan._tableStyles[i])))];
     }
+
+    /// <summary>A table hidden by its style is a hidden sheet; LibreOffice has no "very hidden".</summary>
+    private SheetVisibility VisibilityOf(string? style) =>
+        style is not null && _hiddenStyles.Contains(style) ? SheetVisibility.Hidden : SheetVisibility.Visible;
 
     private List<string> Read(int maxSheets, CancellationToken cancellationToken)
     {
@@ -126,12 +146,20 @@ internal sealed class TableNameScan
 
         if (closing)
         {
-            _depth = Math.Max(0, _depth - 1);
+            if (scope is Scope.Table or Scope.DdeLink)
+            {
+                _depth = Math.Max(0, _depth - 1);
+            }
+            else if (scope == Scope.Style)
+            {
+                _tableStyle = null;
+            }
+
             _position += 2;
             return true;
         }
 
-        return ReadScope(scope, names, maxSheets);
+        return scope is Scope.Style or Scope.TableProperties ? ReadStyle(scope) : ReadScope(scope, names, maxSheets);
     }
 
     /// <summary>
@@ -164,9 +192,43 @@ internal sealed class TableNameScan
             }
 
             names.Add(NameAttribute(tag));
+            _tableStyles.Add(Attribute(tag, "style-name"u8));
         }
 
         _depth++;
+        return true;
+    }
+
+    /// <summary>
+    /// Takes apart a style's start tag, or its table properties', remembering a table style that hides
+    /// its tables; false when the part ends inside the tag.
+    /// </summary>
+    private bool ReadStyle(Scope scope)
+    {
+        int end = FindTagEnd();
+
+        if (end < 0)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<byte> tag = _buffer.AsSpan(_position + 1, end - _position - 1);
+        _position = end + 1;
+
+        if (scope == Scope.Style)
+        {
+            _tableStyle = Attribute(tag, "family"u8) == "table" ? Attribute(tag, "name"u8) : null;
+
+            if (tag[^1] == (byte)'/')
+            {
+                _tableStyle = null;
+            }
+        }
+        else if (_tableStyle is not null && Attribute(tag, "display"u8) == "false")
+        {
+            _hiddenStyles.Add(_tableStyle);
+        }
+
         return true;
     }
 
@@ -243,7 +305,18 @@ internal sealed class TableNameScan
             return Scope.Table;
         }
 
-        return local.SequenceEqual("dde-link"u8) ? Scope.DdeLink : Scope.None;
+        if (local.SequenceEqual("dde-link"u8))
+        {
+            return Scope.DdeLink;
+        }
+
+        // Styles stand outside the tables, in the part's automatic styles.
+        if (_depth == 0 && local.SequenceEqual("style"u8))
+        {
+            return Scope.Style;
+        }
+
+        return _depth == 0 && local.SequenceEqual("table-properties"u8) ? Scope.TableProperties : Scope.None;
     }
 
     private static bool IsNameEnd(byte b) =>
@@ -289,26 +362,32 @@ internal sealed class TableNameScan
     /// The value of the tag's first attribute whose local name is <c>name</c>, entities resolved;
     /// empty when it has none.
     /// </summary>
-    private static string NameAttribute(ReadOnlySpan<byte> tag)
+    private static string NameAttribute(ReadOnlySpan<byte> tag) => Attribute(tag, "name"u8) ?? string.Empty;
+
+    /// <summary>
+    /// The value of the tag's first attribute with the given local name, entities resolved; null when
+    /// it has none.
+    /// </summary>
+    private static string? Attribute(ReadOnlySpan<byte> tag, ReadOnlySpan<byte> localName)
     {
         int space = tag.IndexOfAny(Whitespace);
 
         if (space < 0)
         {
-            return string.Empty;
+            return null;
         }
 
         ReadOnlySpan<byte> rest = tag[space..];
 
         while (TryNextAttribute(ref rest, out ReadOnlySpan<byte> attribute, out ReadOnlySpan<byte> value))
         {
-            if (attribute[(attribute.IndexOf((byte)':') + 1)..].SequenceEqual("name"u8))
+            if (attribute[(attribute.IndexOf((byte)':') + 1)..].SequenceEqual(localName))
             {
                 return SheetScanner.DecodeAttribute(Encoding.UTF8.GetString(value));
             }
         }
 
-        return string.Empty;
+        return null;
     }
 
     private static ReadOnlySpan<byte> Whitespace => " \t\r\n\v\f"u8;

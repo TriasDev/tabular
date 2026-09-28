@@ -1,1 +1,9 @@
 #nullable enable
+TriasDev.Tabular.SheetInfo.Visibility.get -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetInfo.Visibility.init -> void
+TriasDev.Tabular.SheetProfile.Visibility.get -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetProfile.Visibility.init -> void
+TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetVisibility.Hidden = 1 -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetVisibility.VeryHidden = 2 -> TriasDev.Tabular.SheetVisibility
+TriasDev.Tabular.SheetVisibility.Visible = 0 -> TriasDev.Tabular.SheetVisibility

@@ -262,6 +262,7 @@ internal sealed class AnalysisRun
             Name = sheet.Name,
             Format = sheet.Format,
             Source = sheet.Source,
+            Visibility = sheet.Visibility,
             Diagnostics = new CursorDiagnostics(),
             RowCount = rowCount,
             Columns = columns,
