@@ -175,11 +175,15 @@ internal sealed class AnalysisRun
                 }
 
                 headerRead = true;
-                ReadHeader(cursor.CurrentRow, profilers, budget);
+                ReadHeader(ToLastValue(cursor.CurrentRow), profilers, budget);
                 continue;
             }
 
-            ReadOnlySpan<RawCell> row = cursor.CurrentRow;
+            // Cut after its last value. The empty cells past it are padding — a workbook writes a cell
+            // for its formatting alone, a csv line can end in a run of delimiters — and taken as cells
+            // they became columns with no header and no value, 23 columns for a table of 13 (#45). A
+            // column that does carry a value further down is still added then, as a late column.
+            ReadOnlySpan<RawCell> row = ToLastValue(cursor.CurrentRow);
 
             // A row with nothing in it is not a row. A spreadsheet accumulates them below its data as
             // a matter of course, and counting them makes every fact about the file describe the
@@ -188,7 +192,7 @@ internal sealed class AnalysisRun
             //
             // Extraction already skips them, so counting them here made the profile disagree with the
             // run it exists to predict — the more expensive half of the mistake.
-            if (IsBlank(row))
+            if (row.IsEmpty)
             {
                 continue;
             }
@@ -258,18 +262,17 @@ internal sealed class AnalysisRun
         };
     }
 
-    /// <summary>Whether the row holds no value in any column.</summary>
-    private static bool IsBlank(ReadOnlySpan<RawCell> row)
+    /// <summary>The row up to and including its last value; empty when it holds none.</summary>
+    private static ReadOnlySpan<RawCell> ToLastValue(ReadOnlySpan<RawCell> row)
     {
-        for (int i = 0; i < row.Length; i++)
+        int length = row.Length;
+
+        while (length > 0 && row[length - 1].IsEmpty)
         {
-            if (!row[i].IsEmpty)
-            {
-                return false;
-            }
+            length--;
         }
 
-        return true;
+        return row[..length];
     }
 
     /// <summary>
