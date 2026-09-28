@@ -1,6 +1,9 @@
 namespace TriasDev.Tabular;
 
 /// <summary>One sheet of a file, as the file names it.</summary>
+/// <remarks>
+/// A sheet of cells. An xlsx chart sheet, macro sheet or dialog sheet holds none, and is not listed.
+/// </remarks>
 public sealed record SheetInfo
 {
     /// <summary>Position in the file, zero-based.</summary>
@@ -27,4 +30,7 @@ public sealed record SheetInfo
     /// workbooks' <c>Sheet1</c> apart.
     /// </remarks>
     public string? Source { get; init; }
+
+    /// <summary>Whether the file's author left the sheet showing; a hidden sheet is still read.</summary>
+    public SheetVisibility Visibility { get; init; }
 }

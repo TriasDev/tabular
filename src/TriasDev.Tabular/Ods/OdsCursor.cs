@@ -856,25 +856,40 @@ public sealed class OdsCursor : ITabularCursor
     {
         using (Stream bytes = _content.Open())
         {
-            List<string>? names = TableNameScan.TryRead(bytes, _options.MaxSheets, cancellationToken);
+            List<(string Name, SheetVisibility Visibility)>? tables = TableNameScan.TryRead(bytes, _options.MaxSheets, cancellationToken);
 
-            if (names is not null)
+            if (tables is not null)
             {
-                return [.. names.Select((name, index) => new SheetInfo { Index = index, Name = name, Format = TabularFormat.Ods })];
+                return [.. tables.Select((table, index) => new SheetInfo { Index = index, Name = table.Name, Format = TabularFormat.Ods, Visibility = table.Visibility })];
             }
         }
 
         // A part in UTF-16, which the byte pass does not read: tokenized, as the reading will.
+        return ReadSheetNamesTokenized(cancellationToken);
+    }
+
+    /// <summary>The sheet list read through the tokenizer, for a content part the byte pass cannot read.</summary>
+    private List<SheetInfo> ReadSheetNamesTokenized(CancellationToken cancellationToken)
+    {
         List<SheetInfo> sheets = [];
+        List<string?> tableStyles = [];
+        HashSet<string> hiddenStyles = new(StringComparer.Ordinal);
+        string? tableStyle = null;
 
         using SheetScanner scanner = new(
-            new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: KeptAttributes);
+            new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: SheetListAttributes);
         int sinceCheck = 0;
         int depth = 0;
 
         while (scanner.Read())
         {
             Checkpoint(ref sinceCheck, cancellationToken);
+
+            // As the byte pass does: a table style whose properties say display="false" hides its tables.
+            if (depth == 0 && ReadTableStyle(scanner, ref tableStyle, hiddenStyles))
+            {
+                continue;
+            }
 
             // The same sheets the byte pass lists: tables standing in no table and no DDE link.
             if (scanner.Kind == XmlNodeKind.EndElement && IsScope(scanner.Name))
@@ -889,19 +904,71 @@ public sealed class OdsCursor : ITabularCursor
                 continue;
             }
 
-            if (sheets.Count >= _options.MaxSheets)
-            {
-                throw new TabularLimitException(nameof(OdsCursorOptions.MaxSheets), _options.MaxSheets,
-                    $"The spreadsheet declares more than the {_options.MaxSheets} sheets allowed.");
-            }
-
-            string name = scanner.TryGetAttribute("name", out ReadOnlySpan<char> value)
-                ? SheetScanner.DecodeAttribute(value)
-                : string.Empty;
-            sheets.Add(new SheetInfo { Index = sheets.Count, Name = name, Format = TabularFormat.Ods });
+            AddListedTable(scanner, sheets, tableStyles);
         }
 
-        return sheets;
+        return [.. sheets.Select((sheet, i) => tableStyles[i] is { } style && hiddenStyles.Contains(style)
+            ? sheet with { Visibility = SheetVisibility.Hidden }
+            : sheet)];
+    }
+
+    /// <summary>Lists the table the scanner stands on, with its style for the visibility judged at the end.</summary>
+    private void AddListedTable(SheetScanner scanner, List<SheetInfo> sheets, List<string?> tableStyles)
+    {
+        if (sheets.Count >= _options.MaxSheets)
+        {
+            throw new TabularLimitException(nameof(OdsCursorOptions.MaxSheets), _options.MaxSheets,
+                $"The spreadsheet declares more than the {_options.MaxSheets} sheets allowed.");
+        }
+
+        string name = scanner.TryGetAttribute("name", out ReadOnlySpan<char> value)
+            ? SheetScanner.DecodeAttribute(value)
+            : string.Empty;
+        sheets.Add(new SheetInfo { Index = sheets.Count, Name = name, Format = TabularFormat.Ods });
+        tableStyles.Add(scanner.TryGetAttribute("style-name", out ReadOnlySpan<char> style) ? SheetScanner.DecodeAttribute(style) : null);
+    }
+
+    /// <summary>The attributes the sheet list reads: a table's name and style, a style's name, family and display.</summary>
+    private static readonly string[] SheetListAttributes = ["name", "style-name", "family", "display"];
+
+    /// <summary>
+    /// Follows a style element, or its table properties, remembering a table style that hides its
+    /// tables; true when the node was one of them.
+    /// </summary>
+    private static bool ReadTableStyle(SheetScanner scanner, ref string? tableStyle, HashSet<string> hiddenStyles)
+    {
+        if (scanner.Kind == XmlNodeKind.EndElement && scanner.Name.SequenceEqual("style"))
+        {
+            tableStyle = null;
+            return true;
+        }
+
+        if (scanner.Kind != XmlNodeKind.Element)
+        {
+            return false;
+        }
+
+        if (scanner.Name.SequenceEqual("style"))
+        {
+            tableStyle = !scanner.IsEmptyElement
+                && scanner.TryGetAttribute("family", out ReadOnlySpan<char> family) && family.SequenceEqual("table")
+                && scanner.TryGetAttribute("name", out ReadOnlySpan<char> name)
+                    ? SheetScanner.DecodeAttribute(name)
+                    : null;
+            return true;
+        }
+
+        if (scanner.Name.SequenceEqual("table-properties"))
+        {
+            if (tableStyle is not null && scanner.TryGetAttribute("display", out ReadOnlySpan<char> display) && display.SequenceEqual("false"))
+            {
+                hiddenStyles.Add(tableStyle);
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private void OpenContent()
