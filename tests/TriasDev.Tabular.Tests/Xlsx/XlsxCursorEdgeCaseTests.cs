@@ -215,6 +215,23 @@ public sealed class XlsxCursorEdgeCaseTests
     }
 
     [Fact]
+    public void KeepsACellFormatWhenAConditionalFormatReusesItsId()
+    {
+        // A differential format for conditional formatting carries its own numFmt, and its id may be
+        // one the cell formats already use. Taken as a cell format, "yyyy-mm-dd" overwrote "0.00" and
+        // an amount of 45000.25 read as 15 March 2023 (#48).
+        byte[] content = new XlsxPackage()
+            .WithStyles("""<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="0.00"/></numFmts><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="164" applyNumberFormat="1"/></cellXfs><dxfs count="1"><dxf><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></dxf></dxfs></styleSheet>""")
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="1"><v>45000.25</v></c></row>""")
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(RawCell.FromNumber(45000.25), cursor.CurrentRow[0]);
+    }
+
+    [Fact]
     public void ReadsAPackageWhosePartsAreNamedInAnotherCase()
     {
         // Part names in a package are compared without regard to case. Excel writes them lower-case,
