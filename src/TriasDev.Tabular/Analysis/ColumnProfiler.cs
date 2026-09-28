@@ -34,7 +34,7 @@ internal sealed class ColumnProfiler
 
     /// <summary>The numeric reading of the current value under each culture, reused across twins.</summary>
     private readonly NumberRead[] _numberReads;
-    private readonly UInt64Set _distinctHashes = new();
+    private UInt64Set _distinctHashes = new();
     private readonly Dictionary<string, int> _frequencies = new(StringComparer.Ordinal);
     private readonly List<string> _firstValues = [];
     private readonly List<string> _distinctValues = [];
@@ -50,6 +50,12 @@ internal sealed class ColumnProfiler
     private int? _minLength;
     private int? _maxLength;
     private bool _distinctIsExact = true;
+
+    /// <summary>Whether a value has come round twice — which settles uniqueness, counted or not.</summary>
+    private bool _repeated;
+
+    /// <summary>The distinct count where counting stopped; the live count until then.</summary>
+    private int _distinctCountAtStop;
     private bool _distinctValuesComplete = true;
 
     /// <summary>Creates a profiler for one column.</summary>
@@ -60,6 +66,7 @@ internal sealed class ColumnProfiler
         Index = index;
         Header = header ?? string.Empty;
         _budget = budget;
+        _budget.Join(this);
         _options = options ?? AnalysisOptions.Default;
         _cultures = [.. CultureCatalog.Available(_options.Cultures).Select(name => new CultureAccumulator(name, _options.OutlierSampleSize))];
         _numberTwin = new int[_cultures.Length];
@@ -198,7 +205,7 @@ internal sealed class ColumnProfiler
             MinDate = best.MinDate,
             MaxDate = best.MaxDate,
             NativeKinds = _kindsSeen.ToDictionary(kind => kind, kind => _nativeKinds[(int)kind]),
-            DistinctCount = _distinctHashes.Count,
+            DistinctCount = _distinctIsExact ? _distinctHashes.Count : _distinctCountAtStop,
             DistinctCountIsExact = _distinctIsExact,
             IsUnique = Unique(),
             DistinctSamples = TopFrequencies(),
@@ -249,34 +256,62 @@ internal sealed class ColumnProfiler
     /// </remarks>
     private bool? Unique()
     {
-        if (!_distinctIsExact)
-        {
-            return null;
-        }
-
         if (_nonEmptyCount == 0)
         {
             return _emptyCount == 0 ? null : false;
         }
 
-        return _emptyCount == 0 && _distinctHashes.Count == _nonEmptyCount;
+        // An empty cell or a repeat settles it, however far the count got.
+        if (_emptyCount > 0 || _repeated)
+        {
+            return false;
+        }
+
+        return _distinctIsExact ? true : null;
+    }
+
+    /// <summary>How many values the column holds of the budget.</summary>
+    internal int Counted => _distinctIsExact ? _distinctHashes.Count : 0;
+
+    /// <summary>Whether uniqueness is already settled by a repeat.</summary>
+    internal bool HasRepeated => _repeated;
+
+    /// <summary>
+    /// Stops counting distinct values, keeping the count as a lower bound, and says how many it held
+    /// of the budget.
+    /// </summary>
+    internal int StopCounting()
+    {
+        int held = Counted;
+
+        _distinctCountAtStop = _distinctHashes.Count;
+        _distinctIsExact = false;
+        _distinctHashes = new UInt64Set();
+        _distinctValuesComplete = false;
+        _distinctValues.Clear();
+        _distinctValues.TrimExcess();
+        return held;
     }
 
     private void TrackDistinct(string text)
     {
-        ulong hash = ValueHash.Of(text);
-
-        if (_distinctHashes.Contains(hash))
+        if (!_distinctIsExact)
         {
             return;
         }
 
-        if (!_budget.TryReserve())
+        ulong hash = ValueHash.Of(text);
+
+        if (_distinctHashes.Contains(hash))
         {
-            // Out of allowance. The count stops rising and says so, rather than drifting quietly
-            // towards a number nobody can trust.
-            _distinctIsExact = false;
-            _distinctValuesComplete = false;
+            _repeated = true;
+            return;
+        }
+
+        if (!_budget.TryReserve(this))
+        {
+            // Out of allowance, and this column was the one to give up. The count stops rising and
+            // says so, rather than drifting quietly towards a number nobody can trust.
             return;
         }
 

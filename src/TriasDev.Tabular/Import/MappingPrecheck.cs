@@ -420,7 +420,7 @@ public static class MappingPrecheck
                 NotUnique,
                 certain ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
                 repeats > 0
-                    ? new Evidence(repeats, Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.Repeats)))
+                    ? new Evidence(repeats, RepeatsBound(facts), Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.Repeats)))
                     : new Evidence(facts.EmptyCount, EmptyCountBound(binding, sheet, plan), Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.EmptyCells))));
         }
         else if (facts.IsUnique is null && facts.NonEmptyCount == 0 && facts.EmptyCount == 0)
@@ -438,6 +438,13 @@ public static class MappingPrecheck
                 new Evidence(Arguments: Args((PrecheckArguments.Reason, PrecheckReasons.TooManyDistinct), (PrecheckArguments.DistinctCount, N(facts.DistinctCount)))));
         }
     }
+
+    /// <summary>
+    /// Exact while the distinct count is; an upper bound once the column gave up counting, as its count
+    /// is then a lower bound and the repeats derived from it can only be fewer.
+    /// </summary>
+    private static RowCountBound RepeatsBound(ColumnFacts facts) =>
+        facts.DistinctCountIsExact ? RowCountBound.Exact : RowCountBound.AtMost;
 
     /// <summary>
     /// Judges every rule the field declares, against the values the import would produce.

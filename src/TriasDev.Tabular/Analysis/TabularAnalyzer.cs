@@ -202,7 +202,14 @@ internal sealed class AnalysisRun
             reporter.Row(sheet);
         }
 
-        return BuildProfile(sheet, rowCount, profilers);
+        SheetProfile profile = BuildProfile(sheet, rowCount, profilers);
+
+        foreach (ColumnProfiler profiler in profilers)
+        {
+            budget.Leave(profiler);
+        }
+
+        return profile;
     }
 
     /// <summary>Hands one data row's cells to the column profilers, adding columns it is the first to reach.</summary>
