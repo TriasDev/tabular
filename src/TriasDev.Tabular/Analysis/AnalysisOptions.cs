@@ -27,9 +27,16 @@ public sealed record AnalysisOptions
     /// holds millions spends most of it, which is the right distribution.
     /// </para>
     /// <para>
-    /// Two million hashes is about sixteen megabytes of payload. A file of a few tens of megabytes
-    /// does not reach it; it exists for files an order of magnitude larger, and as the guarantee
-    /// that memory has an upper bound at all.
+    /// When it runs out, room is made where an answer is settled: first by a column that has already
+    /// repeated a value — its uniqueness is decided, false, and only its count becomes a lower bound —
+    /// then by the rightmost column still counting, so the columns to the left, where keys usually
+    /// stand, keep an answer. A sheet's columns hand their share back when the sheet is done.
+    /// </para>
+    /// <para>
+    /// Deciding whether a column of <em>n</em> rows is unique takes <em>n</em> of it, so the default of
+    /// two million settles an identifier column of up to two million rows. Each tracked value costs 16
+    /// to 32 bytes, half as much again while its set grows: two million is 32 to 64 MB at worst, and a
+    /// five-million-row file needs a budget of five million — some 80 to 160 MB — to settle its key.
     /// </para>
     /// </remarks>
     public int DistinctTrackingBudget { get; init; } = 2_000_000;
