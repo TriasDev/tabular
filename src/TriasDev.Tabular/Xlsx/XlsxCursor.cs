@@ -627,8 +627,7 @@ public sealed class XlsxCursor : ITabularCursor
                         : RawCell.Empty;
 
             case CellValueType.Boolean:
-                // "1" as the format says, or "true" as the Open XML SDK writes it.
-                return RawCell.FromBoolean(text.SequenceEqual("1") || text.Equals("true", StringComparison.OrdinalIgnoreCase));
+                return BooleanValue(text);
 
             case CellValueType.Error:
                 return RawCell.FromError(new string(text));
@@ -654,6 +653,22 @@ public sealed class XlsxCursor : ITabularCursor
         return dateStyle && TryFromSerial(value, _date1904, out DateTime date)
             ? RawCell.FromDate(date)
             : RawCell.FromNumber(value);
+    }
+
+    /// <summary>
+    /// xsd:boolean's spellings — "1" as the format writes it, "true" as the Open XML SDK does — and
+    /// anything else as its text: silently false is the worst reading of a value that is no boolean.
+    /// </summary>
+    private static RawCell BooleanValue(ReadOnlySpan<char> text)
+    {
+        if (text.SequenceEqual("1") || text.Equals("true", StringComparison.OrdinalIgnoreCase))
+        {
+            return RawCell.FromBoolean(true);
+        }
+
+        return text.SequenceEqual("0") || text.Equals("false", StringComparison.OrdinalIgnoreCase)
+            ? RawCell.FromBoolean(false)
+            : RawCell.FromText(new string(text));
     }
 
     /// <summary>
