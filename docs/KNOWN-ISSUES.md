@@ -67,32 +67,6 @@ cells, from a sheet the user meant.
 
 ## Contracts looser than they read
 
-### A number written in exponential notation is read as text
-
-Both the profiler and the extractor parse decimals with `NumberStyles.Number`, which does not include
-`AllowExponent`. Measured against .NET rather than inferred:
-
-| value | `NumberStyles.Number` | `NumberStyles.Float` |
-|---|---|---|
-| `5.4176e-03` | rejected | 0.0054176 |
-| `1E+5` | rejected | 100000 |
-| `-2.5e2` | rejected | -250 |
-
-The consequence is worse than a refused row, because it happens at analysis too: a column of such
-values is profiled as text, so a decimal is never proposed for it, and a mapping to a decimal field
-then fails every row with `value.type-mismatch`.
-
-Found on a real export — a column carried `5.4176e-03` — so this is not hypothetical.
-`NumberStyles.Float` would fix both places, and the reason it has not been changed yet is not the one
-this entry used to give. `Float` does **not** include `AllowThousands`, which `Number` does — measured,
-`1,234.56` reads under `Number` and is rejected under `Float`. Losing grouped numbers in a library
-whose stated subject is telling `1.234,56` from `1,234.56` would be a worse defect than the one being
-fixed, so the change is `Number | AllowExponent` rather than `Float`, and it has to land in the
-profiler and the extractor together or a column will be proposed as a decimal the extractor refuses.
-
-**Matters when** any file carries scientific notation — scientific instruments, financial exports and
-anything that has been through a naive `double.ToString()` all do.
-
 ### A date must carry two separators, so `15 Jan 2023` is text
 
 `DateReading.LooksLikeOne` requires two of `-`, `/`, `.`, or a colon, before a parse is attempted.

@@ -434,7 +434,7 @@ internal sealed class ColumnProfiler
                 return new NumberRead(NumberKind.Integer, whole);
             }
 
-            if (grouped && decimal.TryParse(text, NumberStyles.Number, _culture, out decimal fraction))
+            if (grouped && decimal.TryParse(text, NumberReading.DecimalStyles, _culture, out decimal fraction))
             {
                 return new NumberRead(NumberKind.Decimal, fraction);
             }
