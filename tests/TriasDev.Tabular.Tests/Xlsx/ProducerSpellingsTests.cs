@@ -62,6 +62,18 @@ public sealed class ProducerSpellingsTests
         Assert.Equal(RawCell.FromBoolean(meant), row[0]);
     }
 
+    [Theory]
+    [InlineData("yes")]
+    [InlineData("2")]
+    [InlineData("")]
+    public void ReadsABooleanCellHoldingSomethingElseAsItsText(string written)
+    {
+        // Silently false is the worst reading of a value that is no boolean at all (#49).
+        RawCell[] row = FirstRow(new XlsxPackage().WithSheet("S", $"""<row r="1"><c r="A1" t="b"><v>{written}</v></c></row>"""));
+
+        Assert.Equal(RawCell.FromText(written), row[0]);
+    }
+
     [Fact]
     public void ReadsLineEndsWrittenAsTheyAreAsXmlDoes()
     {

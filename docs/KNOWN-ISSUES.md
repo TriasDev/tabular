@@ -24,14 +24,6 @@ the delimiter test is off, and only the 100-line bound catches a stray quote.
 field boundary within one record. Neither the real-world nor the synthetic 5M-row fixture has such a
 case.
 
-### A `numFmt` inside `<dxfs>` can overwrite a cell format
-Number formats are collected from anywhere in `styles.xml`. Differential formats — used by
-conditional formatting — live in `<dxfs>` and carry their own ids. One colliding with a custom id
-(164 and up) flips a column between numbers and dates.
-
-**Matters when** a file uses conditional formatting *and* custom number formats, and the ids collide.
-Fix by tracking whether the reader is inside `<numFmts>`, as it already does for `<cellXfs>`.
-
 ### Number formats the reader does not know are dates
 `IsBuiltInDateFormat` accepts 14–22 and 45–47. The specification also reserves 27–36 and 50–58 for
 dates in East Asian locales. A cell using one reads as a number.
@@ -39,11 +31,6 @@ dates in East Asian locales. A cell using one reads as a number.
 ### `applyNumberFormat="0"` is ignored
 The attribute says the format is not applied. Honouring it would change whether a styled cell is read
 as a date.
-
-### `t="b"` accepts only `"1"`, and `date1904` only `"1"` and `"true"`
-The schema type is `xsd:boolean`, which also permits `"true"`/`"false"` and `"0"`. A writer using the
-long spelling produces a boolean read as false, or a 1904 workbook read as 1900 — the latter is a
-four-year error.
 
 ### Relationship targets are not percent-decoded
 Parts are found through the package relationships, and targets are resolved against their folder,
