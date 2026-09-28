@@ -357,7 +357,7 @@ public sealed class ExtractionRun
                 continue;
             }
 
-            if (!ValueReading.TryRead(cell, text, field.Type, _culture, out MappedValue value))
+            if (!TryReadValue(binding, cell, text, field, out MappedValue value))
             {
                 Fail(binding, ErrorCodes.Value.TypeMismatch, text);
                 continue;
@@ -377,6 +377,22 @@ public sealed class ExtractionRun
         }
 
         CheckRequiredGroups();
+    }
+
+    /// <summary>Reads a cell as its field's type, counting a decimal read with the other separator.</summary>
+    private bool TryReadValue(ColumnBinding binding, in RawCell cell, string text, ImportField field, out MappedValue value)
+    {
+        if (!ValueReading.TryRead(cell, text, field.Type, _culture, binding.AcceptOtherDecimalSeparator, out value, out bool otherSeparator))
+        {
+            return false;
+        }
+
+        if (otherSeparator)
+        {
+            _counters.OtherSeparatorDecimals++;
+        }
+
+        return true;
     }
 
     /// <summary>
