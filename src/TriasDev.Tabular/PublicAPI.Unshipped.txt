@@ -5,3 +5,5 @@ TriasDev.Tabular.CultureParseCounts.DatesWithOwnSeparator.get -> int
 TriasDev.Tabular.CultureParseCounts.DatesWithOwnSeparator.init -> void
 TriasDev.Tabular.ColumnFacts.NumberReadingsDisagree.get -> bool
 TriasDev.Tabular.ColumnFacts.NumberReadingsDisagree.init -> void
+TriasDev.Tabular.ColumnFacts.DistinctValueCounts.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.ValueFrequency>!
+TriasDev.Tabular.ColumnFacts.DistinctValueCounts.init -> void

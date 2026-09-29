@@ -140,4 +140,16 @@ public sealed record ColumnFacts
     /// the distinct budget ran out, since a set cannot be complete when the count behind it is not.
     /// </remarks>
     public required bool DistinctValuesAreComplete { get; init; }
+
+    /// <summary>
+    /// Every value of <see cref="DistinctValues"/> with the number of rows holding it, in the same
+    /// order; empty whenever <see cref="DistinctValuesAreComplete"/> is false.
+    /// </summary>
+    /// <remarks>
+    /// A tally, not a sample: the counts add up to <see cref="NonEmptyCount"/>. What lets the precheck
+    /// say how many rows a rule fails rather than how many values, and a screen say "3 rows hold a
+    /// material that is not allowed" (#63). Values are counted as written, trimmed, so <c>Wood</c> and
+    /// <c>wood</c> are two entries a case-insensitive caller adds up.
+    /// </remarks>
+    public IReadOnlyList<ValueFrequency> DistinctValueCounts { get; init => field = Equatable.List(value); } = Equatable.Empty<ValueFrequency>();
 }

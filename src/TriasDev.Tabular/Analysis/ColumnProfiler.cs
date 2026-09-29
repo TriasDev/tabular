@@ -217,6 +217,9 @@ internal sealed class ColumnProfiler
             Samples = [.. _firstValues],
             DistinctValues = _distinctValuesComplete ? [.. _distinctValues] : [],
             DistinctValuesAreComplete = _distinctValuesComplete,
+            DistinctValueCounts = _distinctValuesComplete
+                ? [.. _distinctValues.Select(v => new ValueFrequency { Value = v, Count = _frequencies.GetValueOrDefault(v) })]
+                : [],
         };
     }
 
@@ -372,6 +375,7 @@ internal sealed class ColumnProfiler
         _distinctValuesComplete = false;
         _distinctValues.Clear();
         _distinctValues.TrimExcess();
+        ShrinkFrequencies();
         return held;
     }
 
@@ -424,6 +428,33 @@ internal sealed class ColumnProfiler
         _distinctValuesComplete = false;
         _distinctValues.Clear();
         _distinctValues.TrimExcess();
+        ShrinkFrequencies();
+    }
+
+    /// <summary>
+    /// Takes the frequency tally back to a sample once the column's values stop being kept whole: its
+    /// most frequent keys, as many as the sample holds, so the lookup every value pays is against the
+    /// small dictionary again.
+    /// </summary>
+    private void ShrinkFrequencies()
+    {
+        if (_frequencies.Count <= _options.FrequencySampleSize)
+        {
+            return;
+        }
+
+        KeyValuePair<string, int>[] kept = [.. _frequencies
+            .OrderByDescending(pair => pair.Value)
+            .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+            .Take(_options.FrequencySampleSize)];
+
+        _frequencies.Clear();
+        _frequencies.TrimExcess();
+
+        foreach ((string key, int count) in kept)
+        {
+            _frequencies[key] = count;
+        }
     }
 
     private void TrackFrequency(string text)
@@ -434,7 +465,14 @@ internal sealed class ColumnProfiler
             return;
         }
 
-        if (_frequencies.Count < _options.FrequencySampleSize)
+        // While every distinct value is kept, every one is counted, which is what makes the counts a
+        // column's full tally rather than a sample (#63). The lookup above is paid on every value
+        // either way; only the keys cost, and they are the strings already kept.
+        int cap = _distinctValuesComplete
+            ? Math.Max(_options.FrequencySampleSize, _options.RetainedDistinctValues)
+            : _options.FrequencySampleSize;
+
+        if (_frequencies.Count < cap)
         {
             _frequencies[text] = 1;
         }

@@ -569,10 +569,15 @@ public static class MappingPrecheck
         int readable = read.Count(r => r.Readable);
         bool none = failing.Count == readable && CannotBeSatisfiedByAnyRow(field, binding, facts);
 
+        // The rows, not only the values: each failing value's tally, where the facts hold one (#63).
+        Dictionary<string, int> tally = facts.DistinctValueCounts.ToDictionary(v => v.Value, v => v.Count, StringComparer.Ordinal);
+        int? rows = tally.Count > 0 ? failing.Sum(v => tally.GetValueOrDefault(v)) : null;
+
         add(
             constraint.Code,
             none ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
             new Evidence(
+                rows,
                 Examples: [.. failing.Order(StringComparer.Ordinal).Take(5)],
                 Arguments: Args(
                     (PrecheckArguments.Reason, none ? PrecheckReasons.NoRowCanSatisfy : PrecheckReasons.ValuesFail),
