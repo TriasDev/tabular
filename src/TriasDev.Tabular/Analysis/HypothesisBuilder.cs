@@ -60,6 +60,7 @@ internal static class HypothesisBuilder
             .OrderBy(h => h.Type == ColumnType.Text ? 1 : 0)
             .ThenByDescending(h => h.Confidence)
             .ThenByDescending(h => Specificity(h.Type))
+            .ThenByDescending(h => OwnSeparatorDates(facts, h))
             .ThenBy(h => h.Culture, StringComparer.Ordinal)];
     }
 
@@ -70,6 +71,15 @@ internal static class HypothesisBuilder
     /// Where it did, no culture is involved: the number was a number before anyone read it, and
     /// offering a choice of cultures would invent a question the file already answered.
     /// </remarks>
+    /// <summary>
+    /// For a date reading, how many of its dates are written with its culture's own separator: of two
+    /// readings that fit every value, <c>11.01.2018</c> goes to the one that writes dates with dots (#58).
+    /// </summary>
+    private static int OwnSeparatorDates(ColumnFacts facts, TypeHypothesis hypothesis) =>
+        hypothesis.Type == ColumnType.Date
+            ? facts.ParseCounts.FirstOrDefault(c => c.Culture == hypothesis.Culture)?.DatesWithOwnSeparator ?? 0
+            : 0;
+
     private static bool DeclaredByTheFile(ColumnFacts facts)
     {
         int declared = Native(facts, RawCellKind.Number)

@@ -208,6 +208,7 @@ internal sealed class ColumnProfiler
             DistinctCount = _distinctIsExact ? _distinctHashes.Count : _distinctCountAtStop,
             DistinctCountIsExact = _distinctIsExact,
             IsUnique = Unique(),
+            DateReadingsDisagree = DateReadingsDisagree(),
             DistinctSamples = TopFrequencies(),
             Samples = [.. _firstValues],
             DistinctValues = _distinctValuesComplete ? [.. _distinctValues] : [],
@@ -228,14 +229,52 @@ internal sealed class ColumnProfiler
 
         foreach (CultureAccumulator culture in _cultures)
         {
+            // The third criterion is #58: of cultures reading as many dates, the one whose separator the
+            // dates are written with, so 11.01.2018 publishes January rather than November.
             if (culture.NumericCount > best.NumericCount
-                || (culture.NumericCount == best.NumericCount && culture.DateCount > best.DateCount))
+                || (culture.NumericCount == best.NumericCount && culture.DateCount > best.DateCount)
+                || (culture.NumericCount == best.NumericCount && culture.DateCount == best.DateCount
+                    && culture.DatesWithOwnSeparator > best.DatesWithOwnSeparator))
             {
                 best = culture;
             }
         }
 
         return best;
+    }
+
+    /// <summary>
+    /// Whether two cultures that read the most dates read some row as different dates.
+    /// </summary>
+    private bool DateReadingsDisagree()
+    {
+        int most = _cultures.Max(c => c.DateCount);
+
+        if (most == 0)
+        {
+            return false;
+        }
+
+        ulong? first = null;
+
+        foreach (CultureAccumulator culture in _cultures)
+        {
+            if (culture.DateCount != most)
+            {
+                continue;
+            }
+
+            if (first is null)
+            {
+                first = culture.DateFingerprint;
+            }
+            else if (culture.DateFingerprint != first)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -390,14 +429,39 @@ internal sealed class ColumnProfiler
             ? CultureInfo.InvariantCulture.NumberFormat
             : CultureInfo.GetCultureInfo(name).NumberFormat);
 
+        /// <summary>This culture's date separator, when it is one character: what its own dates are written with.</summary>
+        private char DateSeparator { get; } = DateSeparatorOf(name);
+
+        private static char DateSeparatorOf(string name)
+        {
+            string separator = (name.Length == 0 ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo(name)).DateTimeFormat.DateSeparator;
+            return separator.Length == 1 ? separator[0] : '\0';
+        }
+
         private int _integer;
         private int _decimal;
         private int _otherSeparator;
+        private int _datesWithOwnSeparator;
         private int _date;
 
         public int NumericCount => _integer + _decimal;
 
         public int DateCount => _date;
+
+        /// <summary>How many of the dates read here are written with this culture's own separator.</summary>
+        public int DatesWithOwnSeparator => _datesWithOwnSeparator;
+
+        /// <summary>An order-free sum over the rows of which date each read as.</summary>
+        public ulong DateFingerprint { get; private set; }
+
+        private static ulong RowDateHash(int rowNumber, DateTime date)
+        {
+            // SplitMix64 over the pair, so that two different readings of a row cannot cancel out.
+            ulong x = ((ulong)(uint)rowNumber << 40) ^ (ulong)date.Ticks;
+            x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9UL;
+            x = (x ^ (x >> 27)) * 0x94D049BB133111EBUL;
+            return x ^ (x >> 31);
+        }
 
         public decimal? MinNumeric { get; private set; }
 
@@ -519,6 +583,16 @@ internal sealed class ColumnProfiler
             {
                 _date++;
                 Widen(date);
+
+                if (DateSeparator != '\0' && text.Contains(DateSeparator, StringComparison.Ordinal))
+                {
+                    _datesWithOwnSeparator++;
+                }
+
+                // Which date each row read as, summed so the order of rows does not matter: two
+                // cultures that read every row alike end equal, and one row read otherwise sets them
+                // apart — day and month swapped included.
+                DateFingerprint += RowDateHash(rowNumber, date);
             }
             else if (_dateOutliers.Count < outlierLimit)
             {
@@ -590,6 +664,7 @@ internal sealed class ColumnProfiler
                 Decimal = _decimal,
                 OtherSeparatorDecimals = _otherSeparator,
                 Date = _date,
+                DatesWithOwnSeparator = _datesWithOwnSeparator,
                 NumericOutliers = [.. _numericOutliers],
                 DateOutliers = [.. _dateOutliers],
             };

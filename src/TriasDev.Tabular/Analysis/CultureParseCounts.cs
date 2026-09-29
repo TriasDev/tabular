@@ -22,6 +22,12 @@ public sealed record CultureParseCounts
     public required int Date { get; init; }
 
     /// <summary>
+    /// How many of <see cref="Date"/> are written with this culture's own date separator — a dot for
+    /// de-DE, a slash for en-US. What breaks a tie between cultures that read every value as a date.
+    /// </summary>
+    public int DatesWithOwnSeparator { get; init; }
+
+    /// <summary>
     /// Non-empty values that did not read as a number here only because they write the decimal
     /// separator the other way, and can be read no other way: <c>34.020367</c> under a German reading.
     /// They are also among the numeric outliers; a binding may accept them with
