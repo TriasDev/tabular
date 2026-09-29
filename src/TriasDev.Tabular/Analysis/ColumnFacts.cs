@@ -84,6 +84,18 @@ public sealed record ColumnFacts
     public required bool? IsUnique { get; init; }
 
     /// <summary>
+    /// Whether the cultures that read the most values as dates read some row as different dates.
+    /// </summary>
+    /// <remarks>
+    /// True for a column whose every day is twelve or less, written <c>11.01.2018</c> or
+    /// <c>11/01/2018</c>: German reads it as 11 January, American as 1 November, and every value fits
+    /// both. The hypotheses rank the culture whose separator the values use first, and the dates in
+    /// these facts follow it, but that is a preference, not evidence — this says so, so a screen can
+    /// ask rather than guess (#58).
+    /// </remarks>
+    public bool DateReadingsDisagree { get; init; }
+
+    /// <summary>
     /// A bounded sample of values with how often each was seen.
     /// </summary>
     /// <remarks>

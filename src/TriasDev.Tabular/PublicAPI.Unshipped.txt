@@ -1,1 +1,5 @@
 #nullable enable
+TriasDev.Tabular.ColumnFacts.DateReadingsDisagree.get -> bool
+TriasDev.Tabular.ColumnFacts.DateReadingsDisagree.init -> void
+TriasDev.Tabular.CultureParseCounts.DatesWithOwnSeparator.get -> int
+TriasDev.Tabular.CultureParseCounts.DatesWithOwnSeparator.init -> void
