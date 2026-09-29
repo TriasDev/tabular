@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/TriasDev/tabular/compare/v0.4.0...v0.5.0) (2026-09-29)
+
+
+### Features
+
+* count the rows of every distinct value, and give precheck rule findings their exact affected rows ([#64](https://github.com/TriasDev/tabular/issues/64)) ([52ef740](https://github.com/TriasDev/tabular/commit/52ef740e60c8c59d268f76a81cfd4d053855f58e))
+
+
+### Bug Fixes
+
+* **analysis:** a date written with a culture's own separator ranks that culture first, and the facts say when date readings disagree ([#59](https://github.com/TriasDev/tabular/issues/59)) ([1fa72b3](https://github.com/TriasDev/tabular/commit/1fa72b3e03d46b9c5a448e5a553d839042e6b2f6))
+* **analysis:** numbers that read under both separators rank the one the sheet's evidence favours, and the facts say when number readings disagree ([#62](https://github.com/TriasDev/tabular/issues/62)) ([8b14042](https://github.com/TriasDev/tabular/commit/8b140420190bd4461e58aa2915489a8d763e8540))
+
 ## [0.4.0](https://github.com/TriasDev/tabular/compare/v0.3.0...v0.4.0) (2026-09-28)
 
 
