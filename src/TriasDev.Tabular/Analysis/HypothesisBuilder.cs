@@ -21,7 +21,7 @@ internal static class HypothesisBuilder
     /// <param name="minimumConfidence">
     /// The share of values a reading must account for before it is offered. Text is exempt.
     /// </param>
-    public static IReadOnlyList<TypeHypothesis> Build(ColumnFacts facts, double minimumConfidence = 0)
+    public static IReadOnlyList<TypeHypothesis> Build(ColumnFacts facts, double minimumConfidence = 0, string? preferredDecimalSeparator = null)
     {
         ArgumentNullException.ThrowIfNull(facts);
 
@@ -59,7 +59,8 @@ internal static class HypothesisBuilder
         return [.. hypotheses
             .OrderBy(h => h.Type == ColumnType.Text ? 1 : 0)
             .ThenByDescending(h => h.Confidence)
-            .ThenByDescending(h => Specificity(h.Type))
+            .ThenByDescending(h => Favoured(facts, h, preferredDecimalSeparator))
+            .ThenByDescending(h => Specificity(h.Type, facts.NumberReadingsDisagree))
             .ThenByDescending(h => OwnSeparatorDates(facts, h))
             .ThenBy(h => h.Culture, StringComparer.Ordinal)];
     }
@@ -163,13 +164,28 @@ internal static class HypothesisBuilder
     /// <summary>
     /// How much a reading claims. Used only to order equally confident ones, narrowest first.
     /// </summary>
-    private static int Specificity(ColumnType type) =>
+    /// <summary>
+    /// Where numeric readings disagree, whether this one reads numbers with the separator the evidence
+    /// favours (#61). Where they agree it decides nothing, and the order stays what it was.
+    /// </summary>
+    private static int Favoured(ColumnFacts facts, TypeHypothesis hypothesis, string? preferredDecimalSeparator) =>
+        facts.NumberReadingsDisagree && preferredDecimalSeparator is not null
+            && hypothesis.Type is ColumnType.Integer or ColumnType.Decimal
+            && CultureCatalog.DecimalSeparatorOf(hypothesis.Culture) == preferredDecimalSeparator
+                ? 1
+                : 0;
+
+    /// <summary>
+    /// The narrower reading first — except that where numeric readings disagree a decimal goes before
+    /// an integer, as a grouped integer rests on one group, which is weak evidence of grouping.
+    /// </summary>
+    private static int Specificity(ColumnType type, bool numbersDisagree) =>
         type switch
         {
             ColumnType.Boolean => 5,
             ColumnType.Date => 4,
-            ColumnType.Integer => 3,
-            ColumnType.Decimal => 2,
+            ColumnType.Integer => numbersDisagree ? 2 : 3,
+            ColumnType.Decimal => numbersDisagree ? 3 : 2,
             _ => 0,
         };
 }

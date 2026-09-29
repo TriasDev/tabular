@@ -41,6 +41,35 @@ Why that matters, from a real file: a column of `1,00 2,00 3,00` yields a decima
 confidence. That is arithmetically perfect and practically useless — the column is an identifier, and
 only the facts beside it (every value distinct) say so.
 
+## Which columns a sheet has
+
+A sheet's columns reach as far as its last value, in the header row or below it. A row's empty cells
+past its last value are padding — a workbook writes cells for their formatting alone, a csv line can
+end in delimiters — and make no column. A value anywhere does: a note typed to the right of the
+header row, or a value in a column the header does not name, makes a column with an empty `Header`,
+and it keeps its index. A consumer that refuses empty headers refuses such a sheet, so it should
+decide what an unnamed column that carries data means to it.
+
+## When readings tie
+
+Some values read completely under two cultures as different things. `11.01.2018` is 11 January in
+German and 1 November in American; `48.137` is a decimal in English and the grouped integer 48137 in
+German. The hypotheses then rank the reading the evidence favours first, and the extremes in the
+facts follow it:
+
+- **dates** go to the culture whose date separator the values are written with;
+- **numbers** go to the decimal separator the sheet's other, unambiguous columns use, then the one a
+  csv's delimiter implies (`;` a comma, `,` a point), and with nothing to go on to the decimal rather
+  than the grouped integer.
+
+That is a preference, not evidence, and the facts say so: `DateReadingsDisagree` and
+`NumberReadingsDisagree` are true when the cultures that read the most values read some row
+differently. A screen can then ask instead of guessing.
+
+A group, by the grouping rule both halves share, is three digits after a group separator; the group
+before the first separator may be any length. So under German `1234.567` reads as 1234567, and
+`12.34` is no number at all.
+
 ## What belongs to the sheet
 
 Each `SheetProfile` says what its own source was: `Format`, `Source` (a path inside an archive, else

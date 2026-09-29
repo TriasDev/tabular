@@ -39,6 +39,10 @@ internal static class CultureCatalog
         }
     }
 
+    /// <summary>The decimal separator a culture reads numbers with, or null for one that is not available.</summary>
+    public static string? DecimalSeparatorOf(string? name) =>
+        TryGet(name, out CultureInfo culture) ? culture.NumberFormat.NumberDecimalSeparator : null;
+
     /// <summary>The names this runtime has, in order; the invariant culture when it has none of them.</summary>
     public static IReadOnlyList<string> Available(IReadOnlyList<string> names)
     {
