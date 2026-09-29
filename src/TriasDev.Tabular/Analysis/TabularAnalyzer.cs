@@ -202,7 +202,7 @@ internal sealed class AnalysisRun
             reporter.Row(sheet);
         }
 
-        SheetProfile profile = BuildProfile(sheet, rowCount, profilers);
+        SheetProfile profile = BuildProfile(sheet, rowCount, profilers, cursor.Dialect?.Delimiter);
 
         foreach (ColumnProfiler profiler in profilers)
         {
@@ -242,17 +242,18 @@ internal sealed class AnalysisRun
         }
     }
 
-    private SheetProfile BuildProfile(SheetInfo sheet, int rowCount, List<ColumnProfiler> profilers)
+    private SheetProfile BuildProfile(SheetInfo sheet, int rowCount, List<ColumnProfiler> profilers, char? delimiter)
     {
         List<ColumnProfile> columns = [];
+        string? separator = PreferredDecimalSeparator(profilers, delimiter);
 
         foreach (ColumnProfiler profiler in profilers)
         {
-            ColumnFacts facts = profiler.ToFacts();
+            ColumnFacts facts = profiler.ToFacts(separator);
             columns.Add(new ColumnProfile
             {
                 Facts = facts,
-                Hypotheses = HypothesisBuilder.Build(facts, _options.MinimumHypothesisConfidence),
+                Hypotheses = HypothesisBuilder.Build(facts, _options.MinimumHypothesisConfidence, separator),
             });
         }
 
@@ -267,6 +268,33 @@ internal sealed class AnalysisRun
             RowCount = rowCount,
             Columns = columns,
             HeaderRowIndex = _options.HeaderRowIndex,
+        };
+    }
+
+    /// <summary>
+    /// The decimal separator the sheet's evidence favours, for columns whose values read completely
+    /// under both — <c>48.137</c>, a decimal or a grouped integer (#61) — or null when nothing does.
+    /// </summary>
+    /// <remarks>
+    /// First the sheet's other columns: one where a comma culture reads more numbers than a point
+    /// culture, or the other way round, is not in doubt, and a sheet uses one convention. Then a
+    /// csv's delimiter: a comma-delimited file cannot use an unquoted comma for decimals, and a
+    /// semicolon-delimited one is German as a rule.
+    /// </remarks>
+    private static string? PreferredDecimalSeparator(List<ColumnProfiler> profilers, char? delimiter)
+    {
+        int votes = profilers.Sum(p => Math.Sign(p.DecimalCommaEvidence()));
+
+        return votes switch
+        {
+            > 0 => ",",
+            < 0 => ".",
+            _ => delimiter switch
+            {
+                ';' => ",",
+                ',' => ".",
+                _ => null,
+            },
         };
     }
 

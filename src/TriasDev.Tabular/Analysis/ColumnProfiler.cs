@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace TriasDev.Tabular;
 
@@ -165,12 +166,13 @@ internal sealed class ColumnProfiler
         bool couldBeNumeric = CultureAccumulator.CouldBeNumeric(text);
         bool couldBeDate = DateReading.LooksLikeOne(text);
 
+
         for (int i = 0; i < _cultures.Length; i++)
         {
             int twin = _numberTwin[i];
 
             _numberReads[i] = twin == i ? _cultures[i].ReadNumber(text, couldBeNumeric) : _numberReads[twin];
-            _cultures[i].AcceptText(text, rowNumber, _numberReads[i], couldBeNumeric, couldBeDate);
+            _cultures[i].AcceptText(text, rowNumber, _numberReads[i], couldBeNumeric, couldBeDate, fingerprintNumbers: twin == i);
         }
     }
 
@@ -186,9 +188,9 @@ internal sealed class ColumnProfiler
     private readonly record struct NumberRead(NumberKind Kind, decimal Value);
 
     /// <summary>Renders what has been measured so far.</summary>
-    public ColumnFacts ToFacts()
+    public ColumnFacts ToFacts(string? preferredDecimalSeparator = null)
     {
-        CultureAccumulator best = BestCulture();
+        CultureAccumulator best = BestCulture(preferredDecimalSeparator);
 
         return new ColumnFacts
         {
@@ -209,6 +211,8 @@ internal sealed class ColumnProfiler
             DistinctCountIsExact = _distinctIsExact,
             IsUnique = Unique(),
             DateReadingsDisagree = DateReadingsDisagree(),
+            // Twins read numbers alike by construction and carry no fingerprint of their own.
+            NumberReadingsDisagree = ReadingsDisagree(c => c.NumericCount, c => c.NumberFingerprint, numbersOnly: true),
             DistinctSamples = TopFrequencies(),
             Samples = [.. _firstValues],
             DistinctValues = _distinctValuesComplete ? [.. _distinctValues] : [],
@@ -223,12 +227,22 @@ internal sealed class ColumnProfiler
     /// Only used to pick which culture's extremes to publish. It is not a verdict on the column, and
     /// the per-culture counts stay available so that a caller can disagree.
     /// </remarks>
-    private CultureAccumulator BestCulture()
+    private CultureAccumulator BestCulture(string? preferredDecimalSeparator)
     {
         CultureAccumulator best = _cultures[0];
 
         foreach (CultureAccumulator culture in _cultures)
         {
+            // #61: of cultures reading as many numbers, the one the evidence favours, so that the
+            // extremes describe the reading that ranks first rather than the first culture listed.
+            if (preferredDecimalSeparator is not null && culture.NumericCount > 0
+                && culture.NumericCount == best.NumericCount
+                && culture.DecimalSeparator == preferredDecimalSeparator && best.DecimalSeparator != preferredDecimalSeparator)
+            {
+                best = culture;
+                continue;
+            }
+
             // The third criterion is #58: of cultures reading as many dates, the one whose separator the
             // dates are written with, so 11.01.2018 publishes January rather than November.
             if (culture.NumericCount > best.NumericCount
@@ -246,9 +260,12 @@ internal sealed class ColumnProfiler
     /// <summary>
     /// Whether two cultures that read the most dates read some row as different dates.
     /// </summary>
-    private bool DateReadingsDisagree()
+    private bool DateReadingsDisagree() => ReadingsDisagree(c => c.DateCount, c => c.DateFingerprint, numbersOnly: false);
+
+    /// <summary>Whether two cultures that read the most values of a kind read some row differently.</summary>
+    private bool ReadingsDisagree(Func<CultureAccumulator, int> count, Func<CultureAccumulator, ulong> fingerprint, bool numbersOnly)
     {
-        int most = _cultures.Max(c => c.DateCount);
+        int most = _cultures.Max(count);
 
         if (most == 0)
         {
@@ -257,24 +274,50 @@ internal sealed class ColumnProfiler
 
         ulong? first = null;
 
-        foreach (CultureAccumulator culture in _cultures)
+        for (int i = 0; i < _cultures.Length; i++)
         {
-            if (culture.DateCount != most)
+            CultureAccumulator culture = _cultures[i];
+
+            if (count(culture) != most || (numbersOnly && _numberTwin[i] != i))
             {
                 continue;
             }
 
             if (first is null)
             {
-                first = culture.DateFingerprint;
+                first = fingerprint(culture);
             }
-            else if (culture.DateFingerprint != first)
+            else if (fingerprint(culture) != first)
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// How strongly this column's own values speak for a decimal separator: the most numbers a
+    /// comma culture read, less the most a point culture read. Zero where both read alike.
+    /// </summary>
+    internal int DecimalCommaEvidence()
+    {
+        int comma = 0;
+        int point = 0;
+
+        foreach (CultureAccumulator culture in _cultures)
+        {
+            if (culture.DecimalSeparator == ",")
+            {
+                comma = Math.Max(comma, culture.NumericCount);
+            }
+            else if (culture.DecimalSeparator == ".")
+            {
+                point = Math.Max(point, culture.NumericCount);
+            }
+        }
+
+        return comma - point;
     }
 
     /// <summary>
@@ -454,10 +497,29 @@ internal sealed class ColumnProfiler
         /// <summary>An order-free sum over the rows of which date each read as.</summary>
         public ulong DateFingerprint { get; private set; }
 
-        private static ulong RowDateHash(int rowNumber, DateTime date)
+        /// <summary>An order-free sum over the rows of which number each read as.</summary>
+        public ulong NumberFingerprint { get; private set; }
+
+        /// <summary>The decimal separator this culture reads numbers with.</summary>
+        public string DecimalSeparator => _culture.NumberFormat.NumberDecimalSeparator;
+
+        private void FingerprintNumber(int rowNumber, decimal value, bool fingerprint)
+        {
+            if (!fingerprint)
+            {
+                return;
+            }
+
+            // The value's sixteen bytes as they are: GetHashCode normalises the scale first, and GetBits
+            // copies them out, each costing more than the hash.
+            ref ulong low = ref Unsafe.As<decimal, ulong>(ref value);
+            NumberFingerprint += RowHash(rowNumber, (long)(low ^ (Unsafe.Add(ref low, 1) * 0x9E3779B97F4A7C15UL)));
+        }
+
+        private static ulong RowHash(int rowNumber, long value)
         {
             // SplitMix64 over the pair, so that two different readings of a row cannot cancel out.
-            ulong x = ((ulong)(uint)rowNumber << 40) ^ (ulong)date.Ticks;
+            ulong x = ((ulong)(uint)rowNumber << 40) ^ (ulong)value;
             x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9UL;
             x = (x ^ (x >> 27)) * 0x94D049BB133111EBUL;
             return x ^ (x >> 31);
@@ -551,18 +613,24 @@ internal sealed class ColumnProfiler
         /// <param name="rowNumber">Where it stands, for an outlier.</param>
         /// <param name="number">What <see cref="ReadNumber"/> made of it, here or under a twin culture.</param>
         /// <param name="couldBeDate">Whether the value has the shape of a date, asked once by the caller.</param>
-        public void AcceptText(string text, int rowNumber, NumberRead number, bool couldBeNumeric, bool couldBeDate)
+        /// <param name="fingerprintNumbers">
+        /// False for a culture that reads numbers as an earlier one does: its readings are that one's,
+        /// so hashing them again would only cost time.
+        /// </param>
+        public void AcceptText(string text, int rowNumber, NumberRead number, bool couldBeNumeric, bool couldBeDate, bool fingerprintNumbers)
         {
             switch (number.Kind)
             {
                 case NumberKind.Integer:
                     _integer++;
                     Widen(number.Value);
+                    FingerprintNumber(rowNumber, number.Value, fingerprintNumbers);
                     break;
 
                 case NumberKind.Decimal:
                     _decimal++;
                     Widen(number.Value);
+                    FingerprintNumber(rowNumber, number.Value, fingerprintNumbers);
                     break;
 
                 case NumberKind.None:
@@ -592,7 +660,7 @@ internal sealed class ColumnProfiler
                 // Which date each row read as, summed so the order of rows does not matter: two
                 // cultures that read every row alike end equal, and one row read otherwise sets them
                 // apart — day and month swapped included.
-                DateFingerprint += RowDateHash(rowNumber, date);
+                DateFingerprint += RowHash(rowNumber, date.Ticks);
             }
             else if (_dateOutliers.Count < outlierLimit)
             {

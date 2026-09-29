@@ -96,6 +96,18 @@ public sealed record ColumnFacts
     public bool DateReadingsDisagree { get; init; }
 
     /// <summary>
+    /// Whether the cultures that read the most values as numbers read some row as different numbers.
+    /// </summary>
+    /// <remarks>
+    /// True for a column whose every value has three digits after one separator, <c>48.137</c>: a
+    /// decimal under English, the grouped integer 48137 under German, and every value fits both. The
+    /// hypotheses rank the reading the evidence favours first — the sheet's other columns, then a
+    /// csv's delimiter, then the decimal — and the extremes in these facts follow it, but that is a
+    /// preference, not proof; this says so, so a screen can ask rather than guess (#61).
+    /// </remarks>
+    public bool NumberReadingsDisagree { get; init; }
+
+    /// <summary>
     /// A bounded sample of values with how often each was seen.
     /// </summary>
     /// <remarks>
