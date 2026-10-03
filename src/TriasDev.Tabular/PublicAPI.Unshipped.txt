@@ -58,3 +58,16 @@ static TriasDev.Tabular.Csv.CsvWriterOptions.operator ==(TriasDev.Tabular.Csv.Cs
 override TriasDev.Tabular.Csv.CsvWriterOptions.Equals(object? obj) -> bool
 override TriasDev.Tabular.Csv.CsvWriterOptions.GetHashCode() -> int
 override TriasDev.Tabular.Csv.CsvWriterOptions.ToString() -> string!
+TriasDev.Tabular.TabularWriter
+TriasDev.Tabular.TabularWriter.BeginRow() -> void
+TriasDev.Tabular.TabularWriter.BeginSheet(string! name, System.ReadOnlySpan<TriasDev.Tabular.WriteColumn> columns) -> void
+TriasDev.Tabular.TabularWriter.CompleteAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+TriasDev.Tabular.TabularWriter.DisposeAsync() -> System.Threading.Tasks.ValueTask
+TriasDev.Tabular.TabularWriter.EndRow() -> void
+TriasDev.Tabular.TabularWriter.FlushAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+TriasDev.Tabular.TabularWriter.FlushRecommended.get -> bool
+TriasDev.Tabular.TabularWriter.Format.get -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.TabularWriter.Write(bool value) -> void
+TriasDev.Tabular.TabularWriter.Write(string? value) -> void
+TriasDev.Tabular.TabularWriter.WriteEmpty() -> void
+static TriasDev.Tabular.TabularWriter.Create(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, TriasDev.Tabular.TabularWriterOptions? options = null) -> TriasDev.Tabular.TabularWriter!
