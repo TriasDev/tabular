@@ -29,7 +29,7 @@
        which writes both the opencover report SonarQube reads and the cobertura one Codecov does. -->
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="$(XunitV3Version)" />
-    <PackageReference Include="coverlet.MTP" Version="10.0.1" />
+    <PackageReference Include="coverlet.MTP" Version="10.1.0" />
   </ItemGroup>
 
 </Project>
