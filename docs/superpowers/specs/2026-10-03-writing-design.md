@@ -103,7 +103,7 @@ value a format cannot hold exactly is an error, never a silent change.
 
 | Value | xlsx | ods | csv | Error when |
 |---|---|---|---|---|
-| `string` | `t="inlineStr"`, XML-escaped; `\r` and other control characters as `_xHHHH_`, a literal `_x` as `_x005F_` | `<text:p>` per line, `text:tab`, `text:s c=` for runs of spaces | RFC 4180 quoting | all: a character XML 1.0 forbids (in csv too, for one rule everywhere); xlsx: longer than 32,767 chars; csv: more line breaks than the reader accepts in one field |
+| `string` | `t="inlineStr"`, XML-escaped; `\r` and other control characters as `_xHHHH_`, a literal `_x` as `_x005F_` | `<text:p>` per line, `text:tab`, `text:s c=` for runs of spaces | RFC 4180 quoting | all: a character XML 1.0 forbids (in csv too, for one rule everywhere); xlsx: longer than 32,767 chars; csv: more line breaks than the reader accepts in one field, or multi-line text the reader would split into records |
 | `long` | `<v>` | `office:value-type="float"` | invariant or culture | xlsx, ods: a value `double` cannot hold exactly |
 | `decimal` | `<v>`, its own digits | `float` | its own digits | xlsx, ods: `(decimal)(double)v != v`, in effect more than 15 significant digits |
 | `double` | `<v>`, `"R"` | `float` | `"R"` | all: `NaN`, `±∞`; all: `(double)(decimal)d != d`, i.e. more than 15 significant digits or outside `decimal`'s range |
@@ -127,6 +127,18 @@ check, `0.1 + 0.2` would come back as `0.30000000000000004` from csv and `0.3` f
 The csv line-break limit is the reader's default `CsvCursorOptions.MaxQuotedFieldLines` (100). A
 quoted field past it is read as an unterminated quote and replayed as rows, so a field with more
 line breaks would come back as many rows — the writer refuses it instead.
+
+Two more csv rules come from the reader's heuristics, found by the final review of part 1:
+
+- **Every delimiter the reader could detect is quoted.** The dialect detector picks any of `,` `;`
+  tab `|` that appears outside quotes on most lines, so a value carrying one — text, or a number or
+  date formatted with a decimal comma — is quoted even when it is not the file's delimiter.
+  Otherwise a single de-DE column of `1,5`, `2,5` is read with `,` as its delimiter and imports as
+  1, 2.
+- **Text the reader would take for a stray quote is refused** (`write.ambiguous-line-breaks`). In a
+  sheet of five columns or more, the reader replays a quoted field that crosses a line break and
+  holds a record's worth of delimiters as the records it swallowed; the writer applies the same rule
+  and refuses such text rather than write a file that imports with extra rows.
 
 Documented exceptions:
 
@@ -227,6 +239,7 @@ spreadsheet counts it, header = 1), and the column index and header.
 | `write.date-out-of-range` | xlsx: before 1900-01-01; csv: year 1 |
 | `write.text-too-long` | xlsx: text over 32,767 chars |
 | `write.too-many-lines` | csv: a text value with more line breaks than the reader's default accepts |
+| `write.ambiguous-line-breaks` | csv: multi-line text the reader would take for a stray quote and split into records |
 | `write.invalid-character` | a character XML 1.0 forbids |
 
 More than 1,048,576 rows on an xlsx or ods sheet (header included) throws `TabularLimitException`
