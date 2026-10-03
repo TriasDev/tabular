@@ -127,6 +127,43 @@ public sealed class ArchiveCursorTarTests
         Assert.Contains("sparse", error.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A PAX entry whose path fits the ustar fields, as bsdtar (macOS and Windows tar) writes it: an
+    /// extended header without a path record, the path split between the ustar prefix and name.
+    /// </summary>
+    internal static byte[] BsdtarStyle(string prefix, string name, string content)
+    {
+        PaxTarEntry entry = new(TarEntryType.RegularFile, name, new Dictionary<string, string> { ["mtime"] = "1791060213.2" })
+        {
+            DataStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content)),
+        };
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, entry);
+
+        // TarWriter always writes a path record; bsdtar does not when the path fits the ustar fields.
+        // Overwrite it with a comment record of the same length, so the extended header's size holds.
+        string extended = System.Text.Encoding.ASCII.GetString(tar, 512, 512);
+        int record = extended.IndexOf(" path=", StringComparison.Ordinal);
+        int start = extended.LastIndexOf('\n', record) + 1;
+        int length = int.Parse(extended[start..record], System.Globalization.CultureInfo.InvariantCulture);
+        string comment = $"{length} comment=";
+        System.Text.Encoding.ASCII.GetBytes(comment + new string('x', length - comment.Length - 1) + "\n").CopyTo(tar, 512 + start);
+
+        int header = Enumerable.Range(0, tar.Length / 512).Select(b => b * 512)
+            .First(at => tar.AsSpan(at, name.Length).SequenceEqual(System.Text.Encoding.ASCII.GetBytes(name)));
+        return TarArchive.Patched(tar, header, block => System.Text.Encoding.ASCII.GetBytes(prefix).CopyTo(block, 345));
+    }
+
+    [Fact]
+    public void KeepsThePathAPaxEntryKeepsInTheUstarPrefix()
+    {
+        // TarReader (.NET 8 and 10) drops the prefix of a PAX entry that carries no path record.
+        string prefix = "export/" + new string('a', 120);
+        using ArchiveCursor cursor = Open(BsdtarStyle(prefix, "items.csv", "sku,count\nA,1\n"));
+
+        Assert.Equal(prefix + "/items.csv", Assert.Single(cursor.Sheets).Source);
+        Assert.Equal("items", cursor.Sheets[0].Name);
+    }
+
     [Fact]
     public void NeverMakesASheetOfAnEntryWithoutAName()
     {

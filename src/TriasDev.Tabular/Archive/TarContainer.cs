@@ -37,7 +37,9 @@ internal sealed class TarContainer : ArchiveContainer
                         $"The archive holds more than the {maxEntries} files allowed.");
                 }
 
-                ArchiveEntry indexed = TarEntries.ToEntry(entry, _entries.Count, TarEntries.DataOffset(entry, file));
+                long dataOffset = TarEntries.DataOffset(entry, file);
+                string path = TarEntries.NeedsHeader(entry) ? TarEntries.PathOf(entry, HeaderBefore(dataOffset)) : entry.Name;
+                ArchiveEntry indexed = TarEntries.ToEntry(entry, path, _entries.Count, dataOffset);
 
                 if (indexed.DataOffset + indexed.Length > file.Length)
                 {
@@ -46,7 +48,7 @@ internal sealed class TarContainer : ArchiveContainer
                 }
 
                 _entries.Add(indexed);
-                end = TarEntries.DataOffset(entry, file) + TarEntries.PaddedLength(entry.Length);
+                end = dataOffset + TarEntries.PaddedLength(entry.Length);
             }
         }
         catch (Exception e) when (TarEntries.IsFailure(e))
@@ -66,6 +68,23 @@ internal sealed class TarContainer : ArchiveContainer
     public override Stream Open(ArchiveEntry entry, CancellationToken cancellationToken) => new StreamWindow(_file, entry.DataOffset, entry.Length);
 
     public override Stream OpenSeekable(ArchiveEntry entry) => new StreamWindow(_file, entry.DataOffset, entry.Length);
+
+    /// <summary>The ustar header right before an entry's data, read without moving the reader's place in the file.</summary>
+    private byte[] HeaderBefore(long dataOffset)
+    {
+        byte[] header = new byte[TarHeader.BlockSize];
+
+        if (dataOffset < TarHeader.BlockSize)
+        {
+            return [];
+        }
+
+        long place = _file.Position;
+        _file.Position = dataOffset - TarHeader.BlockSize;
+        int read = _file.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
+        _file.Position = place;
+        return read == header.Length ? header : [];
+    }
 
     /// <summary>
     /// A zero block must follow the last entry. On a seekable stream <see cref="TarReader"/> takes the

@@ -5,7 +5,35 @@ namespace TriasDev.Tabular.Archive;
 /// <summary>What the archive cursor needs from <see cref="TarReader"/>'s entries, and its failures in the library's terms.</summary>
 internal static class TarEntries
 {
-    public static ArchiveEntry ToEntry(TarEntry entry, int ordinal, long dataOffset)
+    /// <summary>Whether the entry's path may need its ustar header read: see <see cref="PathOf"/>.</summary>
+    public static bool NeedsHeader(TarEntry entry) =>
+        entry is PaxTarEntry pax && !pax.ExtendedAttributes.ContainsKey("path");
+
+    /// <summary>
+    /// The entry's full path. <see cref="TarReader"/> (.NET 8 and 10) joins the ustar prefix field to the
+    /// name for a ustar entry, but drops it for a PAX entry whose extended header carries no path —
+    /// which is how bsdtar, the tar of macOS and Windows, writes every path that fits the ustar fields.
+    /// A path over 100 characters would lose its folders.
+    /// </summary>
+    /// <param name="entry">The entry as read.</param>
+    /// <param name="header">The entry's own 512-byte ustar header, when <see cref="NeedsHeader"/> said to read it; else empty.</param>
+    public static string PathOf(TarEntry entry, ReadOnlySpan<byte> header)
+    {
+        if (!TarHeader.IsHeader(header))
+        {
+            return entry.Name;
+        }
+
+        ReadOnlySpan<byte> field = header.Slice(345, 155);
+        int end = field.IndexOf((byte)0);
+        string prefix = System.Text.Encoding.UTF8.GetString(end < 0 ? field : field[..end]);
+
+        return prefix.Length == 0 || entry.Name.StartsWith(prefix + "/", StringComparison.Ordinal)
+            ? entry.Name
+            : prefix + "/" + entry.Name;
+    }
+
+    public static ArchiveEntry ToEntry(TarEntry entry, string path, int ordinal, long dataOffset)
     {
         ArchiveEntryKind kind = entry.EntryType switch
         {
@@ -16,9 +44,8 @@ internal static class TarEntries
             _ => ArchiveEntryKind.LeftOut,
         };
 
-        string name = entry.Name;
-        int slash = name.TrimEnd('/').LastIndexOf('/');
-        return new ArchiveEntry(name, slash < 0 ? name : name[(slash + 1)..], kind == ArchiveEntryKind.LeftOut ? 0 : entry.Length, kind, ordinal, dataOffset);
+        int slash = path.TrimEnd('/').LastIndexOf('/');
+        return new ArchiveEntry(path, slash < 0 ? path : path[(slash + 1)..], kind == ArchiveEntryKind.LeftOut ? 0 : entry.Length, kind, ordinal, dataOffset);
     }
 
     /// <summary>Where the entry's data begins in a seekable archive stream, just after <see cref="TarReader.GetNextEntry"/> returned it.</summary>

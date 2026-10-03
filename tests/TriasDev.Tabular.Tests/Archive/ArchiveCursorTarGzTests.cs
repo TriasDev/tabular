@@ -86,6 +86,15 @@ public sealed class ArchiveCursorTarGzTests
     }
 
     [Fact]
+    public void KeepsThePathAPaxEntryKeepsInTheUstarPrefix()
+    {
+        string prefix = "export/" + new string('a', 120);
+        using ArchiveCursor cursor = Open(GzipFile.Of(ArchiveCursorTarTests.BsdtarStyle(prefix, "items.csv", "sku,count\nA,1\n")));
+
+        Assert.Equal(prefix + "/items.csv", Assert.Single(cursor.Sheets).Source);
+    }
+
+    [Fact]
     public void RefusesEveryCutOfAGzippedTar()
     {
         byte[] archive = GzipFile.Of(TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "id\n" + string.Concat(Enumerable.Range(0, 500).Select(i => $"{i}\n"))), ("b.csv", "x\n1\n")));
