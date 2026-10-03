@@ -26,6 +26,21 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     private const int RetainedBytes = 1024 * 1024;
 
+    private const string ValueEnd = "</v></c>";
+    private const int DateStyle = 1;
+    private const int DateTimeStyle = 2;
+    private const int IntegerStyle = 3;
+
+    /// <summary>The first day a workbook holds, as the reader reads serials.</summary>
+    private static readonly DateTime FirstDay = new(1900, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
+    /// <summary>The first day after Excel's phantom 29 February 1900, from which serials count from 30 December 1899.</summary>
+    private static readonly DateTime AfterLeapBug = new(1900, 3, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
+    private static readonly long EarlyEpochTicks = new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified).Ticks;
+
+    private static readonly long EpochTicks = new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified).Ticks;
+
     private static readonly SearchValues<char> NeedsEscape = SearchValues.Create("&<>\r_");
 
     private readonly ZipWriter _zip;
@@ -82,20 +97,72 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public string? WriteText(string value, int column) => WriteInline(value);
 
-    public string? WriteLong(long value) => throw new NotSupportedException("Numbers arrive with the next change.");
+    public string? WriteLong(long value)
+    {
+        // The reader parses a number cell as a double: a long that a double cannot hold exactly would
+        // come back as its neighbour. 2^63 itself is out of long's range, hence the first test.
+        double asDouble = value;
 
-    public string? WriteDecimal(decimal value) => throw new NotSupportedException("Numbers arrive with the next change.");
+        if (asDouble >= 9.2233720368547758E18 || (long)asDouble != value)
+        {
+            return ErrorCodes.Write.PrecisionLoss;
+        }
 
-    public string? WriteDouble(double value) => throw new NotSupportedException("Numbers arrive with the next change.");
+        WriteNumber(IntegerStyle);
+        _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
+        _row.Append(ValueEnd);
+        return null;
+    }
 
-    public string? WriteDate(DateTime value, bool hasTime) => throw new NotSupportedException("Dates arrive with the next change.");
+    public string? WriteDecimal(decimal value)
+    {
+        // The import reads the cell's double back into a decimal by this same cast.
+        try
+        {
+            if ((decimal)(double)value != value)
+            {
+                return ErrorCodes.Write.PrecisionLoss;
+            }
+        }
+        catch (OverflowException)
+        {
+            // A decimal near its maximum is beyond what the cast back from a double can hold.
+            return ErrorCodes.Write.PrecisionLoss;
+        }
+
+        WriteNumber(style: 0);
+        _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
+        _row.Append(ValueEnd);
+        return null;
+    }
+
+    public string? WriteDouble(double value)
+    {
+        WriteNumber(style: 0);
+        _row.AppendFormatted(value, "R", CultureInfo.InvariantCulture);
+        _row.Append(ValueEnd);
+        return null;
+    }
+
+    public string? WriteDate(DateTime value, bool hasTime)
+    {
+        if (value < FirstDay)
+        {
+            return ErrorCodes.Write.DateOutOfRange;
+        }
+
+        WriteNumber(hasTime ? DateTimeStyle : DateStyle);
+        _row.AppendFormatted(Serial(value), "R", CultureInfo.InvariantCulture);
+        _row.Append(ValueEnd);
+        return null;
+    }
 
     public void WriteBoolean(bool value)
     {
         StartCell();
         _row.Append(" t=\"b\"><v>");
         _row.Append(value ? '1' : '0');
-        _row.Append("</v></c>");
+        _row.Append(ValueEnd);
     }
 
     public void WriteEmpty() => _column++;
@@ -136,6 +203,37 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         AppendEscaped(value);
         _row.Append("</t></is></c>");
         return null;
+    }
+
+    /// <summary>Opens a number cell in a style, up to its value.</summary>
+    private void WriteNumber(int style)
+    {
+        StartCell();
+
+        if (style != 0)
+        {
+            _row.Append(" s=\"");
+            _row.Append((char)('0' + style));
+            _row.Append('"');
+        }
+
+        _row.Append("><v>");
+    }
+
+    /// <summary>
+    /// The workbook serial of a date already truncated to the millisecond, counted as the reader
+    /// counts it: from 31 December 1899 before Excel's phantom leap day, from 30 December after it.
+    /// </summary>
+    /// <remarks>
+    /// Milliseconds over milliseconds per day: the reader multiplies back and rounds to the
+    /// millisecond, and at 2.6 × 10^14 milliseconds for 9999-12-31 the double's precision leaves
+    /// that rounding exact.
+    /// </remarks>
+    private static double Serial(DateTime value)
+    {
+        long epoch = value < AfterLeapBug ? EarlyEpochTicks : EpochTicks;
+        long milliseconds = (value.Ticks - epoch) / TimeSpan.TicksPerMillisecond;
+        return milliseconds / 86_400_000d;
     }
 
     /// <summary>Opens a cell at the current column, with its reference; the caller writes the rest.</summary>
