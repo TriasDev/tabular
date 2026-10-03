@@ -77,3 +77,17 @@ TriasDev.Tabular.TabularWriter.Write(System.DateTime value) -> void
 TriasDev.Tabular.TabularWriter.Write(System.DateOnly value) -> void
 TriasDev.Tabular.TabularWriter.WriteEmpty() -> void
 static TriasDev.Tabular.TabularWriter.Create(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, TriasDev.Tabular.TabularWriterOptions? options = null) -> TriasDev.Tabular.TabularWriter!
+TriasDev.Tabular.TabularWriterOptions.Xlsx.get -> TriasDev.Tabular.Xlsx.XlsxWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Xlsx.init -> void
+TriasDev.Tabular.Xlsx.XlsxWriterOptions
+TriasDev.Tabular.Xlsx.XlsxWriterOptions.<Clone>$() -> TriasDev.Tabular.Xlsx.XlsxWriterOptions!
+TriasDev.Tabular.Xlsx.XlsxWriterOptions.CompressionLevel.get -> System.IO.Compression.CompressionLevel
+TriasDev.Tabular.Xlsx.XlsxWriterOptions.CompressionLevel.init -> void
+TriasDev.Tabular.Xlsx.XlsxWriterOptions.Equals(TriasDev.Tabular.Xlsx.XlsxWriterOptions? other) -> bool
+TriasDev.Tabular.Xlsx.XlsxWriterOptions.XlsxWriterOptions() -> void
+override TriasDev.Tabular.Xlsx.XlsxWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.Xlsx.XlsxWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.Xlsx.XlsxWriterOptions.ToString() -> string!
+static TriasDev.Tabular.Xlsx.XlsxWriterOptions.Default.get -> TriasDev.Tabular.Xlsx.XlsxWriterOptions!
+static TriasDev.Tabular.Xlsx.XlsxWriterOptions.operator !=(TriasDev.Tabular.Xlsx.XlsxWriterOptions? left, TriasDev.Tabular.Xlsx.XlsxWriterOptions? right) -> bool
+static TriasDev.Tabular.Xlsx.XlsxWriterOptions.operator ==(TriasDev.Tabular.Xlsx.XlsxWriterOptions? left, TriasDev.Tabular.Xlsx.XlsxWriterOptions? right) -> bool

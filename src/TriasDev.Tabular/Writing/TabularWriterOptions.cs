@@ -1,4 +1,5 @@
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular;
 
@@ -10,6 +11,9 @@ public sealed record TabularWriterOptions
 
     /// <summary>How a csv file is written.</summary>
     public CsvWriterOptions Csv { get; init; } = CsvWriterOptions.Default;
+
+    /// <summary>How an xlsx workbook is written.</summary>
+    public XlsxWriterOptions Xlsx { get; init; } = XlsxWriterOptions.Default;
 
     /// <summary>Leaves the target stream open when the writer is disposed, or fails to be created.</summary>
     public bool LeaveOpen { get; init; }

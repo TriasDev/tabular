@@ -50,6 +50,8 @@ internal sealed class CsvSheetWriter : ISheetWriter
 
     public bool AllowsSeveralSheets => false;
 
+    public bool NamesSheets => false;
+
     /// <summary>The row buffer's current size, for the test that a huge row does not keep it.</summary>
     internal int RowBufferLength => _row.Capacity;
 

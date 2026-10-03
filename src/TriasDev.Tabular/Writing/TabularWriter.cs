@@ -37,6 +37,7 @@ public sealed class TabularWriter : IAsyncDisposable
     private readonly bool _leaveOpen;
     private State _state = State.Open;
     private WriteColumn[] _columns = [];
+    private readonly HashSet<string> _sheetNames = new(StringComparer.OrdinalIgnoreCase);
     private string _sheetName = string.Empty;
     private int _sheets;
     private long _rowNumber;
@@ -133,7 +134,7 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Begins a sheet and writes its header row.</summary>
-    /// <param name="name">The sheet's name. A csv file has one sheet, whose name is not written.</param>
+    /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
     /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
     {
@@ -154,10 +155,16 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Faulting(new ArgumentNullException(nameof(name)));
         }
 
+        if (_sheet.NamesSheets && SheetNames.Problem(name, _sheetNames) is { } problem)
+        {
+            throw Faulting(new ArgumentException(problem, nameof(name)));
+        }
+
         CheckColumns(columns);
 
         _columns = columns.ToArray();
         _sheetName = name;
+        _sheetNames.Add(name);
         _sheets++;
         _rowNumber = 0;
         _sheet.BeginSheet(name, _columns);

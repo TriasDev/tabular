@@ -18,6 +18,9 @@ internal interface ISheetWriter
     /// <summary>Whether a file holds more than one sheet.</summary>
     bool AllowsSeveralSheets { get; }
 
+    /// <summary>Whether the format stores sheet names, which must then meet <see cref="SheetNames"/>' rules.</summary>
+    bool NamesSheets { get; }
+
     void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns);
 
     void BeginRow();
