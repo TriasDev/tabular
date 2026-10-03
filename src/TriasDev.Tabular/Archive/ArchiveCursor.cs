@@ -1,13 +1,11 @@
-using System.IO.Compression;
-
 using TriasDev.Tabular.Csv;
 
 namespace TriasDev.Tabular.Archive;
 
 /// <summary>
-/// Reads a zip archive as one workbook: its sheets are the sheets of every file in it that can be
-/// read as a table, in the order of their paths, each carrying its file's path as
-/// <see cref="SheetInfo.Source"/>.
+/// Reads an archive — a zip, a tar, or a tar compressed with gzip — as one workbook: its sheets are the
+/// sheets of every file in it that can be read as a table, in the order of their paths, each carrying
+/// its file's path as <see cref="SheetInfo.Source"/>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,24 +17,24 @@ namespace TriasDev.Tabular.Archive;
 /// <para>
 /// Every file is judged by its bytes, not its name, with the rules <see cref="TabularFile.Open"/>
 /// uses: text is a csv sheet. What cannot be read as a table is reported in
-/// <see cref="SkippedEntries"/> with the reason; directories, hidden files and <c>__MACOSX/</c> are
-/// left out without a word, because nobody put them there on purpose.
+/// <see cref="SkippedEntries"/> with the reason; directories, links, hidden files and <c>__MACOSX/</c>
+/// are left out without a word, because nobody put them there on purpose.
 /// </para>
 /// <para>
 /// A csv file is read as a stream straight out of the archive, never unpacked. Its dialect is
 /// decided when the archive is opened, from the file's head, and the file is opened afresh to be
 /// read — so moving back to a csv sheet reads it again from its first row, which a plain
-/// <see cref="CsvCursor"/> cannot do.
+/// <see cref="CsvCursor"/> cannot do. In a compressed tar, opening a file afresh means decompressing
+/// the archive again up to it, unless the cursor is moving forward through the archive anyway.
 /// </para>
 /// </remarks>
 public sealed class ArchiveCursor : ITabularCursor
 {
-    /// <summary>A file of the archive that holds sheets, and how it is read.</summary>
-    private sealed record Source(ZipArchiveEntry Entry, TabularFormat Format, CsvDialect? Dialect);
+    private static readonly char[] PathSeparators = ['/', '\\'];
 
     private readonly Stream _stream;
     private readonly TabularOpenOptions _options;
-    private readonly ZipArchive _zip;
+    private readonly ArchiveContainer _container;
     private readonly List<Source> _sources = [];
     private readonly List<SheetInfo> _sheets = [];
     private readonly List<(int Source, int Local)> _origins = [];
@@ -53,9 +51,10 @@ public sealed class ArchiveCursor : ITabularCursor
     private int _innerSource = -1;
     private bool _disposed;
 
-    /// <summary>Opens a zip archive and lists the sheets of the files in it.</summary>
+    /// <summary>Opens an archive and lists the sheets of the files in it.</summary>
     /// <param name="stream">
-    /// The archive. Must be seekable. Closed with the cursor, or when opening fails, unless
+    /// The archive: a zip, a tar, or a tar compressed with gzip, told apart by its bytes. Must be
+    /// seekable. Closed with the cursor, or when opening fails, unless
     /// <see cref="TabularOpenOptions.LeaveOpen"/> says otherwise.
     /// </param>
     /// <param name="options">
@@ -69,7 +68,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
         _stream = stream;
         _options = options ?? TabularOpenOptions.Default;
-        ZipArchive? zip = null;
+        ArchiveContainer? container = null;
 
         try
         {
@@ -79,8 +78,8 @@ public sealed class ArchiveCursor : ITabularCursor
             _options.Ods.Checked();
             cancellationToken.ThrowIfCancellationRequested();
 
-            zip = OpenZip(stream);
-            _zip = zip;
+            container = ArchiveContainer.Choose(stream);
+            _container = container;
             ListSources(cancellationToken);
 
             if (_sheets.Count == 0)
@@ -94,7 +93,7 @@ public sealed class ArchiveCursor : ITabularCursor
         catch
         {
             _inner?.Dispose();
-            zip?.Dispose();
+            container?.Dispose();
 
             if (!_options.LeaveOpen)
             {
@@ -106,7 +105,8 @@ public sealed class ArchiveCursor : ITabularCursor
     }
 
     /// <inheritdoc />
-    public TabularFormat Format => TabularFormat.Zip;
+    /// <remarks><see cref="TabularFormat.Zip"/> or <see cref="TabularFormat.Tar"/>, compressed or not.</remarks>
+    public TabularFormat Format => _container.Format;
 
     /// <inheritdoc />
     public IReadOnlyList<SheetInfo> Sheets => _sheets;
@@ -172,9 +172,9 @@ public sealed class ArchiveCursor : ITabularCursor
 
     /// <inheritdoc />
     /// <remarks>
-    /// Moving to a workbook's sheet copies the workbook out of the archive, which the token can stop.
-    /// A move stopped there has closed the file it left, so the cursor refuses to read until a move
-    /// succeeds.
+    /// Moving to a workbook's sheet copies the workbook out of a compressed archive, which the token
+    /// can stop. A move stopped there has closed the file it left, so the cursor refuses to read until
+    /// a move succeeds.
     /// </remarks>
     public bool MoveToSheet(int index, CancellationToken cancellationToken = default)
     {
@@ -230,7 +230,7 @@ public sealed class ArchiveCursor : ITabularCursor
         }
         catch (InvalidDataException e)
         {
-            // Raised by the decompressor: the entry's data is damaged, whatever the file inside is.
+            // Raised by a zip's decompressor: the entry's data is damaged, whatever the file inside is.
             throw Corrupt(e);
         }
     }
@@ -244,7 +244,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
         _disposed = true;
         _inner?.Dispose();
-        _zip.Dispose();
+        _container.Dispose();
 
         if (!_options.LeaveOpen)
         {
@@ -252,28 +252,93 @@ public sealed class ArchiveCursor : ITabularCursor
         }
     }
 
-    private static ZipArchive OpenZip(Stream stream)
+    /// <summary>A directory, a link, a hidden file or folder, or a Mac resource fork: nobody archived it on purpose.</summary>
+    private static bool IsLeftOut(ArchiveEntry entry) =>
+        entry.Kind == ArchiveEntryKind.LeftOut
+        || entry.Path.EndsWith('/') || entry.Path.EndsWith('\\')
+        || entry.Path.StartsWith("__MACOSX/", StringComparison.Ordinal)
+        || entry.Path.Split(PathSeparators).Any(segment => segment is not ("." or "..") && segment.StartsWith('.'));
+
+    private static byte[] ReadHead(Stream content, ArchiveEntry entry, int probeBytes)
     {
-        try
+        byte[] head = new byte[(int)Math.Min(probeBytes, Math.Max(entry.Length, 0))];
+        int read = content.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+        return read == head.Length ? head : head[..read];
+    }
+
+    private static Finding Skipped(ArchiveEntry entry, SkippedEntryReason reason) => new(entry, null, [], reason);
+
+    private static TabularFormatException Corrupt(Exception inner) =>
+        new(TabularFormatException.Corrupt, $"The archive is not readable: {inner.Message}", inner);
+
+    /// <summary>
+    /// Counts the archive against its bounds and judges each file, then lists the findings in path
+    /// order.
+    /// </summary>
+    /// <remarks>
+    /// An archive with a directory is counted before a file is opened, and judged in path order. One
+    /// that can only be read as a stream is counted and judged as it is read, in its own order — each
+    /// file while it is the current one, which is the only time that is cheap — and the findings are
+    /// put in path order afterwards, so the sheets come in the same order whatever order the archiver
+    /// wrote.
+    /// </remarks>
+    private void ListSources(CancellationToken cancellationToken)
+    {
+        IEnumerable<ArchiveEntry> order;
+
+        if (_container.Directory is { } directory)
         {
-            return new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+            CountAgainstBounds(directory);
+            order = directory.OrderBy(e => e.Path, StringComparer.Ordinal);
         }
-        catch (InvalidDataException e)
+        else
         {
-            throw Corrupt(e);
+            order = Counted(_container.Entries(cancellationToken));
+        }
+
+        List<Finding> findings = [];
+
+        foreach (ArchiveEntry entry in order)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!IsLeftOut(entry))
+            {
+                findings.Add(Judge(entry, cancellationToken));
+            }
+        }
+
+        foreach (Finding finding in findings.OrderBy(f => f.Entry.Path, StringComparer.Ordinal))
+        {
+            if (finding.Skip is { } reason)
+            {
+                _skipped.Add(new SkippedEntry { Path = finding.Entry.Path, Reason = reason });
+            }
+            else
+            {
+                AddSource(finding.Source!, finding.SheetNames);
+            }
         }
     }
 
-    /// <summary>Counts the archive against its bounds, then sniffs each file in path order.</summary>
-    private void ListSources(CancellationToken cancellationToken)
+    private void CountAgainstBounds(IEnumerable<ArchiveEntry> entries)
+    {
+        foreach (ArchiveEntry _ in Counted(entries))
+        {
+            // Counting is the point: Counted throws on the first entry past a bound.
+        }
+    }
+
+    /// <summary>Passes the entries through, failing as soon as one passes the archive's bounds.</summary>
+    private IEnumerable<ArchiveEntry> Counted(IEnumerable<ArchiveEntry> entries)
     {
         ArchiveCursorOptions bounds = _options.Archive;
-        int entries = 0;
+        int count = 0;
         long declared = 0;
 
-        foreach (ZipArchiveEntry entry in _zip.Entries)
+        foreach (ArchiveEntry entry in entries)
         {
-            if (++entries > bounds.MaxEntries)
+            if (++count > bounds.MaxEntries)
             {
                 throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxEntries), bounds.MaxEntries,
                     $"The archive holds more than the {bounds.MaxEntries} files allowed.");
@@ -286,70 +351,55 @@ public sealed class ArchiveCursor : ITabularCursor
                 throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxUncompressedBytes), bounds.MaxUncompressedBytes,
                     $"The archive expands to more than the {bounds.MaxUncompressedBytes} bytes allowed.");
             }
-        }
 
-        // Ordered by path so the sheets come in the same order whatever order the archiver wrote.
-        foreach (ZipArchiveEntry entry in _zip.Entries.Where(e => !IsLeftOut(e.FullName)).OrderBy(e => e.FullName, StringComparer.Ordinal))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            Sniff(entry, cancellationToken);
+            yield return entry;
         }
     }
 
-    /// <summary>A directory, a hidden file or folder, or a Mac resource fork: nobody zipped it on purpose.</summary>
-    private static bool IsLeftOut(string path) =>
-        path.EndsWith('/') || path.EndsWith('\\')
-        || path.StartsWith("__MACOSX/", StringComparison.Ordinal)
-        || path.Split(PathSeparators).Any(segment => segment is not ("." or "..") && segment.StartsWith('.'));
-
-    private static readonly char[] PathSeparators = ['/', '\\'];
-
-    /// <summary>Decides what a file is from its head, and lists its sheets or records why not.</summary>
-    private void Sniff(ZipArchiveEntry entry, CancellationToken cancellationToken)
+    /// <summary>Decides what a file is from its head, and finds its sheets or why not.</summary>
+    private Finding Judge(ArchiveEntry entry, CancellationToken cancellationToken)
     {
-        if (entry.IsEncrypted)
+        switch (entry.Kind)
         {
-            // Opening it would hand the ciphertext over as though it were the file.
-            Skip(entry, SkippedEntryReason.Encrypted);
-            return;
+            case ArchiveEntryKind.Encrypted:
+                // Opening it would hand the ciphertext over as though it were the file.
+                return Skipped(entry, SkippedEntryReason.Encrypted);
+            case ArchiveEntryKind.Unsupported:
+                return Skipped(entry, SkippedEntryReason.Unsupported);
         }
 
+        using Stream content = _container.Open(entry, cancellationToken);
         byte[] head;
 
         try
         {
-            head = ReadHead(entry, _options.Csv.DialectProbeBytes);
+            head = ReadHead(content, entry, _options.Csv.DialectProbeBytes);
         }
         catch (InvalidDataException)
         {
-            Skip(entry, SkippedEntryReason.Unreadable);
-            return;
+            return Skipped(entry, SkippedEntryReason.Unreadable);
         }
 
         if (head.AsSpan().StartsWith("PK\u0003\u0004"u8))
         {
-            SniffWorkbook(entry, cancellationToken);
-            return;
+            return JudgeWorkbook(entry, head, content, cancellationToken);
         }
 
         if (GzipHeader.HasSignature(head))
         {
             // Read on its own a gzip file is opened; inside an archive it would be a second layer of
             // packing, which nothing here unpacks.
-            Skip(entry, SkippedEntryReason.Compressed);
-            return;
+            return Skipped(entry, SkippedEntryReason.Compressed);
         }
 
         if (head.AsSpan().StartsWith(CsvDialectDetector.CompoundFileSignature))
         {
-            Skip(entry, SkippedEntryReason.LegacyWorkbook);
-            return;
+            return Skipped(entry, SkippedEntryReason.LegacyWorkbook);
         }
 
         if (CsvDialectDetector.IsXmlDocument(head))
         {
-            Skip(entry, SkippedEntryReason.XmlDocument);
-            return;
+            return Skipped(entry, SkippedEntryReason.XmlDocument);
         }
 
         CsvDialect dialect;
@@ -360,47 +410,56 @@ public sealed class ArchiveCursor : ITabularCursor
         }
         catch (TabularFormatException)
         {
-            Skip(entry, SkippedEntryReason.Binary);
-            return;
+            return Skipped(entry, SkippedEntryReason.Binary);
         }
 
         string name = Path.GetFileNameWithoutExtension(entry.Name);
-        AddSource(new Source(entry, TabularFormat.Csv, _options.Csv.Dialect ?? dialect), [(name.Length > 0 ? name : entry.Name, SheetVisibility.Visible)]);
+        return new Finding(entry, new Source(entry, TabularFormat.Csv, _options.Csv.Dialect ?? dialect),
+            [(name.Length > 0 ? name : entry.Name, SheetVisibility.Visible)], null);
     }
 
     /// <summary>
-    /// Lists the sheets of a zip inside the archive, if it is a workbook: it is copied into memory,
-    /// opened for its sheet names and released.
+    /// Lists the sheets of a zip inside the archive, if it is a workbook: read in place when the
+    /// archive allows it, else copied into memory, opened for its sheet names and released.
     /// </summary>
     /// <remarks>
     /// A workbook that cannot be read is skipped with the reason, as any other file that is not a
     /// table; a bound it exceeds fails the archive, because bounds are the library's defence and are
     /// never downgraded to a skip.
     /// </remarks>
-    private void SniffWorkbook(ZipArchiveEntry entry, CancellationToken cancellationToken)
+    private Finding JudgeWorkbook(ArchiveEntry entry, byte[] head, Stream content, CancellationToken cancellationToken)
     {
-        ChunkedBuffer buffer;
+        CheckWorkbookSize(entry);
+
+        if (_container.OpenSeekable(entry) is { } inPlace)
+        {
+            using (inPlace)
+            {
+                return JudgeOpenedWorkbook(entry, inPlace, cancellationToken);
+            }
+        }
+
+        ChunkedBuffer? buffer;
 
         try
         {
-            buffer = Buffer(entry, cancellationToken);
+            buffer = ChunkedBuffer.CopyOf(new HeadedStream(head, content), entry.Length, _options.Archive.MaxEmbeddedWorkbookBytes, cancellationToken);
         }
-        catch (TabularFormatException)
+        catch (InvalidDataException)
         {
             // Damage met past the head, while copying: the file is unreadable, the archive is not.
-            Skip(entry, SkippedEntryReason.Unreadable);
-            return;
+            return Skipped(entry, SkippedEntryReason.Unreadable);
         }
 
         using (buffer)
         {
-            SniffBufferedWorkbook(entry, buffer, cancellationToken);
+            return JudgeOpenedWorkbook(entry, buffer, cancellationToken);
         }
     }
 
-    private void SniffBufferedWorkbook(ZipArchiveEntry entry, ChunkedBuffer buffer, CancellationToken cancellationToken)
+    private Finding JudgeOpenedWorkbook(ArchiveEntry entry, Stream workbook, CancellationToken cancellationToken)
     {
-        (TabularFormat format, SkippedEntryReason? skip) = TabularFile.ClassifyZip(buffer) switch
+        (TabularFormat format, SkippedEntryReason? skip) = TabularFile.ClassifyZip(workbook) switch
         {
             TabularFile.ZipContent.Xlsx => (TabularFormat.Xlsx, (SkippedEntryReason?)null),
             TabularFile.ZipContent.Ods => (TabularFormat.Ods, null),
@@ -410,55 +469,34 @@ public sealed class ArchiveCursor : ITabularCursor
 
         if (skip is { } reason)
         {
-            Skip(entry, reason);
-            return;
+            return Skipped(entry, reason);
         }
 
         List<(string Name, SheetVisibility Visibility)> names;
 
         try
         {
-            using ITabularCursor workbook = EmbeddedWorkbook.Open(format, buffer, _options, leaveOpen: true, cancellationToken);
-            names = [.. workbook.Sheets.Select(sheet => (sheet.Name, sheet.Visibility))];
+            using ITabularCursor opened = EmbeddedWorkbook.Open(format, workbook, _options, leaveOpen: true, cancellationToken);
+            names = [.. opened.Sheets.Select(sheet => (sheet.Name, sheet.Visibility))];
         }
         catch (TabularFormatException e)
         {
-            Skip(entry, e.Code == TabularFormatException.Unsupported ? SkippedEntryReason.Unsupported : SkippedEntryReason.Unreadable);
-            return;
+            return Skipped(entry, e.Code == TabularFormatException.Unsupported ? SkippedEntryReason.Unsupported : SkippedEntryReason.Unreadable);
         }
 
-        AddSource(new Source(entry, format, null), names);
+        return new Finding(entry, new Source(entry, format, null), names, null);
     }
 
-    private ChunkedBuffer Buffer(ZipArchiveEntry entry, CancellationToken cancellationToken)
+    /// <summary>The declared size refuses the plain case before a byte is read; a copy refuses a file whose declared size lied.</summary>
+    private void CheckWorkbookSize(ArchiveEntry entry)
     {
         long limit = _options.Archive.MaxEmbeddedWorkbookBytes;
 
-        // The declared size refuses the plain case before a byte is copied; the copy refuses a file
-        // whose declared size lied.
         if (entry.Length > limit)
         {
             throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes), limit,
                 $"A workbook inside the archive or compressed file is larger than the {limit} bytes allowed.");
         }
-
-        try
-        {
-            using Stream content = entry.Open();
-            return ChunkedBuffer.CopyOf(content, entry.Length, limit, cancellationToken);
-        }
-        catch (InvalidDataException e)
-        {
-            throw Corrupt(e);
-        }
-    }
-
-    private static byte[] ReadHead(ZipArchiveEntry entry, int probeBytes)
-    {
-        using Stream content = entry.Open();
-        byte[] head = new byte[(int)Math.Min(probeBytes, Math.Max(entry.Length, 0))];
-        int read = content.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
-        return read == head.Length ? head : head[..read];
     }
 
     private void AddSource(Source source, IReadOnlyList<(string Name, SheetVisibility Visibility)> sheetNames)
@@ -484,13 +522,10 @@ public sealed class ArchiveCursor : ITabularCursor
                 Name = sheetNames[local].Name,
                 Visibility = sheetNames[local].Visibility,
                 Format = source.Format,
-                Source = source.Entry.FullName,
+                Source = source.Entry.Path,
             });
         }
     }
-
-    private void Skip(ZipArchiveEntry entry, SkippedEntryReason reason) =>
-        _skipped.Add(new SkippedEntry { Path = entry.FullName, Reason = reason });
 
     /// <summary>Closes the file being read, keeping its repairs, and opens another.</summary>
     private void OpenSource(int index, CancellationToken cancellationToken)
@@ -502,7 +537,7 @@ public sealed class ArchiveCursor : ITabularCursor
         if (source.Format != TabularFormat.Csv)
         {
             // Held while its sheets are read, released when the cursor moves to another file.
-            _inner = EmbeddedWorkbook.Open(source.Format, Buffer(source.Entry, cancellationToken), _options, leaveOpen: false, cancellationToken);
+            _inner = EmbeddedWorkbook.Open(source.Format, OpenWorkbook(source.Entry, cancellationToken), _options, leaveOpen: false, cancellationToken);
             _innerSource = index;
             return;
         }
@@ -511,7 +546,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
         try
         {
-            content = source.Entry.Open();
+            content = _container.Open(source.Entry, cancellationToken);
         }
         catch (InvalidDataException e)
         {
@@ -524,6 +559,27 @@ public sealed class ArchiveCursor : ITabularCursor
         _inner = new CsvCursor(_counter, _sheets[_origins.FindIndex(o => o.Source == index)].Name,
             _options.Csv with { Dialect = source.Dialect });
         _innerSource = index;
+    }
+
+    /// <summary>A workbook to read: in place when the archive allows it, else a copy in memory.</summary>
+    private Stream OpenWorkbook(ArchiveEntry entry, CancellationToken cancellationToken)
+    {
+        CheckWorkbookSize(entry);
+
+        if (_container.OpenSeekable(entry) is { } inPlace)
+        {
+            return inPlace;
+        }
+
+        try
+        {
+            using Stream content = _container.Open(entry, cancellationToken);
+            return ChunkedBuffer.CopyOf(content, entry.Length, _options.Archive.MaxEmbeddedWorkbookBytes, cancellationToken);
+        }
+        catch (InvalidDataException e)
+        {
+            throw Corrupt(e);
+        }
     }
 
     private void CloseInner()
@@ -542,6 +598,9 @@ public sealed class ArchiveCursor : ITabularCursor
         _innerSource = -1;
     }
 
-    private static TabularFormatException Corrupt(Exception inner) =>
-        new(TabularFormatException.Corrupt, $"The archive is not readable: {inner.Message}", inner);
+    /// <summary>A file of the archive that holds sheets, and how it is read.</summary>
+    private sealed record Source(ArchiveEntry Entry, TabularFormat Format, CsvDialect? Dialect);
+
+    /// <summary>What judging one entry found: a source with its sheets, or a skip.</summary>
+    private sealed record Finding(ArchiveEntry Entry, Source? Source, IReadOnlyList<(string Name, SheetVisibility Visibility)> SheetNames, SkippedEntryReason? Skip);
 }

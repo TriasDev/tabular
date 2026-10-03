@@ -144,6 +144,21 @@ public sealed class ArchiveCursorCsvTests
     }
 
     [Fact]
+    public void ListsSkipsInPathOrderWhateverOrderTheArchiveHoldsThem()
+    {
+        byte[] binary = [0x25, 0x50, 0x44, 0x46, .. Enumerable.Repeat((byte)0, 600)];
+
+        using ArchiveCursor cursor = Open(new ZipArchiveBuilder()
+            .With("z.pdf", binary)
+            .With("b.csv", "a\n1\n")
+            .With("a.pdf", binary)
+            .Build());
+
+        Assert.Equal(["a.pdf", "z.pdf"], cursor.SkippedEntries.Select(s => s.Path));
+        Assert.Equal("b.csv", Assert.Single(cursor.Sheets).Source);
+    }
+
+    [Fact]
     public void ReadsASheetAgainFromItsFirstRowAndCountsItsRepairsOnce()
     {
         // Moving back reopens the file; the repairs of a sheet read twice are counted twice, as they
