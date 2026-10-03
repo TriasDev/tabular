@@ -44,8 +44,9 @@ public sealed class LibreOfficeInteropTests
     {
         string[] lines = LibreOffice.ConvertToCsv(await Write(format), extension);
 
-        Assert.Equal("Name,Count,Amount,Start,Active", lines[0]);
-        Assert.StartsWith("Grüße  two spaces,42,1234,2026-10-03 09:00:00,", lines[1], StringComparison.Ordinal);
-        Assert.StartsWith("tab\there,-7,-25,2026-10-03 14:05:06,", lines[2], StringComparison.Ordinal);
+        Assert.True(lines.Length >= 3, $"LibreOffice produced {lines.Length} lines.");
+        Assert.Equal("\"Name\",\"Count\",\"Amount\",\"Start\",\"Active\"", lines[0]);
+        Assert.StartsWith("\"Grüße  two spaces\",42,1234,2026-10-03 09:00:00,", lines[1], StringComparison.Ordinal);
+        Assert.StartsWith("\"tab\there\",-7,-25,2026-10-03 14:05:06,", lines[2], StringComparison.Ordinal);
     }
 }

@@ -38,9 +38,9 @@ public static class LibreOffice
                 ArgumentList =
                 {
                     "--headless",
-                    $"-env:UserInstallation=file://{folder.Replace('\\', '/')}/profile",
+                    $"-env:UserInstallation={new Uri(Path.Combine(folder, "profile")).AbsoluteUri}",
                     "--convert-to",
-                    "csv:Text - txt - csv (StarCalc):44,34,76",
+                    "csv:Text - txt - csv (StarCalc):44,34,76,1,,0,true",
                     "--outdir",
                     folder,
                     input,
@@ -50,17 +50,50 @@ public static class LibreOffice
             };
 
             using Process process = Process.Start(start)!;
-            string output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
-            Assert.True(process.WaitForExit(120_000), "LibreOffice did not finish within two minutes.");
 
-            string csv = Path.Combine(folder, "file.csv");
-            Assert.True(File.Exists(csv), $"LibreOffice could not convert the file: {output}");
+            try
+            {
+                Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+                Task<string> standardError = process.StandardError.ReadToEndAsync();
 
-            return File.ReadAllLines(csv, Encoding.UTF8);
+                if (!process.WaitForExit(120_000))
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit();
+                    Assert.Fail("LibreOffice did not finish within two minutes and was killed.");
+                }
+
+                // The pipes close with the process; read after it exited so a full pipe cannot stall it.
+                string output = standardOutput.GetAwaiter().GetResult() + standardError.GetAwaiter().GetResult();
+
+                string csv = Path.Combine(folder, "file.csv");
+                Assert.True(File.Exists(csv), $"LibreOffice could not convert the file: {output}");
+
+                return File.ReadAllLines(csv, Encoding.UTF8);
+            }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit();
+                }
+            }
         }
         finally
         {
-            Directory.Delete(folder, recursive: true);
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (IOException)
+            {
+                // A leftover temp folder must not mask the test's own outcome.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Same.
+            }
         }
     }
 
