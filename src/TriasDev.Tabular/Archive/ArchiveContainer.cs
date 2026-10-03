@@ -33,8 +33,14 @@ internal abstract class ArchiveContainer : IDisposable
         int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
         stream.Position = origin;
 
-        return TarHeader.IsHeader(head.AsSpan(0, read))
-            ? new TarContainer(stream, options.Archive.MaxEntries, cancellationToken)
+        if (TarHeader.IsHeader(head.AsSpan(0, read)))
+        {
+            return new TarContainer(stream, options.Archive.MaxEntries, cancellationToken);
+        }
+
+        // The gzip layer is held to the same bound as the archive's declared sizes.
+        return TarHeader.IsGzippedTar(stream)
+            ? new TarGzContainer(stream, options.Archive.MaxUncompressedBytes)
             : new ZipContainer(stream);
     }
 
