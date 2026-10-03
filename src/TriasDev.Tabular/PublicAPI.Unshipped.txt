@@ -1,1 +1,14 @@
 #nullable enable
+const TriasDev.Tabular.ErrorCodes.Write.DateOutOfRange = "write.date-out-of-range" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.InvalidCharacter = "write.invalid-character" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.NotFinite = "write.not-finite" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.PrecisionLoss = "write.precision-loss" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TextTooLong = "write.text-too-long" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TooManyLines = "write.too-many-lines" -> string!
+TriasDev.Tabular.ErrorCodes.Write
+TriasDev.Tabular.TabularWriteException
+TriasDev.Tabular.TabularWriteException.ColumnIndex.get -> int
+TriasDev.Tabular.TabularWriteException.Header.get -> string!
+TriasDev.Tabular.TabularWriteException.RowNumber.get -> long
+TriasDev.Tabular.TabularWriteException.SheetName.get -> string!
+TriasDev.Tabular.TabularWriteException.TabularWriteException(string! code, string! sheetName, long rowNumber, int columnIndex, string! header, string! message) -> void
