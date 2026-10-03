@@ -28,6 +28,13 @@ internal abstract class ArchiveContainer : IDisposable
     /// <summary>Chooses the container by the stream's bytes. Anything not recognised is tried as a zip, which refuses it as before.</summary>
     public static ArchiveContainer Choose(Stream stream, TabularOpenOptions options, CancellationToken cancellationToken)
     {
+        // A stream that cannot seek can only be a zip here — ZipArchive copies it, as it always has; a
+        // tar is read by seeking.
+        if (!stream.CanSeek)
+        {
+            return new ZipContainer(stream);
+        }
+
         long origin = stream.Position;
         byte[] head = new byte[TarHeader.BlockSize];
         int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);

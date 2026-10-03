@@ -397,6 +397,12 @@ public sealed class ArchiveCursor : ITabularCursor
             return Skipped(entry, SkippedEntryReason.Compressed);
         }
 
+        if (TarHeader.IsHeader(head))
+        {
+            // Archives are not opened recursively, whatever their kind.
+            return Skipped(entry, SkippedEntryReason.NestedArchive);
+        }
+
         if (head.AsSpan().StartsWith(CsvDialectDetector.CompoundFileSignature))
         {
             return Skipped(entry, SkippedEntryReason.LegacyWorkbook);

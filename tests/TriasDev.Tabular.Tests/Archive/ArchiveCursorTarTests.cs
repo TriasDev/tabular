@@ -165,6 +165,21 @@ public sealed class ArchiveCursorTarTests
     }
 
     [Fact]
+    public void SkipsATarInsideAnArchiveAsANestedArchive()
+    {
+        byte[] inner = TarArchive.Of(TarEntryFormat.Pax, ("x.csv", "x\n1\n"));
+        byte[] zip = new ZipArchiveBuilder().With("a.csv", "a\n1\n").With("inner.tar", inner).Build();
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, TarArchive.File(TarEntryFormat.Pax, "a.csv", "a\n1\n"), TarArchive.File(TarEntryFormat.Pax, "inner.tar", inner));
+
+        foreach (byte[] archive in new[] { zip, tar })
+        {
+            using ArchiveCursor cursor = Open(archive);
+
+            Assert.Equal(new SkippedEntry { Path = "inner.tar", Reason = SkippedEntryReason.NestedArchive }, Assert.Single(cursor.SkippedEntries));
+        }
+    }
+
+    [Fact]
     public void NeverMakesASheetOfAnEntryWithoutAName()
     {
         // A damaged header can leave an entry without a name, as the TarReader of .NET 8 reads one.

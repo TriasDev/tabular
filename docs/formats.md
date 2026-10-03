@@ -37,7 +37,7 @@ file on its own is.
 
 - **Left out without a word:** directories, links and other entries that are not files, hidden files
   and folders (`.DS_Store`, anything whose name starts with a dot, macOS `._` files) and `__MACOSX/`.
-- **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a gzip-compressed file, a nested zip, another
+- **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a gzip-compressed file, a nested zip or tar, another
   OpenDocument type, a legacy `.xls`, an XML document, a binary file, and a workbook that is damaged
   or of a kind not read (`.xlsb`). Nested archives are not opened.
 - **Refused:** an archive with nothing readable in it, as `format.unsupported`.

@@ -137,6 +137,18 @@ public sealed class ApiContractTests
     }
 
     [Fact]
+    public void ReadsAForwardOnlyZipThroughAnArchiveCursorAsItAlwaysDid()
+    {
+        // ZipArchive copies a stream it cannot seek; choosing the container must not seek it first.
+        byte[] zip = new ZipArchiveBuilder().With("t.csv", "name;x\na;b\n").Build();
+
+        using ArchiveCursor cursor = new(new ForwardOnly(new MemoryStream(zip)), cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(TabularFormat.Zip, cursor.Format);
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public void ReadsAForwardOnlyCsvWhenTheDialectIsGiven()
     {
         // Detection rewinds, so it needs a seekable stream; a caller who states the dialect needs
