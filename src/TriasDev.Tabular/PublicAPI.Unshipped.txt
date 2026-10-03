@@ -1,4 +1,5 @@
 #nullable enable
+const TriasDev.Tabular.ErrorCodes.Write.AmbiguousLineBreaks = "write.ambiguous-line-breaks" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.DateOutOfRange = "write.date-out-of-range" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.InvalidCharacter = "write.invalid-character" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.NotFinite = "write.not-finite" -> string!

@@ -23,7 +23,7 @@ from them.
 | `structure.sheet-missing`, `structure.sheet-changed`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
 | `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .fods, another OpenDocument type, binary, an archive with nothing readable), or damaged, or cut off |
 | `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
-| `write.precision-loss`, `write.not-finite`, `write.date-out-of-range`, `write.text-too-long`, `write.too-many-lines`, `write.invalid-character` | `TabularWriteException`: a value the chosen format cannot hold exactly, found while writing; `SheetName`, `RowNumber`, `ColumnIndex` and `Header` say where. The file written so far is incomplete and must be discarded |
+| `write.precision-loss`, `write.not-finite`, `write.date-out-of-range`, `write.text-too-long`, `write.too-many-lines`, `write.ambiguous-line-breaks`, `write.invalid-character` | `TabularWriteException`: a value the chosen format cannot hold exactly, found while writing; `SheetName`, `RowNumber`, `ColumnIndex` and `Header` say where. The file written so far is incomplete and must be discarded |
 
 This table is checked against the library's sources by `ErrorCodeCatalogTests`, in both directions.
 It went out of step twice in the branch that added it — a code emitted, asserted, given a requirement

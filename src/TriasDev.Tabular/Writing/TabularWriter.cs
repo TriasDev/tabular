@@ -142,7 +142,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         foreach (string header in _columns.Select(column => column.Header))
         {
-            if (_sheet.WriteText(header) is { } code)
+            if (_sheet.WriteHeader(header) is { } code)
             {
                 throw Faulting(new ArgumentException($"The header \"{header}\" cannot be written: {code}.", nameof(columns)));
             }
@@ -179,7 +179,7 @@ public sealed class TabularWriter : IAsyncDisposable
             return;
         }
 
-        Check(TextRules.Check(value) ?? _sheet.WriteText(value), column);
+        Check(TextRules.Check(value) ?? _sheet.WriteText(value, column), column);
     }
 
     /// <summary>Writes the next cell as an integer. Narrower integers arrive here by implicit conversion.</summary>

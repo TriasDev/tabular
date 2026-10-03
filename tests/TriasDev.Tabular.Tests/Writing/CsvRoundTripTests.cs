@@ -264,4 +264,193 @@ public sealed class CsvRoundTripTests
         Assert.Equal("'=1+2", row.Name);
         Assert.Equal(-5, row.Count);
     }
+    [Theory]
+    [MemberData(nameof(Cultures))]
+    public async Task ReadsBackASingleColumnOfFractionalDecimals(string culture)
+    {
+        // de-DE writes 1,5 2,5 3,5: unquoted, a comma on every line is what the reader takes for the delimiter.
+        decimal[] values = [1.5m, 2.5m, 3.5m, -0.25m, 4.75m];
+
+        byte[] file = await CsvRoundTrip.WriteAsync(culture, ["Amount"], writer =>
+        {
+            foreach (decimal value in values)
+            {
+                writer.BeginRow();
+                writer.Write(value);
+                writer.EndRow();
+            }
+        }, Token);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, culture, [AmountField], Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(values.Select(v => (object?)v), rows.Select(row => row[0]));
+    }
+
+    public static TheoryData<string, char> CulturesAndCandidates => new()
+    {
+        { "", ';' }, { "", ',' }, { "", '\t' }, { "", '|' },
+        { "de-DE", ';' }, { "de-DE", ',' }, { "de-DE", '\t' }, { "de-DE", '|' },
+    };
+
+    [Theory]
+    [MemberData(nameof(CulturesAndCandidates))]
+    public async Task ReadsBackASingleTextColumnWhoseEveryValueHoldsADelimiterCandidate(string culture, char candidate)
+    {
+        string[] values = [$"a{candidate}b", $"c{candidate}d", $"e{candidate}f"];
+
+        byte[] file = await CsvRoundTrip.WriteAsync(culture, ["Name"], writer =>
+        {
+            foreach (string value in values)
+            {
+                writer.BeginRow();
+                writer.Write(value);
+                writer.EndRow();
+            }
+        }, Token);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, culture, [NameField], Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(values, rows.Select(row => (string?)row[0]));
+    }
+
+    [Fact]
+    public async Task ReadsBackACommaFileWhoseHeaderAndRowsAllHoldASemicolon()
+    {
+        // Comma and semicolon would both divide every line evenly: a tie the reader must not be offered.
+        TextImportField first = ImportField.Text("Code;Kind");
+        TextImportField second = ImportField.Text("Note;More");
+        string[][] values = [["a;b", "c;d"], ["e;f", "g;h"], ["i;j", "k;l"]];
+
+        byte[] file = await CsvRoundTrip.WriteAsync("", [first.Name, second.Name], writer =>
+        {
+            foreach (string[] row in values)
+            {
+                writer.BeginRow();
+                writer.Write(row[0]);
+                writer.Write(row[1]);
+                writer.EndRow();
+            }
+        }, Token);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, "", [first, second], Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(values.Select(row => row.Cast<object?>().ToArray()), rows);
+    }
+
+    /// <summary>A note the reader takes for a stray quote and the records it swallowed, in the first of five columns.</summary>
+    private const string AddressNote = "Street 1,\nCity, Region, Country, Planet";
+
+    private static string[] Headers(int count) => [.. Enumerable.Range(0, count).Select(i => $"C{i}")];
+
+    private static TextImportField[] TextFields(int count) => [.. Headers(count).Select(ImportField.Text)];
+
+    [Fact]
+    public async Task RefusesMultiLineTextTheReaderWouldSplitIntoRecords()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        writer.BeginSheet("data", [.. Headers(5).Select(h => new WriteColumn(h))]);
+        writer.BeginRow();
+
+        TabularWriteException refused = Assert.Throws<TabularWriteException>(() => writer.Write(AddressNote));
+
+        Assert.Equal(ErrorCodes.Write.AmbiguousLineBreaks, refused.Code);
+        Assert.Equal(0, refused.ColumnIndex);
+        Assert.Equal(2, refused.RowNumber);
+    }
+
+    [Theory]
+    [InlineData(4, 0)]  // under five columns the reader never judges a quote stray
+    [InlineData(5, 4)]  // the last column: four cells before it plus one comma overfill the line, so the quote is syntax
+    public async Task ReadsBackMultiLineTextWhereTheReaderKeepsItAsOneValue(int columns, int column)
+    {
+        string[][] written =
+        [
+            [.. Enumerable.Range(0, columns).Select(i => i == column ? AddressNote : $"v{i}")],
+            [.. Enumerable.Range(0, columns).Select(i => $"w{i}")],
+        ];
+
+        byte[] file = await CsvRoundTrip.WriteAsync("", Headers(columns), writer =>
+        {
+            foreach (string[] row in written)
+            {
+                writer.BeginRow();
+
+                foreach (string value in row)
+                {
+                    writer.Write(value);
+                }
+
+                writer.EndRow();
+            }
+        }, Token);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, "", TextFields(columns), Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(written.Select(row => row.Cast<object?>().ToArray()), rows);
+    }
+
+    [Fact]
+    public async Task RefusesTheSameTextInAColumnWhereItsLineWouldStillFitARecord()
+    {
+        // Two cells before it plus one comma make three fields of five: read as stray, the line fits.
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        writer.BeginSheet("data", [.. Headers(5).Select(h => new WriteColumn(h))]);
+        writer.BeginRow();
+        writer.Write("v0");
+        writer.Write("v1");
+
+        Assert.Equal(ErrorCodes.Write.AmbiguousLineBreaks, Assert.Throws<TabularWriteException>(() => writer.Write(AddressNote)).Code);
+    }
+
+    [Theory]
+    [MemberData(nameof(Cultures))]
+    public async Task ReadsBackAMultiLineNoteWithFewerDelimitersThanARecordHolds(string culture)
+    {
+        // Six columns: a record's worth is five delimiters; the note has four, whatever the delimiter.
+        string note = "Dear team,\nplease; check | the\r\nnumbers, thanks";
+        string[] written = [note, "a", "b", "c", "d", "e"];
+
+        byte[] file = await CsvRoundTrip.WriteAsync(culture, Headers(6), writer =>
+        {
+            writer.BeginRow();
+
+            foreach (string value in written)
+            {
+                writer.Write(value);
+            }
+
+            writer.EndRow();
+        }, Token);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, culture, TextFields(6), Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(written, Assert.Single(rows).Cast<string?>());
+    }
+
+    [Fact]
+    public async Task TheFormulaGuardLeavesHeadersAsWritten()
+    {
+        TextImportField minus = ImportField.Text("-A");
+        TextImportField equals = ImportField.Text("=B");
+
+        byte[] file = await CsvRoundTrip.WriteAsync("", [minus.Name, equals.Name], writer =>
+        {
+            writer.BeginRow();
+            writer.Write("-1");
+            writer.Write("x");
+            writer.EndRow();
+        }, Token, formulaGuard: true);
+
+        Assert.StartsWith("\uFEFF-A,=B\r\n", System.Text.Encoding.UTF8.GetString(file), StringComparison.Ordinal);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, "", [minus, equals], Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(new object?[] { "'-1", "x" }, Assert.Single(rows));
+    }
 }

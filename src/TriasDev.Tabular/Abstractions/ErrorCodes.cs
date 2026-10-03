@@ -127,6 +127,9 @@ public static class ErrorCodes
     /// <summary>A value the chosen format cannot hold exactly — TabularWriteException.</summary>
     public static class Write
     {
+        /// <summary><c>write.ambiguous-line-breaks</c></summary>
+        public const string AmbiguousLineBreaks = "write.ambiguous-line-breaks";
+
         /// <summary><c>write.date-out-of-range</c></summary>
         public const string DateOutOfRange = "write.date-out-of-range";
 

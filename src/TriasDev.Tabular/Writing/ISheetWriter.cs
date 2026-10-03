@@ -22,8 +22,18 @@ internal interface ISheetWriter
 
     void BeginRow();
 
-    /// <summary>Writes text already checked by <see cref="TextRules"/>; returns a code if the format cannot hold it.</summary>
-    string? WriteText(string value);
+    /// <summary>
+    /// Writes a header cell, checked by <see cref="TextRules"/>: as text, but never altered — the
+    /// import compares headers as written — and never judged against a record's width, which the
+    /// reader learns from the header. Returns a code if the format cannot hold it.
+    /// </summary>
+    string? WriteHeader(string value);
+
+    /// <summary>
+    /// Writes text already checked by <see cref="TextRules"/> into the zero-based
+    /// <paramref name="column"/>; returns a code if the format cannot hold it.
+    /// </summary>
+    string? WriteText(string value, int column);
 
     /// <summary>Writes an integer; returns a code if the format cannot hold it exactly.</summary>
     string? WriteLong(long value);

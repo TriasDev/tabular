@@ -72,12 +72,21 @@ public sealed class CsvTextTests
     }
 
     [Theory]
-    [InlineData("tab\there")]
     [InlineData("emoji 👍 pair")]
     [InlineData("_x0001_ literal")]
     public async Task WritesTheCharactersXmlAllows(string value)
     {
         Assert.Equal(value, await One(value));
+    }
+
+    [Theory]
+    [InlineData("tab\there")]
+    [InlineData("a;b")]
+    [InlineData("a,b")]
+    [InlineData("a|b")]
+    public async Task QuotesEveryDelimiterTheReaderCouldDetectNotOnlyTheOneWritten(string value)
+    {
+        Assert.Equal('"' + value + '"', await One(value));
     }
 
     [Fact]
@@ -119,7 +128,7 @@ public sealed class CsvTextTests
     [InlineData("+1", "'+1")]
     [InlineData("-1", "'-1")]
     [InlineData("@SUM(A1)", "'@SUM(A1)")]
-    [InlineData("\tcmd", "'\tcmd")]
+    [InlineData("\tcmd", "\"'\tcmd\"")]
     [InlineData("\rcmd", "\"'\rcmd\"")]
     [InlineData("plain", "plain")]
     [InlineData("a=b", "a=b")]
@@ -166,7 +175,7 @@ public sealed class CsvTextTests
         sheet.BeginSheet("data", [new("v")]);
 
         sheet.BeginRow();
-        Assert.Null(sheet.WriteText(new string('x', 10_000_000)));
+        Assert.Null(sheet.WriteText(new string('x', 10_000_000), 0));
         sheet.EndRow();
 
         Assert.True(sheet.RowBufferLength <= 4 * 1024);
