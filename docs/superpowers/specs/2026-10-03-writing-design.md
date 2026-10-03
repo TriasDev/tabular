@@ -36,7 +36,7 @@ format options sit next to their cursors.
 | `OdsWriterOptions` | `TriasDev.Tabular.Ods` | compression level |
 | `TabularWriterOptions` | `TriasDev.Tabular` | holds the three, as `TabularOpenOptions` does for reading |
 
-Internal: `CsvSheetWriter`, `XlsxSheetWriter`, `OdsSheetWriter`, `SpillBuffer`.
+Internal: `CsvSheetWriter`, `XlsxSheetWriter`, `OdsSheetWriter`, `SpillBuffer`, `ZipWriter`, `Crc32`.
 
 ## Low-level writer
 
@@ -64,28 +64,37 @@ await w.CompleteAsync(ct);
 
 ### Sync writes, async flush
 
-The format writers — the csv text, the sheet XML, `ZipArchive` in create mode — write synchronously
+The format writers — the csv text, the sheet XML, the zip writer below — write synchronously
 into `SpillBuffer`, which is memory. `FlushAsync` moves the buffer to the real stream asynchronously.
 This is what makes the writer usable on an ASP.NET Core response body, which refuses synchronous
 writes by default, on net8.0 as well as net10.0. `FlushRecommended` turns true once the buffer
 passes a threshold of about 1 MB. The writer never writes to the target stream synchronously.
 
-`ZipArchive` in create mode streams its entries; only update mode buffers them (verified on .NET 8
-and 10). It only ever sees `SpillBuffer`, which cannot seek, so every xlsx and ods entry is written
-with a data descriptor (flag 0x0008, CRC and sizes after the data) — also when the target is a file.
+### The library's own zip writer
 
-### Risks to settle first
+`ZipArchive` does not fit, measured during planning (LibreOffice 25.x, .NET 8):
 
-- **ods `mimetype`.** ODF requires the `mimetype` entry first and stored. Measured: `ZipArchive`
-  with `CompressionLevel.NoCompression` writes it as method 0 at the right offsets (name at 30,
-  content at 38), but with a data descriptor and zero CRC and sizes in the local header. The open
-  question is only whether LibreOffice and an ODF validator accept that. If they do not, the
-  library writes its own minimal zip writer — with its own CRC-32, since `System.IO.Hashing` is a
-  package.
-- **Entries over 4 GB.** `ZipArchive` then writes a zip64 data descriptor and central directory
-  entry, but no zip64 extra field in the local header. A wide 1M-row sheet can pass 4 GB
-  uncompressed. Test Excel and LibreOffice on such a file in the benchmark phase; if either refuses
-  it, the writer caps an entry's uncompressed size with `limit.exceeded`.
+| Written | LibreOffice |
+|---|---|
+| `ZipArchive` to a non-seekable stream: every entry, the stored `mimetype` too, with a data descriptor | refuses: "source file could not be loaded" |
+| `ZipArchive` to a seekable stream: no data descriptors | opens |
+| `mimetype` stored without a descriptor, the deflated entries with one | opens |
+
+On a seekable stream `ZipArchive` seeks back to patch each local header, so the whole entry — a
+sheet of a million rows — would stay in the buffer until it closes. So the library writes zip
+itself, internal `ZipWriter`, used by both workbook formats:
+
+- **Small parts** (`mimetype`, manifest, content types, relationships, workbook, styles) are
+  compressed in memory — or stored, for `mimetype` — and written with CRC and sizes in the local
+  header, no data descriptor.
+- **The large part** (an xlsx sheet, the ods `content.xml`) streams through `DeflateStream` into
+  `SpillBuffer`, with flag 0x0008 and a data descriptor after the data.
+- Its own CRC-32 (slicing-by-8, so it keeps up with deflate), since `System.IO.Hashing` is a
+  package; checked against known vectors and against `ZipArchive` reading our output.
+- Zip64 is written when an entry or an offset passes 4 GB: a zip64 data descriptor, zip64 extra
+  fields in the central directory, the zip64 end records. A wide 1M-row sheet can pass 4 GB
+  uncompressed; Excel and LibreOffice are tested on such a file in the benchmark phase, and if
+  either refuses it, the writer caps an entry's uncompressed size with `limit.exceeded`.
 
 ## Values and the round trip
 
@@ -292,8 +301,8 @@ included, the overload pitfalls and the csv culture advice; README drops "Read-o
 
 Separate pull requests, in order:
 
-1. `TabularWriter`, `SpillBuffer`, csv; the ods `mimetype` acceptance check in LibreOffice.
-2. xlsx.
+1. `TabularWriter`, `SpillBuffer`, csv.
+2. `ZipWriter` and CRC-32, xlsx.
 3. ods.
 4. `TabularExport<T>` and the import-field bridge.
 5. Benchmarks, comparison, documentation, ADR-0002.
