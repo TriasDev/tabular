@@ -81,22 +81,30 @@ So the gzip framing is ours, the deflate decoding stays the BCL's:
 - **`GzipStreamReader`** (internal) reads member after member: the header (ours, `GzipHeader`), the
   deflate data through a raw `DeflateStream`, then the 8-byte trailer, checked against the CRC-32
   and the byte count of what was decompressed.
-- A `DeflateStream` reads ahead of the end of its data and does not say where that end was. The
-  reader feeds it through a pass-through that remembers where its last two reads began; when the
-  `DeflateStream` returns 0, the trailer starts somewhere from the earlier of those to the end of
-  what was read, at the first position whose 8 bytes are the expected CRC-32 and `ISIZE`. The base
-  stream is seekable, so the reader seeks to just past the trailer and continues. The `DeflateStream`
-  asks for input only while its data has not ended, so the end lies in its last read — two are kept
-  in case it asks once more right at a boundary — and the search is bounded by two reads (the
-  pass-through hands out at most 64 KB at a time).
+- A `DeflateStream` does not say where its data ended, and it reads past that end: measured, the
+  `Read` call that finally returns 0 goes on reading the base stream to its very end (300 KB of
+  trailing bytes, all read). Every call that returns data stops reading as soon as it has some. So
+  the end of the deflate data lies in the **last read made before the call that returned 0**, or in
+  the **first read made during it** (when the end-of-block code stood alone at the start of a new
+  read). The reader feeds the `DeflateStream` through a pass-through that hands out at most 64 KB a
+  read and remembers both; the trailer is the first position in that window whose 8 bytes are the
+  expected CRC-32 and `ISIZE`, and never earlier than 2 bytes into the member's deflate data (the
+  shortest deflate stream; without this rule an empty member's trailer — eight zero bytes — is found
+  inside its own `03 00`). The base stream is seekable, so the reader seeks to just past the trailer
+  and continues.
+- Prototyped before the plan, on .NET 8.0.11 and 10.0.9: 400 random files of one to three members,
+  with and without trailing bytes, read in pieces of 1 byte to 1 MB — every one read exactly, and
+  none of 2,400 random cuts read silently.
 - **No matching trailer, and the data ran to the end of the file** → `TabularFormatException`
   (`Truncated`): the file was cut off. (A wrong CRC in a trailer that is the file's last 8 bytes
   reads the same way — the two cannot be told apart, and both are refused.)
   **No matching trailer, and the deflate data ended before the file did** → `Corrupt`.
   **Broken deflate data** (`InvalidDataException`) → `Corrupt`, with our own message.
-- After a member: bytes starting `1F 8B` are the next member (several members — `cat a.gz b.gz`,
-  bgzip's BGZF blocks — are read as one file); anything else is trailing garbage and ignored, as the
-  `gzip` tool and `GZipStream` both do. A file that is only a header is `Truncated`.
+- After a member: bytes starting `1F` are the next member (several members — `cat a.gz b.gz`,
+  bgzip's BGZF blocks — are read as one file), and a member cut off inside its header is
+  `Truncated`; judging by `1F 8B` instead would read a file cut one byte into its next member as a
+  complete, shorter one. Anything else is trailing garbage and ignored, as the `gzip` tool and
+  `GZipStream` both do. A file that is only a header is `Truncated`.
 - **CRC-32** is ours too (the BCL has no public one; `System.IO.Hashing` is a package): slicing-by-8
   in managed code, with the ARM64 `Crc32` intrinsic where the CPU has it. Its cost is measured on
   the 5M-row csv; writing (#71) will reuse it.
