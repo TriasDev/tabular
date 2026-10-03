@@ -9,6 +9,7 @@ public enum CandidateFormats
     Csv = 2,
     Ods = 4,
     Zip = 8,
+    Gzip = 16,
 }
 
 /// <summary>

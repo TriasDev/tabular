@@ -142,6 +142,8 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
 - **Read a zip as one workbook** — every csv, xlsx and ods file inside becomes a sheet, named by its
   path; a zipped csv is read straight out of the archive, never unpacked, at the cost of decompression
   and nothing more.
+- **Read a gzip file as the file inside it** — `.csv.gz` decompressed as it is read; a cut-off or
+  damaged file is refused, never read as a shorter one
 - **Import it through a mapping** — declare fields once with their rules (required, length, range,
   pattern, allowed values, unique, or your own — check digits such as ISIN and LEI included), get
   typed rows or errors with stable codes, row by row or in batches. A precheck judges a mapping against the profile before anything is imported.
@@ -216,7 +218,7 @@ Batches, the full rule set, translated fields and every error code are in the [d
 Stated here so they are found before they are hit:
 
 - **Read-only.** It reads xlsx, ods and csv; it does not write any of them.
-- **xlsx, ods and csv only, alone or zipped.** Legacy `.xls`, binary `.xlsb` and flat OpenDocument
+- **xlsx, ods and csv only, alone, zipped or gzipped.** Legacy `.xls`, binary `.xlsb` and flat OpenDocument
   `.fods` are refused as `format.unsupported` rather than misread; inside an archive they are skipped
   and listed. Archives inside archives are not opened.
 - **Synchronous, over seekable streams.** Parsing is processor work over a buffered stream; a request

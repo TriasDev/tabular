@@ -90,8 +90,8 @@ So the gzip framing is ours, the deflate decoding stays the BCL's:
   deflate data through a raw `DeflateStream`, then the 8-byte trailer, checked against the CRC-32
   and the byte count of what was decompressed.
 - A `DeflateStream` does not say where its data ended, and it reads past that end: measured, the
-  `Read` call that finally returns 0 goes on reading the base stream to its very end (300 KB of
-  trailing bytes, all read). Every call that returns data stops reading as soon as it has some. So
+  `Read` call that finally returns 0 goes on reading past the end of the data — measured on a
+  single member, to the end of the file. Every call that returns data stops reading as soon as it has some. So
   the end of the deflate data lies in the **last read made before the call that returned 0**, or in
   the **first read made during it** (when the end-of-block code stood alone at the start of a new
   read). The reader feeds the `DeflateStream` through a pass-through that hands out at most 64 KB a
