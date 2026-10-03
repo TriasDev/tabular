@@ -1,4 +1,5 @@
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular;
 
@@ -72,7 +73,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Creates a writer for a format, into a stream.</summary>
     /// <param name="stream">Where the file goes: a file, a blob, a response body. It need not seek.</param>
-    /// <param name="format">The format to write. Csv in this version.</param>
+    /// <param name="format">The format to write: csv or xlsx in this version.</param>
     /// <param name="options">The format's knobs; checked here, before anything is written.</param>
     /// <exception cref="ArgumentException">The stream cannot be written, or an option cannot work.</exception>
     /// <exception cref="ArgumentOutOfRangeException">A format this version does not write.</exception>
@@ -99,12 +100,23 @@ public sealed class TabularWriter : IAsyncDisposable
 #pragma warning restore S3928
             }
 
+            if (effective.Xlsx is null)
+            {
+#pragma warning disable S3928 // Justification: the parameter name identifies the option being validated, not a method parameter
+                throw new ArgumentNullException(nameof(TabularWriterOptions.Xlsx), $"{nameof(TabularWriterOptions)}.{nameof(TabularWriterOptions.Xlsx)} is null.");
+#pragma warning restore S3928
+            }
+
             switch (format)
             {
                 case TabularFormat.Csv:
                     CsvFormat csv = effective.Csv.Resolve();
                     SpillBuffer buffer = new();
                     return new TabularWriter(stream, format, buffer, new CsvSheetWriter(buffer, csv), effective.LeaveOpen);
+                case TabularFormat.Xlsx:
+                    XlsxWriterOptions xlsx = effective.Xlsx.Checked();
+                    SpillBuffer workbook = new();
+                    return new TabularWriter(stream, format, workbook, new XlsxSheetWriter(workbook, xlsx), effective.LeaveOpen);
                 default:
                     throw new ArgumentOutOfRangeException(nameof(format), format, $"Writing {format} is not supported.");
             }
