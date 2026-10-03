@@ -30,6 +30,8 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     private const int TagOverhead = 80;
 
+    private const string NumberEnd = "\"/>";
+
     private static readonly int MaxTextChars = OdsCursorOptions.Default.MaxValueChars;
 
     private static readonly SearchValues<char> NeedsMarkup = SearchValues.Create("&<> \t\n\r");
@@ -85,13 +87,50 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     public string? WriteText(string value, int column) => WriteString(value);
 
-    public string? WriteLong(long value) => throw new NotSupportedException("Numbers arrive with the next change.");
+    public string? WriteLong(long value)
+    {
+        if (ValueChecks.LongInDouble(value) is { } code)
+        {
+            return code;
+        }
 
-    public string? WriteDecimal(decimal value) => throw new NotSupportedException("Numbers arrive with the next change.");
+        StartFloat();
+        _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
+        _row.Append(NumberEnd);
+        return null;
+    }
 
-    public string? WriteDouble(double value) => throw new NotSupportedException("Numbers arrive with the next change.");
+    public string? WriteDecimal(decimal value)
+    {
+        if (ValueChecks.DecimalInDouble(value) is { } code)
+        {
+            return code;
+        }
 
-    public string? WriteDate(DateTime value, bool hasTime) => throw new NotSupportedException("Dates arrive with the next change.");
+        StartFloat();
+        _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
+        _row.Append(NumberEnd);
+        return null;
+    }
+
+    public string? WriteDouble(double value)
+    {
+        StartFloat();
+        _row.AppendFormatted(value, "R", CultureInfo.InvariantCulture);
+        _row.Append(NumberEnd);
+        return null;
+    }
+
+    public string? WriteDate(DateTime value, bool hasTime)
+    {
+        // ISO in an attribute: no serial, so no 1900 floor and no leap-year bug — any year reads back.
+        _row.Append("<table:table-cell table:style-name=\"");
+        _row.Append(hasTime ? OdsParts.DateTimeStyle : OdsParts.DateStyle);
+        _row.Append("\" office:value-type=\"date\" office:date-value=\"");
+        _row.AppendFormatted(value, hasTime ? "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff" : "yyyy'-'MM'-'dd", CultureInfo.InvariantCulture);
+        _row.Append("\"/>");
+        return null;
+    }
 
     public void WriteBoolean(bool value)
     {
@@ -134,6 +173,9 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _content?.Dispose();
         _content = null;
     }
+
+    /// <summary>Opens a number cell up to its value; LibreOffice formats the display from the value.</summary>
+    private void StartFloat() => _row.Append("<table:table-cell office:value-type=\"float\" office:value=\"");
 
     private string? WriteString(string value)
     {
