@@ -17,25 +17,25 @@ internal static class TextRules
     {
         ReadOnlySpan<char> span = text;
 
-        // Check for XML-forbidden characters
         if (span.IndexOfAny(Forbidden) >= 0)
         {
             return ErrorCodes.Write.InvalidCharacter;
         }
 
-        // Check for unpaired surrogates
-        return ValidateSurrogates(span) ? null : ErrorCodes.Write.InvalidCharacter;
+        int surrogate = span.IndexOfAnyInRange('\uD800', '\uDFFF');
+
+        return surrogate < 0 || PairsAreWhole(span[surrogate..]) ? null : ErrorCodes.Write.InvalidCharacter;
     }
 
-    /// <summary>Whether every surrogate is properly paired.</summary>
-    private static bool ValidateSurrogates(ReadOnlySpan<char> span)
+    /// <summary>Whether every surrogate is a high one directly followed by a low one.</summary>
+    private static bool PairsAreWhole(ReadOnlySpan<char> span)
     {
         int i = 0;
         while (i < span.Length)
         {
             if (char.IsHighSurrogate(span[i]))
             {
-                if (i + 1 >= span.Length || !char.IsLowSurrogate(span[i + 1]))
+                if (i + 1 == span.Length || !char.IsLowSurrogate(span[i + 1]))
                 {
                     return false;
                 }

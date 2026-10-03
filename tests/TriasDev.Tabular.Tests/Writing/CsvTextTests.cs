@@ -49,13 +49,26 @@ public sealed class CsvTextTests
     [InlineData("\u001F")]
     [InlineData("￾")]
     [InlineData("￿")]
-    [InlineData("lone \uD800 high")]
-    [InlineData("lone \uDC00 low")]
-    [InlineData("swapped \uDC00\uD800")]
-    [InlineData("ends high \uD83D")]
     public async Task RefusesACharacterXmlForbids(string value)
     {
         Assert.Equal(ErrorCodes.Write.InvalidCharacter, (await Refused(value)).Code);
+    }
+
+    [Fact]
+    public async Task RefusesAnUnpairedSurrogate()
+    {
+        // Unpaired surrogates in string literals (ldstr, UTF-16 user-string heap) survive compile-time.
+        foreach (string value in new[] { "lone \uD800 high", "lone \uDC00 low", "swapped \uDC00\uD800", "ends high \uD83D" })
+        {
+            Assert.Equal(ErrorCodes.Write.InvalidCharacter, (await Refused(value)).Code);
+        }
+    }
+
+    [Fact]
+    public async Task WritesAPairedSurrogate()
+    {
+        // Valid surrogate pair in a literal.
+        Assert.Equal("pair 👍 ok", await One("pair 👍 ok"));
     }
 
     [Theory]
