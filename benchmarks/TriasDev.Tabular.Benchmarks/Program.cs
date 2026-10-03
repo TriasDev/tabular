@@ -52,6 +52,7 @@ public static class Program
         new FullAnalysis(TabularFormat.Ods),
         new FullAnalysis(TabularFormat.Zip),
         new FullAnalysis(TabularFormat.Gzip),
+        new FullAnalysis(TabularFormat.Tar),
         new FullAnalysis(TabularFormat.Csv),
     ];
 
@@ -94,6 +95,7 @@ public static class Program
             TabularFormat.Ods => CandidateFormats.Ods,
             TabularFormat.Zip => CandidateFormats.Zip,
             TabularFormat.Gzip => CandidateFormats.Gzip,
+            TabularFormat.Tar => CandidateFormats.Tar,
             _ => CandidateFormats.Csv,
         };
 
@@ -105,6 +107,7 @@ public static class Program
                 TabularFormat.Ods => new OdsCursor(stream),
                 TabularFormat.Zip => new ArchiveCursor(stream),
                 TabularFormat.Gzip => new GzipCursor(stream, "benchmark.csv.gz"),
+                TabularFormat.Tar => new ArchiveCursor(stream),
                 _ => new CsvCursor(stream, "benchmark.csv"),
             };
 
@@ -176,7 +179,7 @@ public static class Program
     {
         public string Name => "TriasDev.Tabular.ArchiveCursor";
 
-        public CandidateFormats Formats => CandidateFormats.Zip;
+        public CandidateFormats Formats => CandidateFormats.Zip | CandidateFormats.Tar;
 
         public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
         {
@@ -384,6 +387,11 @@ public static class Program
         return 0;
     }
 
+    private static bool IsTar(string path) =>
+        path.EndsWith(".tar", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase);
+
     private static string Extension(string path) =>
         Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
 
@@ -424,14 +432,17 @@ public static class Program
                 continue;
             }
 
-            CandidateFormats format = Extension(path) switch
-            {
-                "xlsx" => CandidateFormats.Xlsx,
-                "ods" => CandidateFormats.Ods,
-                "zip" => CandidateFormats.Zip,
-                "gz" => CandidateFormats.Gzip,
-                _ => CandidateFormats.Csv,
-            };
+            // Routes candidates only; telling the formats apart by their bytes is the library's job.
+            CandidateFormats format = IsTar(path)
+                ? CandidateFormats.Tar
+                : Extension(path) switch
+                {
+                    "xlsx" => CandidateFormats.Xlsx,
+                    "ods" => CandidateFormats.Ods,
+                    "zip" => CandidateFormats.Zip,
+                    "gz" => CandidateFormats.Gzip,
+                    _ => CandidateFormats.Csv,
+                };
 
             foreach (IParserCandidate candidate in Candidates.Where(c => c.Formats.HasFlag(format)))
             {

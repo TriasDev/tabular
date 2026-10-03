@@ -64,8 +64,8 @@ header checksums itself.
 |---|---|
 | `RegularFile`, `V7RegularFile`, `ContiguousFile` | a file: judged by its bytes like a zip entry |
 | `Directory`, `SymbolicLink`, `HardLink`, `CharacterDevice`, `BlockDevice`, `Fifo`, PAX global attributes, and any other non-file type | left out without a word, like a zip directory |
-| `SparseFile` (GNU sparse) | skipped as `SkippedEntryReason.Unsupported` — its stream is the sparse map plus data, not the file |
-| hidden paths (a segment starting with `.`, including macOS `._*` AppleDouble files) and `__MACOSX/` | left out, by the rule zip uses |
+| `SparseFile` (GNU sparse) | *revised in implementation:* `TarReader` refuses it at the header itself (`NotSupportedException`, .NET 8 and 10), so nothing after it can be reached — the whole tar is refused as `format.unsupported`, with a message naming sparse files |
+| hidden paths (a segment starting with `.`, including macOS `._*` AppleDouble files), `__MACOSX/`, and an entry whose name is empty (only a damaged header gives one) | left out, by the rule zip uses |
 
 `Source` is `TarEntry.Name` as written (a leading `./` stays, as a zip's does).
 
@@ -111,9 +111,11 @@ Measured in the benchmark (see Measuring), including the worst case.
 - **The end of the archive must be marked.** A tar ends with zero blocks; a `.tar` cut exactly at an
   entry boundary would otherwise read as a complete, smaller archive. `TarReader` enforces this
   itself — measured on .NET 8 and 10: a tar whose end blocks are missing raises
-  `EndOfStreamException`, so it maps to `Truncated` with the rest; a single zero block is accepted as
-  the end. Tests pin both, on a `.tar` and a `.tar.gz`; should a runtime stop enforcing it, the check
-  is added then. (A tar.gz cut anywhere is also caught by the gzip layer from #68.)
+  `EndOfStreamException` — but only on a stream it cannot seek. On a seekable `.tar` it takes the end
+  of the file for the end of the archive, so `TarContainer` checks for the zero block itself (found in
+  implementation). A single zero block is accepted as the end. And a tar.gz pass that reaches the end
+  of the tar reads the gzip stream to its end too, or its trailer — the checksum of the whole file —
+  would never be checked: `TarReader` stops at the first zero block. (A tar.gz cut anywhere is also caught by the gzip layer from #68.)
 - A gzip layer that is damaged raises what it raises today (`Truncated` / `Corrupt` from
   `GzipStreamReader`).
 

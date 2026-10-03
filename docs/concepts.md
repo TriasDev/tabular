@@ -72,7 +72,7 @@ before the first separator may be any length. So under German `1234.567` reads a
 
 ## What belongs to the sheet
 
-Each `SheetProfile` says what its own source was: `Format`, `Source` (a path inside an archive, or the name
+Each `SheetProfile` says what its own source was: `Format`, `Source` (a path inside a zip or tar archive, or the name
 a gzip header stores, else null), the csv `Dialect` it was read with, and the `Diagnostics` of what was repaired in it.
 `FileProfile.Format` is the container's; `FileProfile.Diagnostics` is every sheet together. Both are
 snapshots taken when the pass ended.

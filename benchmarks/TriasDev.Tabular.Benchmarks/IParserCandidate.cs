@@ -10,6 +10,7 @@ public enum CandidateFormats
     Ods = 4,
     Zip = 8,
     Gzip = 16,
+    Tar = 32,
 }
 
 /// <summary>

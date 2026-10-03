@@ -2,8 +2,8 @@
 
 | | Default | Why |
 |---|---|---|
-| Archive entries | 16,384 | The directory is read before anything else, and each entry costs a sniff |
-| Archive expansion | 8 GB | Every entry's declared size together; an archive may carry a zipped ods at that format's own budget. A gzip file is held to the same bound (`ArchiveCursorOptions.MaxUncompressedBytes`) on what it expands to, counted while decompressing, not from any declared size |
+| Archive entries | 16,384 | A zip's or tar's directory is read before anything else (a tar.gz's as it is decompressed), and each entry costs a sniff |
+| Archive expansion | 8 GB | Every entry's declared size together — for a tar.gz counted as it is decompressed, and its gzip layer counted besides; an archive may carry a zipped ods at that format's own budget. A gzip file is held to the same bound (`ArchiveCursorOptions.MaxUncompressedBytes`) on what it expands to, counted while decompressing, not from any declared size |
 | Workbook inside an archive or a gzip file | 256 MB | Held in memory while its sheets are read, one at a time. A server may raise it to any size, past 2 GB too |
 | Package expansion | 2 GB (ods: 8 GB) | A zip's ratio is unbounded by design; a 50 MB upload could otherwise become fifty gigabytes. OpenDocument writes about four times the bytes for the same cells, so its budget is four times larger |
 | Package parts | 16,384 | Every entry's metadata is materialised to find parts by name, before any budget can be consulted |
