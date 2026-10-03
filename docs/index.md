@@ -29,7 +29,7 @@ mapping, and import typed rows or precise errors.
 
 ### I just need to read big files fast
 
-A forward-only cursor over rows of typed cells, for xlsx, ods, csv, zip archives of them, and gzip-compressed files.
+A forward-only cursor over rows of typed cells, for xlsx, ods, csv, zip and tar archives of them, and gzip-compressed files.
 
 - [Formats](formats.md) — what each kind of file reads as, and how malformed csv is repaired
 - [Performance](performance.md) — the library's own numbers

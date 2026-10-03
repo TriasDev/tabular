@@ -27,4 +27,10 @@ public enum TabularFormat
     /// the inner file's.
     /// </summary>
     Gzip,
+
+    /// <summary>
+    /// A tar archive, plain or compressed with gzip, read as one workbook whose sheets are its files'.
+    /// The container's format: each sheet keeps its own.
+    /// </summary>
+    Tar,
 }
