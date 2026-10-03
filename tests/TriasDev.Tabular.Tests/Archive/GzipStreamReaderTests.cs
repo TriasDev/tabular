@@ -206,4 +206,62 @@ public sealed class GzipStreamReaderTests
         reader.CopyTo(Stream.Null);
         Assert.Equal(file.Length, reader.FilePosition);
     }
+
+    // An empty member as writers that flush emit it: deflate data 00 00 00 FF FF 03 00, trailer of zeros.
+    private static readonly byte[] _flushedEmptyMember =
+        [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x03, 0x00,
+         0, 0, 0, 0, 0, 0, 0, 0];
+
+    [Fact]
+    public void ReadsAMemberAfterAnEmptyMemberWrittenWithAFlush()
+    {
+        byte[] file = [.. _flushedEmptyMember, .. GzipFile.Of("a;b\n1;2\n")];
+
+        Assert.Equal(Encoding.UTF8.GetBytes("a;b\n1;2\n"), ReadAll(file));
+    }
+
+    [Fact]
+    public void ReadsAnEmptyMemberWrittenWithAFlushAsEmpty() => Assert.Empty(ReadAll(_flushedEmptyMember));
+
+    [Fact]
+    public void RefusesEveryCutOfAFlushedEmptyMemberFollowedByAnother()
+    {
+        byte[] file = [.. _flushedEmptyMember, .. GzipFile.Of("a;b\n1;2\n")];
+
+        for (int cut = 0; cut < file.Length; cut++)
+        {
+            if (cut == _flushedEmptyMember.Length)
+            {
+                Assert.Empty(ReadAll(file[..cut]));
+                continue;
+            }
+
+            if (cut == _flushedEmptyMember.Length - 1)
+            {
+                // Seven of the trailer's eight zeros, and the deflate data's own last 00 spells the
+                // eighth: no byte tells this from a whole file, and nothing of the content is missing.
+                Assert.Empty(ReadAll(file[..cut]));
+                continue;
+            }
+
+            Refusal(file[..cut]);
+        }
+    }
+
+    [Fact]
+    public void NeverReportsAFilePositionBehindAnEarlierOne()
+    {
+        byte[] file = [.. Enumerable.Range(0, 50).SelectMany(i => GzipFile.Of(Text(100 + i)))];
+        using GzipStreamReader reader = new(new MemoryStream(file), long.MaxValue);
+        byte[] buffer = new byte[500];
+        long last = reader.FilePosition;
+
+        while (reader.Read(buffer, 0, buffer.Length) > 0)
+        {
+            Assert.True(reader.FilePosition >= last, $"{reader.FilePosition} after {last}");
+            last = reader.FilePosition;
+        }
+
+        Assert.Equal(file.Length, reader.FilePosition);
+    }
 }

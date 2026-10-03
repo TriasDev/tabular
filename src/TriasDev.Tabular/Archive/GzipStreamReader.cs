@@ -53,7 +53,7 @@ internal sealed class GzipStreamReader : Stream
     public string? Name { get; }
 
     /// <summary>How far into the file the compressed data has been read, for progress.</summary>
-    public long FilePosition => _feed.End;
+    public long FilePosition => _feed.Furthest;
 
     public override bool CanRead => true;
 
@@ -139,18 +139,38 @@ internal sealed class GzipStreamReader : Stream
         base.Dispose(disposing);
     }
 
-    private static int FindTrailer(ReadOnlySpan<byte> window, int earliest, uint crc, uint length)
+    /// <summary>
+    /// The first place the trailer fits that is also followed by a member, or by the end of the file;
+    /// failing that, the first place it fits.
+    /// </summary>
+    /// <remarks>
+    /// A trailer of zeros — an empty member's — also fits one byte early when the deflate data ends
+    /// in a zero, as a flushed empty member's <c>00 00 00 FF FF 03 00</c> does. Taking that first
+    /// fit would leave the reader on the trailer's last byte, ending the file and dropping every
+    /// member after it. A true end is followed by <c>1F</c> or by nothing; an early one by a zero.
+    /// </remarks>
+    private static int FindTrailer(ReadOnlySpan<byte> window, int earliest, uint crc, uint length, long windowStart, long fileLength)
     {
+        int firstFit = -1;
+
         for (int at = earliest; at + 8 <= window.Length; at++)
         {
-            if (BinaryPrimitives.ReadUInt32LittleEndian(window[at..]) == crc
-                && BinaryPrimitives.ReadUInt32LittleEndian(window[(at + 4)..]) == length)
+            if (BinaryPrimitives.ReadUInt32LittleEndian(window[at..]) != crc
+                || BinaryPrimitives.ReadUInt32LittleEndian(window[(at + 4)..]) != length)
+            {
+                continue;
+            }
+
+            firstFit = firstFit < 0 ? at : firstFit;
+            long after = windowStart + at + 8;
+
+            if (after == fileLength || (at + 8 < window.Length && window[at + 8] == 0x1F))
             {
                 return at;
             }
         }
 
-        return -1;
+        return firstFit;
     }
 
     private DeflateStream StartMember()
@@ -167,14 +187,14 @@ internal sealed class GzipStreamReader : Stream
         _deflate.Dispose();
 
         (long from, long to) = _feed.Window;
-        byte[] window = new byte[checked((int)(to - from)) + 8];
+        byte[] window = new byte[checked((int)(to - from)) + 9];
         _file.Position = from;
         int available = _file.ReadAtLeast(window, window.Length, throwOnEndOfStream: false);
 
         // Never inside the shortest deflate stream: an empty member's trailer is eight zero bytes,
         // and its own 03 00 would otherwise lend it the first one.
         int earliest = (int)Math.Max(0, _feed.Start + MinDeflateBytes - from);
-        int trailer = FindTrailer(window.AsSpan(0, available), earliest, _crc, unchecked((uint)_memberLength));
+        int trailer = FindTrailer(window.AsSpan(0, available), earliest, _crc, unchecked((uint)_memberLength), from, _file.Length);
 
         if (trailer < 0)
         {
@@ -219,8 +239,11 @@ internal sealed class GzipStreamReader : Stream
         /// <summary>Where the current member's deflate data begins.</summary>
         public long Start { get; private set; }
 
-        /// <summary>The file position after the last read.</summary>
+        /// <summary>The file position after the last read of the current member.</summary>
         public long End { get; private set; }
+
+        /// <summary>The furthest the file has been read: never behind an earlier answer, though a member starts back at its own beginning.</summary>
+        public long Furthest { get; private set; }
 
         /// <summary>
         /// Where the trailer may start: from the last read before the final decompressor call — or
@@ -247,6 +270,7 @@ internal sealed class GzipStreamReader : Stream
         public void Begin()
         {
             Start = End = file.Position;
+            Furthest = Math.Max(Furthest, End);
             _lastRead = _lastReadBeforeMark = _firstReadAfterMarkEnd = -1;
         }
 
@@ -267,6 +291,7 @@ internal sealed class GzipStreamReader : Stream
             {
                 _lastRead = End;
                 End += read;
+                Furthest = Math.Max(Furthest, End);
 
                 if (_firstReadAfterMarkEnd < 0)
                 {
