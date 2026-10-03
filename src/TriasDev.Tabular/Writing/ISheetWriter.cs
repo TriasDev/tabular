@@ -22,7 +22,7 @@ internal interface ISheetWriter
 
     void BeginRow();
 
-    /// <summary>Writes text already checked by <c>TextRules</c>; returns a code if the format cannot hold it.</summary>
+    /// <summary>Writes text already checked by <see cref="TextRules"/>; returns a code if the format cannot hold it.</summary>
     string? WriteText(string value);
 
     /// <summary>Writes an integer; returns a code if the format cannot hold it exactly.</summary>

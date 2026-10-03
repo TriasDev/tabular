@@ -19,6 +19,12 @@ internal sealed class CsvSheetWriter : ISheetWriter
     /// <summary>A row buffer past this is let go after its row, rather than kept for the rest of the file.</summary>
     private const int RetainedRowChars = 1024 * 1024;
 
+    /// <summary>The line breaks one quoted field may hold before the reader takes its quote for a stray one.</summary>
+    private static readonly int MaxLineBreaks = CsvCursorOptions.Default.MaxQuotedFieldLines;
+
+    /// <summary>The longest field the reader reads.</summary>
+    private static readonly int MaxFieldChars = CsvCursorOptions.Default.MaxFieldChars;
+
     private static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
 
     private readonly SpillBuffer _out;
@@ -58,16 +64,40 @@ internal sealed class CsvSheetWriter : ISheetWriter
 
     public string? WriteText(string value)
     {
-        Separate();
         ReadOnlySpan<char> text = value;
+        bool guard = _format.FormulaGuard && !text.IsEmpty && text[0] is '=' or '+' or '-' or '@' or '\t' or '\r';
 
-        if (text.IndexOfAny(_needsQuotes) < 0)
+        if (text.Length + (guard ? 1 : 0) > MaxFieldChars)
         {
+            return ErrorCodes.Write.TextTooLong;
+        }
+
+        bool quoted = text.IndexOfAny(_needsQuotes) >= 0;
+
+        if (quoted && CountLineBreaks(text) > MaxLineBreaks)
+        {
+            return ErrorCodes.Write.TooManyLines;
+        }
+
+        Separate();
+
+        if (!quoted)
+        {
+            if (guard)
+            {
+                Append('\'');
+            }
+
             Append(text);
             return null;
         }
 
         Append('"');
+
+        if (guard)
+        {
+            Append('\'');
+        }
 
         while (true)
         {
@@ -86,6 +116,22 @@ internal sealed class CsvSheetWriter : ISheetWriter
 
         Append('"');
         return null;
+    }
+
+    /// <summary>Line breaks as the reader counts them: a line feed, or a carriage return not followed by one.</summary>
+    private static int CountLineBreaks(ReadOnlySpan<char> text)
+    {
+        int count = 0;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] == '\n' || (text[i] == '\r' && (i + 1 == text.Length || text[i + 1] != '\n')))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     public string? WriteLong(long value)

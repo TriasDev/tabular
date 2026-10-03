@@ -179,7 +179,7 @@ public sealed class TabularWriter : IAsyncDisposable
             return;
         }
 
-        Check(_sheet.WriteText(value), column);
+        Check(TextRules.Check(value) ?? _sheet.WriteText(value), column);
     }
 
     /// <summary>Writes the next cell as an integer. Narrower integers arrive here by implicit conversion.</summary>
@@ -343,6 +343,11 @@ public sealed class TabularWriter : IAsyncDisposable
             if (column.Width is { } width && (!double.IsFinite(width) || width <= 0 || width > MaxWidth))
             {
                 throw Faulting(new ArgumentOutOfRangeException(nameof(columns), width, $"A column is more than 0 and at most {MaxWidth} characters wide."));
+            }
+
+            if (TextRules.Check(column.Header) is { } code)
+            {
+                throw Faulting(new ArgumentException($"The header \"{column.Header}\" cannot be written: {code}.", nameof(columns)));
             }
         }
     }
