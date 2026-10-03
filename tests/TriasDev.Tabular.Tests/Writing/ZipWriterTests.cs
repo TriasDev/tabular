@@ -2,6 +2,8 @@ using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
 
+using TriasDev.Tabular.Archive;
+
 using Xunit;
 
 namespace TriasDev.Tabular.Tests.Writing;
@@ -83,7 +85,7 @@ public sealed class ZipWriterTests
         Assert.Equal(0x04034b50u, BinaryPrimitives.ReadUInt32LittleEndian(file));
         Assert.Equal(0, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(6)));
         Assert.Equal(0, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(8)));
-        Assert.Equal(Crc32.Compute("application/vnd.oasis.opendocument.spreadsheet"u8), BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(14)));
+        Assert.Equal(Crc32.Append(0, "application/vnd.oasis.opendocument.spreadsheet"u8), BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(14)));
         Assert.Equal(46u, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(18)));
         Assert.Equal(46u, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(22)));
         Assert.Equal("mimetype", Encoding.ASCII.GetString(file, 30, 8));
@@ -107,7 +109,7 @@ public sealed class ZipWriterTests
 
         int descriptor = file.AsSpan().IndexOf((ReadOnlySpan<byte>)[0x50, 0x4B, 0x07, 0x08]);
         Assert.True(descriptor > 0);
-        Assert.Equal(Crc32.Compute(content), BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(descriptor + 4)));
+        Assert.Equal(Crc32.Append(0, content), BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(descriptor + 4)));
         Assert.Equal((uint)content.Length, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(descriptor + 12)));
     }
 
@@ -134,7 +136,7 @@ public sealed class ZipWriterTests
         ReadOnlySpan<byte> bytes = file;
         int descriptor = bytes.IndexOf((ReadOnlySpan<byte>)[0x50, 0x4B, 0x07, 0x08]);
         Assert.True(descriptor > 0, "a data descriptor");
-        Assert.Equal(Crc32.Compute(content), BinaryPrimitives.ReadUInt32LittleEndian(bytes[(descriptor + 4)..]));
+        Assert.Equal(Crc32.Append(0, content), BinaryPrimitives.ReadUInt32LittleEndian(bytes[(descriptor + 4)..]));
         long compressed = BinaryPrimitives.ReadInt64LittleEndian(bytes[(descriptor + 8)..]);
         Assert.True(compressed > 0);
         Assert.Equal(content.Length, BinaryPrimitives.ReadInt64LittleEndian(bytes[(descriptor + 16)..]));

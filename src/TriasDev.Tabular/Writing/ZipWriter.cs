@@ -2,6 +2,8 @@ using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
 
+using TriasDev.Tabular.Archive;
+
 namespace TriasDev.Tabular;
 
 /// <summary>
@@ -56,7 +58,7 @@ internal sealed class ZipWriter
     {
         ExpectNoOpenEntry();
         byte[] encodedName = Encoding.ASCII.GetBytes(name);
-        uint crc = Crc32.Compute(content);
+        uint crc = Crc32.Append(0, content);
         long offset = _out.TotalWritten;
 
         WriteLocalHeader(encodedName, Stored, flags: 0, crc, content.Length);
@@ -269,7 +271,7 @@ internal sealed class ZipWriter
 
         public override void Write(ReadOnlySpan<byte> buffer)
         {
-            Crc = Crc32.Update(Crc, buffer);
+            Crc = Crc32.Append(Crc, buffer);
             Size += buffer.Length;
             _deflate.Write(buffer);
         }

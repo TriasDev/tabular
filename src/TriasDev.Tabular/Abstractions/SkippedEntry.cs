@@ -42,4 +42,10 @@ public enum SkippedEntryReason
 
     /// <summary>A workbook that is damaged or cut off.</summary>
     Unreadable,
+
+    /// <summary>
+    /// A gzip-compressed file inside the archive. One layer of packing is read: a gzip file on its
+    /// own, or a file in an archive, not both.
+    /// </summary>
+    Compressed,
 }

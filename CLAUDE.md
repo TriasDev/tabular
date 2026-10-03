@@ -35,7 +35,7 @@ under `src/TriasDev.Tabular` still group the code by layer:
 - **Abstractions** — `ITabularCursor` is the only format-aware seam; everything above is written
   against it. `TabularFile.Open` picks the cursor from the file's bytes, never from its extension: not a
   zip → csv; a zip → xlsx when its directory holds `[Content_Types].xml` or `_rels/.rels`, ods when
-  it holds the OpenDocument spreadsheet `mimetype`, otherwise an archive.
+  it holds the OpenDocument spreadsheet `mimetype`, otherwise an archive; gzip (`1F 8B 08`) → `GzipCursor`.
 - **Csv / Xlsx / Ods** — the three cursors. The CSV cursor detects its dialect and *repairs* malformed input
   (stray quotes, unclosed quotes), counting each repair in `CursorDiagnostics`. The xlsx cursor reads
   the OOXML package directly (shared strings, styles, 1904 epoch, inline strings). The ods cursor reads
@@ -47,6 +47,8 @@ under `src/TriasDev.Tabular` still group the code by layer:
   entry streams with its dialect detected from its head; a workbook entry is copied into a
   `ChunkedBuffer` (random access, past 2 GB) and read by its own cursor. `TabularFile.ClassifyZip`
   decides workbook / ods / other ODF / archive from the zip's directory, for `Detect` and for entries.
+  `GzipCursor` reads a gzip file as the file inside it; the gzip framing (header, CRC-32 and size per
+  member) is ours over the BCL's `DeflateStream`, because `GZipStream` reads a cut-off file silently.
 - **Analysis** — reads every row, not a sample. `ColumnFacts` are measured; `TypeHypothesis` is
   derived and only ever a suggestion. Keep that distinction. A sheet's source facts (`Format`,
   `Source`, `Dialect`, `Diagnostics`) live on `SheetProfile`, not `FileProfile` — an archive holds

@@ -1,5 +1,6 @@
 using System.Text;
 
+using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
@@ -30,7 +31,11 @@ public sealed class ApiContractTests
         .Build(), writable: false);
 
     private static ITabularCursor[] Cursors() =>
-        [new CsvCursor(Csv(), "t.csv"), new XlsxCursor(Workbook(), cancellationToken: TestContext.Current.CancellationToken)];
+        [
+            new CsvCursor(Csv(), "t.csv"),
+            new XlsxCursor(Workbook(), cancellationToken: TestContext.Current.CancellationToken),
+            new GzipCursor(new MemoryStream(GzipFile.Of("name;x\na;b\n"), writable: false), "t.csv.gz", cancellationToken: TestContext.Current.CancellationToken),
+        ];
 
     /// <summary>A stream that reads but cannot seek, like a request body or an archive entry.</summary>
     private sealed class ForwardOnly(Stream inner) : Stream
