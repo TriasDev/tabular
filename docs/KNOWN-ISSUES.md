@@ -190,8 +190,11 @@ By design, and the same in every format:
 - With `CsvWriterOptions.FormulaGuard`, text starting with `=`, `+`, `-`, `@`, tab or CR comes back with a leading `'`.
 - A double comes back as a decimal — the import has no double type — and only with the at most 15 significant digits the writer accepts.
 
-Read back through this library, xlsx follows the same rules and adds no exception of its own. Other readers differ in display only:
+Read back through this library, xlsx and ods follow the same rules and add no exception of their own. Other readers differ in display only:
 
 - LibreOffice does not emulate Excel's 1900 leap-year bug: a date before 1900-03-01 written to xlsx shows one day early there (Excel and this library read it correctly).
 - ods: column widths are rounded to whole characters; text holding a carriage return is written twice, as paragraphs for display and as office:string-value for the exact value.
-- Reading ods, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
+- LibreOffice shows dates before 1582-10-15 in the Julian calendar: 0001-01-01 written appears as 0001-01-03, 1500-03-01 as 1500-02-20. The stored value is unchanged and reads back exactly through this library.
+- LibreOffice (and Excel) keep 15 significant digits when they re-save a number: a 16-digit integer such as 9007199254740992 comes back as 9007199254740990 after opening and saving the file there. Write identifiers longer than 15 digits as text.
+
+Reading ods back with this library, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
