@@ -190,7 +190,7 @@ By design, and the same in every format:
 - With `CsvWriterOptions.FormulaGuard`, text starting with `=`, `+`, `-`, `@`, tab or CR comes back with a leading `'`.
 - A double comes back as a decimal — the import has no double type — and only with the at most 15 significant digits the writer accepts.
 
-Read back through this library, xlsx and ods follow the same rules and add no exception of their own. Other readers differ in display only:
+Read back through this library, xlsx and ods follow the same rules and add no exception of their own. Other programs differ, mostly in how they display a value — LibreOffice, in two cases, in the value itself:
 
 - LibreOffice does not emulate Excel's 1900 leap-year bug: a date before 1900-03-01 written to xlsx shows one day early there (Excel and this library read it correctly).
 - ods: column widths are rounded to whole characters; text holding a carriage return is written twice, as paragraphs for display and as office:string-value for the exact value.
