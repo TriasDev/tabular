@@ -16,6 +16,8 @@ namespace TriasDev.Tabular;
 /// (a client error: 400/415).</item>
 /// <item><see cref="TabularLimitException"/> — a readable file that exceeds a configured bound (413),
 /// which is also how most hostile files end.</item>
+/// <item><see cref="TabularWriteException"/> — a value the chosen format cannot hold exactly, found
+/// while writing (500 for a server's own export: the data or the format choice must change).</item>
 /// <item><see cref="TabularStructureException"/> — a readable file that is not the one the plan was
 /// built for (409/422: map it again).</item>
 /// <item><see cref="MappingPlanException"/> — a plan that does not fit its schema (a defect in the
@@ -90,6 +92,44 @@ public sealed class TabularLimitException : TabularException
 
     /// <summary>The bound's value.</summary>
     public long Maximum { get; }
+}
+
+/// <summary>A value cannot be written in the chosen format without changing it.</summary>
+/// <remarks>
+/// Raised while writing, so part of the file is already out: the writer is faulted, and the caller
+/// discards what it wrote — aborts the response, deletes the file. The code says what the format
+/// could not hold; the sheet, row and column say where.
+/// </remarks>
+[SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
+public sealed class TabularWriteException : TabularException
+{
+    /// <summary>Creates the exception.</summary>
+    /// <param name="code">One of the <see cref="ErrorCodes.Write"/> codes.</param>
+    /// <param name="sheetName">The sheet being written.</param>
+    /// <param name="rowNumber">The row as a spreadsheet counts it: the header is row 1.</param>
+    /// <param name="columnIndex">The column, zero-based.</param>
+    /// <param name="header">The column's header.</param>
+    /// <param name="message">What was found, in English, for logs.</param>
+    public TabularWriteException(string code, string sheetName, long rowNumber, int columnIndex, string header, string message)
+        : base(code, message)
+    {
+        SheetName = sheetName;
+        RowNumber = rowNumber;
+        ColumnIndex = columnIndex;
+        Header = header;
+    }
+
+    /// <summary>The sheet being written.</summary>
+    public string SheetName { get; }
+
+    /// <summary>The row as a spreadsheet counts it: the header is row 1.</summary>
+    public long RowNumber { get; }
+
+    /// <summary>The column, zero-based.</summary>
+    public int ColumnIndex { get; }
+
+    /// <summary>The column's header.</summary>
+    public string Header { get; }
 }
 
 /// <summary>
