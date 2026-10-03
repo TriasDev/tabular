@@ -31,9 +31,9 @@ internal static class ValueChecks
             return ErrorCodes.Write.PrecisionLoss;
         }
 
-        #pragma warning disable S1244 // Comparing a double with exact values is intentional: we test round-trip fidelity through decimal.
+#pragma warning disable S1244 // Comparing a double with exact values is intentional: we test round-trip fidelity through decimal.
         return (double)asDecimal == value ? null : ErrorCodes.Write.PrecisionLoss;
-        #pragma warning restore S1244
+#pragma warning restore S1244
     }
 
     /// <summary>The date with anything finer than a millisecond dropped, and no kind.</summary>
