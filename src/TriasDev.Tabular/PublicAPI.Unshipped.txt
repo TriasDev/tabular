@@ -106,3 +106,17 @@ TriasDev.Tabular.Archive.GzipCursor.Sheets.get -> System.Collections.Generic.IRe
 TriasDev.Tabular.Archive.GzipCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.Archive.GzipCursor
 TriasDev.Tabular.Archive.GzipCursor.GzipCursor(System.IO.Stream! stream, string! name, TriasDev.Tabular.TabularOpenOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+TriasDev.Tabular.TabularWriterOptions.Ods.get -> TriasDev.Tabular.Ods.OdsWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Ods.init -> void
+TriasDev.Tabular.Ods.OdsWriterOptions
+TriasDev.Tabular.Ods.OdsWriterOptions.<Clone>$() -> TriasDev.Tabular.Ods.OdsWriterOptions!
+TriasDev.Tabular.Ods.OdsWriterOptions.CompressionLevel.get -> System.IO.Compression.CompressionLevel
+TriasDev.Tabular.Ods.OdsWriterOptions.CompressionLevel.init -> void
+TriasDev.Tabular.Ods.OdsWriterOptions.Equals(TriasDev.Tabular.Ods.OdsWriterOptions? other) -> bool
+TriasDev.Tabular.Ods.OdsWriterOptions.OdsWriterOptions() -> void
+override TriasDev.Tabular.Ods.OdsWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.Ods.OdsWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.Ods.OdsWriterOptions.ToString() -> string!
+static TriasDev.Tabular.Ods.OdsWriterOptions.Default.get -> TriasDev.Tabular.Ods.OdsWriterOptions!
+static TriasDev.Tabular.Ods.OdsWriterOptions.operator !=(TriasDev.Tabular.Ods.OdsWriterOptions? left, TriasDev.Tabular.Ods.OdsWriterOptions? right) -> bool
+static TriasDev.Tabular.Ods.OdsWriterOptions.operator ==(TriasDev.Tabular.Ods.OdsWriterOptions? left, TriasDev.Tabular.Ods.OdsWriterOptions? right) -> bool
