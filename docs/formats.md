@@ -55,7 +55,7 @@ stands at the plan's index.
 A file compressed with gzip — `data.csv.gz`, `report.xlsx.gz`, `table.ods.gz` — is read as the file
 it holds: a csv file's one sheet, or a workbook's sheets. `FileProfile.Format` is `Gzip`; each sheet
 keeps the inner file's `Format`. The sheet's `Source` is the file name the gzip header stores (the
-`gzip` tool stores it; .NET's `GZipStream` does not), and empty when it stores none — so a mapping
+`gzip` tool stores it; .NET's `GZipStream` does not), and `null` when it stores none — so a mapping
 plan does not depend on the name a caller passes. A csv sheet is named after that stored name, or
 after the file without its `.gz`.
 

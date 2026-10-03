@@ -143,7 +143,7 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
   path; a zipped csv is read straight out of the archive, never unpacked, at the cost of decompression
   and nothing more.
 - **Read a gzip file as the file inside it** — `.csv.gz` decompressed as it is read; a cut-off or
-  damaged file is refused, never read as a shorter one
+  damaged file is refused, never read as a shorter one.
 - **Import it through a mapping** — declare fields once with their rules (required, length, range,
   pattern, allowed values, unique, or your own — check digits such as ISIN and LEI included), get
   typed rows or errors with stable codes, row by row or in batches. A precheck judges a mapping against the profile before anything is imported.

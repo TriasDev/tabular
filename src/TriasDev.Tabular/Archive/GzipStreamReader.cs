@@ -17,10 +17,13 @@ namespace TriasDev.Tabular.Archive;
 /// </para>
 /// <para>
 /// A <see cref="DeflateStream"/> does not say where its data ended, and reads past it: the read that
-/// finally returns nothing goes on reading the file to its end, while every read that returns data
-/// stops as soon as it has some. So the end lies in the last input read made before that final
-/// read, or in the first made during it, and the trailer is looked for there. A false match needs
-/// 64 bits to agree by chance.
+/// finally returns nothing goes on reading past the end of the data — measured on a single member,
+/// to the end of the file — while every read that returns data stops as soon as it has some. So the
+/// end usually lies in the last input read made before that final read, or in the first made during
+/// it, and the trailer is looked for there. A long run of output-free blocks can push the end
+/// further, into a later read of that final call; when the narrow window holds no trailer the reader
+/// falls back to every byte that call read before refusing. A false match needs 64 bits to agree by
+/// chance.
 /// </para>
 /// </remarks>
 internal sealed class GzipStreamReader : Stream
@@ -149,11 +152,12 @@ internal sealed class GzipStreamReader : Stream
     /// fit would leave the reader on the trailer's last byte, ending the file and dropping every
     /// member after it. A true end is followed by <c>1F</c> or by nothing; an early one by a zero.
     /// </remarks>
-    private static int FindTrailer(ReadOnlySpan<byte> window, int earliest, uint crc, uint length, long windowStart, long fileLength)
+    private static int FindTrailer(ReadOnlySpan<byte> window, int earliest, uint crc, uint length, long windowStart, long fileLength,
+        int until = int.MaxValue)
     {
         int firstFit = -1;
 
-        for (int at = earliest; at + 8 <= window.Length; at++)
+        for (int at = earliest; at + 8 <= window.Length && at < until; at++)
         {
             if (BinaryPrimitives.ReadUInt32LittleEndian(window[at..]) != crc
                 || BinaryPrimitives.ReadUInt32LittleEndian(window[(at + 4)..]) != length)
@@ -168,6 +172,48 @@ internal sealed class GzipStreamReader : Stream
             {
                 return at;
             }
+        }
+
+        return firstFit;
+    }
+
+    /// <summary>
+    /// The same choice over everything the final decompressor call read, in chunks — a long run of
+    /// output-free blocks can leave the end of the data far behind the narrow window. Each chunk
+    /// reads the 8 bytes of a trailer and the one after it past the starts it judges, so a match
+    /// straddling two chunks is seen whole. Returns the file position, or -1.
+    /// </summary>
+    private long FindTrailerWide(long start, long end, uint crc, uint length)
+    {
+        const int chunk = 64 * 1024;
+        const int overlap = 8 + 1;
+
+        byte[] buffer = new byte[chunk + overlap];
+        long fileLength = _file.Length;
+        long firstFit = -1;
+
+        for (long at = start; at <= end; at += chunk)
+        {
+            _file.Position = at;
+            int available = _file.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+            int until = (int)Math.Min(chunk, end - at + 1);
+            int hit = FindTrailer(buffer.AsSpan(0, available), 0, crc, length, at, fileLength, until);
+
+            if (hit < 0)
+            {
+                continue;
+            }
+
+            // FindTrailer answers its preferred match, else its first fit; only the preferred one
+            // ends the search, any other waits for a later chunk to offer one.
+            long position = at + hit;
+
+            if (position + 8 == fileLength || (hit + 8 < available && buffer[hit + 8] == 0x1F))
+            {
+                return position;
+            }
+
+            firstFit = firstFit < 0 ? position : firstFit;
         }
 
         return firstFit;
@@ -196,7 +242,14 @@ internal sealed class GzipStreamReader : Stream
         int earliest = (int)Math.Max(0, _feed.Start + MinDeflateBytes - from);
         int trailer = FindTrailer(window.AsSpan(0, available), earliest, _crc, unchecked((uint)_memberLength), from, _file.Length);
 
-        if (trailer < 0)
+        long found = trailer < 0 ? -1 : from + trailer;
+
+        if (found < 0)
+        {
+            found = FindTrailerWide(from + earliest, _feed.End, _crc, unchecked((uint)_memberLength));
+        }
+
+        if (found < 0)
         {
             // Data that ran to the end of the file was cut off there; data that ended before it had
             // a trailer that does not match. A wrong trailer that is the file's last eight bytes
@@ -206,7 +259,7 @@ internal sealed class GzipStreamReader : Stream
                 : GzipHeader.Corrupt("its content does not match the checksum and size its trailer records");
         }
 
-        long next = from + trailer + 8;
+        long next = found + 8;
         _file.Position = next;
         int lead = _file.ReadByte();
         _file.Position = next;

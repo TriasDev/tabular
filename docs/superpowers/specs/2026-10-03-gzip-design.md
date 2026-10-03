@@ -97,7 +97,9 @@ So the gzip framing is ours, the deflate decoding stays the BCL's:
   read). The reader feeds the `DeflateStream` through a pass-through that hands out at most 64 KB a
   read and remembers both; the trailer is the first position in that window whose 8 bytes are the
   expected CRC-32 and `ISIZE` and which a byte `0x1F` or the end of the file follows; if no position
-  qualifies, the first match. (An empty member written with a flush — deflate `00 00 00 FF FF 03 00`,
+  qualifies, the first match. When the window holds no match at all, a long run of output-free
+  blocks may have pushed the end of the data into a later read of the final call: before refusing,
+  the reader searches every byte that call read, in chunks, with the same choice rule. (An empty member written with a flush — deflate `00 00 00 FF FF 03 00`,
   as Python's gzip and zlib's sync flush write it — would otherwise match one byte early, inside its
   own data, and the reader would drop every member after it.) The trailer is never earlier than 2
   bytes into the member's deflate data (the shortest deflate stream; without this rule an empty

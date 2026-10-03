@@ -264,4 +264,56 @@ public sealed class GzipStreamReaderTests
 
         Assert.Equal(file.Length, reader.FilePosition);
     }
+
+    /// <summary>
+    /// One member whose deflate data is a stored block of content, then <paramref name="emptyBlocks"/>
+    /// blocks that produce no output, then the final empty block — the shape that pushes the end of
+    /// the data far behind the decompressor's last read of output.
+    /// </summary>
+    private static byte[] MemberWithOutputFreeTail(byte[] content, int emptyBlocks)
+    {
+        using MemoryStream member = new();
+        member.Write([0x1F, 0x8B, 0x08, 0, 0, 0, 0, 0, 0, 0xFF]);
+        member.WriteByte(0x00);
+        member.Write(BitConverter.GetBytes((ushort)content.Length));
+        member.Write(BitConverter.GetBytes((ushort)~content.Length));
+        member.Write(content);
+
+        for (int i = 0; i < emptyBlocks; i++)
+        {
+            member.Write([0x00, 0x00, 0x00, 0xFF, 0xFF]);
+        }
+
+        member.Write([0x01, 0x00, 0x00, 0xFF, 0xFF]);
+        member.Write(BitConverter.GetBytes(Crc32.Append(0, content)));
+        member.Write(BitConverter.GetBytes((uint)content.Length));
+        return member.ToArray();
+    }
+
+    [Fact]
+    public void ReadsAMemberWhoseDataEndsInALongRunOfOutputFreeBlocks()
+    {
+        byte[] content = Text(50);
+
+        Assert.Equal(content, ReadAll(MemberWithOutputFreeTail(content, 20_000)));
+    }
+
+    [Fact]
+    public void ReadsTheMemberAfterALongRunOfOutputFreeBlocks()
+    {
+        byte[] content = Text(50);
+        byte[] file = [.. MemberWithOutputFreeTail(content, 20_000), .. GzipFile.Of("x\n")];
+
+        Assert.Equal([.. content, .. "x\n"u8.ToArray()], ReadAll(file));
+    }
+
+    [Theory]
+    [InlineData(50_000)]
+    [InlineData(3)]
+    public void RefusesALongOutputFreeTailCutOff(int cut)
+    {
+        byte[] file = MemberWithOutputFreeTail(Text(50), 20_000);
+
+        Refusal(file[..^cut]);
+    }
 }
