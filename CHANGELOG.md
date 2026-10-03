@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0](https://github.com/TriasDev/tabular/compare/v0.5.0...v0.6.0) (2026-10-03)
+
+
+### Features
+
+* read gzip-compressed files as the file inside them ([#80](https://github.com/TriasDev/tabular/issues/80)) ([78e1223](https://github.com/TriasDev/tabular/commit/78e12232f899fe402c00c5e8db72a029fbfeb77a))
+* read tar and tar.gz archives as one workbook ([#82](https://github.com/TriasDev/tabular/issues/82)) ([faf0be7](https://github.com/TriasDev/tabular/commit/faf0be791bb5a8ea58e4b12358c3c603b7814866))
+* **write:** write csv through TabularWriter, round-tripping through the import ([#77](https://github.com/TriasDev/tabular/issues/77)) ([5de3450](https://github.com/TriasDev/tabular/commit/5de345065b61d2bd098e6757dbd2e063a15bbb79))
+* **write:** write xlsx through TabularWriter, with our own streaming zip writer ([#81](https://github.com/TriasDev/tabular/issues/81)) ([6451e59](https://github.com/TriasDev/tabular/commit/6451e59f37c720c92438385e6a03d3a38d8ece62))
+
 ## [0.5.0](https://github.com/TriasDev/tabular/compare/v0.4.0...v0.5.0) (2026-09-29)
 
 
