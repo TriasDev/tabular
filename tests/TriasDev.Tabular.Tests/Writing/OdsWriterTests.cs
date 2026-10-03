@@ -203,6 +203,17 @@ public sealed class OdsWriterTests
     }
 
     [Fact]
+    public async Task RefusesQuotesInAnAttributeWhoseEscapedFormExceedsTheReadersTokenLimit()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+        string value = "a\r" + new string('"', 2_900_000);
+
+        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write(value)).Code);
+    }
+
+    [Fact]
     public async Task AcceptsTheLongestTextTheReaderTakes()
     {
         string value = new('x', 16 * 1024 * 1024 - 2048);

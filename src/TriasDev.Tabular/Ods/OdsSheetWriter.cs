@@ -179,7 +179,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     private string? WriteString(string value)
     {
-        if (value.Length > MaxTextChars || (value.Length * 5L) + TokenMargin > SheetScanner.MaxBufferChars && LongestToken(value) > SheetScanner.MaxBufferChars - TokenMargin)
+        if (value.Length > MaxTextChars || (value.Length * 6L) + TokenMargin > SheetScanner.MaxBufferChars && LongestToken(value) > SheetScanner.MaxBufferChars - TokenMargin)
         {
             return ErrorCodes.Write.TextTooLong;
         }
