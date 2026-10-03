@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Text;
 
+using TriasDev.Tabular.Tests.Fixtures;
+
 using Xunit;
 
 namespace TriasDev.Tabular.Tests.Fuzz;
@@ -39,6 +41,44 @@ public sealed class MangledInputFuzzTests
             }
 
             ReadsOrRefuses([.. file], "fuzz.csv", seed);
+        }
+    }
+
+    [Fact]
+    public void ReadsOrRefusesMangledGzip()
+    {
+        foreach ((int seed, Random random) in FuzzCases.Generate(300))
+        {
+            List<byte> csv = [];
+
+            for (int i = random.Next(0, 400); i > 0; i--)
+            {
+                csv.AddRange(Encoding.UTF8.GetBytes(random.Pick(CsvTokens)));
+            }
+
+            // Cut, flip and insert past the ten fixed header bytes, so the file stays gzip to the
+            // detector and the damage lands in the framing, the deflate data and the trailer.
+            List<byte> file = [.. GzipFile.Of([.. csv])];
+
+            for (int m = random.Next(1, 4); m > 0 && file.Count > 10; m--)
+            {
+                int at = random.Next(10, file.Count);
+
+                switch (random.Next(3))
+                {
+                    case 0:
+                        file.RemoveRange(at, file.Count - at);
+                        break;
+                    case 1:
+                        file[at] ^= (byte)random.Next(1, 256);
+                        break;
+                    default:
+                        file.Insert(at, (byte)random.Next(256));
+                        break;
+                }
+            }
+
+            ReadsOrRefuses([.. file], "fuzz.csv.gz", seed);
         }
     }
 
