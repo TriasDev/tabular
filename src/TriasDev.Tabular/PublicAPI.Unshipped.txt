@@ -12,3 +12,49 @@ TriasDev.Tabular.TabularWriteException.Header.get -> string!
 TriasDev.Tabular.TabularWriteException.RowNumber.get -> long
 TriasDev.Tabular.TabularWriteException.SheetName.get -> string!
 TriasDev.Tabular.TabularWriteException.TabularWriteException(string! code, string! sheetName, long rowNumber, int columnIndex, string! header, string! message) -> void
+TriasDev.Tabular.WriteColumn
+TriasDev.Tabular.WriteColumn.Deconstruct(out string! Header, out double? Width) -> void
+TriasDev.Tabular.WriteColumn.Equals(TriasDev.Tabular.WriteColumn other) -> bool
+TriasDev.Tabular.WriteColumn.Header.get -> string!
+TriasDev.Tabular.WriteColumn.Header.init -> void
+TriasDev.Tabular.WriteColumn.Width.get -> double?
+TriasDev.Tabular.WriteColumn.Width.init -> void
+TriasDev.Tabular.WriteColumn.WriteColumn() -> void
+TriasDev.Tabular.WriteColumn.WriteColumn(string! Header, double? Width = null) -> void
+static TriasDev.Tabular.WriteColumn.operator !=(TriasDev.Tabular.WriteColumn left, TriasDev.Tabular.WriteColumn right) -> bool
+static TriasDev.Tabular.WriteColumn.operator ==(TriasDev.Tabular.WriteColumn left, TriasDev.Tabular.WriteColumn right) -> bool
+~override TriasDev.Tabular.WriteColumn.Equals(object obj) -> bool
+override TriasDev.Tabular.WriteColumn.GetHashCode() -> int
+~override TriasDev.Tabular.WriteColumn.ToString() -> string
+TriasDev.Tabular.TabularWriterOptions
+TriasDev.Tabular.TabularWriterOptions.Csv.get -> TriasDev.Tabular.Csv.CsvWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Csv.init -> void
+TriasDev.Tabular.TabularWriterOptions.Equals(TriasDev.Tabular.TabularWriterOptions? other) -> bool
+TriasDev.Tabular.TabularWriterOptions.LeaveOpen.get -> bool
+TriasDev.Tabular.TabularWriterOptions.LeaveOpen.init -> void
+TriasDev.Tabular.TabularWriterOptions.TabularWriterOptions() -> void
+TriasDev.Tabular.TabularWriterOptions.<Clone>$() -> TriasDev.Tabular.TabularWriterOptions!
+static TriasDev.Tabular.TabularWriterOptions.Default.get -> TriasDev.Tabular.TabularWriterOptions!
+static TriasDev.Tabular.TabularWriterOptions.operator !=(TriasDev.Tabular.TabularWriterOptions? left, TriasDev.Tabular.TabularWriterOptions? right) -> bool
+static TriasDev.Tabular.TabularWriterOptions.operator ==(TriasDev.Tabular.TabularWriterOptions? left, TriasDev.Tabular.TabularWriterOptions? right) -> bool
+override TriasDev.Tabular.TabularWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.TabularWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.TabularWriterOptions.ToString() -> string!
+TriasDev.Tabular.Csv.CsvWriterOptions
+TriasDev.Tabular.Csv.CsvWriterOptions.ByteOrderMark.get -> bool
+TriasDev.Tabular.Csv.CsvWriterOptions.ByteOrderMark.init -> void
+TriasDev.Tabular.Csv.CsvWriterOptions.Culture.get -> string?
+TriasDev.Tabular.Csv.CsvWriterOptions.Culture.init -> void
+TriasDev.Tabular.Csv.CsvWriterOptions.CsvWriterOptions() -> void
+TriasDev.Tabular.Csv.CsvWriterOptions.Delimiter.get -> char?
+TriasDev.Tabular.Csv.CsvWriterOptions.Delimiter.init -> void
+TriasDev.Tabular.Csv.CsvWriterOptions.Equals(TriasDev.Tabular.Csv.CsvWriterOptions? other) -> bool
+TriasDev.Tabular.Csv.CsvWriterOptions.FormulaGuard.get -> bool
+TriasDev.Tabular.Csv.CsvWriterOptions.FormulaGuard.init -> void
+TriasDev.Tabular.Csv.CsvWriterOptions.<Clone>$() -> TriasDev.Tabular.Csv.CsvWriterOptions!
+static TriasDev.Tabular.Csv.CsvWriterOptions.Default.get -> TriasDev.Tabular.Csv.CsvWriterOptions!
+static TriasDev.Tabular.Csv.CsvWriterOptions.operator !=(TriasDev.Tabular.Csv.CsvWriterOptions? left, TriasDev.Tabular.Csv.CsvWriterOptions? right) -> bool
+static TriasDev.Tabular.Csv.CsvWriterOptions.operator ==(TriasDev.Tabular.Csv.CsvWriterOptions? left, TriasDev.Tabular.Csv.CsvWriterOptions? right) -> bool
+override TriasDev.Tabular.Csv.CsvWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.Csv.CsvWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.Csv.CsvWriterOptions.ToString() -> string!
