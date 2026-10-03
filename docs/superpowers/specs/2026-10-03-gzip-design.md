@@ -9,7 +9,8 @@ for the file inside it. Today such a file is not recognised: it is not a zip, so
 gives it to the csv cursor, which refuses it as binary.
 
 Why: `.csv.gz` is a common shape for exports and data deliveries, and the base class library decodes
-it (`GZipStream`), so it costs no dependency.
+its compression (`DeflateStream`; the gzip framing around it is ours, see Errors), so it costs no
+dependency.
 
 gzip is a compression wrapper around **one** file, not an archive. It is read by decompressing and
 judging the inner file by its bytes, with the rules `TabularFile.Open` already uses.
@@ -47,7 +48,7 @@ Judged by the first decompressed bytes (`CsvCursorOptions.DialectProbeBytes` of 
 
 | Inner file | Behaviour |
 |---|---|
-| csv | Streamed through `GZipStream`; the dialect is detected from the decompressed head, then the file is decompressed afresh from its start to be read (the dialect stated, so the csv cursor never seeks). Moving back to the sheet decompresses again from the start. |
+| csv | Streamed through the gzip reader (see Errors); the dialect is detected from the decompressed head, then the file is decompressed afresh from its start to be read (the dialect stated, so the csv cursor never seeks). Moving back to the sheet decompresses again from the start. |
 | xlsx / ods | Copied into a `ChunkedBuffer` under `MaxEmbeddedWorkbookBytes`, judged with `TabularFile.ClassifyZip`, read by its own cursor. |
 | any other zip (an archive, another ODF document) | `TabularFormatException` (`Unsupported`): a compressed zip is not read. |
 | another gzip | `TabularFormatException` (`Unsupported`). |
@@ -58,8 +59,8 @@ Judged by the first decompressed bytes (`CsvCursorOptions.DialectProbeBytes` of 
 No new options. `ArchiveCursorOptions` already holds the two that apply; its documentation changes
 from "a zip archive" to "an archive or a compressed file".
 
-- `MaxUncompressedBytes` — counted **while decompressing**, by a bounding stream around
-  `GZipStream`; exceeding it throws `TabularLimitException`. gzip's `ISIZE` trailer is the size
+- `MaxUncompressedBytes` — counted **while decompressing**, by the gzip reader (see Errors), across
+  all members; exceeding it throws `TabularLimitException`. gzip's `ISIZE` trailer is the size
   modulo 2³² and sits at the end of the file, so it is neither trusted nor read.
 - `MaxEmbeddedWorkbookBytes` — the inner workbook's buffer, as for a workbook inside a zip.
 
@@ -67,12 +68,41 @@ A bound exceeded fails the file; it is never downgraded to anything softer.
 
 ## Errors
 
-- A truncated or damaged stream (bad header, bad deflate data, bad CRC) raises
-  `InvalidDataException` inside the BCL; it is mapped to `TabularFormatException` (`Corrupt`) on
-  every path — opening, moving to a sheet and `ReadRow` — and never leaks.
+**`GZipStream` cannot be used as is.** Measured on .NET 8.0.11 and 10.0.9: a gzip file cut off
+anywhere in its compressed data decompresses *silently* to a prefix of the content (half the file
+read 134 KB of 298 KB and reported success); a file with its trailer cut off, or only its 10-byte
+header, reads without complaint too. Only a wrong CRC, a wrong `ISIZE` or broken deflate data throw
+(an `InvalidDataException` with the misleading message "unsupported compression method"). A cut-off
+upload would be profiled and imported as a smaller, valid file — with its last row half there. Raw
+`DeflateStream` behaves the same: it returns 0 at a cut exactly as at the end of the final block.
+
+So the gzip framing is ours, the deflate decoding stays the BCL's:
+
+- **`GzipStreamReader`** (internal) reads member after member: the header (ours, `GzipHeader`), the
+  deflate data through a raw `DeflateStream`, then the 8-byte trailer, checked against the CRC-32
+  and the byte count of what was decompressed.
+- A `DeflateStream` reads ahead of the end of its data and does not say where that end was. The
+  reader feeds it through a pass-through that remembers where its last two reads began; when the
+  `DeflateStream` returns 0, the trailer starts somewhere from the earlier of those to the end of
+  what was read, at the first position whose 8 bytes are the expected CRC-32 and `ISIZE`. The base
+  stream is seekable, so the reader seeks to just past the trailer and continues. The `DeflateStream`
+  asks for input only while its data has not ended, so the end lies in its last read — two are kept
+  in case it asks once more right at a boundary — and the search is bounded by two reads (the
+  pass-through hands out at most 64 KB at a time).
+- **No matching trailer, and the data ran to the end of the file** → `TabularFormatException`
+  (`Truncated`): the file was cut off. (A wrong CRC in a trailer that is the file's last 8 bytes
+  reads the same way — the two cannot be told apart, and both are refused.)
+  **No matching trailer, and the deflate data ended before the file did** → `Corrupt`.
+  **Broken deflate data** (`InvalidDataException`) → `Corrupt`, with our own message.
+- After a member: bytes starting `1F 8B` are the next member (several members — `cat a.gz b.gz`,
+  bgzip's BGZF blocks — are read as one file); anything else is trailing garbage and ignored, as the
+  `gzip` tool and `GZipStream` both do. A file that is only a header is `Truncated`.
+- **CRC-32** is ours too (the BCL has no public one; `System.IO.Hashing` is a package): slicing-by-8
+  in managed code, with the ARM64 `Crc32` intrinsic where the CPU has it. Its cost is measured on
+  the 5M-row csv; writing (#71) will reuse it.
+- Every one of these is raised on every path — opening, moving to a sheet and `ReadRow` — and no BCL
+  exception leaks.
 - An empty file or one shorter than the signature is not gzip and goes the csv way as today.
-- A gzip of several members (concatenated, `cat a.gz b.gz`) is read whole; .NET's `GZipStream`
-  does that, and a test pins it.
 
 ## Progress
 
@@ -88,12 +118,14 @@ A `.gz` entry inside a zip is still skipped, but as `SkippedEntryReason.Compress
 ## Code
 
 - `Archive/GzipCursor.cs` — public sealed `ITabularCursor`. Constructor: check options, read the
-  header, judge the inner file, open the inner cursor. The rest delegates to the inner cursor, with
-  `InvalidDataException` mapped to `Corrupt`. Stream ownership and `LeaveOpen` as for every cursor.
-- `Archive/GzipHeader.cs` (internal) — reads the 10-byte header, the flags, `FEXTRA` and `FNAME`
-  (Latin-1, zero-terminated, bounded in length); nothing else is needed.
-- `Archive/BoundedStream.cs` (internal) — read-only pass-through that throws when more than its
-  limit has been read, after the pattern of `CountingStream`.
+  header, judge the inner file, open the inner cursor. The rest delegates to the inner cursor. Stream
+  ownership and `LeaveOpen` as for every cursor.
+- `Archive/GzipHeader.cs` (internal) — parses a member header: the 10 fixed bytes, the flags,
+  `FEXTRA`, `FNAME` (Latin-1, zero-terminated, bounded in length), `FCOMMENT`, `FHCRC`; returns the
+  name and the header's length.
+- `Archive/GzipStreamReader.cs` (internal) — the read-only stream over the decompressed content:
+  members, trailer check, decompressed-byte bound; raises only `Tabular*` exceptions.
+- `Archive/Crc32.cs` (internal) — CRC-32 (IEEE), incremental.
 - **Shared with `ArchiveCursor`**, moved into an internal helper: judging a file by its head
   (zip / OLE2 / XML / csv dialect), copying into a bounded `ChunkedBuffer`, opening a workbook
   cursor on a buffer. tar (#69) and 7z (#75) will use it too. The move must be measured: reading the
@@ -110,8 +142,11 @@ Fixtures are built in code from raw bytes and `GZipStream`; no binary files in t
   gzip, OLE2, XML); an empty inner file.
 - `Archive/GzipBoundsTests` — a gzip bomb stopped by `MaxUncompressedBytes`; an inner workbook over
   `MaxEmbeddedWorkbookBytes`.
-- Damage — truncated stream, bad CRC, garbage after the header: `TabularFormatException` and never
-  a BCL exception, on opening and on reading.
+- Damage — cut at every position of a small file, trailer cut, header only, bad CRC, bad `ISIZE`,
+  broken deflate data, garbage after the header: `Truncated` or `Corrupt` and never a BCL exception
+  or a silently shorter read, on opening and on reading. Trailing garbage after a complete file is
+  ignored.
+- `Crc32` — known vectors, incremental equals one-shot, the intrinsic and managed paths agree.
 - `Detect` — gzip recognised; a csv starting with `1F` stays csv.
 - The cross-cutting suites that enumerate cursors take gzip where they apply: stream ownership,
   cancellation of moves and reads, null arguments, hostile input, API contract, error-code catalog.
