@@ -78,7 +78,7 @@ public sealed class ArchiveCursor : ITabularCursor
             _options.Ods.Checked();
             cancellationToken.ThrowIfCancellationRequested();
 
-            container = ArchiveContainer.Choose(stream);
+            container = ArchiveContainer.Choose(stream, _options, cancellationToken);
             _container = container;
             ListSources(cancellationToken);
 

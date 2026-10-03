@@ -26,7 +26,17 @@ internal abstract class ArchiveContainer : IDisposable
     public abstract IReadOnlyList<ArchiveEntry>? Directory { get; }
 
     /// <summary>Chooses the container by the stream's bytes. Anything not recognised is tried as a zip, which refuses it as before.</summary>
-    public static ArchiveContainer Choose(Stream stream) => new ZipContainer(stream);
+    public static ArchiveContainer Choose(Stream stream, TabularOpenOptions options, CancellationToken cancellationToken)
+    {
+        long origin = stream.Position;
+        byte[] head = new byte[TarHeader.BlockSize];
+        int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+        stream.Position = origin;
+
+        return TarHeader.IsHeader(head.AsSpan(0, read))
+            ? new TarContainer(stream, options.Archive.MaxEntries, cancellationToken)
+            : new ZipContainer(stream);
+    }
 
     public abstract IEnumerable<ArchiveEntry> Entries(CancellationToken cancellationToken);
 
