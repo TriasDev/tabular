@@ -69,5 +69,10 @@ TriasDev.Tabular.TabularWriter.FlushRecommended.get -> bool
 TriasDev.Tabular.TabularWriter.Format.get -> TriasDev.Tabular.TabularFormat
 TriasDev.Tabular.TabularWriter.Write(bool value) -> void
 TriasDev.Tabular.TabularWriter.Write(string? value) -> void
+TriasDev.Tabular.TabularWriter.Write(long value) -> void
+TriasDev.Tabular.TabularWriter.Write(decimal value) -> void
+TriasDev.Tabular.TabularWriter.Write(double value) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateTime value) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateOnly value) -> void
 TriasDev.Tabular.TabularWriter.WriteEmpty() -> void
 static TriasDev.Tabular.TabularWriter.Create(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, TriasDev.Tabular.TabularWriterOptions? options = null) -> TriasDev.Tabular.TabularWriter!

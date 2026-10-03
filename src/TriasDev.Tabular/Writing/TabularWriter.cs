@@ -182,6 +182,48 @@ public sealed class TabularWriter : IAsyncDisposable
         Check(_sheet.WriteText(value), column);
     }
 
+    /// <summary>Writes the next cell as an integer. Narrower integers arrive here by implicit conversion.</summary>
+    public void Write(long value)
+    {
+        int column = NextCell();
+        Check(_sheet.WriteLong(value), column);
+    }
+
+    /// <summary>Writes the next cell as a decimal number.</summary>
+    public void Write(decimal value)
+    {
+        int column = NextCell();
+        Check(_sheet.WriteDecimal(value), column);
+    }
+
+    /// <summary>
+    /// Writes the next cell as a number. Refused when not finite, or when it has more than 15
+    /// significant digits — which a workbook would not give back.
+    /// </summary>
+    public void Write(double value)
+    {
+        int column = NextCell();
+        Check(ValueChecks.Double(value) ?? _sheet.WriteDouble(value), column);
+    }
+
+    /// <summary>
+    /// Writes the next cell as a date, with its time of day when it has one. Anything finer than a
+    /// millisecond is dropped, and the kind is not kept: the import returns the wall-clock value.
+    /// </summary>
+    public void Write(DateTime value)
+    {
+        int column = NextCell();
+        DateTime truncated = ValueChecks.Truncated(value);
+        Check(_sheet.WriteDate(truncated, truncated.TimeOfDay != TimeSpan.Zero), column);
+    }
+
+    /// <summary>Writes the next cell as a date. The import returns it as a <see cref="DateTime"/> at midnight.</summary>
+    public void Write(DateOnly value)
+    {
+        int column = NextCell();
+        Check(_sheet.WriteDate(value.ToDateTime(TimeOnly.MinValue), hasTime: false), column);
+    }
+
     /// <summary>Writes the next cell as a boolean.</summary>
     public void Write(bool value)
     {

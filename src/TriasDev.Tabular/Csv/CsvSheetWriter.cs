@@ -88,6 +88,40 @@ internal sealed class CsvSheetWriter : ISheetWriter
         return null;
     }
 
+    public string? WriteLong(long value)
+    {
+        Separate();
+        AppendFormatted(value, default);
+        return null;
+    }
+
+    public string? WriteDecimal(decimal value)
+    {
+        Separate();
+        AppendFormatted(value, default);
+        return null;
+    }
+
+    public string? WriteDouble(double value)
+    {
+        Separate();
+        AppendFormatted(value, "R");
+        return null;
+    }
+
+    public string? WriteDate(DateTime value, bool hasTime)
+    {
+        // The import's date reader refuses year 1 — it cannot tell it from a date with no year.
+        if (value.Year == 1)
+        {
+            return ErrorCodes.Write.DateOutOfRange;
+        }
+
+        Separate();
+        AppendFormatted(value, hasTime ? _format.DateTimeFormat : _format.DateFormat);
+        return null;
+    }
+
     public void WriteBoolean(bool value)
     {
         Separate();
@@ -134,6 +168,21 @@ internal sealed class CsvSheetWriter : ISheetWriter
         Reserve(value.Length);
         value.CopyTo(_row.AsSpan(_length));
         _length += value.Length;
+    }
+
+    /// <summary>Formats a value straight into the row buffer, growing it until the value fits.</summary>
+    private void AppendFormatted<T>(T value, ReadOnlySpan<char> format)
+        where T : ISpanFormattable
+    {
+        Reserve(64);
+        int written;
+
+        while (!value.TryFormat(_row.AsSpan(_length), out written, format, _format.Culture))
+        {
+            Array.Resize(ref _row, _row.Length * 2);
+        }
+
+        _length += written;
     }
 
     private void Reserve(int extra)

@@ -25,6 +25,18 @@ internal interface ISheetWriter
     /// <summary>Writes text already checked by <c>TextRules</c>; returns a code if the format cannot hold it.</summary>
     string? WriteText(string value);
 
+    /// <summary>Writes an integer; returns a code if the format cannot hold it exactly.</summary>
+    string? WriteLong(long value);
+
+    /// <summary>Writes a decimal; returns a code if the format cannot hold it exactly.</summary>
+    string? WriteDecimal(decimal value);
+
+    /// <summary>Writes a double already checked by <see cref="ValueChecks.Double"/>.</summary>
+    string? WriteDouble(double value);
+
+    /// <summary>Writes a date already truncated to the millisecond; <paramref name="hasTime"/> says whether it has a time of day.</summary>
+    string? WriteDate(DateTime value, bool hasTime);
+
     void WriteBoolean(bool value);
 
     void WriteEmpty();
