@@ -115,7 +115,7 @@ public sealed class OdsRoundTripTests
     }
 
     [Fact]
-    public async Task ReadsEmptyAndWhitespaceTextAsNoValueAndSkipsAnEmptyRow()
+    public async Task ReadsEmptyAndWhitespaceTextAsNoValueAndPassesOverAnEmptyRow()
     {
         byte[] file = await WriteAsync(writer =>
         {
@@ -128,7 +128,7 @@ public sealed class OdsRoundTripTests
 
                 if (text is null)
                 {
-                    // Between data rows: the reader drops empty rows only at a sheet's end.
+                    // Between data rows. The ods cursor passes over an all-empty row without handing it out, so the import never counts it — but the rows after it keep their numbers.
                     writer.BeginRow();
                     writer.EndRow();
                 }
@@ -137,8 +137,11 @@ public sealed class OdsRoundTripTests
 
         using ImportRun<string?> run = TabularImporter.Import(new MemoryStream(file, writable: false), "t.ods", Plan(), Schema, row => row[NameField], cancellationToken: Token);
 
-        Assert.Equal(new string?[] { null, null, null, "padded" }, run.ReadRows(Token).Select(outcome => outcome.Value));
-        Assert.Equal(1, run.Summary.RowsSkipped);
+        List<ImportOutcome<string?>> outcomes = [.. run.ReadRows(Token)];
+
+        Assert.Equal(new string?[] { null, null, null, "padded" }, outcomes.Select(outcome => outcome.Value));
+        Assert.Equal(new[] { 2, 4, 5, 6 }, outcomes.Select(outcome => outcome.RowNumber));
+        Assert.Equal(0, run.Summary.RowsSkipped);
     }
 
     [Fact]

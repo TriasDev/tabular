@@ -194,3 +194,4 @@ Read back through this library, xlsx follows the same rules and adds no exceptio
 
 - LibreOffice does not emulate Excel's 1900 leap-year bug: a date before 1900-03-01 written to xlsx shows one day early there (Excel and this library read it correctly).
 - ods: column widths are rounded to whole characters; text holding a carriage return is written twice, as paragraphs for display and as office:string-value for the exact value.
+- Reading ods, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
