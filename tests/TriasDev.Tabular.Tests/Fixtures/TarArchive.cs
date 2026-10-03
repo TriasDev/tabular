@@ -49,11 +49,17 @@ public static class TarArchive
     /// The same tar with the header at <paramref name="headerOffset"/> given another type flag and a
     /// checksum to match — for types TarWriter will not write, such as a GNU sparse file.
     /// </summary>
-    public static byte[] Retyped(byte[] tar, int headerOffset, char typeFlag)
+    public static byte[] Retyped(byte[] tar, int headerOffset, char typeFlag) =>
+        Patched(tar, headerOffset, header => header[156] = (byte)typeFlag);
+
+    /// <summary>The same tar with the header at <paramref name="headerOffset"/> changed and its checksum made to match again.</summary>
+    public static byte[] Patched(byte[] tar, int headerOffset, Action<byte[]> change)
     {
         byte[] copy = (byte[])tar.Clone();
+        byte[] block = copy[headerOffset..(headerOffset + 512)];
+        change(block);
+        block.CopyTo(copy, headerOffset);
         Span<byte> header = copy.AsSpan(headerOffset, 512);
-        header[156] = (byte)typeFlag;
         header.Slice(148, 8).Fill((byte)' ');
         int sum = 0;
 

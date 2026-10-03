@@ -35,6 +35,7 @@ public sealed class ApiContractTests
             new CsvCursor(Csv(), "t.csv"),
             new XlsxCursor(Workbook(), cancellationToken: TestContext.Current.CancellationToken),
             new GzipCursor(new MemoryStream(GzipFile.Of("name;x\na;b\n"), writable: false), "t.csv.gz", cancellationToken: TestContext.Current.CancellationToken),
+            new ArchiveCursor(new MemoryStream(GzipFile.Of(TarArchive.Of(System.Formats.Tar.TarEntryFormat.Pax, ("t.csv", "name;x\na;b\n")))), cancellationToken: TestContext.Current.CancellationToken),
         ];
 
     /// <summary>A stream that reads but cannot seek, like a request body or an archive entry.</summary>

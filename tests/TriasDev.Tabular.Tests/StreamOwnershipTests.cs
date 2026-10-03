@@ -66,6 +66,19 @@ public sealed class StreamOwnershipTests
         Assert.Equal(!leaveOpen, stream.IsDisposed);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnArchiveCursorWhoseTarIsCutOffFollowsLeaveOpen(bool leaveOpen)
+    {
+        byte[] tar = TarArchive.Of(System.Formats.Tar.TarEntryFormat.Pax, ("a.csv", "a\n1\n"));
+        TrackedStream stream = new(tar[..^1024]);
+
+        Assert.Throws<TabularFormatException>(() => new ArchiveCursor(stream, new TabularOpenOptions { LeaveOpen = leaveOpen }));
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+    }
+
     [Fact]
     public void ACsvCursorHonoursCancellationWhileOpening()
     {

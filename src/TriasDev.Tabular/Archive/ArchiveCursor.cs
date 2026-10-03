@@ -252,9 +252,14 @@ public sealed class ArchiveCursor : ITabularCursor
         }
     }
 
-    /// <summary>A directory, a link, a hidden file or folder, or a Mac resource fork: nobody archived it on purpose.</summary>
+    /// <summary>
+    /// A directory, a link, a hidden file or folder, a Mac resource fork, or a file without a name —
+    /// which only a damaged header gives, and which no sheet could be named after: nobody archived
+    /// it on purpose.
+    /// </summary>
     private static bool IsLeftOut(ArchiveEntry entry) =>
         entry.Kind == ArchiveEntryKind.LeftOut
+        || entry.Name.Length == 0
         || entry.Path.EndsWith('/') || entry.Path.EndsWith('\\')
         || entry.Path.StartsWith("__MACOSX/", StringComparison.Ordinal)
         || entry.Path.Split(PathSeparators).Any(segment => segment is not ("." or "..") && segment.StartsWith('.'));

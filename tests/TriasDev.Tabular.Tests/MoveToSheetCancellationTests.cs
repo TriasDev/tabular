@@ -27,7 +27,7 @@ public sealed class MoveToSheetCancellationTests
             .WithTable("Small", Row("s"))
             .Build();
 
-    public static TheoryData<string> Formats => new() { "csv", "xlsx", "ods", "zip", "gzip" };
+    public static TheoryData<string> Formats => new() { "csv", "xlsx", "ods", "zip", "gzip", "tar", "targz" };
 
     private static ITabularCursor Open(string format) => format switch
     {
@@ -35,6 +35,8 @@ public sealed class MoveToSheetCancellationTests
         "xlsx" => new XlsxCursor(new MemoryStream(new XlsxPackage().WithSheet("S", """<row r="1"><c t="inlineStr"><is><t>a</t></is></c></row>""").Build())),
         "ods" => new OdsCursor(new MemoryStream(TwoSheetOds(1))),
         "gzip" => new GzipCursor(new MemoryStream(GzipFile.Of("a\n1\n")), "a.csv.gz"),
+        "tar" => new ArchiveCursor(new MemoryStream(TarArchive.Of(System.Formats.Tar.TarEntryFormat.Pax, ("a.csv", "a\n1\n")))),
+        "targz" => new ArchiveCursor(new MemoryStream(GzipFile.Of(TarArchive.Of(System.Formats.Tar.TarEntryFormat.Pax, ("a.csv", "a\n1\n"))))),
         _ => new ArchiveCursor(new MemoryStream(new ZipArchiveBuilder().With("a.csv", "a\n1\n").Build())),
     };
 

@@ -128,6 +128,23 @@ public sealed class ArchiveCursorTarTests
     }
 
     [Fact]
+    public void NeverMakesASheetOfAnEntryWithoutAName()
+    {
+        // A damaged header can leave an entry without a name, as the TarReader of .NET 8 reads one.
+        // A sheet cannot be named after nothing, and nobody archived a file without a name.
+        byte[] tar = TarArchive.Of(TarEntryFormat.Ustar, ("a.csv", "a\n1\n"), ("b.csv", "b\n2\n"));
+        byte[] nameless = TarArchive.Patched(tar, 1024, header => Array.Clear(header, 0, 100));
+
+        Exception? error = Record.Exception(() =>
+        {
+            using ArchiveCursor cursor = Open(nameless);
+            Assert.DoesNotContain(cursor.Sheets, s => string.IsNullOrEmpty(s.Name) || string.IsNullOrEmpty(s.Source));
+        });
+
+        Assert.True(error is null or TabularException, $"{error?.GetType().Name}: {error?.Message}");
+    }
+
+    [Fact]
     public void RefusesEveryCutOfATar()
     {
         byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "id;name\n" + string.Concat(Enumerable.Range(0, 200).Select(i => $"{i};n{i}\n"))), ("b.csv", "x\n1\n"));
