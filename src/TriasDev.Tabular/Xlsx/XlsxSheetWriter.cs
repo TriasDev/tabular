@@ -24,7 +24,8 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     /// <summary>The most characters a cell holds.</summary>
     public const int MaxTextChars = 32_767;
 
-    private const int RetainedBytes = 1024 * 1024;
+    /// <summary>Three bytes a character is what UTF-8 may take, so a row at the row buffer's cap does not reallocate.</summary>
+    private const int RetainedBytes = 3 * RowText.RetainedChars;
 
     private const string ValueEnd = "</v></c>";
     private const int DateStyle = 1;
@@ -55,6 +56,16 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options)
     {
         _zip = new ZipWriter(output, options.CompressionLevel);
+    }
+
+    /// <summary>
+    /// Releases the open sheet entry's deflate state, writing no descriptor: the file is abandoned.
+    /// After <see cref="Complete"/> nothing is open and this does nothing.
+    /// </summary>
+    public void Dispose()
+    {
+        _sheet?.Dispose();
+        _sheet = null;
     }
 
     public long MaxRows => 1_048_576;

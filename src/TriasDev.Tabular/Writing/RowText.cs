@@ -16,7 +16,7 @@ internal sealed class RowText
 {
     private const int InitialChars = 4 * 1024;
 
-    private const int RetainedChars = 1024 * 1024;
+    internal const int RetainedChars = 1024 * 1024;
 
     private char[] _chars = new char[InitialChars];
 

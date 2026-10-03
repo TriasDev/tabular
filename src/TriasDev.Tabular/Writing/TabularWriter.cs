@@ -363,7 +363,14 @@ public sealed class TabularWriter : IAsyncDisposable
 
         try
         {
-            await _buffer.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                _sheet.Dispose();
+            }
+            finally
+            {
+                await _buffer.DisposeAsync().ConfigureAwait(false);
+            }
         }
         finally
         {

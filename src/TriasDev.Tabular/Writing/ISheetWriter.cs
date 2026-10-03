@@ -10,7 +10,7 @@ namespace TriasDev.Tabular;
 /// cannot hold returns the <see cref="ErrorCodes.Write"/> code instead of throwing, so that the
 /// writer — which knows the sheet, row and column — raises the exception.
 /// </remarks>
-internal interface ISheetWriter
+internal interface ISheetWriter : IDisposable
 {
     /// <summary>The most rows a sheet holds, the header included.</summary>
     long MaxRows { get; }
@@ -58,4 +58,7 @@ internal interface ISheetWriter
 
     /// <summary>Writes whatever ends the file. Called once, after the last row.</summary>
     void Complete();
+
+    // Dispose (from IDisposable): releases what the writer still holds when the file is abandoned —
+    // writes nothing meaningful. A no-op once Complete has run.
 }

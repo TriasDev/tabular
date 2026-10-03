@@ -46,6 +46,11 @@ internal sealed class CsvSheetWriter : ISheetWriter
         _format = format;
     }
 
+    /// <summary>Nothing to release: the buffer belongs to the caller.</summary>
+    public void Dispose()
+    {
+    }
+
     public long MaxRows => long.MaxValue;
 
     public bool AllowsSeveralSheets => false;
