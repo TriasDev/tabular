@@ -178,3 +178,13 @@ Decided, not deferred — listed so they are not mistaken for gaps.
   a user says otherwise.
 - **`"C" Road` is repaired without a diagnostic.** The repair is lossy, and unlike an unterminated
   quote it is not counted. Whether it should be is a judgement, not an oversight.
+
+## Writing: what does not come back exactly as written
+
+By design, and the same in every format:
+
+- Leading and trailing whitespace in text is trimmed on reading; empty and whitespace-only text reads as no value.
+- Time is truncated to whole milliseconds.
+- `DateTime.Kind` is not kept: the wall-clock value comes back as `Unspecified`.
+- A `DateOnly` comes back as a `DateTime` at midnight.
+- With `CsvWriterOptions.FormulaGuard`, text starting with `=`, `+`, `-`, `@`, tab or CR comes back with a leading `'`.

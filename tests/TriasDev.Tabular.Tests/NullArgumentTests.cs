@@ -84,6 +84,8 @@ public sealed class NullArgumentTests
         { "CheckDigits.Luhn", "value", () => CheckDigits.Luhn(null!) },
         { "CheckDigits.Mod97", "value", () => CheckDigits.Mod97(null!) },
         { "ErrorCodes.IsReserved", "code", () => ErrorCodes.IsReserved(null!) },
+        { "TabularWriter.Create", "stream", () => TabularWriter.Create(null!, TabularFormat.Csv) },
+        { "TabularWriter.BeginSheet", "name", () => TabularWriter.Create(new MemoryStream(), TabularFormat.Csv).BeginSheet(null!, [new("a")]) },
     };
 
     [Theory]

@@ -78,4 +78,35 @@ public sealed class InvariantGlobalizationTests
 
         Assert.Equal([1.5m, 2.25m], run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);
     }
+
+    [Fact]
+    public void RefusesToWriteInACultureTheRuntimeDoesNotHave()
+    {
+        ArgumentException refused = Assert.ThrowsAny<ArgumentException>(() => TabularWriter.Create(
+            new MemoryStream(),
+            TabularFormat.Csv,
+            new TabularWriterOptions { Csv = new CsvWriterOptions { Culture = "de-DE" } }));
+
+        Assert.Contains(nameof(CsvWriterOptions.Culture), refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WritesAnInvariantCsvTheImportReadsBack()
+    {
+        MemoryStream target = new();
+
+        await using (TabularWriter writer = TabularWriter.Create(target, TabularFormat.Csv, new TabularWriterOptions { LeaveOpen = true }))
+        {
+            writer.BeginSheet("data", [new("amount")]);
+            writer.BeginRow();
+            writer.Write(1.5m);
+            writer.EndRow();
+            await writer.CompleteAsync(TestContext.Current.CancellationToken);
+        }
+
+        target.Position = 0;
+        using ImportRun<decimal?> run = TabularImporter.Import(target, "t.csv", Plan(null), Schema, row => row[Amount], cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1.5m, Assert.Single(run.ReadRows(TestContext.Current.CancellationToken)).Value);
+    }
 }

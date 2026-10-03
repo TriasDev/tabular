@@ -35,5 +35,13 @@ public sealed class OptionDefaultsTests
         Assert.Equal(1_000, ExtractionOptions.Default.MaxErrorRows);
         Assert.Equal(2_000_000, AnalysisOptions.Default.DistinctTrackingBudget);
         Assert.Equal(1_000, AnalysisOptions.Default.RetainedDistinctValues);
+
+        CsvWriterOptions csvWriter = TabularWriterOptions.Default.Csv;
+
+        Assert.Null(csvWriter.Culture);
+        Assert.Null(csvWriter.Delimiter);
+        Assert.True(csvWriter.ByteOrderMark);
+        Assert.False(csvWriter.FormulaGuard);
+        Assert.False(TabularWriterOptions.Default.LeaveOpen);
     }
 }
