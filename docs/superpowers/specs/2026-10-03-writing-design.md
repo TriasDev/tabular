@@ -1,6 +1,6 @@
 # Writing csv, xlsx and ods
 
-Status: agreed design, 2026-10-03. Issue #67.
+Status: agreed design, 2026-10-03, revised after an independent review the same day. Issue #67.
 
 ## Intent
 
@@ -28,6 +28,7 @@ format options sit next to their cursors.
 | Public type | Namespace | Purpose |
 |---|---|---|
 | `TabularWriter` | `TriasDev.Tabular` | low-level writer, one per file |
+| `WriteColumn` | `TriasDev.Tabular` | a header text and an optional width |
 | `TabularExport<T>`, `TabularExport.For<T>()` | `TriasDev.Tabular` | object layer: columns as lambdas |
 | `TabularWriteException` | `TriasDev.Tabular` | a value the format cannot hold exactly |
 | `CsvWriterOptions` | `TriasDev.Tabular.Csv` | culture, delimiter, BOM, formula guard |
@@ -51,30 +52,40 @@ if (w.FlushRecommended) await w.FlushAsync(ct);
 await w.CompleteAsync(ct);
 ```
 
-- `BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)`; `WriteColumn` is a header text and
-  an optional width (characters). Width matters for xlsx only (`<cols>` precedes the sheet data);
-  without it Excel shows a date-time as `#####`.
+- `BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)`. A width is written for xlsx
+  (`<cols>`, which precedes the sheet data) and ods (`table:table-column` with a column style);
+  csv ignores it. Without it Excel shows a date-time as `#####`.
 - `Write` overloads: `string?`, `long`, `decimal`, `double`, `DateTime`, `DateOnly`, `bool`; plus
   `WriteEmpty()`. Narrower integers reach the `long` overload by implicit conversion.
 - The caller picks the format explicitly; there is no detection on the write side.
 - Several sheets: call `BeginSheet` again. A csv file has one sheet; a second `BeginSheet` throws.
-- The stream is closed on every path, failures included, unless `leaveOpen` is set.
+- Every xlsx row element carries its `r` attribute, so an empty row never shifts the row numbers
+  after it.
 
 ### Sync writes, async flush
 
 The format writers — the csv text, the sheet XML, `ZipArchive` in create mode — write synchronously
 into `SpillBuffer`, which is memory. `FlushAsync` moves the buffer to the real stream asynchronously.
 This is what makes the writer usable on an ASP.NET Core response body, which refuses synchronous
-writes by default, on net8.0 as well as net10.0, and on a stream that cannot seek (`ZipArchive` then
-writes data descriptors). `FlushRecommended` turns true once the buffer passes a threshold of about
-1 MB. The writer never writes to the target stream synchronously.
+writes by default, on net8.0 as well as net10.0. `FlushRecommended` turns true once the buffer
+passes a threshold of about 1 MB. The writer never writes to the target stream synchronously.
 
-### Risk to settle first
+`ZipArchive` in create mode streams its entries; only update mode buffers them (verified on .NET 8
+and 10). It only ever sees `SpillBuffer`, which cannot seek, so every xlsx and ods entry is written
+with a data descriptor (flag 0x0008, CRC and sizes after the data) — also when the target is a file.
 
-ODF requires the `mimetype` entry first and stored (zip method 0). Whether `ZipArchive` with
-`CompressionLevel.NoCompression` writes method 0 on a non-seekable stream, and whether LibreOffice
-accepts the result, is checked before the ods writer is built. If it does not, the library writes
-its own minimal zip writer — with its own CRC-32, since `System.IO.Hashing` is a package.
+### Risks to settle first
+
+- **ods `mimetype`.** ODF requires the `mimetype` entry first and stored. Measured: `ZipArchive`
+  with `CompressionLevel.NoCompression` writes it as method 0 at the right offsets (name at 30,
+  content at 38), but with a data descriptor and zero CRC and sizes in the local header. The open
+  question is only whether LibreOffice and an ODF validator accept that. If they do not, the
+  library writes its own minimal zip writer — with its own CRC-32, since `System.IO.Hashing` is a
+  package.
+- **Entries over 4 GB.** `ZipArchive` then writes a zip64 data descriptor and central directory
+  entry, but no zip64 extra field in the local header. A wide 1M-row sheet can pass 4 GB
+  uncompressed. Test Excel and LibreOffice on such a file in the benchmark phase; if either refuses
+  it, the writer caps an entry's uncompressed size with `limit.exceeded`.
 
 ## Values and the round trip
 
@@ -83,28 +94,43 @@ value a format cannot hold exactly is an error, never a silent change.
 
 | Value | xlsx | ods | csv | Error when |
 |---|---|---|---|---|
-| `string` | `t="inlineStr"`, XML-escaped; control characters as `_xHHHH_`, a literal `_x` as `_x005F_` | `<text:p>` | RFC 4180 quoting | xlsx: longer than 32,767 chars; ods: a control character |
-| `long` | `<v>` | `office:value-type="float"` | invariant or culture | magnitude above 2⁵³ |
-| `decimal` | `<v>`, its own digits | `float` | its own digits | `(decimal)(double)v != v` |
-| `double` | `<v>`, `"R"` | `float` | `"R"` | `NaN`, `±∞` |
-| `DateTime`, `DateOnly` | serial, date or date-time style | `office:date-value`, ISO | ISO, or the culture's pattern | xlsx: before 1900-03-01 |
-| `bool` | `t="b"` | `boolean` | `true` / `false` | — |
+| `string` | `t="inlineStr"`, XML-escaped; `\r` and other control characters as `_xHHHH_`, a literal `_x` as `_x005F_` | `<text:p>` per line, `text:tab`, `text:s c=` for runs of spaces | RFC 4180 quoting | all: a character XML 1.0 forbids (in csv too, for one rule everywhere); xlsx: longer than 32,767 chars; csv: more line breaks than the reader accepts in one field |
+| `long` | `<v>` | `office:value-type="float"` | invariant or culture | xlsx, ods: a value `double` cannot hold exactly |
+| `decimal` | `<v>`, its own digits | `float` | its own digits | xlsx, ods: `(decimal)(double)v != v`, in effect more than 15 significant digits |
+| `double` | `<v>`, `"R"` | `float` | `"R"` | all: `NaN`, `±∞`; all: `(double)(decimal)d != d`, i.e. more than 15 significant digits or outside `decimal`'s range |
+| `DateTime`, `DateOnly` | serial, date or date-time style | `office:date-value`, ISO, with an automatic date style | ISO, or the culture pattern below | xlsx: before 1900-01-01; csv: year 1 (`DateReading` refuses it) |
+| `bool` | `t="b"` | `boolean`, with an automatic boolean style | `true` / `false` | — |
 | `null`, `WriteEmpty` | no `<c>` | empty cell | empty field | — |
+
+"A character XML 1.0 forbids" is exact: U+0000–U+0008, U+000B, U+000C, U+000E–U+001F, U+FFFE,
+U+FFFF and unpaired surrogates. Tab, LF and CR are allowed and written as above. `\r` needs the
+escape in xlsx because the scanner turns a literal CR into LF (`SheetScanner`); in ods a CR is a
+line break like LF, and `\r\n` is one line break.
 
 Strings are not written as a shared-string table: it would hold every distinct string until the end.
 
 The decimal check matches how extraction reads a number cell (`ValueReading.TryToDecimal`, a plain
-`(decimal)` cast of the parsed `double`), so a value that passes the check imports equal.
+`(decimal)` cast of the parsed `double`): two million random decimals showed no disagreement. csv
+holds a `long` or a `decimal` exactly, so it raises neither check. A `double` is checked in every
+format, because xlsx and ods read it back through that 15-digit cast and csv would not: without the
+check, `0.1 + 0.2` would come back as `0.30000000000000004` from csv and `0.3` from xlsx.
 
-Three deliberate exceptions, documented:
+The csv line-break limit is the reader's default `CsvCursorOptions.MaxQuotedFieldLines` (100). A
+quoted field past it is read as an unterminated quote and replayed as rows, so a field with more
+line breaks would come back as many rows — the writer refuses it instead.
+
+Documented exceptions:
 
 1. **Leading and trailing whitespace.** The reader trims text (`RawCell.FromText`); the writer writes
    text as given, so `" DE "` comes back as `"DE"`.
-2. **Time is rounded to milliseconds** in every format. An xlsx serial holds no more; an error on
-   finer ticks would fire on every `DateTime.Now`. One rule for all formats keeps the round trip the
-   same whichever format is chosen.
-3. **`DateTime.Kind` is not kept.** The wall-clock value is written; the reader returns it as
+2. **Empty and whitespace-only text** come back as an absent value, like `null`.
+3. **Time is truncated to whole milliseconds** in every format. An xlsx serial holds no more, and
+   the reader rounds a serial to the millisecond, so a truncated value reads back exactly.
+   Truncation, not rounding: rounding overflows on `DateTime.MaxValue` and moves 23:59:59.9996 to
+   the next day.
+4. **`DateTime.Kind` is not kept.** The wall-clock value is written; the reader returns it as
    `Unspecified`.
+5. **`DateOnly` comes back as a `DateTime` at midnight.** The read side has no `DateOnly`.
 
 xlsx styling is three fixed styles: General, date, date-time. The header row is unstyled.
 
@@ -112,15 +138,25 @@ xlsx styling is three fixed styles: General, date, date-time. The header row is 
 
 `CsvWriterOptions`:
 
-- Default: delimiter `,`, `.` as decimal separator, ISO dates, UTF-8 with BOM, quoting per RFC 4180,
-  `\r\n` line ends.
-- `Culture`: numbers and dates in that culture's format (e.g. `de-DE` → `1234,56`, `03.10.2026`);
-  the delimiter defaults to `;` when the culture's decimal separator is `,`.
-- `Delimiter`: explicit override.
-- `FormulaGuard` (default off): a text cell starting with `=`, `+`, `-` or `@` is prefixed with `'`,
-  the OWASP defence against csv injection. Text only, never a number. Off by default because it
-  changes the value the import reads back; an application exporting other people's data to be
-  opened in Excel turns it on.
+- Default: delimiter `,`, `.` as decimal separator, ISO dates (`yyyy-MM-dd`, and
+  `yyyy-MM-ddTHH:mm:ss.fff` when there is a time), UTF-8 with BOM, quoting per RFC 4180, `\r\n`
+  line ends.
+- `Culture`: numbers in that culture's format, no group separators; dates in its
+  `ShortDatePattern`, plus ` HH:mm:ss.fff` when there is a time (the culture's "G" pattern would
+  drop the milliseconds, and appending `.fff` to it breaks AM/PM patterns). The delimiter defaults
+  to `;` when the culture's decimal separator is `,`.
+- `Delimiter`: one of `,` `;` tab `|` — the ones the dialect detector knows — and never the
+  culture's decimal separator.
+- Checked where handed over (`OptionChecks`): the delimiter as above, and the culture by writing a
+  probe date-time and number and reading them back with the import's own readers (`DateReading`,
+  `NumberReading`). A culture whose output does not read back, or that is missing under invariant
+  globalization, is refused.
+- The import of a culture-formatted file should name the culture in its plan rather than take it
+  from analysis: when every day is 12 or less, `d/M` and `M/d` cannot be told apart. The docs say so.
+- `FormulaGuard` (default off): a text cell starting with `=`, `+`, `-`, `@`, tab or CR is prefixed
+  with `'`, the OWASP defence against csv injection. Text only, never a number. Off by default
+  because it changes the value the import reads back; an application exporting other people's data
+  to be opened in Excel turns it on.
 
 ## Object layer
 
@@ -135,12 +171,19 @@ static readonly TabularExport<Portfolio> Export = TabularExport.For<Portfolio>()
 ```
 
 - A column's type comes from the lambda: overloads for `string`, `long`, `decimal`, `double`,
-  `DateTime`, `DateOnly`, `bool` and their nullable forms. `int` resolves to the `long` overload.
-  No overloads for `enum`, `Guid` or others: the caller converts explicitly.
-- `.Column(ImportField field, lambda)` takes the header from `field.Name`; `Build()` checks the
-  lambda's type against `field.Type` (`Decimal` accepts `decimal` and `double`, `Integer` accepts
-  `long`, `Date` accepts `DateTime` and `DateOnly`, `Text` accepts `string`, `Boolean` accepts
-  `bool`) and throws `ArgumentException` on a mismatch. A translated field throws too.
+  `DateTime`, `DateOnly`, `bool` and their nullable forms. No overloads for `enum`, `Guid` or
+  others: the caller converts explicitly.
+- Overload resolution, checked by compiling: `int` resolves to `long`, `int?` to `long?`, `float`
+  to `double`. Documented pitfalls: `char` silently resolves to `long` and writes the code point;
+  `ulong` is ambiguous (CS0121); a method group returning `int` does not convert (CS0407); `p =>
+  null` is ambiguous. Each needs an explicit conversion or cast.
+- The bridge to import uses the typed fields that already exist (`TypedImportFields.cs`):
+  `.Column(TextImportField, Func<T, string?>)`, `.Column(IntegerImportField, Func<T, long?>)`,
+  `.Column(DecimalImportField, Func<T, decimal?>)` and `Func<T, double?>`,
+  `.Column(DateImportField, Func<T, DateTime?>)` and `Func<T, DateOnly?>`,
+  `.Column(BooleanImportField, Func<T, bool?>)`. A mismatch is a compile error. The header is
+  `field.Name`. An untyped `ImportField` is accepted too and checked against its `Type` at
+  `Build()`, with `ArgumentException`; a translated field throws there.
 - Each column is an `ExportColumn<T, TValue>` holding a typed delegate: one delegate call and one
   typed `Write` per cell.
 - Width: set per column, or defaulted by type (wider for date-time).
@@ -158,8 +201,8 @@ await w.CompleteAsync(ct);
 ```
 
 - Sources: `IAsyncEnumerable<IReadOnlyList<T>>` (chunks as they arrive), `IAsyncEnumerable<T>`,
-  `IEnumerable<T>`. The chunked overload is the fast one for millions of rows; the per-item async
-  overload awaits per row, which the docs say.
+  `IEnumerable<T>`. An async source is enumerated `WithCancellation(ct)`. The chunked overload is
+  the fast one for millions of rows; the per-item async overload awaits per row, which the docs say.
 - It flushes after every chunk and within a chunk whenever `FlushRecommended`.
 - Returns the number of data rows written.
 
@@ -170,32 +213,39 @@ spreadsheet counts it, header = 1), and the column index and header.
 
 | Code | When |
 |---|---|
-| `write.precision-loss` | a `decimal` or `long` that `double` cannot hold exactly |
+| `write.precision-loss` | a `long`, `decimal` or `double` the format would not give back exactly (table above) |
 | `write.not-finite` | `NaN`, `±∞` |
-| `write.date-out-of-range` | xlsx: a date before 1900-03-01 |
+| `write.date-out-of-range` | xlsx: before 1900-01-01; csv: year 1 |
 | `write.text-too-long` | xlsx: text over 32,767 chars |
-| `write.invalid-character` | ods: a control character |
+| `write.too-many-lines` | csv: a text value with more line breaks than the reader's default accepts |
+| `write.invalid-character` | a character XML 1.0 forbids |
 
 More than 1,048,576 rows on an xlsx or ods sheet (header included) throws `TabularLimitException`
 with `limit.exceeded`. No automatic continuation sheet: the importer reads one sheet per plan, so a
 split file would not round-trip. An application that knows its row count up front picks csv for
-large exports. The new codes go into `ErrorCodes` and `docs/error-codes.md`.
+large exports. The new codes go into `ErrorCodes` and `docs/error-codes.md`, and `write.` into
+`ErrorCodes.ReservedPrefixes`.
 
 Programmer errors throw at once, `ArgumentException` or `InvalidOperationException`: `Write` outside
-a row; more cells than columns (fewer are padded with empty cells); a second csv sheet; a duplicate
-or invalid sheet name (xlsx: at most 31 chars, none of `[]:*?/\`); more than 16,384 columns; any
-call after `CompleteAsync` or after a failure.
+a row; more cells than columns (fewer are padded with empty cells); a second csv sheet; more than
+16,384 columns; any call after `CompleteAsync` or after a failure; an invalid sheet name. Sheet
+names follow Excel's rules for both workbook formats: 1 to 31 characters, none of `[]:*?/\`, no
+leading or trailing `'`, not `History`, and unique ignoring case.
 
 ### An incomplete file
 
 Streaming means the start of the file is already out when row 600,000 fails.
 
 - After an exception the writer is faulted; every later call throws.
-- **A file is valid only after `CompleteAsync`.** `DisposeAsync` without it does not write the
-  trailer: the zip has no central directory and is plainly broken, rather than a valid-looking
-  file of 600,000 rows.
-- A truncated csv looks valid. The docs therefore say plainly: on failure, abort the response
-  (`HttpContext.Abort()`) or delete the temporary file or blob — with an example for each.
+- **A file is valid only after `CompleteAsync`.** `DisposeAsync` without it discards what is still
+  buffered and does not write the trailer: the zip has no central directory and is plainly broken,
+  rather than a valid-looking file of 600,000 rows.
+- A truncated csv looks valid, and closing a blob write stream may commit what was written so far.
+  The docs therefore say plainly: on failure, abort the response (`HttpContext.Abort()`) or delete
+  the temporary file or blob — with an example for each.
+
+The target stream is closed with `DisposeAsync`, on every path, failures included, unless
+`leaveOpen` is set: a synchronous `Dispose` of a blob or network stream does synchronous I/O.
 
 Cancellation: a token is the last parameter of `FlushAsync`, `CompleteAsync`, `WriteAsync` and
 `WriteSheetAsync`; the object layer checks it per chunk and on every flush. Cancelling leaves the
@@ -206,43 +256,46 @@ The writer is `IAsyncDisposable` only: a synchronous `Dispose` would have to wri
 ### Bounds
 
 `SpillBuffer` is the only structure that grows, and only when a low-level caller never flushes; the
-object layer always does, and the docs say so for the writer. Sheet names are few and small.
+object layer always does, and the docs say so for the writer. Sheet names are few and small. The
+writer's limits match the reader's: 16,384 columns, 1,048,576 rows, 16M characters per value.
 
 ## Verification
 
 - **Round trip**, per format and value kind: write through `TabularExport`, read through
   `TabularFile.Open` and `TabularImporter` with the same schema, compare values and types. Edge
-  values: `0.1m`; decimals of 15 and 16 significant digits; `2⁵³`, `2⁵³ + 1`, `long.MinValue`;
-  1900-03-01, 9999-12-31, midnight, `.999` ms; text with quotes, line breaks, `;`, leading zeros,
-  `_x0001_`, emoji, umlauts; empty cells and empty rows.
+  values: `0.1m`; decimals of 15 and 16 significant digits; the double `0.1 + 0.2`; `2⁵³`,
+  `2⁵³ + 1`, `long.MinValue`; 1900-01-01, 1900-03-01, 9999-12-31, `DateTime.MaxValue`, midnight,
+  `.999` ms, 23:59:59.9996; text with quotes, `\n`, `\r\n`, a lone `\r`, tabs, runs of spaces, `;`,
+  leading zeros, `_x0001_`, emoji, umlauts; a csv field with 100 and with 101 line breaks; empty
+  cells and empty rows; csv under the invariant culture, `de-DE` and `en-US`.
 - **Error codes:** each fires on its boundary value and only there.
 - **Valid for other programs:** xlsx through Open XML SDK's `OpenXmlValidator` in the test project
   (the independence test covers the library's graph only); ods through LibreOffice headless in CI
-  (`soffice --convert-to csv` on the written file), as in the differential tests; Excel by hand
-  once before the release.
-- **Streaming:** a target stream that throws on any synchronous `Write` or `Flush`; a non-seekable
-  target; `DisposeAsync` without `CompleteAsync` gives a file our reader refuses (`format.corrupt`
-  or `format.truncated`); cancellation midway.
+  (`soffice --convert-to csv` on the written file), as in the differential tests, and that dates and
+  booleans display as such; Excel by hand once before the release.
+- **Streaming:** a target stream that throws on any synchronous `Write`, `Flush` or `Dispose`; a
+  non-seekable target; `DisposeAsync` without `CompleteAsync` gives a file our reader refuses
+  (`format.corrupt` or `format.truncated`); cancellation midway.
 - **Benchmarks** (BenchmarkDotNet): csv 5M rows, xlsx and ods 1M rows, in the shape of the existing
   fixtures, to `Stream.Null` and to a file; time, allocations, peak memory, which must not depend on
   the row count. Comparison against SpreadCheetah and MiniExcel (xlsx) and Sep, Sylvan and CsvHelper
   (csv); none exists for ods. `CompressionLevel.Fastest` against `Optimal` for time and size decides
-  the default.
+  the default. One wide sheet past 4 GB uncompressed, opened in Excel and LibreOffice.
 
 ## Documentation
 
 `docs/exporting.md` with the gRPC-chunks-to-HTTP-response and to-blob examples, failure handling
-included; README drops "Read-only"; `formats.md`, `error-codes.md`, `bounds.md`;
-`PublicAPI.Unshipped.txt`; ADR-0002.
+included, the overload pitfalls and the csv culture advice; README drops "Read-only"; `formats.md`,
+`error-codes.md`, `bounds.md`; `PublicAPI.Unshipped.txt`; ADR-0002.
 
 ## Delivery
 
 Separate pull requests, in order:
 
-1. `TabularWriter`, `SpillBuffer`, csv; the `ZipArchive` stored-entry check for ods.
+1. `TabularWriter`, `SpillBuffer`, csv; the ods `mimetype` acceptance check in LibreOffice.
 2. xlsx.
 3. ods.
-4. `TabularExport<T>` and the `ImportField` bridge.
+4. `TabularExport<T>` and the import-field bridge.
 5. Benchmarks, comparison, documentation, ADR-0002.
 
 Released as a feature: 0.6.0.
