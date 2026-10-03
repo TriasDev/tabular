@@ -263,6 +263,8 @@ public sealed class XlsxRoundTripTests
 
         List<ImportOutcome<Row>> read = Import(target.ToArray());
 
+        Assert.True(accepted.Count > 100, $"seed {seed}: only {accepted.Count} of 300 drawn rows were accepted");
+
         Assert.Equal(accepted.Count, read.Count);
 
         for (int i = 0; i < accepted.Count; i++)

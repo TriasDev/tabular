@@ -188,5 +188,6 @@ By design, and the same in every format:
 - `DateTime.Kind` is not kept: the wall-clock value comes back as `Unspecified`.
 - A `DateOnly` comes back as a `DateTime` at midnight.
 - With `CsvWriterOptions.FormulaGuard`, text starting with `=`, `+`, `-`, `@`, tab or CR comes back with a leading `'`.
+- A double comes back as a decimal — the import has no double type — and only with the at most 15 significant digits the writer accepts.
 
 xlsx follows the same rules; it adds no exception of its own.
