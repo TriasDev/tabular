@@ -25,17 +25,25 @@ planned); tar inside gzip (#69); a zip inside gzip; writing gzip.
 | `TabularFile.Detect` | `TabularFormat.Gzip` |
 | `cursor.Format` | `TabularFormat.Gzip` |
 | `Sheets[i].Format` | the inner file's: `Csv`, `Xlsx` or `Ods` |
-| `Sheets[i].Source` | the inner file's name |
+| `Sheets[i].Source` | the inner file's name, when the gzip header stores it |
 
 The container's format and each sheet's format are kept apart exactly as for zip, so nothing above
 the cursor learns what gzip is, and `SheetProfile.Format` stays truthful.
 
-**The inner file's name** (`Source`) is the gzip header's `FNAME` field when present (the `gzip`
-tool writes it; .NET's `GZipStream` does not), otherwise the `name` passed to `Open` without a
-trailing `.gz` (ordinal, case-insensitive), otherwise `name` itself.
+**The inner file's name** (`Source`) is the gzip header's `FNAME` field (the `gzip` tool writes it;
+.NET's `GZipStream` does not), and null when the header stores none.
 
-**The csv sheet's name** is that same name (`data.csv`), by the rule that gives a plain csv file's
-sheet the `name` passed to `Open`. An inner workbook's sheets keep their own names.
+*Revised while planning:* the agreed design fell back to the `name` passed to `Open` without its
+`.gz`. But a mapping plan records `Source` and an import refuses the file as
+`structure.sheet-changed` when it differs — and `name` is whatever the caller passes on each read
+(an upload's name at analysis, a storage key at import). A gzip file without `FNAME` would then be
+refused by its own plan. `FNAME` is in the file, so it is the same on every read; without it, the
+sheet carries no `Source`, exactly like a plain csv, and the plan does not depend on the name.
+
+**The csv sheet's name** is `FNAME` when present, otherwise `name` without a trailing `.gz`
+(ordinal, case-insensitive; `name` itself when that would leave nothing): `data.csv`, by the rule
+that gives a plain csv file's sheet the `name` passed to `Open`. An inner workbook's sheets keep
+their own names.
 
 ## Detection
 
