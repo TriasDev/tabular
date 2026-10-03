@@ -75,8 +75,11 @@ header checksums itself.
 
 Opening makes one pass over the headers with `TarReader` on the seekable stream: it skips each
 entry's data by seeking (measured: listing a 3 MB tar read 6 KB). The data offset of each entry is
-recorded — `TarEntry.DataOffset` on .NET 9+, and `stream.Position` right after `GetNextEntry` on
-net8 (one helper under `#if`; it goes when net8 is dropped at the .NET 11 release).
+recorded — `TarEntry.DataOffset` on .NET 9+. net8 has no `DataOffset`, and on a seekable stream its
+`TarReader` has already sought *past* the entry's data when `GetNextEntry` returns, so there the
+offset is `stream.Position` minus the data length rounded up to 512 (measured: equal to
+`DataOffset` on .NET 10 for ustar, PAX and GNU entries). One helper under `#if`; it goes when net8 is
+dropped at the .NET 11 release.
 
 An entry is opened as a **`StreamWindow`**: a read-only, seekable view `(offset, length)` over the
 file, with its own position (it seeks the file before every read, so windows never disturb each
@@ -106,10 +109,11 @@ Measured in the benchmark (see Measuring), including the worst case.
   path (opening, moving to a sheet, reading a row); no BCL exception leaks. Any other exception type
   the fuzzer finds `TarReader` throwing on bad input is mapped too, to `Corrupt`.
 - **The end of the archive must be marked.** A tar ends with zero blocks; a `.tar` cut exactly at an
-  entry boundary would otherwise read as a complete, smaller archive. After the last entry, the next
-  512-byte block must be all zeros — checked by position on a `.tar`, and by counting the bytes the
-  reader consumed on a `.tar.gz`. Missing → `Truncated`. (A tar.gz cut anywhere is also caught by the
-  gzip layer from #68.)
+  entry boundary would otherwise read as a complete, smaller archive. `TarReader` enforces this
+  itself — measured on .NET 8 and 10: a tar whose end blocks are missing raises
+  `EndOfStreamException`, so it maps to `Truncated` with the rest; a single zero block is accepted as
+  the end. Tests pin both, on a `.tar` and a `.tar.gz`; should a runtime stop enforcing it, the check
+  is added then. (A tar.gz cut anywhere is also caught by the gzip layer from #68.)
 - A gzip layer that is damaged raises what it raises today (`Truncated` / `Corrupt` from
   `GzipStreamReader`).
 
@@ -146,7 +150,8 @@ of today's binary-file refusal. `TabularFile.Open` never sends a tar.gz there.
 - `Archive/TarContainer.cs` — the `.tar` index and windows.
 - `Archive/TarGzContainer.cs` — the sequential pass, forward continuation, restart.
 - `Archive/StreamWindow.cs` — the read-only seekable view.
-- `Archive/TarHeader.cs` — the header test for detection and the end-of-archive test.
+- `Archive/TarHeader.cs` — the header test (magic and checksum) for detection, raw and inside gzip.
+- `Archive/TarEntries.cs` — entry kinds, the data offset (with the net8 fallback), and the mapping of `TarReader`'s exceptions.
 - `ArchiveCursor` — lists entries in file order, judges each current entry, orders the sources by
   path; opens a workbook through `OpenSeekable` when available, else copies it; chooses its container
   by bytes. Its listing, sniffing, skipping, bounds and sheet logic is shared by all containers.
