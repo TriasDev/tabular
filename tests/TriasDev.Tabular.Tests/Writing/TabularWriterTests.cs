@@ -211,7 +211,6 @@ public sealed class TabularWriterTests
     }
 
     [Theory]
-    [InlineData(TabularFormat.Xlsx)]
     [InlineData(TabularFormat.Ods)]
     [InlineData(TabularFormat.Zip)]
     public void RefusesAFormatItCannotWriteYet(TabularFormat format)

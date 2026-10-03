@@ -1,4 +1,5 @@
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular;
 
@@ -37,6 +38,7 @@ public sealed class TabularWriter : IAsyncDisposable
     private readonly bool _leaveOpen;
     private State _state = State.Open;
     private WriteColumn[] _columns = [];
+    private readonly HashSet<string> _sheetNames = new(StringComparer.OrdinalIgnoreCase);
     private string _sheetName = string.Empty;
     private int _sheets;
     private long _rowNumber;
@@ -71,7 +73,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Creates a writer for a format, into a stream.</summary>
     /// <param name="stream">Where the file goes: a file, a blob, a response body. It need not seek.</param>
-    /// <param name="format">The format to write. Csv in this version.</param>
+    /// <param name="format">The format to write: csv or xlsx in this version.</param>
     /// <param name="options">The format's knobs; checked here, before anything is written.</param>
     /// <exception cref="ArgumentException">The stream cannot be written, or an option cannot work.</exception>
     /// <exception cref="ArgumentOutOfRangeException">A format this version does not write.</exception>
@@ -98,12 +100,23 @@ public sealed class TabularWriter : IAsyncDisposable
 #pragma warning restore S3928
             }
 
+            if (effective.Xlsx is null)
+            {
+#pragma warning disable S3928 // Justification: the parameter name identifies the option being validated, not a method parameter
+                throw new ArgumentNullException(nameof(TabularWriterOptions.Xlsx), $"{nameof(TabularWriterOptions)}.{nameof(TabularWriterOptions.Xlsx)} is null.");
+#pragma warning restore S3928
+            }
+
             switch (format)
             {
                 case TabularFormat.Csv:
                     CsvFormat csv = effective.Csv.Resolve();
                     SpillBuffer buffer = new();
                     return new TabularWriter(stream, format, buffer, new CsvSheetWriter(buffer, csv), effective.LeaveOpen);
+                case TabularFormat.Xlsx:
+                    XlsxWriterOptions xlsx = effective.Xlsx.Checked();
+                    SpillBuffer workbook = new();
+                    return new TabularWriter(stream, format, workbook, new XlsxSheetWriter(workbook, xlsx), effective.LeaveOpen);
                 default:
                     throw new ArgumentOutOfRangeException(nameof(format), format, $"Writing {format} is not supported.");
             }
@@ -133,7 +146,7 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Begins a sheet and writes its header row.</summary>
-    /// <param name="name">The sheet's name. A csv file has one sheet, whose name is not written.</param>
+    /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
     /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
     {
@@ -154,10 +167,16 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Faulting(new ArgumentNullException(nameof(name)));
         }
 
+        if (_sheet.NamesSheets && SheetNames.Problem(name, _sheetNames) is { } problem)
+        {
+            throw Faulting(new ArgumentException(problem, nameof(name)));
+        }
+
         CheckColumns(columns);
 
         _columns = columns.ToArray();
         _sheetName = name;
+        _sheetNames.Add(name);
         _sheets++;
         _rowNumber = 0;
         _sheet.BeginSheet(name, _columns);
@@ -344,7 +363,14 @@ public sealed class TabularWriter : IAsyncDisposable
 
         try
         {
-            await _buffer.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                _sheet.Dispose();
+            }
+            finally
+            {
+                await _buffer.DisposeAsync().ConfigureAwait(false);
+            }
         }
         finally
         {

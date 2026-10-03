@@ -1553,15 +1553,17 @@ public sealed class XlsxCursor : ITabularCursor
 
         // Rounded to the millisecond, which is all a serial date carries. The fraction for 16:00 is
         // stored a hair below its true value, and truncating the ticks read it as 15:59:59.999.
-        double ticks = Math.Round(days * TimeSpan.TicksPerDay / TimeSpan.TicksPerMillisecond)
-            * TimeSpan.TicksPerMillisecond;
+        // The milliseconds become ticks in long: a double holds tick counts exactly only up to about
+        // 1.4e17, so multiplying there read late date-times up to tens of microseconds off.
+        double milliseconds = Math.Round(days * TimeSpan.TicksPerDay / TimeSpan.TicksPerMillisecond);
 
-        if (ticks < (DateTime.MinValue - epoch).Ticks || ticks > (DateTime.MaxValue - epoch).Ticks)
+        if (milliseconds < (DateTime.MinValue - epoch).Ticks / TimeSpan.TicksPerMillisecond
+            || milliseconds > (DateTime.MaxValue - epoch).Ticks / TimeSpan.TicksPerMillisecond)
         {
             return false;
         }
 
-        date = epoch.AddTicks((long)ticks);
+        date = epoch.AddTicks((long)milliseconds * TimeSpan.TicksPerMillisecond);
         return true;
     }
 

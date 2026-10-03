@@ -10,13 +10,16 @@ namespace TriasDev.Tabular;
 /// cannot hold returns the <see cref="ErrorCodes.Write"/> code instead of throwing, so that the
 /// writer — which knows the sheet, row and column — raises the exception.
 /// </remarks>
-internal interface ISheetWriter
+internal interface ISheetWriter : IDisposable
 {
     /// <summary>The most rows a sheet holds, the header included.</summary>
     long MaxRows { get; }
 
     /// <summary>Whether a file holds more than one sheet.</summary>
     bool AllowsSeveralSheets { get; }
+
+    /// <summary>Whether the format stores sheet names, which must then meet <see cref="SheetNames"/>' rules.</summary>
+    bool NamesSheets { get; }
 
     void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns);
 
@@ -55,4 +58,7 @@ internal interface ISheetWriter
 
     /// <summary>Writes whatever ends the file. Called once, after the last row.</summary>
     void Complete();
+
+    // Dispose (from IDisposable): releases what the writer still holds when the file is abandoned —
+    // writes nothing meaningful. A no-op once Complete has run.
 }
