@@ -282,7 +282,11 @@ public sealed class TabularWriterTests
         { "an empty header", [new("")] },
         { "a whitespace header", [new("  ")] },
         { "a missing header", [default] },
-        { "a header repeated", [new("Name"), new(" name ")] },
+        { "a header repeated", [new("Name"), new("name")] },
+        { "a header with leading whitespace", [new(" Name")] },
+        { "a header with trailing whitespace", [new("Name ")] },
+        { "a header ending in a tab", [new("Name\t")] },
+        { "a header starting with a line break", [new("\nName")] },
         { "a zero width", [new("a", 0)] },
         { "a width past Excel's", [new("a", 256)] },
         { "too many columns", [.. Enumerable.Range(0, 16_385).Select(i => new WriteColumn($"c{i}"))] },
@@ -317,6 +321,52 @@ public sealed class TabularWriterTests
         writer.BeginSheet("data", [new("a")]);
         await writer.CompleteAsync(Token);
 
-        Assert.Throws<InvalidOperationException>(() => writer.BeginRow());
+        // Refused, and refused again as complete — not as a writer that failed.
+        InvalidOperationException first = Assert.Throws<InvalidOperationException>(() => writer.BeginRow());
+        InvalidOperationException second = Assert.Throws<InvalidOperationException>(() => writer.BeginRow());
+
+        Assert.Contains("complete", first.Message, StringComparison.Ordinal);
+        Assert.Equal(first.Message, second.Message);
+        Assert.DoesNotContain("failed earlier", second.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ANullCsvOptionIsRefusedByName()
+    {
+        MemoryStream target = new();
+
+        ArgumentNullException refused = Assert.Throws<ArgumentNullException>(() => TabularWriter.Create(
+            target,
+            TabularFormat.Csv,
+            new TabularWriterOptions { Csv = null! }));
+
+        Assert.Equal(nameof(TabularWriterOptions.Csv), refused.ParamName);
+        Assert.False(target.CanWrite);
+    }
+
+    [Fact]
+    public void AStreamThatFailsToCloseDoesNotHideWhyCreateFailed()
+    {
+        ThrowsOnDispose target = new();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => TabularWriter.Create(
+            target,
+            TabularFormat.Csv,
+            new TabularWriterOptions { Csv = new CsvWriterOptions { Delimiter = ':' } }));
+
+        Assert.True(target.DisposeAttempted);
+    }
+
+    /// <summary>A stream whose closing fails.</summary>
+    private sealed class ThrowsOnDispose : MemoryStream
+    {
+        public bool DisposeAttempted { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            DisposeAttempted = true;
+            base.Dispose(disposing);
+            throw new IOException("closing failed");
+        }
     }
 }

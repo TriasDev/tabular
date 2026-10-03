@@ -39,6 +39,7 @@ split by what a host does about them:
 | `TabularLimitException` | Readable, but beyond a configured bound — how most hostile files end | 413 |
 | `TabularStructureException` | Not the file the plan was built for (sheet, header row or header changed) | 409 / 422 |
 | `MappingPlanException` | The plan does not fit its schema, before any file is read | 400 |
+| `TabularWriteException` | A value the chosen format cannot hold exactly, found while writing | 500 for a server's own export; discard the partial file |
 
 Mistakes in the calling code — a null argument, an option out of range, a field the schema does not
 declare — are `ArgumentException` and `InvalidOperationException`. Nothing else escapes: malformed

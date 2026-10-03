@@ -91,6 +91,13 @@ public sealed class TabularWriter : IAsyncDisposable
                 throw new ArgumentException("The stream cannot be written to.", nameof(stream));
             }
 
+            if (effective.Csv is null)
+            {
+#pragma warning disable S3928 // Justification: the parameter name identifies the option being validated, not a method parameter
+                throw new ArgumentNullException(nameof(TabularWriterOptions.Csv), $"{nameof(TabularWriterOptions)}.{nameof(TabularWriterOptions.Csv)} is null.");
+#pragma warning restore S3928
+            }
+
             switch (format)
             {
                 case TabularFormat.Csv:
@@ -103,14 +110,31 @@ public sealed class TabularWriter : IAsyncDisposable
         }
         catch when (!effective.LeaveOpen)
         {
-            stream.Dispose();
+            CloseAfterFailedCreate(stream);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Closes the stream of a <see cref="Create"/> that failed, so that the exception which made it
+    /// fail is the one the caller sees — not one the stream throws while closing.
+    /// </summary>
+    private static void CloseAfterFailedCreate(Stream stream)
+    {
+        try
+        {
+            stream.Dispose();
+        }
+        catch (Exception closing) when (closing is not OutOfMemoryException)
+        {
+            // Ignored: the caller is told why Create failed; a stream that also fails to close adds
+            // nothing they could act on, and reporting it would hide the reason.
         }
     }
 
     /// <summary>Begins a sheet and writes its header row.</summary>
     /// <param name="name">The sheet's name. A csv file has one sheet, whose name is not written.</param>
-    /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty and is unique in the sheet, ignoring case and surrounding whitespace.</param>
+    /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
     {
         ExpectWritable();
@@ -183,6 +207,12 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Writes the next cell as an integer. Narrower integers arrive here by implicit conversion.</summary>
+    /// <remarks>
+    /// A <see cref="char"/> converts implicitly too, so it binds here and writes its code point:
+    /// <c>Write('A')</c> writes 65 — write <c>Write("A")</c> for the letter. A <see cref="ulong"/> converts
+    /// implicitly to both <see cref="double"/> and <see cref="decimal"/>, so the call is ambiguous and
+    /// does not compile; convert it explicitly, to <see cref="long"/> or <see cref="decimal"/>.
+    /// </remarks>
     public void Write(long value)
     {
         int column = NextCell();
@@ -311,11 +341,17 @@ public sealed class TabularWriter : IAsyncDisposable
         }
 
         _state = State.Disposed;
-        await _buffer.DisposeAsync().ConfigureAwait(false);
 
-        if (!_leaveOpen)
+        try
         {
-            await _target.DisposeAsync().ConfigureAwait(false);
+            await _buffer.DisposeAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            if (!_leaveOpen)
+            {
+                await _target.DisposeAsync().ConfigureAwait(false);
+            }
         }
     }
 
@@ -330,26 +366,37 @@ public sealed class TabularWriter : IAsyncDisposable
 
         foreach (WriteColumn column in columns)
         {
-            if (string.IsNullOrWhiteSpace(column.Header))
+            if (HeaderProblem(column.Header, seen) is { } problem)
             {
-                throw Faulting(new ArgumentException("Every column has a header that is not empty.", nameof(columns)));
-            }
-
-            if (!seen.Add(column.Header.Trim()))
-            {
-                throw Faulting(new ArgumentException($"The header \"{column.Header}\" appears twice; the import could not tell the columns apart.", nameof(columns)));
+                throw Faulting(new ArgumentException(problem, nameof(columns)));
             }
 
             if (column.Width is { } width && (!double.IsFinite(width) || width <= 0 || width > MaxWidth))
             {
                 throw Faulting(new ArgumentOutOfRangeException(nameof(columns), width, $"A column is more than 0 and at most {MaxWidth} characters wide."));
             }
-
-            if (TextRules.Check(column.Header) is { } code)
-            {
-                throw Faulting(new ArgumentException($"The header \"{column.Header}\" cannot be written: {code}.", nameof(columns)));
-            }
         }
+    }
+
+    /// <summary>Why a header could not be read back as written, or null; adds it to <paramref name="seen"/>.</summary>
+    private static string? HeaderProblem(string? header, HashSet<string> seen)
+    {
+        if (string.IsNullOrWhiteSpace(header))
+        {
+            return "Every column has a header that is not empty.";
+        }
+
+        if (char.IsWhiteSpace(header[0]) || char.IsWhiteSpace(header[^1]))
+        {
+            return $"The header \"{header}\" starts or ends with whitespace, which the import trims; it would not read back as written.";
+        }
+
+        if (!seen.Add(header))
+        {
+            return $"The header \"{header}\" appears twice; the import could not tell the columns apart.";
+        }
+
+        return TextRules.Check(header) is { } code ? $"The header \"{header}\" cannot be written: {code}." : null;
     }
 
     private void StartRow()
@@ -422,7 +469,8 @@ public sealed class TabularWriter : IAsyncDisposable
 
         if (_state == State.Completed)
         {
-            throw Refuse("The file is complete; nothing more can be written.");
+            // Not faulted: the file is whole, and a later call says so again rather than that it failed.
+            throw new InvalidOperationException("The file is complete; nothing more can be written.");
         }
     }
 
