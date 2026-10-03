@@ -31,6 +31,9 @@ public sealed class SheetNamesTests
     [InlineData("History")]
     [InlineData("history")]
     [InlineData("bad\u0001")]
+    [InlineData("a\tb")]
+    [InlineData("a\nb")]
+    [InlineData("a\rb")]
     public void RefusesANameExcelRefuses(string name)
     {
         Assert.NotNull(SheetNames.Problem(name, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));

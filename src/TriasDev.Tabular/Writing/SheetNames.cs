@@ -23,6 +23,11 @@ internal static class SheetNames
             return "A sheet name holds none of [ ] : * ? / \\.";
         }
 
+        if (name.AsSpan().IndexOfAnyInRange('\0', '\u001f') >= 0)
+        {
+            return "A sheet name holds no control character — tab, line break or other.";
+        }
+
         if (name[0] == '\'' || name[^1] == '\'')
         {
             return "A sheet name neither starts nor ends with an apostrophe.";
