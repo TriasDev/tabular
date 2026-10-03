@@ -96,9 +96,12 @@ So the gzip framing is ours, the deflate decoding stays the BCL's:
   the **first read made during it** (when the end-of-block code stood alone at the start of a new
   read). The reader feeds the `DeflateStream` through a pass-through that hands out at most 64 KB a
   read and remembers both; the trailer is the first position in that window whose 8 bytes are the
-  expected CRC-32 and `ISIZE`, and never earlier than 2 bytes into the member's deflate data (the
-  shortest deflate stream; without this rule an empty member's trailer — eight zero bytes — is found
-  inside its own `03 00`). The base stream is seekable, so the reader seeks to just past the trailer
+  expected CRC-32 and `ISIZE` and which a byte `0x1F` or the end of the file follows; if no position
+  qualifies, the first match. (An empty member written with a flush — deflate `00 00 00 FF FF 03 00`,
+  as Python's gzip and zlib's sync flush write it — would otherwise match one byte early, inside its
+  own data, and the reader would drop every member after it.) The trailer is never earlier than 2
+  bytes into the member's deflate data (the shortest deflate stream; without this rule an empty
+  member's trailer — eight zero bytes — is found inside its own `03 00`). The base stream is seekable, so the reader seeks to just past the trailer
   and continues.
 - Prototyped before the plan, on .NET 8.0.11 and 10.0.9: 400 random files of one to three members,
   with and without trailing bytes, read in pieces of 1 byte to 1 MB — every one read exactly, and
