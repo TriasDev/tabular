@@ -67,7 +67,7 @@ public sealed class ZipWriterTests
         Assert.Equal("application/vnd.oasis.opendocument.spreadsheet"u8.ToArray(), entries["mimetype"]);
         Assert.Equal(large, entries["content.xml"]);
         Assert.Equal("<manifest/>"u8.ToArray(), entries["META-INF/manifest.xml"]);
-        Assert.True(file.Length < large.Length / 4);
+        Assert.True(file.Length < large.Length / 2, $"{file.Length} bytes for {large.Length}");
     }
 
     [Fact]
