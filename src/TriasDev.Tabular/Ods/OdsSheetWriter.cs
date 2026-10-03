@@ -1,6 +1,8 @@
 using System.Buffers;
 using System.Globalization;
 
+using TriasDev.Tabular.Xlsx;
+
 namespace TriasDev.Tabular.Ods;
 
 /// <summary>
@@ -22,6 +24,11 @@ namespace TriasDev.Tabular.Ods;
 internal sealed class OdsSheetWriter : ISheetWriter
 {
     private const int RetainedBytes = 3 * RowText.RetainedChars;
+
+    /// <summary>Room left under the reader's token limit for markup around the text.</summary>
+    private const int TokenMargin = 1024;
+
+    private const int TagOverhead = 80;
 
     private static readonly int MaxTextChars = OdsCursorOptions.Default.MaxValueChars;
 
@@ -130,7 +137,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     private string? WriteString(string value)
     {
-        if (value.Length > MaxTextChars)
+        if (value.Length > MaxTextChars || (value.Length * 5L) + TokenMargin > SheetScanner.MaxBufferChars && LongestToken(value) > SheetScanner.MaxBufferChars - TokenMargin)
         {
             return ErrorCodes.Write.TextTooLong;
         }
@@ -148,6 +155,49 @@ internal sealed class OdsSheetWriter : ISheetWriter
         AppendParagraphs(value);
         _row.Append("</text:p></table:table-cell>");
         return null;
+    }
+
+    /// <summary>
+    /// The longest token the reader will buffer for a value: its text escaped, or — when it holds a
+    /// carriage return — the start tag carrying it as an attribute, escaped.
+    /// </summary>
+    private static long LongestToken(string value)
+    {
+        long text = 0;
+        long attribute = 0;
+
+        foreach (char c in value)
+        {
+            switch (c)
+            {
+                case '&':
+                    text += 5;
+                    attribute += 5;
+                    break;
+                case '<' or '>':
+                    text += 4;
+                    attribute += 4;
+                    break;
+                case '"':
+                    text++;
+                    attribute += 6;
+                    break;
+                case '\r' or '\n':
+                    text++;
+                    attribute += 5;
+                    break;
+                case '\t':
+                    text++;
+                    attribute += 4;
+                    break;
+                default:
+                    text++;
+                    attribute++;
+                    break;
+            }
+        }
+
+        return value.Contains('\r', StringComparison.Ordinal) ? Math.Max(text, attribute + TagOverhead) : text;
     }
 
     /// <summary>Writes text as paragraph content: line breaks as paragraphs, tabs and collapsible spaces as elements.</summary>

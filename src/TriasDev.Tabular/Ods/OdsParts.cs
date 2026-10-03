@@ -50,9 +50,6 @@ internal static class OdsParts
     public static readonly byte[] Styles = Encoding.UTF8.GetBytes(
         XmlDeclaration + "<office:document-styles" + Namespaces + "><office:styles/></office:document-styles>");
 
-    /// <summary>The name of the column style for a width of so many whole characters.</summary>
-    public static string ColumnStyleName(int chars) => ColumnStyleNames[chars];
-
     /// <summary>The column style for a width in characters, rounded to the nearest whole one.</summary>
     public static string ColumnStyleFor(double width) =>
         ColumnStyleNames[Math.Clamp((int)Math.Round(width, MidpointRounding.AwayFromZero), 1, WidestColumn)];

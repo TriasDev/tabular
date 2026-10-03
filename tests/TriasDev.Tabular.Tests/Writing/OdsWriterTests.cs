@@ -191,6 +191,40 @@ public sealed class OdsWriterTests
     }
 
     [Theory]
+    [InlineData('&')]
+    [InlineData('\r')]
+    public async Task RefusesTextWhoseEscapedFormExceedsTheReadersTokenLimit(char c)
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+
+        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write(new string(c, 4_000_000))).Code);
+    }
+
+    [Fact]
+    public async Task AcceptsTheLongestTextTheReaderTakes()
+    {
+        string value = new('x', 16 * 1024 * 1024 - 2048);
+
+        Assert.Equal([RawCell.FromText(value)], await Column(value));
+    }
+
+    [Fact]
+    public async Task WritesTheMarkupLibreOfficeExpects()
+    {
+        byte[] ods = await Spreadsheet(writer =>
+        {
+            writer.BeginSheet("data", [new("v")]);
+            writer.BeginRow();
+            writer.Write("a  b\tc");
+            writer.EndRow();
+        });
+
+        Assert.Contains("a <text:s text:c=\"1\"/>b<text:tab/>c", Content(ods), StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("History")]
     [InlineData("a/b")]
     [InlineData("a\tb")]
