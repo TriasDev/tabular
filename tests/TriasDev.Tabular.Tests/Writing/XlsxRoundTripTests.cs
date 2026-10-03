@@ -228,7 +228,7 @@ public sealed class XlsxRoundTripTests
     public async Task WhatTheWriterAcceptsTheImportReadsBack(int seed)
     {
         Random random = new(seed);
-        const string alphabet = "abcXYZ019 ,;\t|\"\n<>&_xüß👍\r";
+        string[] alphabet = ["a", "b", "c", "X", "Y", "Z", "0", "1", "9", " ", ",", ";", "\t", "|", "\"", "\n", "<", ">", "&", "_", "x", "ü", "ß", "👍", "\r"];
         List<Row> accepted = [];
 
         WriteTarget target = new();
@@ -239,13 +239,7 @@ public sealed class XlsxRoundTripTests
 
             for (int i = 0; i < 300; i++)
             {
-                string text = new([.. Enumerable.Range(0, random.Next(1, 40)).Select(_ => alphabet[random.Next(alphabet.Length)])]);
-
-                // An emoji is two chars; a draw that split it is not text anyone writes.
-                if (TextRules.Check(text) is not null)
-                {
-                    continue;
-                }
+                string text = string.Concat(Enumerable.Range(0, random.Next(1, 40)).Select(_ => alphabet[random.Next(alphabet.Length)]));
 
                 Row row = new(
                     text,
@@ -263,7 +257,7 @@ public sealed class XlsxRoundTripTests
 
         List<ImportOutcome<Row>> read = Import(target.ToArray());
 
-        Assert.True(accepted.Count > 100, $"seed {seed}: only {accepted.Count} of 300 drawn rows were accepted");
+        Assert.Equal(300, accepted.Count);
 
         Assert.Equal(accepted.Count, read.Count);
 
