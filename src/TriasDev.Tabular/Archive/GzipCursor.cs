@@ -94,6 +94,12 @@ public sealed class GzipCursor : ITabularCursor
                     "The gzip file holds another gzip file; a file compressed twice is not read. Decompress it once.");
             }
 
+            if (TarHeader.IsHeader(head))
+            {
+                throw new TabularFormatException(TabularFormatException.Unsupported,
+                    "The gzip file holds a tar archive; open it with TabularFile.Open or ArchiveCursor, which read it as an archive.");
+            }
+
             // A legacy workbook, an XML document or a binary file is refused here in the words used
             // for one on its own.
             _dialect = _options.Csv.Dialect ?? CsvDialectDetector.Detect(head);
