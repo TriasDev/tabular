@@ -129,6 +129,17 @@ public sealed class ZipWriterTests
         Assert.True(file.AsSpan().IndexOf((ReadOnlySpan<byte>)[0x50, 0x4B, 0x06, 0x06]) > 0, "a zip64 end of central directory record");
         Assert.True(file.AsSpan().IndexOf((ReadOnlySpan<byte>)[0x50, 0x4B, 0x06, 0x07]) > 0, "a zip64 end of central directory locator");
 
+        // The "big" entry's descriptor is 24 bytes: signature, CRC, then two 8-byte sizes. The central
+        // directory follows it at once.
+        ReadOnlySpan<byte> bytes = file;
+        int descriptor = bytes.IndexOf((ReadOnlySpan<byte>)[0x50, 0x4B, 0x07, 0x08]);
+        Assert.True(descriptor > 0, "a data descriptor");
+        Assert.Equal(Crc32.Compute(content), BinaryPrimitives.ReadUInt32LittleEndian(bytes[(descriptor + 4)..]));
+        long compressed = BinaryPrimitives.ReadInt64LittleEndian(bytes[(descriptor + 8)..]);
+        Assert.True(compressed > 0);
+        Assert.Equal(content.Length, BinaryPrimitives.ReadInt64LittleEndian(bytes[(descriptor + 16)..]));
+        Assert.Equal(0x02014B50u, BinaryPrimitives.ReadUInt32LittleEndian(bytes[(descriptor + 24)..]));
+
         Dictionary<string, byte[]> entries = Read(file);
         Assert.Equal("tiny"u8.ToArray(), entries["small"]);
         Assert.Equal(content, entries["big"]);

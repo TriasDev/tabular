@@ -138,6 +138,57 @@ public sealed class XlsxWriterTests
     }
 
     [Fact]
+    public async Task StylesIntegersDatesAndDateTimesOnTheirCells()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            writer.BeginSheet("data", [new("a"), new("b"), new("c")]);
+            writer.BeginRow();
+            writer.Write(42L);
+            writer.Write(new DateOnly(2026, 10, 3));
+            writer.Write(new DateTime(2026, 10, 3, 14, 5, 6, DateTimeKind.Unspecified));
+            writer.EndRow();
+        });
+
+        string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<c r=\"A2\" s=\"3\"", sheet, StringComparison.Ordinal);
+        Assert.Contains("<c r=\"B2\" s=\"1\"", sheet, StringComparison.Ordinal);
+        Assert.Contains("<c r=\"C2\" s=\"2\"", sheet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ADisposedMidSheetWriterReleasesItsEntryAndClosesTheTarget()
+    {
+        WriteTarget target = new();
+        TabularWriter writer = TabularWriter.Create(target, TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+        writer.Write("x");
+        writer.EndRow();
+        await writer.FlushAsync(Token);
+
+        await writer.DisposeAsync();
+
+        Assert.True(target.IsDisposed);
+    }
+
+    [Fact]
+    public async Task AWriterFaultedByAValueProblemDisposesWithoutThrowingAndClosesTheTarget()
+    {
+        WriteTarget target = new();
+        TabularWriter writer = TabularWriter.Create(target, TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+
+        Assert.Throws<TabularWriteException>(() => writer.Write(new string('x', 32_768)));
+
+        await writer.DisposeAsync();
+
+        Assert.True(target.IsDisposed);
+    }
+
+    [Fact]
     public async Task WritesColumnWidthsBeforeTheData()
     {
         byte[] xlsx = await Workbook(writer => writer.BeginSheet("data", [new("a", 12.5), new("b"), new("c", 30)]));
@@ -243,10 +294,12 @@ public sealed class XlsxWriterTests
         {
             writer.BeginSheet("data", [new("v")]);
 
+            Random random = new(7);
+
             for (int i = 0; i < 50_000; i++)
             {
                 writer.BeginRow();
-                writer.Write("a value long enough that a flush writes part of the sheet");
+                writer.Write($"{random.NextInt64():x} a value long enough that a flush writes part of the sheet");
                 writer.EndRow();
             }
 
@@ -254,7 +307,7 @@ public sealed class XlsxWriterTests
         }
 
         byte[] partial = target.ToArray();
-        Assert.NotEmpty(partial);
+        Assert.True(partial.Length > 64 * 1024, $"only {partial.Length} bytes went out");
 
         // No central directory: the workbook reader refuses it rather than read a valid-looking part.
         TabularFormatException refused = Assert.Throws<TabularFormatException>(() => new XlsxCursor(new MemoryStream(partial, writable: false), cancellationToken: Token));
@@ -290,7 +343,7 @@ public sealed class XlsxWriterTests
     }
 
     [Fact]
-    public void CompressesAsTheOptionsSay()
+    public void RefusesACompressionLevelItDoesNotKnow()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => TabularWriter.Create(
             new MemoryStream(),

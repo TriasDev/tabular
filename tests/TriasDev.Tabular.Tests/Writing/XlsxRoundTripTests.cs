@@ -221,6 +221,15 @@ public sealed class XlsxRoundTripTests
         Assert.Equal(RawCell.FromNumber(1_048_575), last);
     }
 
+    /// <summary>A decimal of 13 to 15 significant digits: up to 10^9 before the point, 4 to 6 places after.</summary>
+    private static decimal LongDecimal(Random random)
+    {
+        int places = random.Next(4, 7);
+        long fraction = random.NextInt64(0, (long)Math.Pow(10, places));
+        decimal value = random.Next(0, 1_000_000_000) + (decimal)fraction / (decimal)Math.Pow(10, places);
+        return random.Next(2) == 0 ? -value : value;
+    }
+
     [Theory]
     [InlineData(67)]
     [InlineData(71)]
@@ -244,7 +253,9 @@ public sealed class XlsxRoundTripTests
                 Row row = new(
                     text,
                     random.NextInt64(-(1L << 53), 1L << 53),
-                    Math.Round((decimal)(random.NextDouble() * 2_000_000 - 1_000_000), random.Next(0, 6)),
+                    random.Next(2) == 0
+                        ? Math.Round((decimal)(random.NextDouble() * 2_000_000 - 1_000_000), random.Next(0, 6))
+                        : LongDecimal(random),
                     At(random.Next(1900, 10_000), random.Next(1, 13), random.Next(1, 29), random.Next(0, 24), random.Next(0, 60), random.Next(0, 60), random.Next(0, 1000)),
                     random.Next(2) == 0);
 
