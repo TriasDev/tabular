@@ -106,3 +106,4 @@ TriasDev.Tabular.Archive.GzipCursor.Sheets.get -> System.Collections.Generic.IRe
 TriasDev.Tabular.Archive.GzipCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.Archive.GzipCursor
 TriasDev.Tabular.Archive.GzipCursor.GzipCursor(System.IO.Stream! stream, string! name, TriasDev.Tabular.TabularOpenOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+TriasDev.Tabular.TabularFormat.Tar = 5 -> TriasDev.Tabular.TabularFormat
