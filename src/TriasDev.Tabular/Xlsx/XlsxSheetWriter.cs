@@ -110,13 +110,9 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public string? WriteLong(long value)
     {
-        // The reader parses a number cell as a double: a long that a double cannot hold exactly would
-        // come back as its neighbour. 2^63 itself is out of long's range, hence the first test.
-        double asDouble = value;
-
-        if (asDouble >= 9.2233720368547758E18 || (long)asDouble != value)
+        if (ValueChecks.LongInDouble(value) is { } code)
         {
-            return ErrorCodes.Write.PrecisionLoss;
+            return code;
         }
 
         WriteNumber(IntegerStyle);
@@ -127,18 +123,9 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public string? WriteDecimal(decimal value)
     {
-        // The import reads the cell's double back into a decimal by this same cast.
-        try
+        if (ValueChecks.DecimalInDouble(value) is { } code)
         {
-            if ((decimal)(double)value != value)
-            {
-                return ErrorCodes.Write.PrecisionLoss;
-            }
-        }
-        catch (OverflowException)
-        {
-            // A decimal near its maximum is beyond what the cast back from a double can hold.
-            return ErrorCodes.Write.PrecisionLoss;
+            return code;
         }
 
         WriteNumber(style: 0);
