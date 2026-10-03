@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Text;
 
 namespace TriasDev.Tabular.Csv;
 
@@ -15,11 +14,6 @@ namespace TriasDev.Tabular.Csv;
 /// </remarks>
 internal sealed class CsvSheetWriter : ISheetWriter
 {
-    private const int InitialRowChars = 4 * 1024;
-
-    /// <summary>A row buffer past this is let go after its row, rather than kept for the rest of the file.</summary>
-    private const int RetainedRowChars = 1024 * 1024;
-
     /// <summary>A formatted number or date this short is copied on the stack when it has to be quoted.</summary>
     private const int FormattedOnStack = 128;
 
@@ -43,8 +37,7 @@ internal sealed class CsvSheetWriter : ISheetWriter
     private readonly SpillBuffer _out;
     private readonly CsvFormat _format;
     private int _columnCount;
-    private char[] _row = new char[InitialRowChars];
-    private int _length;
+    private readonly RowText _row = new();
     private bool _firstCell = true;
 
     public CsvSheetWriter(SpillBuffer output, CsvFormat format)
@@ -58,7 +51,7 @@ internal sealed class CsvSheetWriter : ISheetWriter
     public bool AllowsSeveralSheets => false;
 
     /// <summary>The row buffer's current size, for the test that a huge row does not keep it.</summary>
-    internal int RowBufferLength => _row.Length;
+    internal int RowBufferLength => _row.Capacity;
 
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
     {
@@ -72,7 +65,7 @@ internal sealed class CsvSheetWriter : ISheetWriter
 
     public void BeginRow()
     {
-        _length = 0;
+        _row.Clear();
         _firstCell = true;
     }
 
@@ -114,10 +107,10 @@ internal sealed class CsvSheetWriter : ISheetWriter
         {
             if (guard)
             {
-                Append('\'');
+                _row.Append('\'');
             }
 
-            Append(text);
+            _row.Append(text);
             return null;
         }
 
@@ -206,21 +199,16 @@ internal sealed class CsvSheetWriter : ISheetWriter
     public void WriteBoolean(bool value)
     {
         Separate();
-        Append(value ? "true" : "false");
+        _row.Append(value ? "true" : "false");
     }
 
     public void WriteEmpty() => Separate();
 
     public void EndRow()
     {
-        Append("\r\n");
-        Span<byte> target = _out.GetSpan(Encoding.UTF8.GetMaxByteCount(_length));
-        _out.Advance(Encoding.UTF8.GetBytes(_row.AsSpan(0, _length), target));
-
-        if (_row.Length > RetainedRowChars)
-        {
-            _row = new char[InitialRowChars];
-        }
+        _row.Append("\r\n");
+        _row.WriteUtf8To(_out);
+        _row.Clear();
     }
 
     public void Complete()
@@ -232,23 +220,10 @@ internal sealed class CsvSheetWriter : ISheetWriter
     {
         if (!_firstCell)
         {
-            Append(_format.Delimiter);
+            _row.Append(_format.Delimiter);
         }
 
         _firstCell = false;
-    }
-
-    private void Append(char value)
-    {
-        Reserve(1);
-        _row[_length++] = value;
-    }
-
-    private void Append(ReadOnlySpan<char> value)
-    {
-        Reserve(value.Length);
-        value.CopyTo(_row.AsSpan(_length));
-        _length += value.Length;
     }
 
     /// <summary>
@@ -258,17 +233,8 @@ internal sealed class CsvSheetWriter : ISheetWriter
     private void AppendFormatted<T>(T value, ReadOnlySpan<char> format)
         where T : ISpanFormattable
     {
-        Reserve(64);
-        int start = _length;
-        int written;
-
-        while (!value.TryFormat(_row.AsSpan(start), out written, format, _format.Culture))
-        {
-            Array.Resize(ref _row, _row.Length * 2);
-        }
-
-        _length += written;
-        ReadOnlySpan<char> formatted = _row.AsSpan(start, written);
+        int start = _row.AppendFormatted(value, format, _format.Culture);
+        ReadOnlySpan<char> formatted = _row.Written[start..];
 
         if (formatted.IndexOfAny(NeedsQuotes) < 0)
         {
@@ -276,20 +242,21 @@ internal sealed class CsvSheetWriter : ISheetWriter
         }
 
         // Copied out first: the quoted value is written over the place it was formatted into.
+        int written = formatted.Length;
         Span<char> copy = written <= FormattedOnStack ? stackalloc char[FormattedOnStack] : new char[written];
         formatted.CopyTo(copy);
-        _length = start;
+        _row.Truncate(start);
         AppendQuoted(copy[..written], guard: false);
     }
 
     /// <summary>Appends a field in quotes, its quotes doubled, after the formula guard's apostrophe if asked.</summary>
     private void AppendQuoted(ReadOnlySpan<char> text, bool guard)
     {
-        Append('"');
+        _row.Append('"');
 
         if (guard)
         {
-            Append('\'');
+            _row.Append('\'');
         }
 
         while (true)
@@ -298,23 +265,15 @@ internal sealed class CsvSheetWriter : ISheetWriter
 
             if (quote < 0)
             {
-                Append(text);
+                _row.Append(text);
                 break;
             }
 
-            Append(text[..(quote + 1)]);
-            Append('"');
+            _row.Append(text[..(quote + 1)]);
+            _row.Append('"');
             text = text[(quote + 1)..];
         }
 
-        Append('"');
-    }
-
-    private void Reserve(int extra)
-    {
-        if (_length + extra > _row.Length)
-        {
-            Array.Resize(ref _row, Math.Max(_row.Length * 2, _length + extra));
-        }
+        _row.Append('"');
     }
 }
