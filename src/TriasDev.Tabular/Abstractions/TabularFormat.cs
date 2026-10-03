@@ -21,4 +21,10 @@ public enum TabularFormat
     /// each sheet keeps its own.
     /// </summary>
     Zip,
+
+    /// <summary>
+    /// A gzip-compressed file, read as the file inside it. The container's format: its sheets keep
+    /// the inner file's.
+    /// </summary>
+    Gzip,
 }

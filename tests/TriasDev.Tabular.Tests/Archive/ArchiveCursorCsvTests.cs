@@ -124,6 +124,7 @@ public sealed class ArchiveCursorCsvTests
             .With("data.csv", "a;b\n1;2\n")
             .With("legacy.xls", ole2)
             .With("scan.pdf", binary)
+            .With("data.csv.gz", GzipFile.Of("a;b\n1;2\n"))
             .With("flat.fods", "<?xml version=\"1.0\"?><office:document/>")
             .With("more.zip", nested)
             .WithEncrypted("secret.csv", "a;b\n1;2\n")
@@ -132,6 +133,7 @@ public sealed class ArchiveCursorCsvTests
         Assert.Equal("data.csv", Assert.Single(cursor.Sheets).Source);
         Assert.Equal(
             [
+                new SkippedEntry { Path = "data.csv.gz", Reason = SkippedEntryReason.Compressed },
                 new SkippedEntry { Path = "flat.fods", Reason = SkippedEntryReason.XmlDocument },
                 new SkippedEntry { Path = "legacy.xls", Reason = SkippedEntryReason.LegacyWorkbook },
                 new SkippedEntry { Path = "more.zip", Reason = SkippedEntryReason.NestedArchive },

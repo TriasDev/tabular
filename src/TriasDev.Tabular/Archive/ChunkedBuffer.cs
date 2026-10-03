@@ -48,7 +48,7 @@ internal sealed class ChunkedBuffer : Stream
                 if (buffer._length + filled > limit)
                 {
                     throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes), limit,
-                        $"A workbook inside the archive is larger than the {limit} bytes allowed.");
+                        $"A workbook inside the archive or compressed file is larger than the {limit} bytes allowed.");
                 }
 
                 buffer._pieces.Add(filled == piece.Length ? piece : piece[..filled]);

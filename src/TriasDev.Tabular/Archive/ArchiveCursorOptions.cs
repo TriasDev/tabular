@@ -1,8 +1,8 @@
 namespace TriasDev.Tabular.Archive;
 
-/// <summary>Bounds on what a zip archive may make the reader hold or do.</summary>
+/// <summary>Bounds on what a zip archive or a gzip-compressed file may make the reader hold or do.</summary>
 /// <remarks>
-/// The archive's own quantities only. The files inside are read with the csv, xlsx and ods options
+/// The container's own quantities only. The files inside are read with the csv, xlsx and ods options
 /// that <see cref="TabularOpenOptions"/> already carries, so each format has one set of options
 /// whether it arrives on its own or in an archive.
 /// </remarks>
@@ -14,14 +14,14 @@ public sealed record ArchiveCursorOptions
     /// <summary>How many entries the archive's directory may list.</summary>
     public int MaxEntries { get; init; } = 16_384;
 
-    /// <summary>How many bytes the archive's entries may declare, uncompressed, all together.</summary>
+    /// <summary>How many bytes the archive's entries may declare, uncompressed, all together — or a compressed file expand to.</summary>
     /// <remarks>
     /// A zip's ratio is unbounded by design. The default admits a zipped OpenDocument spreadsheet at
     /// that format's own budget.
     /// </remarks>
     public long MaxUncompressedBytes { get; init; } = 8L * 1024 * 1024 * 1024;
 
-    /// <summary>How large a workbook inside the archive may be, as the file it is.</summary>
+    /// <summary>How large a workbook inside the archive or the compressed file may be, as the file it is.</summary>
     /// <remarks>
     /// A workbook is itself a zip and must be read with random access, which an entry stream does not
     /// give, so it is held in memory while it is read — one at a time. Any positive value is allowed,

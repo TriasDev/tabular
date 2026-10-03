@@ -1,5 +1,6 @@
 using System.Text;
 
+using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
@@ -49,6 +50,18 @@ public sealed class StreamOwnershipTests
         TrackedStream stream = new(BrokenZip);
 
         Assert.Throws<TabularFormatException>(() => new XlsxCursor(stream, leaveOpen: leaveOpen));
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AGzipCursorWhoseFileIsCutOffFollowsLeaveOpen(bool leaveOpen)
+    {
+        TrackedStream stream = new(GzipFile.Of("name;x\na;b\n")[..10]);
+
+        Assert.Throws<TabularFormatException>(() => new GzipCursor(stream, "t.csv.gz", new TabularOpenOptions { LeaveOpen = leaveOpen }));
 
         Assert.Equal(!leaveOpen, stream.IsDisposed);
     }

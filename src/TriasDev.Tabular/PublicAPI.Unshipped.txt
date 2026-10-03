@@ -77,3 +77,18 @@ TriasDev.Tabular.TabularWriter.Write(System.DateTime value) -> void
 TriasDev.Tabular.TabularWriter.Write(System.DateOnly value) -> void
 TriasDev.Tabular.TabularWriter.WriteEmpty() -> void
 static TriasDev.Tabular.TabularWriter.Create(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, TriasDev.Tabular.TabularWriterOptions? options = null) -> TriasDev.Tabular.TabularWriter!
+TriasDev.Tabular.SkippedEntryReason.Compressed = 8 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.TabularFormat.Gzip = 4 -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.Archive.GzipCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
+TriasDev.Tabular.Archive.GzipCursor.CurrentRowNumber.get -> int
+TriasDev.Tabular.Archive.GzipCursor.CurrentSheetIndex.get -> int
+TriasDev.Tabular.Archive.GzipCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
+TriasDev.Tabular.Archive.GzipCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
+TriasDev.Tabular.Archive.GzipCursor.Dispose() -> void
+TriasDev.Tabular.Archive.GzipCursor.Format.get -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.Archive.GzipCursor.ReadFraction.get -> double?
+TriasDev.Tabular.Archive.GzipCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+TriasDev.Tabular.Archive.GzipCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
+TriasDev.Tabular.Archive.GzipCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+TriasDev.Tabular.Archive.GzipCursor
+TriasDev.Tabular.Archive.GzipCursor.GzipCursor(System.IO.Stream! stream, string! name, TriasDev.Tabular.TabularOpenOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void

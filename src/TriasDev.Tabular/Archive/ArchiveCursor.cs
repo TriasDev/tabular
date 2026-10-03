@@ -1,8 +1,6 @@
 using System.IO.Compression;
 
 using TriasDev.Tabular.Csv;
-using TriasDev.Tabular.Ods;
-using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular.Archive;
 
@@ -334,6 +332,14 @@ public sealed class ArchiveCursor : ITabularCursor
             return;
         }
 
+        if (GzipHeader.HasSignature(head))
+        {
+            // Read on its own a gzip file is opened; inside an archive it would be a second layer of
+            // packing, which nothing here unpacks.
+            Skip(entry, SkippedEntryReason.Compressed);
+            return;
+        }
+
         if (head.AsSpan().StartsWith(CsvDialectDetector.CompoundFileSignature))
         {
             Skip(entry, SkippedEntryReason.LegacyWorkbook);
@@ -412,7 +418,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
         try
         {
-            using ITabularCursor workbook = OpenWorkbook(format, buffer, leaveOpen: true, cancellationToken);
+            using ITabularCursor workbook = EmbeddedWorkbook.Open(format, buffer, _options, leaveOpen: true, cancellationToken);
             names = [.. workbook.Sheets.Select(sheet => (sheet.Name, sheet.Visibility))];
         }
         catch (TabularFormatException e)
@@ -433,7 +439,7 @@ public sealed class ArchiveCursor : ITabularCursor
         if (entry.Length > limit)
         {
             throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes), limit,
-                $"A workbook inside the archive is larger than the {limit} bytes allowed.");
+                $"A workbook inside the archive or compressed file is larger than the {limit} bytes allowed.");
         }
 
         try
@@ -446,11 +452,6 @@ public sealed class ArchiveCursor : ITabularCursor
             throw Corrupt(e);
         }
     }
-
-    private ITabularCursor OpenWorkbook(TabularFormat format, Stream buffer, bool leaveOpen, CancellationToken cancellationToken) =>
-        format == TabularFormat.Ods
-            ? new OdsCursor(buffer, _options.Ods, leaveOpen, cancellationToken)
-            : new XlsxCursor(buffer, _options.Xlsx, leaveOpen, cancellationToken);
 
     private static byte[] ReadHead(ZipArchiveEntry entry, int probeBytes)
     {
@@ -501,7 +502,7 @@ public sealed class ArchiveCursor : ITabularCursor
         if (source.Format != TabularFormat.Csv)
         {
             // Held while its sheets are read, released when the cursor moves to another file.
-            _inner = OpenWorkbook(source.Format, Buffer(source.Entry, cancellationToken), leaveOpen: false, cancellationToken);
+            _inner = EmbeddedWorkbook.Open(source.Format, Buffer(source.Entry, cancellationToken), _options, leaveOpen: false, cancellationToken);
             _innerSource = index;
             return;
         }

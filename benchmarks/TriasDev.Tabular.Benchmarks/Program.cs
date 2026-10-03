@@ -47,9 +47,11 @@ public static class Program
         new LibraryXlsxCursorCellsOnly(),
         new LibraryOdsCursor(),
         new LibraryArchiveCursor(),
+        new LibraryGzipCursor(),
         new FullAnalysis(TabularFormat.Xlsx),
         new FullAnalysis(TabularFormat.Ods),
         new FullAnalysis(TabularFormat.Zip),
+        new FullAnalysis(TabularFormat.Gzip),
         new FullAnalysis(TabularFormat.Csv),
     ];
 
@@ -91,6 +93,7 @@ public static class Program
             TabularFormat.Xlsx => CandidateFormats.Xlsx,
             TabularFormat.Ods => CandidateFormats.Ods,
             TabularFormat.Zip => CandidateFormats.Zip,
+            TabularFormat.Gzip => CandidateFormats.Gzip,
             _ => CandidateFormats.Csv,
         };
 
@@ -101,6 +104,7 @@ public static class Program
                 TabularFormat.Xlsx => new XlsxCursor(stream),
                 TabularFormat.Ods => new OdsCursor(stream),
                 TabularFormat.Zip => new ArchiveCursor(stream),
+                TabularFormat.Gzip => new GzipCursor(stream, "benchmark.csv.gz"),
                 _ => new CsvCursor(stream, "benchmark.csv"),
             };
 
@@ -177,6 +181,39 @@ public static class Program
         public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
         {
             using ArchiveCursor cursor = new(stream);
+
+            List<string?> row = [];
+
+            for (int sheet = 0; sheet < cursor.Sheets.Count && cursor.MoveToSheet(sheet); sheet++)
+            {
+                while (cursor.ReadRow())
+                {
+                    row.Clear();
+
+                    for (int i = 0; i < cursor.CurrentRow.Length; i++)
+                    {
+                        row.Add(cursor.CurrentRow[i].AsText());
+                    }
+
+                    yield return row;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// A gzip file read through to its rows, every cell turned into text — for a compressed csv, the
+    /// cost of decompressing and checking it against reading the file itself.
+    /// </summary>
+    private sealed class LibraryGzipCursor : IParserCandidate
+    {
+        public string Name => "TriasDev.Tabular.GzipCursor";
+
+        public CandidateFormats Formats => CandidateFormats.Gzip;
+
+        public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
+        {
+            using GzipCursor cursor = new(stream, "benchmark.csv.gz");
 
             List<string?> row = [];
 
@@ -392,6 +429,7 @@ public static class Program
                 "xlsx" => CandidateFormats.Xlsx,
                 "ods" => CandidateFormats.Ods,
                 "zip" => CandidateFormats.Zip,
+                "gz" => CandidateFormats.Gzip,
                 _ => CandidateFormats.Csv,
             };
 
