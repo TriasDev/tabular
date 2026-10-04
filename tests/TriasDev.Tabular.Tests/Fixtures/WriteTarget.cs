@@ -24,6 +24,9 @@ public sealed class WriteTarget : MemoryStream
     /// <summary>When set, every asynchronous write throws it — a client that went away.</summary>
     public Exception? FailWith { get; set; }
 
+    /// <summary>When set, closing the stream throws it — after the stream is closed.</summary>
+    public Exception? FailOnDispose { get; set; }
+
     public override bool CanSeek => false;
 
     public override void Write(byte[] buffer, int offset, int count)
@@ -80,6 +83,11 @@ public sealed class WriteTarget : MemoryStream
     {
         _disposingAsync = true;
         await base.DisposeAsync();
+
+        if (FailOnDispose is { } failure)
+        {
+            throw failure;
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -91,6 +99,11 @@ public sealed class WriteTarget : MemoryStream
 
         IsDisposed = true;
         base.Dispose(disposing);
+
+        if (disposing && !_disposingAsync && FailOnDispose is { } failure)
+        {
+            throw failure;
+        }
     }
 
     private static InvalidOperationException Synchronous() => new("Synchronous operations are disallowed.");

@@ -734,6 +734,8 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <summary>
     /// Releases the writer and closes the stream, unless told to leave it open. Without
     /// <see cref="CompleteAsync"/> first, what is pending is dropped and the file stays incomplete.
+    /// A stream that fails to close is reported only for a complete file; otherwise the failure is
+    /// dropped, so it never hides the exception that is already on its way.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -742,6 +744,7 @@ public sealed class TabularWriter : IAsyncDisposable
             return;
         }
 
+        bool complete = _state == State.Completed;
         _state = State.Disposed;
 
         try
@@ -759,8 +762,32 @@ public sealed class TabularWriter : IAsyncDisposable
         {
             if (!_leaveOpen)
             {
-                await _target.DisposeAsync().ConfigureAwait(false);
+                await CloseTargetAsync(complete).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// Closes the target. When the file is not complete — the writer failed, or was abandoned — a
+    /// failure to close is dropped: the caller is already handling (or has already been told about)
+    /// what went wrong, and an exception from closing would replace it. A complete file's close
+    /// failure is reported: it may mean the bytes did not all arrive.
+    /// </summary>
+    private async ValueTask CloseTargetAsync(bool complete)
+    {
+        if (complete)
+        {
+            await _target.DisposeAsync().ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            await _target.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception closing) when (closing is not OutOfMemoryException)
+        {
+            // Dropped on purpose; see the summary.
         }
     }
 

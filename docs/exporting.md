@@ -31,7 +31,9 @@ then `BeginRow`, one `Write` per column, `EndRow`, and `CompleteAsync` at the en
   cannot tell a short csv from a finished one afterwards; you can, because you know whether
   `CompleteAsync` returned.
 - `DisposeAsync` closes the stream unless `TabularWriterOptions.LeaveOpen` is set. It drops what is
-  pending and never completes the file.
+  pending and never completes the file. If the file is not complete, a stream that also fails to
+  close is not reported, so it never hides the exception that failed the write; after `CompleteAsync`,
+  a failed close is thrown.
 - A writer that failed (a value it refused, a cancelled flush, a stream that threw) is faulted: the
   file is incomplete and every further call throws. Start over with a new writer.
 - Not thread-safe: one writer, one sequence of calls.
