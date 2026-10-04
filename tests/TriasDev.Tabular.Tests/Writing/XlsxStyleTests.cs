@@ -176,6 +176,70 @@ public sealed class XlsxStyleTests
         Assert.Contains("formatCode=\"&quot;R&amp;D &lt;&quot;0\"", Part(xlsx, "xl/styles.xml"), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("\"x\\\"0\" days\"")]
+    [InlineData("\"d m y h s\"0")]
+    [InlineData("0\" dd mm yyyy hh ss\"")]
+    [InlineData("\"\\d\"0\"\\y\"")]
+    [InlineData("\"[\"0\"]\"")]
+    [InlineData("\"[d]\"0")]
+    [InlineData("\"%\"0.0")]
+    [InlineData("0.0%\" d\\\"")]
+    [InlineData("\"\\\"#,##0\" s\"")]
+    public async Task EveryAcceptedNumberFormatShapeReadsBackAsTheNumber(string code)
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId style = writer.Style(new CellStyle { Number = NumberFormat.Parse(code) });
+            writer.BeginSheet("data", [new("a"), new("b"), new("c")]);
+            writer.BeginRow();
+            writer.Write(42.0, style);
+            writer.Write(42L, style);
+            writer.Write(42m, style);
+            writer.EndRow();
+        });
+
+        RawCell[] row = Rows(xlsx)[1];
+
+        Assert.All(row, cell => Assert.Equal(RawCell.FromNumber(42), cell));
+    }
+
+    [Fact]
+    public async Task AnEmojiLiteralInADateFormatSurvivesIntact()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId style = writer.Style(new CellStyle { Date = DateFormat.Parse("dd \"\U0001F4C5\" yyyy") });
+            writer.BeginSheet("data", [new("d")]);
+            writer.BeginRow();
+            writer.Write(new DateOnly(2026, 10, 4), style);
+            writer.EndRow();
+        });
+
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+        Assert.Contains("\U0001F4C5", Part(xlsx, "xl/styles.xml"), StringComparison.Ordinal);
+        Assert.DoesNotContain('\uFFFD', Part(xlsx, "xl/styles.xml"));
+        Assert.Equal(RawCell.FromDate(new DateTime(2026, 10, 4, 0, 0, 0, DateTimeKind.Unspecified)), Rows(xlsx)[1][0]);
+    }
+
+    [Fact]
+    public async Task ATabInALiteralIsWrittenAsACharacterReference()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId style = writer.Style(new CellStyle { Number = NumberFormat.Parse("\"a\tb\"0") });
+            writer.BeginSheet("data", [new("n")]);
+            writer.BeginRow();
+            writer.Write(5L, style);
+            writer.EndRow();
+        });
+
+        string styles = Part(xlsx, "xl/styles.xml");
+
+        Assert.Contains("a&#9;b", styles, StringComparison.Ordinal);
+        Assert.DoesNotContain('\t', styles);
+    }
+
     [Fact]
     public async Task AnUnstyledWorkbookKeepsItsFourFormats()
     {

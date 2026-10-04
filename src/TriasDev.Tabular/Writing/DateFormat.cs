@@ -217,8 +217,21 @@ public sealed record DateFormat
                 continue;
             }
 
-            foreach (char c in part.Text)
+            string text = part.Text;
+
+            int i = 0;
+
+            while (i < text.Length)
             {
+                char c = text[i++];
+
+                if (char.IsHighSurrogate(c) && i < text.Length && char.IsLowSurrogate(text[i]))
+                {
+                    // one unit: a backslash would escape only the high half, so the pair goes in quotes
+                    code.Append('"').Append(c).Append(text[i++]).Append('"');
+                    continue;
+                }
+
                 if (c != ':')
                 {
                     code.Append('\\');

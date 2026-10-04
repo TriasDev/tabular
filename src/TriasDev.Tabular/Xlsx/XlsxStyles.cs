@@ -15,14 +15,23 @@ namespace TriasDev.Tabular.Xlsx;
 /// </remarks>
 internal sealed class XlsxStyles
 {
-    public const int DateFormat = 14;
-    public const int DateTimeFormat = 164;
-    public const int IntegerFormat = 1;
+    /// <summary>The cell format index of the fixed date format; the order of <c>_xfs</c> below.</summary>
+    internal const int DateXf = 1;
+
+    /// <summary>The cell format index of the fixed date-and-time format.</summary>
+    internal const int DateTimeXf = 2;
+
+    /// <summary>The cell format index of the fixed integer format.</summary>
+    internal const int IntegerXf = 3;
+
+    private const int BuiltInDate = 14;
+    private const int BuiltInDateTime = 164;
+    private const int BuiltInInteger = 1;
     private const int FirstCustomFormat = 165;
     private const string XmlDeclaration = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>";
 
     private readonly StyleTable _table;
-    private readonly List<CellFormat> _xfs = [new(0, 0, 0, 0, HorizontalAlignment.General, false), new(DateFormat, 0, 0, 0, HorizontalAlignment.General, false), new(DateTimeFormat, 0, 0, 0, HorizontalAlignment.General, false), new(IntegerFormat, 0, 0, 0, HorizontalAlignment.General, false)];
+    private readonly List<CellFormat> _xfs = [new(0, 0, 0, 0, HorizontalAlignment.General, false), new(BuiltInDate, 0, 0, 0, HorizontalAlignment.General, false), new(BuiltInDateTime, 0, 0, 0, HorizontalAlignment.General, false), new(BuiltInInteger, 0, 0, 0, HorizontalAlignment.General, false)];
     private readonly Dictionary<CellFormat, int> _xfIndices = [];
     private readonly List<CellFont> _fonts = [];          // index + 1 in <fonts>; 0 is the default font
     private readonly Dictionary<CellFont, int> _fontIndices = [];
@@ -57,7 +66,7 @@ internal sealed class XlsxStyles
     {
         StringBuilder xml = new(XmlDeclaration + "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
 
-        xml.Append(CultureInfo.InvariantCulture, $"<numFmts count=\"{1 + _formats.Count}\"><numFmt numFmtId=\"{DateTimeFormat}\" formatCode=\"yyyy\\-mm\\-dd\\ hh:mm:ss\"/>");
+        xml.Append(CultureInfo.InvariantCulture, $"<numFmts count=\"{1 + _formats.Count}\"><numFmt numFmtId=\"{BuiltInDateTime}\" formatCode=\"yyyy\\-mm\\-dd\\ hh:mm:ss\"/>");
 
         for (int i = 0; i < _formats.Count; i++)
         {
@@ -116,10 +125,10 @@ internal sealed class XlsxStyles
 
         int format = kind switch
         {
-            ValueKind.Integer => cell.Number is { } number ? FormatId(number.Code) : IntegerFormat,
+            ValueKind.Integer => cell.Number is { } number ? FormatId(number.Code) : BuiltInInteger,
             ValueKind.Number => cell.Number is { } number ? FormatId(number.Code) : 0,
-            ValueKind.Date => cell.Date is { } date ? FormatId(date.Code) : DateFormat,
-            ValueKind.DateTime => cell.Date is { } date ? FormatId(date.Code) : DateTimeFormat,
+            ValueKind.Date => cell.Date is { } date ? FormatId(date.Code) : BuiltInDate,
+            ValueKind.DateTime => cell.Date is { } date ? FormatId(date.Code) : BuiltInDateTime,
             _ => 0,
         };
 
@@ -198,6 +207,9 @@ internal sealed class XlsxStyles
                 '<' => xml.Append("&lt;"),
                 '>' => xml.Append("&gt;"),
                 '"' => xml.Append("&quot;"),
+                '\t' => xml.Append("&#9;"),
+                '\n' => xml.Append("&#10;"),
+                '\r' => xml.Append("&#13;"),
                 _ => xml.Append(c),
             };
         }

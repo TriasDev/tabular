@@ -28,9 +28,6 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private const int RetainedBytes = 3 * RowText.RetainedChars;
 
     private const string ValueEnd = "</v></c>";
-    private const int DateStyle = 1;
-    private const int DateTimeStyle = 2;
-    private const int IntegerStyle = 3;
 
     /// <summary>The first day a workbook holds, as the reader reads serials.</summary>
     private static readonly DateTime FirstDay = new(1900, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
@@ -117,7 +114,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
             return code;
         }
 
-        WriteNumber(style == 0 ? IntegerStyle : _styles.Xf(style, ValueKind.Integer));
+        WriteNumber(style == 0 ? XlsxStyles.IntegerXf : _styles.Xf(style, ValueKind.Integer));
         _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
         _row.Append(ValueEnd);
         return null;
@@ -216,7 +213,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         return null;
     }
 
-    private static int DefaultDateXf(bool hasTime) => hasTime ? DateTimeStyle : DateStyle;
+    private static int DefaultDateXf(bool hasTime) => hasTime ? XlsxStyles.DateTimeXf : XlsxStyles.DateXf;
 
     private static ValueKind DateKind(bool hasTime) => hasTime ? ValueKind.DateTime : ValueKind.Date;
 

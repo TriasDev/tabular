@@ -64,6 +64,36 @@ public sealed class StyledWriterTests
     }
 
     [Fact]
+    public async Task AStyleIdFromAnotherWriterWithTheSameIndexIsRefused()
+    {
+        await using TabularWriter other = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        other.Style(Red);
+        StyleId foreign = other.Style(Red with { Wrap = true });           // index 2 there
+
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        writer.Style(Red);
+        StyleId own = writer.Style(Red with { Wrap = true });               // index 2 here too
+        writer.BeginSheet("data", [new("x")]);
+        writer.BeginRow();
+
+        Assert.NotEqual(own, foreign);
+        Assert.Throws<ArgumentException>(() => writer.Write(1.5, foreign));
+    }
+
+    [Fact]
+    public async Task TheDefaultStyleIdIsTheUnstyledCellOnEveryWriter()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("x")]);
+        writer.BeginRow();
+
+        writer.Write(1.5, default(StyleId));
+        writer.EndRow();
+
+        Assert.Equal(default, default(StyleId));
+    }
+
+    [Fact]
     public async Task CsvIgnoresStyles()
     {
         async Task<byte[]> Write(bool styled)

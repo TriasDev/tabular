@@ -27,7 +27,7 @@ public sealed record NumberFormat
         Suffix = suffix;
     }
 
-    /// <summary>The format code, as parsed.</summary>
+    /// <summary>The format code as written into a workbook: the canonical form of what was parsed.</summary>
     public string Code { get; }
 
     internal bool Grouping { get; }

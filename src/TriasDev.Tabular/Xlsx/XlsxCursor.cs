@@ -1432,10 +1432,16 @@ public sealed class XlsxCursor : ITabularCursor
             char c = code[i];
             i++;
 
+            if (inQuotes)
+            {
+                inQuotes = c != '"';            // inside quotes everything is literal, a backslash and a bracket too
+                continue;
+            }
+
             switch (c)
             {
                 case '"':
-                    inQuotes = !inQuotes;
+                    inQuotes = true;
                     continue;
                 case '[':
                     inBrackets = true;
@@ -1448,7 +1454,7 @@ public sealed class XlsxCursor : ITabularCursor
                     continue;
             }
 
-            if (inQuotes || inBrackets)
+            if (inBrackets)
             {
                 continue;
             }

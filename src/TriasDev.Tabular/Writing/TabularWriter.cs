@@ -37,6 +37,8 @@ public sealed class TabularWriter : IAsyncDisposable
     private readonly SpillBuffer _buffer;
     private readonly ISheetWriter _sheet;
     private readonly StyleTable _styles;
+    private static int s_stamps;
+    private readonly int _stamp = NextStamp();
     private readonly bool _leaveOpen;
     private State _state = State.Open;
     private WriteColumn[] _columns = [];
@@ -231,6 +233,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// overloads. The same style, by value, returns the same id. Call it before or during any sheet;
     /// csv files ignore styles.
     /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="style"/> is null.</exception>
     /// <exception cref="TabularLimitException">The file already holds 4096 distinct styles.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The style's alignment is not a defined value.</exception>
     public StyleId Style(CellStyle style)
@@ -239,7 +242,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         try
         {
-            return new StyleId(_styles.Add(style));
+            return new StyleId(_stamp, _styles.Add(style));
         }
         catch (Exception refused) when (refused is ArgumentException or TabularLimitException)
         {
@@ -551,12 +554,19 @@ public sealed class TabularWriter : IAsyncDisposable
         _state = State.InSheet;
     }
 
+    /// <summary>A number no other writer in the process holds, never 0.</summary>
+    private static int NextStamp()
+    {
+        int stamp = Interlocked.Increment(ref s_stamps);
+        return stamp != 0 ? stamp : Interlocked.Increment(ref s_stamps);
+    }
+
     /// <summary>The style's index, refused unless this writer handed it out.</summary>
     private int Index(StyleId style)
     {
         int index = style.Value;
 
-        if ((uint)index >= (uint)_styles.Count)
+        if ((uint)index >= (uint)_styles.Count || (index != 0 && style.Writer != _stamp))
         {
             throw Faulting(new ArgumentException($"{style} was not handed out by this writer's Style method.", nameof(style)));
         }
