@@ -3,6 +3,7 @@ using System.Text;
 using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Ods;
+using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 
 using Xunit;
@@ -48,6 +49,8 @@ public sealed class NullArgumentTests
         { "XlsxCursor", "stream", () => _ = new XlsxCursor(null!) },
         { "OdsCursor", "stream", () => _ = new OdsCursor(null!) },
         { "ArchiveCursor", "stream", () => _ = new ArchiveCursor(null!) },
+        { "GzipCursor", "stream", () => _ = new GzipCursor(null!, "t.csv.gz") },
+        { "GzipCursor", "name", () => _ = new GzipCursor(new MemoryStream(GzipFile.Of("a\n")), null!) },
         { "TabularAnalyzer.Analyze", "cursor", () => TabularAnalyzer.Analyze(null!, cancellationToken: CancellationToken.None) },
         { "TabularExtractor.Extract", "cursor", () => TabularExtractor.Extract(null!, Plan, Schema, cancellationToken: CancellationToken.None) },
         { "TabularExtractor.Extract", "plan", () => TabularExtractor.Extract(Cursor(), null!, Schema, cancellationToken: CancellationToken.None) },
@@ -84,6 +87,8 @@ public sealed class NullArgumentTests
         { "CheckDigits.Luhn", "value", () => CheckDigits.Luhn(null!) },
         { "CheckDigits.Mod97", "value", () => CheckDigits.Mod97(null!) },
         { "ErrorCodes.IsReserved", "code", () => ErrorCodes.IsReserved(null!) },
+        { "TabularWriter.Create", "stream", () => TabularWriter.Create(null!, TabularFormat.Csv) },
+        { "TabularWriter.BeginSheet", "name", () => TabularWriter.Create(new MemoryStream(), TabularFormat.Csv).BeginSheet(null!, [new("a")]) },
     };
 
     [Theory]

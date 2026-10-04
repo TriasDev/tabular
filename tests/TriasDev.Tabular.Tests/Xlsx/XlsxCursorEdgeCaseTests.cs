@@ -306,4 +306,23 @@ public sealed class XlsxCursorEdgeCaseTests
 
         Assert.Empty(ReadAll(content));
     }
+
+    [Fact]
+    public void ReadsTheLastMillisecondOfTheLastDayExactly()
+    {
+        Assert.True(XlsxCursor.TryFromSerial(2958465.999999988426, date1904: false, out DateTime date));
+
+        Assert.Equal(new DateTime(9999, 12, 31, 23, 59, 59, 999, DateTimeKind.Unspecified).Ticks, date.Ticks);
+    }
+
+    [Fact]
+    public void ReadsALateMidRangeDateTimeToTheExactMillisecond()
+    {
+        DateTime expected = new(2500, 6, 15, 13, 45, 30, 123, DateTimeKind.Unspecified);
+        double serial = (expected.Ticks - new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified).Ticks) / TimeSpan.TicksPerMillisecond / 86_400_000d;
+
+        Assert.True(XlsxCursor.TryFromSerial(serial, date1904: false, out DateTime date));
+
+        Assert.Equal(expected.Ticks, date.Ticks);
+    }
 }

@@ -124,8 +124,33 @@ public static class ErrorCodes
         public const string Exceeded = "limit.exceeded";
     }
 
+    /// <summary>A value the chosen format cannot hold exactly — TabularWriteException.</summary>
+    public static class Write
+    {
+        /// <summary><c>write.ambiguous-line-breaks</c></summary>
+        public const string AmbiguousLineBreaks = "write.ambiguous-line-breaks";
+
+        /// <summary><c>write.date-out-of-range</c></summary>
+        public const string DateOutOfRange = "write.date-out-of-range";
+
+        /// <summary><c>write.invalid-character</c></summary>
+        public const string InvalidCharacter = "write.invalid-character";
+
+        /// <summary><c>write.not-finite</c></summary>
+        public const string NotFinite = "write.not-finite";
+
+        /// <summary><c>write.precision-loss</c></summary>
+        public const string PrecisionLoss = "write.precision-loss";
+
+        /// <summary><c>write.text-too-long</c></summary>
+        public const string TextTooLong = "write.text-too-long";
+
+        /// <summary><c>write.too-many-lines</c></summary>
+        public const string TooManyLines = "write.too-many-lines";
+    }
+
     /// <summary>The prefixes of the library's own codes; a caller's rule may not use them.</summary>
-    public static IReadOnlyList<string> ReservedPrefixes { get; } = ["value.", "mapping.", "group.", "structure.", "format.", "limit."];
+    public static IReadOnlyList<string> ReservedPrefixes { get; } = ["value.", "mapping.", "group.", "structure.", "format.", "limit.", "write."];
 
     /// <summary>Whether a code uses one of the library's prefixes.</summary>
     public static bool IsReserved(string code)

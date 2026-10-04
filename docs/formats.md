@@ -27,17 +27,17 @@ always visible. Hidden sheets are still listed and read — lookup lists, instru
 in a template are data too — so a screen offering sheets, or an upload picking one, decides what to
 do with them. A chart sheet, macro sheet or dialog sheet holds no cells and is not listed at all.
 
-## A zip archive reads as one workbook
+## An archive reads as one workbook
 
-A zip that is not itself a workbook is read as one: its sheets are the sheets of every file in it
+A zip that is not itself a workbook, a tar, or a tar compressed with gzip is read as one workbook: its sheets are the sheets of every file in it
 that can be read as a table — csv, xlsx and ods — in the order of their paths, each with its file's
 path as `SheetInfo.Source` and its own `Format`. A csv file is named after its file; a workbook's
 sheets keep their names, and `Source` tells two `Sheet1` apart. Files are judged by their bytes, as a
 file on its own is.
 
-- **Left out without a word:** directories, hidden files and folders (`.DS_Store`, anything whose
-  name starts with a dot) and `__MACOSX/`.
-- **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a nested zip, another
+- **Left out without a word:** directories, links and other entries that are not files, hidden files
+  and folders (`.DS_Store`, anything whose name starts with a dot, macOS `._` files) and `__MACOSX/`.
+- **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a gzip-compressed file, a nested zip or tar, another
   OpenDocument type, a legacy `.xls`, an XML document, a binary file, and a workbook that is damaged
   or of a kind not read (`.xlsb`). Nested archives are not opened.
 - **Refused:** an archive with nothing readable in it, as `format.unsupported`.
@@ -49,6 +49,38 @@ read with random access, so it is copied into memory while its sheets are read �
 afford: the copy is held in pieces, not one array). A mapping plan made from an archive records the
 sheet's `Source`, and an import refuses the archive as `structure.sheet-changed` when another file now
 stands at the plan's index.
+
+A tar reads the same way, plain or compressed with gzip (`.tar.gz`, `.tgz`): `FileProfile.Format` is
+`Tar` for both, `Source` is the entry's path as written, long paths (PAX and GNU) included. A plain
+tar's files are read where they lie, workbooks included — nothing is copied. A compressed tar can only
+be read from its start: opening it decompresses it once to list its sheets, and reading a sheet
+decompresses it again up to that file, unless the cursor is moving forward through the archive
+anyway — so reading the sheets in the order the archive stores them costs one pass. A tar cut off or
+damaged anywhere, or missing the zero block that ends it, is refused as `format.truncated` or
+`format.corrupt`; a tar holding a GNU sparse file, which cannot be read past, as `format.unsupported`.
+Old v7 tars, which carry no magic, are not recognised.
+
+## A gzip file reads as the file inside it
+
+A file compressed with gzip — `data.csv.gz`, `report.xlsx.gz`, `table.ods.gz` — is read as the file
+it holds: a csv file's one sheet, or a workbook's sheets. `FileProfile.Format` is `Gzip`; each sheet
+keeps the inner file's `Format`. The sheet's `Source` is the file name the gzip header stores (the
+`gzip` tool stores it; .NET's `GZipStream` does not), and `null` when it stores none — so a mapping
+plan does not depend on the name a caller passes. A csv sheet is named after that stored name, or
+after the file without its `.gz`.
+
+A csv file is decompressed as it is read, never unpacked; moving back to its sheet decompresses it
+again. A workbook is decompressed into memory once, up to `ArchiveCursorOptions.MaxEmbeddedWorkbookBytes`.
+What a file expands to is bounded by `ArchiveCursorOptions.MaxUncompressedBytes`, counted while
+decompressing.
+
+Every gzip member's checksum and size are checked, so a file cut off or damaged anywhere is refused
+as `format.truncated` or `format.corrupt` — never read as a shorter file, which is what .NET's own
+`GZipStream` does with a cut-off one. A file of several members (`cat a.gz b.gz`, bgzip) reads as one
+file; bytes after the last member that do not start another are ignored, as the `gzip` tool does.
+
+Not read: a zip archive inside a gzip file, a file compressed twice, and a gzip file inside a zip
+archive — skipped there as `Compressed`.
 
 ## Malformed input is repaired, and the repair is counted
 

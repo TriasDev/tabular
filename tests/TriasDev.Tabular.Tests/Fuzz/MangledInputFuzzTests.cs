@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Text;
 
+using TriasDev.Tabular.Tests.Fixtures;
+
 using Xunit;
 
 namespace TriasDev.Tabular.Tests.Fuzz;
@@ -43,6 +45,78 @@ public sealed class MangledInputFuzzTests
     }
 
     [Fact]
+    public void ReadsOrRefusesMangledGzip()
+    {
+        foreach ((int seed, Random random) in FuzzCases.Generate(300))
+        {
+            List<byte> csv = [];
+
+            for (int i = random.Next(0, 400); i > 0; i--)
+            {
+                csv.AddRange(Encoding.UTF8.GetBytes(random.Pick(CsvTokens)));
+            }
+
+            // Cut, flip and insert past the ten fixed header bytes, so the file stays gzip to the
+            // detector and the damage lands in the framing, the deflate data and the trailer.
+            List<byte> file = [.. GzipFile.Of([.. csv])];
+
+            for (int m = random.Next(1, 4); m > 0 && file.Count > 10; m--)
+            {
+                int at = random.Next(10, file.Count);
+
+                switch (random.Next(3))
+                {
+                    case 0:
+                        file.RemoveRange(at, file.Count - at);
+                        break;
+                    case 1:
+                        file[at] ^= (byte)random.Next(1, 256);
+                        break;
+                    default:
+                        file.Insert(at, (byte)random.Next(256));
+                        break;
+                }
+            }
+
+            ReadsOrRefuses([.. file], "fuzz.csv.gz", seed);
+        }
+    }
+
+
+    [Fact]
+    public void ReadsOrRefusesMangledTar()
+    {
+        foreach ((int seed, Random random) in FuzzCases.Generate(300))
+        {
+            byte[] tar = RandomTar(random);
+            List<byte> file = [.. random.Chance(0.5) ? GzipFile.Of(tar) : tar];
+
+            // Past the first block (or the gzip header), so the file stays a tar to the detector and
+            // the damage lands in later headers, data, padding and the end blocks.
+            int keep = file[0] == 0x1F ? 10 : 512;
+
+            for (int m = random.Next(1, 4); m > 0 && file.Count > keep; m--)
+            {
+                int at = random.Next(keep, file.Count);
+
+                switch (random.Next(3))
+                {
+                    case 0:
+                        file.RemoveRange(at, file.Count - at);
+                        break;
+                    case 1:
+                        file[at] ^= (byte)random.Next(1, 256);
+                        break;
+                    default:
+                        file.Insert(at, (byte)random.Next(256));
+                        break;
+                }
+            }
+
+            ReadsOrRefuses([.. file], random.Chance(0.5) ? "fuzz.tar" : "fuzz.tar.gz", seed);
+        }
+    }
+    [Fact]
     public void ReadsOrRefusesMangledXlsx()
     {
         foreach ((int seed, Random random) in FuzzCases.Generate(300))
@@ -58,6 +132,26 @@ public sealed class MangledInputFuzzTests
         {
             ReadsOrRefuses(Mangle(OdsFuzzTests.Write(FuzzSheets.Workbook(random), random), random), "fuzz.ods", seed);
         }
+    }
+
+    private static byte[] RandomTar(Random random)
+    {
+        System.Formats.Tar.TarEntryFormat format = random.Pick(System.Formats.Tar.TarEntryFormat.Ustar, System.Formats.Tar.TarEntryFormat.Pax, System.Formats.Tar.TarEntryFormat.Gnu);
+        List<(string Path, string Content)> files = [];
+
+        for (int f = random.Next(1, 4); f > 0; f--)
+        {
+            StringBuilder csv = new();
+
+            for (int i = random.Next(0, 100); i > 0; i--)
+            {
+                csv.Append(random.Pick(CsvTokens));
+            }
+
+            files.Add(($"d{f}/f{random.Next(1000)}.csv", csv.ToString()));
+        }
+
+        return TarArchive.Of(format, [.. files]);
     }
 
     private static void ReadsOrRefuses(byte[] file, string name, int seed)

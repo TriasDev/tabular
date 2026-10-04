@@ -47,9 +47,12 @@ public static class Program
         new LibraryXlsxCursorCellsOnly(),
         new LibraryOdsCursor(),
         new LibraryArchiveCursor(),
+        new LibraryGzipCursor(),
         new FullAnalysis(TabularFormat.Xlsx),
         new FullAnalysis(TabularFormat.Ods),
         new FullAnalysis(TabularFormat.Zip),
+        new FullAnalysis(TabularFormat.Gzip),
+        new FullAnalysis(TabularFormat.Tar),
         new FullAnalysis(TabularFormat.Csv),
     ];
 
@@ -91,6 +94,8 @@ public static class Program
             TabularFormat.Xlsx => CandidateFormats.Xlsx,
             TabularFormat.Ods => CandidateFormats.Ods,
             TabularFormat.Zip => CandidateFormats.Zip,
+            TabularFormat.Gzip => CandidateFormats.Gzip,
+            TabularFormat.Tar => CandidateFormats.Tar,
             _ => CandidateFormats.Csv,
         };
 
@@ -101,6 +106,8 @@ public static class Program
                 TabularFormat.Xlsx => new XlsxCursor(stream),
                 TabularFormat.Ods => new OdsCursor(stream),
                 TabularFormat.Zip => new ArchiveCursor(stream),
+                TabularFormat.Gzip => new GzipCursor(stream, "benchmark.csv.gz"),
+                TabularFormat.Tar => new ArchiveCursor(stream),
                 _ => new CsvCursor(stream, "benchmark.csv"),
             };
 
@@ -172,11 +179,44 @@ public static class Program
     {
         public string Name => "TriasDev.Tabular.ArchiveCursor";
 
-        public CandidateFormats Formats => CandidateFormats.Zip;
+        public CandidateFormats Formats => CandidateFormats.Zip | CandidateFormats.Tar;
 
         public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
         {
             using ArchiveCursor cursor = new(stream);
+
+            List<string?> row = [];
+
+            for (int sheet = 0; sheet < cursor.Sheets.Count && cursor.MoveToSheet(sheet); sheet++)
+            {
+                while (cursor.ReadRow())
+                {
+                    row.Clear();
+
+                    for (int i = 0; i < cursor.CurrentRow.Length; i++)
+                    {
+                        row.Add(cursor.CurrentRow[i].AsText());
+                    }
+
+                    yield return row;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// A gzip file read through to its rows, every cell turned into text — for a compressed csv, the
+    /// cost of decompressing and checking it against reading the file itself.
+    /// </summary>
+    private sealed class LibraryGzipCursor : IParserCandidate
+    {
+        public string Name => "TriasDev.Tabular.GzipCursor";
+
+        public CandidateFormats Formats => CandidateFormats.Gzip;
+
+        public IEnumerable<IReadOnlyList<string?>> Rows(Stream stream)
+        {
+            using GzipCursor cursor = new(stream, "benchmark.csv.gz");
 
             List<string?> row = [];
 
@@ -347,6 +387,11 @@ public static class Program
         return 0;
     }
 
+    private static bool IsTar(string path) =>
+        path.EndsWith(".tar", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase);
+
     private static string Extension(string path) =>
         Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
 
@@ -387,13 +432,17 @@ public static class Program
                 continue;
             }
 
-            CandidateFormats format = Extension(path) switch
-            {
-                "xlsx" => CandidateFormats.Xlsx,
-                "ods" => CandidateFormats.Ods,
-                "zip" => CandidateFormats.Zip,
-                _ => CandidateFormats.Csv,
-            };
+            // Routes candidates only; telling the formats apart by their bytes is the library's job.
+            CandidateFormats format = IsTar(path)
+                ? CandidateFormats.Tar
+                : Extension(path) switch
+                {
+                    "xlsx" => CandidateFormats.Xlsx,
+                    "ods" => CandidateFormats.Ods,
+                    "zip" => CandidateFormats.Zip,
+                    "gz" => CandidateFormats.Gzip,
+                    _ => CandidateFormats.Csv,
+                };
 
             foreach (IParserCandidate candidate in Candidates.Where(c => c.Formats.HasFlag(format)))
             {

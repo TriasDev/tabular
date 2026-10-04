@@ -35,18 +35,23 @@ under `src/TriasDev.Tabular` still group the code by layer:
 - **Abstractions** — `ITabularCursor` is the only format-aware seam; everything above is written
   against it. `TabularFile.Open` picks the cursor from the file's bytes, never from its extension: not a
   zip → csv; a zip → xlsx when its directory holds `[Content_Types].xml` or `_rels/.rels`, ods when
-  it holds the OpenDocument spreadsheet `mimetype`, otherwise an archive.
+  it holds the OpenDocument spreadsheet `mimetype`, otherwise an archive; gzip (`1F 8B 08`) → `GzipCursor`, unless its first decompressed block is a tar
+  header; a tar header (magic + checksum), raw or inside gzip → `ArchiveCursor`.
 - **Csv / Xlsx / Ods** — the three cursors. The CSV cursor detects its dialect and *repairs* malformed input
   (stray quotes, unclosed quotes), counting each repair in `CursorDiagnostics`. The xlsx cursor reads
   the OOXML package directly (shared strings, styles, 1904 epoch, inline strings). The ods cursor reads
   `content.xml` with the same `SheetScanner` in its local-name mode; cells state their own type, and
   the sheet names come from a byte-level pass (`TableNameScan`) that must count the tables exactly as
   the reading does.
-- **Archive** — `ArchiveCursor` reads a zip of files as one workbook: every csv, xlsx and ods entry's
+- **Archive** — `ArchiveCursor` reads a zip, a tar or a tar.gz as one workbook, its entries coming from an
+  `ArchiveContainer` (`ZipContainer`; `TarContainer`, indexed and read in place; `TarGzContainer`,
+  sequential, decompressed again only to move back): every csv, xlsx and ods entry's
   sheets in path order, `Source` = the entry's path, unreadable entries in `SkippedEntries`. A csv
   entry streams with its dialect detected from its head; a workbook entry is copied into a
   `ChunkedBuffer` (random access, past 2 GB) and read by its own cursor. `TabularFile.ClassifyZip`
   decides workbook / ods / other ODF / archive from the zip's directory, for `Detect` and for entries.
+  `GzipCursor` reads a gzip file as the file inside it; the gzip framing (header, CRC-32 and size per
+  member) is ours over the BCL's `DeflateStream`, because `GZipStream` reads a cut-off file silently.
 - **Analysis** — reads every row, not a sample. `ColumnFacts` are measured; `TypeHypothesis` is
   derived and only ever a suggestion. Keep that distinction. A sheet's source facts (`Format`,
   `Source`, `Dialect`, `Diagnostics`) live on `SheetProfile`, not `FileProfile` — an archive holds

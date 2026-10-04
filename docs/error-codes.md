@@ -23,6 +23,7 @@ from them.
 | `structure.sheet-missing`, `structure.sheet-changed`, `structure.header-row-missing`, `structure.header-changed` | `TabularStructureException`: the file is not the one the plan was built for |
 | `format.unsupported`, `format.corrupt`, `format.truncated` | `TabularFormatException`: not a format this library reads (.xls, .xlsb, .fods, another OpenDocument type, binary, an archive with nothing readable), or damaged, or cut off |
 | `limit.exceeded` | `TabularLimitException`: a bound was exceeded; `Limit` names the option, `Maximum` its value |
+| `write.precision-loss`, `write.not-finite`, `write.date-out-of-range`, `write.text-too-long`, `write.too-many-lines`, `write.ambiguous-line-breaks`, `write.invalid-character` | `TabularWriteException`: a value the chosen format cannot hold exactly, found while writing; `SheetName`, `RowNumber`, `ColumnIndex` and `Header` say where. The file written so far is incomplete and must be discarded. In xlsx: a long a double cannot hold exactly (beyond ±2^53 only some are), or a decimal with more than 15 significant digits (precision-loss); a date before 1900-01-01 (date-out-of-range); text over 32,767 characters (text-too-long). In ods: the same precision rule as xlsx (precision-loss); text over 16,777,216 characters, the reader's limit, or text whose escaped form would exceed the reader's per-value token limit (text-too-long); no date limit. |
 
 This table is checked against the library's sources by `ErrorCodeCatalogTests`, in both directions.
 It went out of step twice in the branch that added it — a code emitted, asserted, given a requirement
@@ -38,6 +39,7 @@ split by what a host does about them:
 | `TabularLimitException` | Readable, but beyond a configured bound — how most hostile files end | 413 |
 | `TabularStructureException` | Not the file the plan was built for (sheet, header row or header changed) | 409 / 422 |
 | `MappingPlanException` | The plan does not fit its schema, before any file is read | 400 |
+| `TabularWriteException` | A value the chosen format cannot hold exactly, found while writing | 500 for a server's own export; discard the partial file |
 
 Mistakes in the calling code — a null argument, an option out of range, a field the schema does not
 declare — are `ArgumentException` and `InvalidOperationException`. Nothing else escapes: malformed

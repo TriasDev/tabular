@@ -19,7 +19,7 @@ public sealed record SkippedEntry
 /// <remarks>Open to new members, as <see cref="TabularFormat"/> is.</remarks>
 public enum SkippedEntryReason
 {
-    /// <summary>A zip inside the archive that is not a workbook. Archives are not opened recursively.</summary>
+    /// <summary>A zip that is not a workbook, or a tar, inside the archive. Archives are not opened recursively.</summary>
     NestedArchive,
 
     /// <summary>An OpenDocument file that is not a spreadsheet — a text document, a presentation.</summary>
@@ -42,4 +42,10 @@ public enum SkippedEntryReason
 
     /// <summary>A workbook that is damaged or cut off.</summary>
     Unreadable,
+
+    /// <summary>
+    /// A gzip-compressed file inside the archive. One layer of packing is read: a gzip file on its
+    /// own, or a file in an archive, not both.
+    /// </summary>
+    Compressed,
 }

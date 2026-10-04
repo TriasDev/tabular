@@ -45,8 +45,18 @@ jobs:
       - name: Build
         run: dotnet build TriasDev.Tabular.slnx --no-restore --configuration Release
 
+      # LibreOffice is the judge of the ods (and xlsx) we write; the interop tests skip where it is
+      # absent, so the Linux job installs it and insists.
+      - name: Install LibreOffice (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-calc
+
       - name: Test (net8.0 and net10.0)
         run: dotnet test --solution TriasDev.Tabular.slnx --no-build --configuration Release
+        env:
+          TABULAR_REQUIRE_SOFFICE: ${{ runner.os == 'Linux' && '1' || '' }}
 
   lint:
     name: Code Quality

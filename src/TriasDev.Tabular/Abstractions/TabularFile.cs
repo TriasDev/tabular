@@ -20,7 +20,7 @@ public static class TabularFile
     /// By its bytes, not by its name. A csv saved as <c>.xlsx</c> is commoner than it ought to be —
     /// somebody renames an export, or a browser guesses a content type — and a reader that trusts the
     /// extension fails on it with a message about a corrupt archive, which sends the reader looking
-    /// in the wrong place entirely.
+    /// in the wrong place entirely. A gzip file is known by its first three bytes and opened as the file inside it — or, when that file is a tar, as the archive it is; a tar is known by its header's magic and checksum.
     /// </remarks>
     public static TabularFormat Detect(Stream stream)
     {
@@ -33,9 +33,19 @@ public static class TabularFile
 
         long origin = stream.Position;
 
-        Span<byte> head = stackalloc byte[128];
+        Span<byte> head = stackalloc byte[TarHeader.BlockSize];
         int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
         stream.Position = origin;
+
+        if (GzipHeader.HasSignature(head[..read]))
+        {
+            return TarHeader.IsGzippedTar(stream) ? TabularFormat.Tar : TabularFormat.Gzip;
+        }
+
+        if (TarHeader.IsHeader(head[..read]))
+        {
+            return TabularFormat.Tar;
+        }
 
         if (read < 4 || !head[..4].SequenceEqual(ZipSignature))
         {
@@ -105,7 +115,7 @@ public static class TabularFile
 
         try
         {
-            Span<byte> head = stackalloc byte[128];
+            Span<byte> head = stackalloc byte[TarHeader.BlockSize];
             int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
             stream.Position = origin;
 
@@ -191,6 +201,8 @@ public static class TabularFile
                 TabularFormat.Xlsx => new XlsxCursor(stream, effective.Xlsx, effective.LeaveOpen, cancellationToken),
                 TabularFormat.Ods => new OdsCursor(stream, effective.Ods, effective.LeaveOpen, cancellationToken),
                 TabularFormat.Zip => new ArchiveCursor(stream, effective, cancellationToken),
+                TabularFormat.Gzip => new GzipCursor(stream, name, effective, cancellationToken),
+                TabularFormat.Tar => new ArchiveCursor(stream, effective, cancellationToken),
                 _ => new CsvCursor(stream, name, effective.Csv, effective.LeaveOpen, cancellationToken),
             };
         }
