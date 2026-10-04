@@ -35,6 +35,7 @@ public sealed class ApiContractTests
             new CsvCursor(Csv(), "t.csv"),
             new XlsxCursor(Workbook(), cancellationToken: TestContext.Current.CancellationToken),
             new GzipCursor(new MemoryStream(GzipFile.Of("name;x\na;b\n"), writable: false), "t.csv.gz", cancellationToken: TestContext.Current.CancellationToken),
+            new ArchiveCursor(new MemoryStream(GzipFile.Of(TarArchive.Of(System.Formats.Tar.TarEntryFormat.Pax, ("t.csv", "name;x\na;b\n")))), cancellationToken: TestContext.Current.CancellationToken),
         ];
 
     /// <summary>A stream that reads but cannot seek, like a request body or an archive entry.</summary>
@@ -133,6 +134,18 @@ public sealed class ApiContractTests
 
         Assert.Throws<ArgumentException>(() => TabularFile.Open(stream, "t.csv", cancellationToken: TestContext.Current.CancellationToken));
         Assert.Throws<ObjectDisposedException>(() => stream.Read(new byte[1], 0, 1));
+    }
+
+    [Fact]
+    public void ReadsAForwardOnlyZipThroughAnArchiveCursorAsItAlwaysDid()
+    {
+        // ZipArchive copies a stream it cannot seek; choosing the container must not seek it first.
+        byte[] zip = new ZipArchiveBuilder().With("t.csv", "name;x\na;b\n").Build();
+
+        using ArchiveCursor cursor = new(new ForwardOnly(new MemoryStream(zip)), cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(TabularFormat.Zip, cursor.Format);
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     [Fact]
