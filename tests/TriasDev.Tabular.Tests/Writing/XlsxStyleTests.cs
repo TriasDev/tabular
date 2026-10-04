@@ -91,7 +91,7 @@ public sealed class XlsxStyleTests
         Assert.Contains("<alignment horizontal=\"center\" wrapText=\"1\"/>", styles, StringComparison.Ordinal);
 
         string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
-        Assert.Contains("<c r=\"H2\" s=\"", sheet, StringComparison.Ordinal);      // the styled empty cell is written
+        Assert.Matches("<c s=\"\\d+\"/></row>", sheet);      // the styled empty cell is written, after the flag in G2
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public sealed class XlsxStyleTests
 
         Assert.Empty(OoxmlValidation.Errors(xlsx));
         Assert.Contains("<fgColor rgb=\"FF0000FF\"/>", Part(xlsx, "xl/styles.xml"), StringComparison.Ordinal);
-        Assert.Contains("<c r=\"A1001\" s=\"4\"><v>1000</v></c>", Part(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+        Assert.Contains("<row r=\"1001\"><c s=\"4\"><v>1000</v></c>", Part(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
     }
 
     [Fact]

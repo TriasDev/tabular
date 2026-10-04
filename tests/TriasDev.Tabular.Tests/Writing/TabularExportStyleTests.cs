@@ -25,8 +25,8 @@ public sealed class TabularExportStyleTests
         await Export.WriteAsync(target, TabularFormat.Xlsx, "data", new[] { new Location(1, 2), new Location(2, 9), new Location(3, null) }, cancellationToken: Token);
         string sheet = SheetLayoutTests.Entry(target.ToArray(), "xl/worksheets/sheet1.xml");
 
-        Assert.Contains("<c r=\"B2\"><v>2</v></c>", sheet, StringComparison.Ordinal);
-        Assert.Contains("<c r=\"B3\" s=\"4\"><v>9</v></c>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<row r=\"2\"><c s=\"3\"><v>1</v></c><c><v>2</v></c></row>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<row r=\"3\"><c s=\"3\"><v>2</v></c><c s=\"4\"><v>9</v></c></row>", sheet, StringComparison.Ordinal);
         Assert.Empty(OoxmlValidation.Errors(target.ToArray()));
     }
 

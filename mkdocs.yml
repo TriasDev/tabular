@@ -95,6 +95,7 @@ plugins:
           - concepts.md: The two reads, what a profile measures, facts against suggestions
         Using it:
           - importing.md: Import runs, batches, rules, translated fields, the precheck
+          - exporting.md: Writing csv, xlsx, ods and zip files; styles, layout, streams, failures
           - formats.md: What csv, xlsx, ods and zip files read as; csv repair
           - operations.md: Stream ownership, cancellation, progress, cultures
         Reference:
@@ -132,6 +133,7 @@ nav:
   - How it works: concepts.md
   - Using it:
     - Importing: importing.md
+    - Exporting: exporting.md
     - Formats: formats.md
     - Streams, cancellation, progress, cultures: operations.md
   - Reference:
@@ -142,3 +144,4 @@ nav:
     - Known issues: KNOWN-ISSUES.md
     - Ideas: IDEAS.md
     - Why the parsing is our own: adr/0001-tabular-parsing-is-our-own-cursor.md
+    - Why the writing is our own: adr/0002-writing-is-our-own.md

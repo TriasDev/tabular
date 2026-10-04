@@ -101,3 +101,41 @@ swallowed text (`135"th`) does not close it. Behind that, a quoted field longer 
 one the file ends inside, is abandoned the same way (`RecoveredUnterminatedQuotes`); that bound is
 what protects tables narrower than five columns, where the delimiter test is off. Genuine multi-line
 values — an address, a long note — hold a delimiter or two at most and are left alone.
+
+## What each format holds when written
+
+A value a format cannot hold exactly is refused with a `TabularWriteException` that names the sheet,
+row and column; nothing is rounded or cut silently. The rules are the same for every format wherever
+they can be, so the same data fails the same way whichever format is chosen. See [Exporting](exporting.md).
+
+| | csv | zip of csv | xlsx | ods |
+|---|---|---|---|---|
+| Sheets | one, its name not written | any number, each `<name>.csv` | any number | any number |
+| Rows per sheet, header included | no limit | no limit | 1,048,576 | 1,048,576 |
+| Columns per sheet | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 |
+| Styles, layout, widths | ignored | ignored | yes | yes |
+| Distinct styles per file | | | 4,096 | 4,096 |
+| Merged ranges per sheet | written as the value and empty fields | the same | 65,536 | no limit |
+| Text per cell | 16 M chars (the reader's field limit) | 16 M chars | 32,767 chars | 16 M chars, and the escaped text within the reader's token limit |
+| Line breaks in one text | 100 (the reader's quoted-field limit) | 100 | no limit | no limit |
+| Dates | any `DateTime`, ISO or the culture's pattern | the same | from 1900-01-01 | any |
+| Numbers | as written, in the culture | as written, in the culture | a double cell: a long or decimal only if a double holds it exactly (at most 15 significant digits for a decimal) | the same as xlsx |
+
+What holds for all four:
+
+- A `double` must be finite and within 15 significant digits (`write.not-finite`, `write.precision-loss`):
+  that is what reads back as itself.
+- Time is kept to whole milliseconds; a `DateTime`'s `Kind` is not kept; a `DateOnly` reads back as a
+  `DateTime` at midnight.
+- Text cannot hold the control characters XML 1.0 forbids (all but tab, line feed and carriage return)
+  or an unpaired surrogate (`write.invalid-character`), csv included.
+- A sheet's name is 1 to 31 characters, none of `[ ] : * ? / \`, no apostrophe at either end, not
+  `History`, unique ignoring case; a zip sheet's name may not hold `< > " |` or end with a dot or a space.
+  A header is not empty, neither starts nor ends with whitespace, and is unique in its sheet ignoring case.
+- Csv: a quoted text whose line breaks the reader would take for a stray quote is refused
+  (`write.ambiguous-line-breaks`) rather than written to be read back as several records.
+- Csv's culture also picks the delimiter when none is set (`;` where the decimal separator is a comma),
+  and a culture is accepted only if its numbers and dates read back through the import's own reader.
+- Other programs may show a value differently from the one stored (an xlsx date before 1900-03-01,
+  a date before 1582-10-15, a number of more than 15 digits after a re-save). The stored value is
+  unchanged; see [Known issues](KNOWN-ISSUES.md#writing-what-does-not-come-back-exactly-as-written).

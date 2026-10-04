@@ -92,7 +92,7 @@ internal sealed class RowText
 
         while (true)
         {
-            OperationStatus status = Utf8.FromUtf16(rest, output.GetSpan(EncodePiece), out int read, out int written, replaceInvalidSequences: true, isFinalBlock: true);
+            OperationStatus status = Utf8.FromUtf16(rest, output.GetSpan(Math.Min(EncodePiece, (rest.Length + 1) * 3)), out int read, out int written, replaceInvalidSequences: true, isFinalBlock: true);
             output.Advance(written);
             rest = rest[read..];
 

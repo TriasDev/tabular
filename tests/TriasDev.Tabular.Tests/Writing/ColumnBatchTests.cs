@@ -88,8 +88,8 @@ public sealed class ColumnBatchTests
         });
 
         string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
-        Assert.Contains("<c r=\"A2\" s=\"4\"><v>1</v></c><c r=\"B2\" s=\"4\"><v>1</v></c><c r=\"C2\"><v>1</v></c>", sheet, StringComparison.Ordinal);
-        Assert.Contains("<c r=\"A3\" s=\"4\"><v>2</v></c><c r=\"B3\" s=\"5\"><v>2</v></c><c r=\"C3\" s=\"5\"><v>9</v></c>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<row r=\"2\"><c s=\"4\"><v>1</v></c><c s=\"4\"><v>1</v></c><c><v>1</v></c></row>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<row r=\"3\"><c s=\"4\"><v>2</v></c><c s=\"5\"><v>2</v></c><c s=\"5\"><v>9</v></c></row>", sheet, StringComparison.Ordinal);
     }
 
     [Fact]

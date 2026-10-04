@@ -2,9 +2,11 @@
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/TriasDev.Tabular.Benchmarks/TriasDev.Tabular.Benchmarks.csproj" />
     <Project Path="benchmarks/TriasDev.Tabular.Comparison/TriasDev.Tabular.Comparison.csproj" />
+    <Project Path="benchmarks/TriasDev.Tabular.WriteComparison/TriasDev.Tabular.WriteComparison.csproj" />
     <Project Path="benchmarks/TriasDev.Tabular.FixtureGenerator/TriasDev.Tabular.FixtureGenerator.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/TriasDev.Tabular.Samples.Export/TriasDev.Tabular.Samples.Export.csproj" />
     <Project Path="samples/TriasDev.Tabular.Samples.Import/TriasDev.Tabular.Samples.Import.csproj" />
     <Project Path="samples/TriasDev.Tabular.Samples.Profile/TriasDev.Tabular.Samples.Profile.csproj" />
     <Project Path="samples/TriasDev.Tabular.Samples.Progress/TriasDev.Tabular.Samples.Progress.csproj" />
