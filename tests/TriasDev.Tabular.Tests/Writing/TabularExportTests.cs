@@ -95,11 +95,41 @@ public sealed class TabularExportTests
     public async Task FlushesInsideALargeChunkWhenTheWriterRecommendsIt()
     {
         WriteTarget target = new();
+        long reachedTheTarget = -1;
+        TabularExport<Item> export = TabularExport.For<Item>()
+            .Column("Id", i =>
+            {
+                if (i.Id == 40_000)
+                {
+                    reachedTheTarget = target.Length;
+                }
+
+                return i.Id;
+            })
+            .Column("Name", i => i.Name)
+            .Build();
         Item[] items = [.. Enumerable.Range(1, 60_000).Select(i => new Item(i, new string('x', 40), i))];
 
-        await Export.WriteAsync(target, TabularFormat.Csv, "data", Chunks(items, items.Length, Token), NoBom, Token);
+        await export.WriteAsync(target, TabularFormat.Csv, "data", Chunks(items, items.Length, Token), NoBom, Token);
 
-        Assert.True(target.AsyncWrites >= 3, $"{target.AsyncWrites} writes reached the target for one 3 MB chunk");
+        // The target receives bytes only on a flush: some arrived before the chunk ended.
+        Assert.True(reachedTheTarget > 0, $"{reachedTheTarget} bytes had reached the target by row 40,000 of one chunk");
+    }
+
+    [Fact]
+    public async Task AFailureInsideASheetLeavesTheCallersWriterUnusable()
+    {
+        TabularExport<Item> export = TabularExport.For<Item>()
+            .Column("Id", i => i.Id > 4 ? throw new InvalidOperationException("boom") : i.Id)
+            .Build();
+        WriteTarget target = new();
+
+        await using TabularWriter writer = TabularWriter.Create(target, TabularFormat.Csv);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await export.WriteSheetAsync(writer, "data", Items(10), Token));
+
+        Assert.Throws<InvalidOperationException>(writer.EndRow);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await writer.CompleteAsync(Token));
     }
 
     [Fact]
@@ -144,9 +174,14 @@ public sealed class TabularExportTests
         WriteTarget target = new();
         int chunksSeen = 0;
 
+        bool tokenFlowed = false;
+
+        // Deliberately called without a token: it can only arrive through the export's WithCancellation.
         async IAsyncEnumerable<IReadOnlyList<Item>> Source([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            await foreach (IReadOnlyList<Item> chunk in Chunks(Items(1_000), 100, cancellationToken))
+            tokenFlowed = cancellationToken == cancel.Token;
+
+            await foreach (IReadOnlyList<Item> chunk in Chunks(Items(1_000), 100, CancellationToken.None))
             {
                 if (++chunksSeen == 3)
                 {
@@ -157,9 +192,12 @@ public sealed class TabularExportTests
             }
         }
 
+#pragma warning disable xUnit1051, S8949 // The source is called without a token on purpose: the export must flow its own through WithCancellation.
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await Export.WriteAsync(target, TabularFormat.Csv, "data", Source(cancel.Token), NoBom, cancel.Token));
+            await Export.WriteAsync(target, TabularFormat.Csv, "data", Source(), NoBom, cancel.Token));
+#pragma warning restore xUnit1051, S8949
 
+        Assert.True(tokenFlowed, "the export did not enumerate the source WithCancellation");
         Assert.True(chunksSeen < 10);
         Assert.True(target.IsDisposed);
     }

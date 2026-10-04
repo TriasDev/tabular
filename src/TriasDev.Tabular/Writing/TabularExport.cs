@@ -11,7 +11,13 @@ public static class TabularExport
 /// An export of objects to a table: built once, kept in a static field, used by any number of
 /// writes at once.
 /// </summary>
-/// <remarks>Immutable and thread-safe: it holds the declared columns and nothing a write changes.</remarks>
+/// <remarks>
+/// Immutable and thread-safe: it holds the declared columns and nothing a write changes.
+/// A source that is both <see cref="IEnumerable{T}"/> and <see cref="IAsyncEnumerable{T}"/> (an EF Core
+/// <c>DbSet</c>, for one) is ambiguous: pass <c>.AsAsyncEnumerable()</c>. A literal <c>null</c> for the
+/// options with a chunk source is ambiguous with the selector overload: write <c>options: null</c> or
+/// omit it. Each chunk is flushed, so very small chunks mean one write to the target each.
+/// </remarks>
 public sealed class TabularExport<T>
 {
     private readonly ExportColumn<T>[] _columns;
@@ -64,15 +70,24 @@ public sealed class TabularExport<T>
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(chunks);
-        writer.BeginSheet(sheetName, _declared);
-        long rows = 0;
 
-        await foreach (IReadOnlyList<T> chunk in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
+        try
         {
-            rows += await WriteChunkAsync(writer, chunk, cancellationToken).ConfigureAwait(false);
-        }
+            writer.BeginSheet(sheetName, _declared);
+            long rows = 0;
 
-        return rows;
+            await foreach (IReadOnlyList<T> chunk in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
+            {
+                rows += await WriteChunkAsync(writer, chunk, cancellationToken).ConfigureAwait(false);
+            }
+
+            return rows;
+        }
+        catch
+        {
+            writer.Fault();
+            throw;
+        }
     }
 
     /// <summary>Writes one sheet into a writer the caller owns, from messages that each carry a chunk.</summary>
@@ -82,15 +97,24 @@ public sealed class TabularExport<T>
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(chunks);
         ArgumentNullException.ThrowIfNull(rows);
-        writer.BeginSheet(sheetName, _declared);
-        long written = 0;
 
-        await foreach (TChunk message in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
+        try
         {
-            written += await WriteChunkAsync(writer, rows(message), cancellationToken).ConfigureAwait(false);
-        }
+            writer.BeginSheet(sheetName, _declared);
+            long written = 0;
 
-        return written;
+            await foreach (TChunk message in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
+            {
+                written += await WriteChunkAsync(writer, rows(message), cancellationToken).ConfigureAwait(false);
+            }
+
+            return written;
+        }
+        catch
+        {
+            writer.Fault();
+            throw;
+        }
     }
 
     /// <summary>Writes one sheet into a writer the caller owns, from items arriving one at a time.</summary>
@@ -99,21 +123,30 @@ public sealed class TabularExport<T>
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(items);
-        writer.BeginSheet(sheetName, _declared);
-        long rows = 0;
 
-        await foreach (T item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
+        try
         {
-            WriteRow(writer, item);
-            rows++;
+            writer.BeginSheet(sheetName, _declared);
+            long rows = 0;
 
-            if (writer.FlushRecommended)
+            await foreach (T item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
             {
-                await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+                WriteRow(writer, item);
+                rows++;
 
-        return rows;
+                if (writer.FlushRecommended)
+                {
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            return rows;
+        }
+        catch
+        {
+            writer.Fault();
+            throw;
+        }
     }
 
     /// <summary>Writes one sheet into a writer the caller owns, from items in memory or produced synchronously.</summary>
@@ -122,21 +155,30 @@ public sealed class TabularExport<T>
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(items);
-        writer.BeginSheet(sheetName, _declared);
-        long rows = 0;
 
-        foreach (T item in items)
+        try
         {
-            WriteRow(writer, item);
-            rows++;
+            writer.BeginSheet(sheetName, _declared);
+            long rows = 0;
 
-            if (writer.FlushRecommended)
+            foreach (T item in items)
             {
-                await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+                WriteRow(writer, item);
+                rows++;
 
-        return rows;
+                if (writer.FlushRecommended)
+                {
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            return rows;
+        }
+        catch
+        {
+            writer.Fault();
+            throw;
+        }
     }
 
     /// <summary>
