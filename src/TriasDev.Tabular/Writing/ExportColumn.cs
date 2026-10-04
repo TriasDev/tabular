@@ -10,101 +10,16 @@ internal abstract class ExportColumn<T>(WriteColumn column)
 }
 
 /// <summary>
-/// A column of a known type: the caller's lambda for the value, and a static delegate that writes a
-/// value of that type — two delegate calls per cell, no boxing.
+/// A column of a known type: the caller's lambda for the value, an optional rule for its style, and the
+/// typed write of <see cref="CellValue{T}"/> — no boxing. The style cache lives in the writer, so the
+/// column holds no state and one export serves concurrent writers.
 /// </summary>
-internal sealed class ExportColumn<T, TValue>(WriteColumn column, Func<T, TValue> value, Action<TabularWriter, TValue> write)
+internal sealed class ExportColumn<T, TValue>(WriteColumn column, Func<T, TValue> value, Func<TValue, CellStyle?>? style)
     : ExportColumn<T>(column)
 {
-    public override void Write(TabularWriter writer, T item) => write(writer, value(item));
-}
-
-/// <summary>The typed writes, one per value type a column can have; a missing value is an empty cell.</summary>
-internal static class CellWriters
-{
-    public static readonly Action<TabularWriter, string?> Text = static (writer, value) => writer.Write(value);
-
-    public static readonly Action<TabularWriter, long> Long = static (writer, value) => writer.Write(value);
-
-    public static readonly Action<TabularWriter, long?> NullableLong = static (writer, value) =>
+    public override void Write(TabularWriter writer, T item)
     {
-        if (value is { } present)
-        {
-            writer.Write(present);
-        }
-        else
-        {
-            writer.WriteEmpty();
-        }
-    };
-
-    public static readonly Action<TabularWriter, decimal> Decimal = static (writer, value) => writer.Write(value);
-
-    public static readonly Action<TabularWriter, decimal?> NullableDecimal = static (writer, value) =>
-    {
-        if (value is { } present)
-        {
-            writer.Write(present);
-        }
-        else
-        {
-            writer.WriteEmpty();
-        }
-    };
-
-    public static readonly Action<TabularWriter, double> Double = static (writer, value) => writer.Write(value);
-
-    public static readonly Action<TabularWriter, double?> NullableDouble = static (writer, value) =>
-    {
-        if (value is { } present)
-        {
-            writer.Write(present);
-        }
-        else
-        {
-            writer.WriteEmpty();
-        }
-    };
-
-    public static readonly Action<TabularWriter, DateTime> DateTime = static (writer, value) => writer.Write(value);
-
-    public static readonly Action<TabularWriter, DateTime?> NullableDateTime = static (writer, value) =>
-    {
-        if (value is { } present)
-        {
-            writer.Write(present);
-        }
-        else
-        {
-            writer.WriteEmpty();
-        }
-    };
-
-    public static readonly Action<TabularWriter, DateOnly> DateOnly = static (writer, value) => writer.Write(value);
-
-    public static readonly Action<TabularWriter, DateOnly?> NullableDateOnly = static (writer, value) =>
-    {
-        if (value is { } present)
-        {
-            writer.Write(present);
-        }
-        else
-        {
-            writer.WriteEmpty();
-        }
-    };
-
-    public static readonly Action<TabularWriter, bool> Boolean = static (writer, value) => writer.Write(value);
-
-    public static readonly Action<TabularWriter, bool?> NullableBoolean = static (writer, value) =>
-    {
-        if (value is { } present)
-        {
-            writer.Write(present);
-        }
-        else
-        {
-            writer.WriteEmpty();
-        }
-    };
+        TValue cell = value(item);
+        CellValue<TValue>.Write(writer, cell, style is null ? default : writer.StyleFor(style(cell)));
+    }
 }

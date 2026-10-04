@@ -37,64 +37,64 @@ public sealed class TabularExportBuilder<T>
     }
 
     /// <summary>A text column.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, string?> value, double? width = null) => Add(header, width, value, CellWriters.Text);
+    public TabularExportBuilder<T> Column(string header, Func<T, string?> value, double? width = null, Func<string?, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>An integer column.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, long> value, double? width = null) => Add(header, width, value, CellWriters.Long);
+    public TabularExportBuilder<T> Column(string header, Func<T, long> value, double? width = null, Func<long, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>An integer column; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, long?> value, double? width = null) => Add(header, width, value, CellWriters.NullableLong);
+    public TabularExportBuilder<T> Column(string header, Func<T, long?> value, double? width = null, Func<long?, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>A decimal column.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, decimal> value, double? width = null) => Add(header, width, value, CellWriters.Decimal);
+    public TabularExportBuilder<T> Column(string header, Func<T, decimal> value, double? width = null, Func<decimal, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>A decimal column; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, decimal?> value, double? width = null) => Add(header, width, value, CellWriters.NullableDecimal);
+    public TabularExportBuilder<T> Column(string header, Func<T, decimal?> value, double? width = null, Func<decimal?, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>A number column.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, double> value, double? width = null) => Add(header, width, value, CellWriters.Double);
+    public TabularExportBuilder<T> Column(string header, Func<T, double> value, double? width = null, Func<double, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>A number column; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, double?> value, double? width = null) => Add(header, width, value, CellWriters.NullableDouble);
+    public TabularExportBuilder<T> Column(string header, Func<T, double?> value, double? width = null, Func<double?, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>A date-time column, 19 characters wide unless told otherwise.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, DateTime> value, double? width = null) => Add(header, width ?? DateTimeWidth, value, CellWriters.DateTime);
+    public TabularExportBuilder<T> Column(string header, Func<T, DateTime> value, double? width = null, Func<DateTime, CellStyle?>? style = null) => Add(header, width ?? DateTimeWidth, value, style);
 
     /// <summary>A date-time column, 19 characters wide unless told otherwise; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, DateTime?> value, double? width = null) => Add(header, width ?? DateTimeWidth, value, CellWriters.NullableDateTime);
+    public TabularExportBuilder<T> Column(string header, Func<T, DateTime?> value, double? width = null, Func<DateTime?, CellStyle?>? style = null) => Add(header, width ?? DateTimeWidth, value, style);
 
     /// <summary>A date column, 10 characters wide unless told otherwise.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, DateOnly> value, double? width = null) => Add(header, width ?? DateWidth, value, CellWriters.DateOnly);
+    public TabularExportBuilder<T> Column(string header, Func<T, DateOnly> value, double? width = null, Func<DateOnly, CellStyle?>? style = null) => Add(header, width ?? DateWidth, value, style);
 
     /// <summary>A date column, 10 characters wide unless told otherwise; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, DateOnly?> value, double? width = null) => Add(header, width ?? DateWidth, value, CellWriters.NullableDateOnly);
+    public TabularExportBuilder<T> Column(string header, Func<T, DateOnly?> value, double? width = null, Func<DateOnly?, CellStyle?>? style = null) => Add(header, width ?? DateWidth, value, style);
 
     /// <summary>A boolean column.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, bool> value, double? width = null) => Add(header, width, value, CellWriters.Boolean);
+    public TabularExportBuilder<T> Column(string header, Func<T, bool> value, double? width = null, Func<bool, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>A boolean column; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(string header, Func<T, bool?> value, double? width = null) => Add(header, width, value, CellWriters.NullableBoolean);
+    public TabularExportBuilder<T> Column(string header, Func<T, bool?> value, double? width = null, Func<bool?, CellStyle?>? style = null) => Add(header, width, value, style);
 
     /// <summary>A text column named by an import field.</summary>
-    public TabularExportBuilder<T> Column(TextImportField field, Func<T, string?> value, double? width = null) => Column(HeaderOf(field), value, width);
+    public TabularExportBuilder<T> Column(TextImportField field, Func<T, string?> value, double? width = null, Func<string?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>An integer column named by an import field; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(IntegerImportField field, Func<T, long?> value, double? width = null) => Column(HeaderOf(field), value, width);
+    public TabularExportBuilder<T> Column(IntegerImportField field, Func<T, long?> value, double? width = null, Func<long?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>A decimal column named by an import field; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(DecimalImportField field, Func<T, decimal?> value, double? width = null) => Column(HeaderOf(field), value, width);
+    public TabularExportBuilder<T> Column(DecimalImportField field, Func<T, decimal?> value, double? width = null, Func<decimal?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>A number column named by a decimal import field; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(DecimalImportField field, Func<T, double?> value, double? width = null) => Column(HeaderOf(field), value, width);
+    public TabularExportBuilder<T> Column(DecimalImportField field, Func<T, double?> value, double? width = null, Func<double?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>A date-time column named by an import field; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(DateImportField field, Func<T, DateTime?> value, double? width = null) => Column(HeaderOf(field), value, width);
+    public TabularExportBuilder<T> Column(DateImportField field, Func<T, DateTime?> value, double? width = null, Func<DateTime?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>A date column named by an import field; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(DateImportField field, Func<T, DateOnly?> value, double? width = null) => Column(HeaderOf(field), value, width);
+    public TabularExportBuilder<T> Column(DateImportField field, Func<T, DateOnly?> value, double? width = null, Func<DateOnly?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>A boolean column named by an import field; null writes an empty cell.</summary>
-    public TabularExportBuilder<T> Column(BooleanImportField field, Func<T, bool?> value, double? width = null) => Column(HeaderOf(field), value, width);
+    public TabularExportBuilder<T> Column(BooleanImportField field, Func<T, bool?> value, double? width = null, Func<bool?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>
     /// The export as declared so far, checked by the writer's rules for columns. The builder may go on
@@ -134,11 +134,11 @@ public sealed class TabularExportBuilder<T>
         return field.Name;
     }
 
-    private TabularExportBuilder<T> Add<TValue>(string header, double? width, Func<T, TValue> value, Action<TabularWriter, TValue> write)
+    private TabularExportBuilder<T> Add<TValue>(string header, double? width, Func<T, TValue> value, Func<TValue, CellStyle?>? style)
     {
         ArgumentNullException.ThrowIfNull(header);
         ArgumentNullException.ThrowIfNull(value);
-        _columns.Add(new ExportColumn<T, TValue>(new WriteColumn(header, width), value, write));
+        _columns.Add(new ExportColumn<T, TValue>(new WriteColumn(header, width), value, style));
         return this;
     }
 }
