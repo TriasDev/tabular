@@ -34,13 +34,13 @@ internal sealed class CsvSheetWriter : ISheetWriter
 
     private static readonly SearchValues<char> LineBreaks = SearchValues.Create("\r\n");
 
-    private readonly SpillBuffer _out;
+    private readonly IBufferWriter<byte> _out;
     private readonly CsvFormat _format;
     private int _columnCount;
     private readonly RowText _row = new();
     private bool _firstCell = true;
 
-    public CsvSheetWriter(SpillBuffer output, CsvFormat format)
+    public CsvSheetWriter(IBufferWriter<byte> output, CsvFormat format)
     {
         _out = output;
         _format = format;
