@@ -5,6 +5,7 @@ using Xunit;
 namespace TriasDev.Tabular.Tests.Writing;
 
 /// <summary>An export declared with the import's fields writes files the import maps back by header.</summary>
+[Collection(AllocationMeasurementCollection.Name)]
 public sealed class TabularExportRoundTripTests
 {
     private static readonly IntegerImportField IdField = ImportField.Integer("Id");

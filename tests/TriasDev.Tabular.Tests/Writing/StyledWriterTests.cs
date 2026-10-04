@@ -5,6 +5,7 @@ using Xunit;
 namespace TriasDev.Tabular.Tests.Writing;
 
 /// <summary>Registering styles and writing styled cells, independent of the format.</summary>
+[Collection(AllocationMeasurementCollection.Name)]
 public sealed class StyledWriterTests
 {
     private static readonly CellStyle Red = new() { Fill = CellColor.FromRgb(0xFF0000) };
