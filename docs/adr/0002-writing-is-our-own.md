@@ -26,8 +26,10 @@ the four requirements, for reasons that were each checked rather than assumed.
 
 - **It writes synchronously.** An entry stream is a synchronous `Stream`; the asynchronous
   `ZipArchive` API exists only from .NET 10, and the library also targets net8.0.
-- **With a seekable target it buffers whole entries.** To write sizes into a local header it holds
-  the entry until it is complete, which is the opposite of flat memory.
+- **On a seekable target it seeks back to patch each local header.** The target must stay seekable
+  and nothing already written may be flushed onward or dropped, so the whole entry — a sheet of a
+  million rows — stays in the buffer until it closes. That is the opposite of flat memory, and it
+  breaks a spill buffer that drains to a non-seekable target.
 - **Its streamed output is refused by LibreOffice.** Into a non-seekable stream it writes data
   descriptors, and for an ods that includes the `mimetype` entry. LibreOffice refused the ods that
   `ZipArchive` produced that way: the `mimetype` must be the first entry, stored, with its sizes in the
@@ -40,8 +42,9 @@ buffer and a zip writer of ours. The library takes no third-party writing depend
 
 **The format writers write synchronously into a spill buffer.** Pooled 64 KB segments take the
 bytes; only `FlushAsync` and `CompleteAsync` touch the target, and they do it asynchronously. The
-caller flushes when the writer recommends it, so memory stays flat: about 57 to 59 MB peak for five
-million csv rows, about 95 MB for ten thousand rows of 5,003 columns, in the provisional benchmarks.
+caller flushes when the writer recommends it, so memory stays flat: about 57 MB peak for five
+million csv rows, and about 92 MB (csv) to 94 MB (xlsx) for ten thousand rows of 5,003 columns, in the
+provisional benchmarks.
 
 **The zip writer is ours.** Small parts — the ods `mimetype`, the manifests, the styles — are stored
 with their sizes up front. Large entries are deflated and streamed with data descriptors. Past 4 GB
@@ -71,12 +74,14 @@ are what say whether the files are right; that is paid in tests rather than in d
 **The measured results are provisional**, from a single pass on a machine other work was using; see
 [benchmarks](../benchmarks.md#writing), which is kept current and not this page. On csv we are faster
 than CsvHelper and slower than Sylvan.Data.Csv. On xlsx we are faster than LargeXlsx in most
-scenarios, and SpreadCheetah is faster than we are. MiniExcel is the slowest and allocates the most.
+scenarios; one scenario, the styled narrow xlsx, was slower than LargeXlsx in this pass and its sign
+is unsettled. SpreadCheetah is faster than we are. MiniExcel is the slowest and allocates the most.
 No other library measured writes ods or a zip of csv sheets. On the narrow files we hold the least
 memory of the xlsx writers; on the wide ones we hold more, because 500 rows are batched by column.
 
-**Limits.** The target is written once and forwards only. The checks cost a little time on the
-numeric path; that cost is the price of a file that reads back.
+**Limits.** The target is written once and forwards only. The round-trip check has a
+measured cost: 13.6% of the wide xlsx write, 0.3 to 0.5 s. That is the price of a file that reads
+back.
 
 ## Alternatives considered
 
@@ -84,10 +89,12 @@ numeric path; that cost is the price of a file that reads back.
   SpreadCheetah is faster than ours. Each adds a dependency, writes xlsx only — there is no ods and no
   csv, so the zip writer and two more format writers would remain ours — and neither has a round-trip
   contract with our reader. Rejected: the dependency would remove the smaller part of the work.
-- **The Open XML SDK.** Its DOM mode materialises the document, and its SAX mode is verbose and
-  heavy. xlsx only, so it fails the memory requirement and leaves ods open.
+- **The Open XML SDK.** xlsx only, so ods and csv stay ours. Its streaming writer,
+  `OpenXmlWriter`, makes the caller write the element tree itself, so most of the work remains ours,
+  and it brings a package dependency.
 - **`ZipArchive` under our own format writers.** The reasons above: synchronous writes, whole entries
   buffered when seekable, and an ods LibreOffice refuses when streamed. Rejected for the zip only; the
   format writers are ours either way.
-- **MiniExcel.** Its fast mode is not streaming, and its streaming mode is the slowest and most
-  allocating of the writers measured.
+- **MiniExcel.** With `FastMode` it opens the zip in update mode and needs a readable, seekable
+  target; it peaked at about 2.1 GB on xlsx-1m against about 80 MB without it. Without it, it is
+  the slowest and most allocating of the writers measured.
