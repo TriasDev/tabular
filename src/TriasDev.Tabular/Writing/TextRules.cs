@@ -12,6 +12,14 @@ internal static class TextRules
     private static readonly SearchValues<char> Forbidden = SearchValues.Create(
         [.. Enumerable.Range(0, 0x20).Where(c => c is not (0x09 or 0x0A or 0x0D)).Select(c => (char)c), '￾', '￿']);
 
+    /// <summary>U+D800 to U+DFFF, every high and low surrogate.</summary>
+    /// <remarks>
+    /// A search value, not <c>IndexOfAnyInRange('\uD800', '\uDFFF')</c>: that generic call boxes
+    /// on every call — 96 bytes a text cell, about 96 MB over a million of them.
+    /// </remarks>
+    private static readonly SearchValues<char> Surrogates = SearchValues.Create(
+        [.. Enumerable.Range(0xD800, 0x800).Select(c => (char)c)]);
+
     /// <summary>Null when every character may be written, otherwise <see cref="ErrorCodes.Write.InvalidCharacter"/>.</summary>
     public static string? Check(string text)
     {
@@ -22,7 +30,7 @@ internal static class TextRules
             return ErrorCodes.Write.InvalidCharacter;
         }
 
-        int surrogate = span.IndexOfAnyInRange('\uD800', '\uDFFF');
+        int surrogate = span.IndexOfAny(Surrogates);
 
         return surrogate < 0 || PairsAreWhole(span[surrogate..]) ? null : ErrorCodes.Write.InvalidCharacter;
     }
