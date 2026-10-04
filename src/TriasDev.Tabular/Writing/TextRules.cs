@@ -14,8 +14,10 @@ internal static class TextRules
 
     /// <summary>U+D800 to U+DFFF, every high and low surrogate.</summary>
     /// <remarks>
-    /// A search value, not <c>IndexOfAnyInRange('\uD800', '\uDFFF')</c>: that generic call boxes
-    /// on every call — 96 bytes a text cell, about 96 MB over a million of them.
+    /// A search value, not <c>IndexOfAnyInRange('\uD800', '\uDFFF')</c>: that generic call allocated
+    /// (96 bytes a text cell) while the method ran unoptimised (tier-0), and short writes and cold
+    /// processes never leave tier-0. <c>SearchValues</c> recognises the range (a range-based
+    /// implementation), is as fast once optimised, and allocates nothing throughout.
     /// </remarks>
     private static readonly SearchValues<char> Surrogates = SearchValues.Create(
         [.. Enumerable.Range(0xD800, 0x800).Select(c => (char)c)]);

@@ -538,7 +538,14 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Marks the writer unusable after a failure it was driven through, so its file is not completed.</summary>
-    internal void Fault() => MarkFaulted();
+    internal void Fault()
+    {
+        // A completed file is whole: a failure after it must not turn it into a failed one.
+        if (_state != State.Completed)
+        {
+            MarkFaulted();
+        }
+    }
 
     private void MarkFaulted()
     {
