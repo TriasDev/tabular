@@ -215,3 +215,10 @@ TabularExport picks a column type by overload resolution, and some lambdas do no
 - `writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips the covered positions — the row's next write lands after the range, later rows skip it too — and writes them itself. The import reads a merged range as its value in the top-left cell and empty cells elsewhere; csv writes exactly that.
 - A merge must end inside the sheet: ending a sheet (or the file) while a range still has rows to cover is refused.
 - xlsx holds at most 65,536 merged ranges per sheet.
+
+### Data by column
+
+- `ColumnBatch` takes one list per column (arrays, `List<T>`, any `IReadOnlyList<T>` such as a protobuf repeated field) and writes them as rows, typed, without copying; reuse one batch per sheet — `Reset` keeps its slots.
+- The lists must not change until the batch is written; `Reset` drops them.
+- A style rule should return styles declared once (`static readonly`): the same instance costs a reference compare per cell. A rule that builds a new style per cell still writes a correct file, more slowly.
+- A very wide xlsx is large when read back: 10,000 rows × 5,000 columns is about 1.6 GB of sheet XML, which still fits the reader's default `MaxUncompressedBytes` (2 GiB); past roughly 13,000 rows of that width, raise it to read the file back (ods defaults to 8 GiB and holds 4 GB for the same data).
