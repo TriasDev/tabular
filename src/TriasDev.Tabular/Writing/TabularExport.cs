@@ -35,12 +35,26 @@ public sealed class TabularExport<T>
     public IReadOnlyList<WriteColumn> Columns => _columnsView;
 
     /// <summary>Writes a file of one sheet from chunks as they arrive — the fast source for millions of rows.</summary>
+    /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
+    /// <param name="format">The file's format.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="chunks">The rows, a batch at a time.</param>
+    /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
+    /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="chunks"/>.</param>
     /// <returns>The number of data rows written.</returns>
     /// <remarks>
     /// The writer is flushed after every chunk and inside a chunk whenever it recommends it, so memory
     /// holds a chunk and about a megabyte, however many rows the file has. On any failure the stream is
     /// closed (unless <see cref="TabularWriterOptions.LeaveOpen"/>) and the file is incomplete.
+    /// An xlsx or ods sheet holds at most 1,048,576 rows, the header included; the row past it throws
+    /// <see cref="TabularLimitException"/> after the rows before it were written — choose csv when the
+    /// count may exceed it.
     /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public ValueTask<long> WriteAsync(Stream stream, TabularFormat format, string sheetName, IAsyncEnumerable<IReadOnlyList<T>> chunks, TabularWriterOptions? options = null, CancellationToken cancellationToken = default) =>
         WriteFileAsync(stream, format, options, writer => WriteSheetAsync(writer, sheetName, chunks, cancellationToken), cancellationToken);
 
@@ -48,24 +62,92 @@ public sealed class TabularExport<T>
     /// Writes a file of one sheet from a stream of messages that each carry a chunk — a gRPC server
     /// stream whose messages hold a repeated field, passed as it comes.
     /// </summary>
+    /// <typeparam name="TChunk">The message type.</typeparam>
+    /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
+    /// <param name="format">The file's format.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="chunks">The messages.</param>
+    /// <param name="itemsOf">Returns the items a message carries, as an <see cref="IReadOnlyList{T}"/> — a protobuf <c>RepeatedField</c> is one. It must not return <see langword="null"/>.</param>
+    /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
+    /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="chunks"/>.</param>
     /// <returns>The number of data rows written.</returns>
-    public ValueTask<long> WriteAsync<TChunk>(Stream stream, TabularFormat format, string sheetName, IAsyncEnumerable<TChunk> chunks, Func<TChunk, IReadOnlyList<T>> rows, TabularWriterOptions? options = null, CancellationToken cancellationToken = default) =>
-        WriteFileAsync(stream, format, options, writer => WriteSheetAsync(writer, sheetName, chunks, rows, cancellationToken), cancellationToken);
+    /// <remarks>
+    /// Flushed like the chunk overload, so memory holds a message and about a megabyte. On any failure
+    /// the stream is closed (unless <see cref="TabularWriterOptions.LeaveOpen"/>) and the file is incomplete.
+    /// An xlsx or ods sheet holds at most 1,048,576 rows, the header included; the row past it throws
+    /// <see cref="TabularLimitException"/> after the rows before it were written — choose csv when the
+    /// count may exceed it.
+    /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="itemsOf"/> returned <see langword="null"/> for a message.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
+    public ValueTask<long> WriteAsync<TChunk>(Stream stream, TabularFormat format, string sheetName, IAsyncEnumerable<TChunk> chunks, Func<TChunk, IReadOnlyList<T>> itemsOf, TabularWriterOptions? options = null, CancellationToken cancellationToken = default) =>
+        WriteFileAsync(stream, format, options, writer => WriteSheetAsync(writer, sheetName, chunks, itemsOf, cancellationToken), cancellationToken);
 
     /// <summary>Writes a file of one sheet from items arriving one at a time; awaits per item, so prefer chunks for millions.</summary>
+    /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
+    /// <param name="format">The file's format.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="items">The rows.</param>
+    /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
+    /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="items"/>.</param>
     /// <returns>The number of data rows written.</returns>
+    /// <remarks>
+    /// On any failure the stream is closed (unless <see cref="TabularWriterOptions.LeaveOpen"/>) and the
+    /// file is incomplete. An xlsx or ods sheet holds at most 1,048,576 rows, the header included; the
+    /// row past it throws <see cref="TabularLimitException"/> after the rows before it were written —
+    /// choose csv when the count may exceed it.
+    /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public ValueTask<long> WriteAsync(Stream stream, TabularFormat format, string sheetName, IAsyncEnumerable<T> items, TabularWriterOptions? options = null, CancellationToken cancellationToken = default) =>
         WriteFileAsync(stream, format, options, writer => WriteSheetAsync(writer, sheetName, items, cancellationToken), cancellationToken);
 
     /// <summary>Writes a file of one sheet from items in memory or produced synchronously.</summary>
+    /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
+    /// <param name="format">The file's format.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="items">The rows.</param>
+    /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
+    /// <param name="cancellationToken">Stops the write, observed at each flush, about every megabyte written.</param>
     /// <returns>The number of data rows written.</returns>
-    /// <remarks>Cancellation is observed at each flush, about every megabyte written.</remarks>
+    /// <remarks>
+    /// On any failure the stream is closed (unless <see cref="TabularWriterOptions.LeaveOpen"/>) and the
+    /// file is incomplete. An xlsx or ods sheet holds at most 1,048,576 rows, the header included; the
+    /// row past it throws <see cref="TabularLimitException"/> after the rows before it were written —
+    /// choose csv when the count may exceed it.
+    /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public ValueTask<long> WriteAsync(Stream stream, TabularFormat format, string sheetName, IEnumerable<T> items, TabularWriterOptions? options = null, CancellationToken cancellationToken = default) =>
         WriteFileAsync(stream, format, options, writer => WriteSheetAsync(writer, sheetName, items, cancellationToken), cancellationToken);
 
     /// <summary>Writes one sheet into a writer the caller owns, from chunks as they arrive.</summary>
+    /// <param name="writer">The caller's writer; the caller completes it.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="chunks">The rows, a batch at a time.</param>
+    /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="chunks"/>.</param>
     /// <returns>The number of data rows written.</returns>
-    /// <remarks>The caller completes the writer; several exports may write their sheets into one workbook.</remarks>
+    /// <remarks>
+    /// The caller completes the writer; several exports may write their sheets into one workbook. On any
+    /// failure the writer is faulted. An xlsx or ods sheet holds at most 1,048,576 rows, the header
+    /// included; the row past it throws <see cref="TabularLimitException"/> after the rows before it were
+    /// written — choose csv when the count may exceed it.
+    /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public async ValueTask<long> WriteSheetAsync(TabularWriter writer, string sheetName, IAsyncEnumerable<IReadOnlyList<T>> chunks, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(writer);
@@ -78,7 +160,7 @@ public sealed class TabularExport<T>
 
             await foreach (IReadOnlyList<T> chunk in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
             {
-                rows += await WriteChunkAsync(writer, chunk, cancellationToken).ConfigureAwait(false);
+                rows += await WriteChunkAsync(writer, chunk ?? throw new ArgumentException("A chunk is null.", nameof(chunks)), cancellationToken).ConfigureAwait(false);
             }
 
             return rows;
@@ -91,12 +173,30 @@ public sealed class TabularExport<T>
     }
 
     /// <summary>Writes one sheet into a writer the caller owns, from messages that each carry a chunk.</summary>
+    /// <typeparam name="TChunk">The message type.</typeparam>
+    /// <param name="writer">The caller's writer; the caller completes it.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="chunks">The messages.</param>
+    /// <param name="itemsOf">Returns the items a message carries, as an <see cref="IReadOnlyList{T}"/> — a protobuf <c>RepeatedField</c> is one. It must not return <see langword="null"/>.</param>
+    /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="chunks"/>.</param>
     /// <returns>The number of data rows written.</returns>
-    public async ValueTask<long> WriteSheetAsync<TChunk>(TabularWriter writer, string sheetName, IAsyncEnumerable<TChunk> chunks, Func<TChunk, IReadOnlyList<T>> rows, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// The caller completes the writer. On any failure the writer is faulted. An xlsx or ods sheet holds
+    /// at most 1,048,576 rows, the header included; the row past it throws
+    /// <see cref="TabularLimitException"/> after the rows before it were written — choose csv when the
+    /// count may exceed it.
+    /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="itemsOf"/> returned <see langword="null"/> for a message.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
+    public async ValueTask<long> WriteSheetAsync<TChunk>(TabularWriter writer, string sheetName, IAsyncEnumerable<TChunk> chunks, Func<TChunk, IReadOnlyList<T>> itemsOf, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(chunks);
-        ArgumentNullException.ThrowIfNull(rows);
+        ArgumentNullException.ThrowIfNull(itemsOf);
 
         try
         {
@@ -105,7 +205,8 @@ public sealed class TabularExport<T>
 
             await foreach (TChunk message in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
             {
-                written += await WriteChunkAsync(writer, rows(message), cancellationToken).ConfigureAwait(false);
+                IReadOnlyList<T> chunk = itemsOf(message) ?? throw new ArgumentException("The selector returned null for a message.", nameof(itemsOf));
+                written += await WriteChunkAsync(writer, chunk, cancellationToken).ConfigureAwait(false);
             }
 
             return written;
@@ -118,7 +219,22 @@ public sealed class TabularExport<T>
     }
 
     /// <summary>Writes one sheet into a writer the caller owns, from items arriving one at a time.</summary>
+    /// <param name="writer">The caller's writer; the caller completes it.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="items">The rows.</param>
+    /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="items"/>.</param>
     /// <returns>The number of data rows written.</returns>
+    /// <remarks>
+    /// The caller completes the writer. On any failure the writer is faulted. An xlsx or ods sheet holds
+    /// at most 1,048,576 rows, the header included; the row past it throws
+    /// <see cref="TabularLimitException"/> after the rows before it were written — choose csv when the
+    /// count may exceed it.
+    /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public async ValueTask<long> WriteSheetAsync(TabularWriter writer, string sheetName, IAsyncEnumerable<T> items, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(writer);
@@ -150,7 +266,22 @@ public sealed class TabularExport<T>
     }
 
     /// <summary>Writes one sheet into a writer the caller owns, from items in memory or produced synchronously.</summary>
+    /// <param name="writer">The caller's writer; the caller completes it.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="items">The rows.</param>
+    /// <param name="cancellationToken">Stops the write, observed at each flush, about every megabyte written.</param>
     /// <returns>The number of data rows written.</returns>
+    /// <remarks>
+    /// The caller completes the writer. On any failure the writer is faulted. An xlsx or ods sheet holds
+    /// at most 1,048,576 rows, the header included; the row past it throws
+    /// <see cref="TabularLimitException"/> after the rows before it were written — choose csv when the
+    /// count may exceed it.
+    /// </remarks>
+    /// <exception cref="TabularWriteException">A value the format cannot hold.</exception>
+    /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public async ValueTask<long> WriteSheetAsync(TabularWriter writer, string sheetName, IEnumerable<T> items, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(writer);
@@ -200,11 +331,6 @@ public sealed class TabularExport<T>
     /// <summary>Writes a chunk's rows, flushing inside it when recommended and once after it.</summary>
     private async ValueTask<long> WriteChunkAsync(TabularWriter writer, IReadOnlyList<T> chunk, CancellationToken cancellationToken)
     {
-        if (chunk is null)
-        {
-            throw new ArgumentException("A chunk is null.", nameof(chunk));
-        }
-
         for (int i = 0; i < chunk.Count; i++)
         {
             WriteRow(writer, chunk[i]);

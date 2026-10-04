@@ -10,9 +10,11 @@ namespace TriasDev.Tabular;
 /// <see cref="long"/>, <c>int?</c> to <c>long?</c>, <see cref="float"/> to <see cref="double"/>.
 /// Convert explicitly where it does not: a <see cref="char"/> would resolve to <see cref="long"/> and
 /// write its code point; a <see cref="ulong"/> is ambiguous; a method group returning
-/// <see cref="int"/> does not convert; <c>p =&gt; null</c> is ambiguous; an <see cref="int"/> passed
-/// with a <see cref="DecimalImportField"/> is ambiguous between decimal and double. Write
-/// enumerations, identifiers and other types as text: <c>p =&gt; p.Status.ToString()</c>.
+/// <see cref="int"/> does not convert; <c>p =&gt; null</c> and <c>p =&gt; default</c> are ambiguous; an
+/// <see cref="int"/> or <see cref="long"/> passed with a <see cref="DecimalImportField"/> is ambiguous
+/// between decimal and double. <see cref="TimeSpan"/>, <see cref="DateTimeOffset"/>, <see cref="Guid"/>
+/// and enumerations have no overload and fail with a misleading "cannot convert to string" (CS0029):
+/// convert explicitly — <c>p =&gt; p.Status.ToString()</c>, <c>p =&gt; p.At.UtcDateTime</c>.
 /// </para>
 /// <para>
 /// A column named by an import field takes the field's name as its header, so a file written with

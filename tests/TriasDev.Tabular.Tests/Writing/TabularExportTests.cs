@@ -232,7 +232,87 @@ public sealed class TabularExportTests
             yield return null!;
         }
 
-        await Assert.ThrowsAsync<ArgumentException>(async () =>
+        ArgumentException refused = await Assert.ThrowsAsync<ArgumentException>(async () =>
             await Export.WriteAsync(new WriteTarget(), TabularFormat.Csv, "data", WithANullChunk(), cancellationToken: Token));
+        Assert.Equal("chunks", refused.ParamName);
+    }
+
+    [Fact]
+    public async Task ASelectorThatThrowsOrReturnsNullFaultsTheWriteAndClosesTheStream()
+    {
+        static async IAsyncEnumerable<int> Messages()
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                await Task.Yield();
+                yield return i;
+            }
+        }
+
+        WriteTarget throwing = new();
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Export.WriteAsync(throwing, TabularFormat.Csv, "data", Messages(), m => m == 1 ? throw new InvalidOperationException("boom") : Items(2), NoBom, Token));
+        Assert.True(throwing.IsDisposed);
+
+        WriteTarget nulls = new();
+        ArgumentException refused = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Export.WriteAsync(nulls, TabularFormat.Csv, "data", Messages(), m => m == 1 ? null! : Items(2), NoBom, Token));
+        Assert.Equal("itemsOf", refused.ParamName);
+        Assert.True(nulls.IsDisposed);
+
+        await using TabularWriter first = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Export.WriteSheetAsync(first, "data", Messages(), m => m == 1 ? throw new InvalidOperationException("boom") : Items(2), Token));
+        Assert.Throws<InvalidOperationException>(first.EndRow);
+
+        await using TabularWriter second = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Export.WriteSheetAsync(second, "data", Messages(), m => m == 1 ? null! : Items(2), Token));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await second.CompleteAsync(Token));
+    }
+
+    [Fact]
+    public async Task CancellationThroughPerItemAsyncSourceStopsTheWriteAndClosesTheStream()
+    {
+        using CancellationTokenSource cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        WriteTarget target = new();
+        int seen = 0;
+
+        async IAsyncEnumerable<Item> Source([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (Item item in Items(1_000))
+            {
+                if (++seen == 5)
+                {
+                    await cancel.CancelAsync();
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+                yield return item;
+            }
+        }
+
+#pragma warning disable xUnit1051, S8949 // The source is called without a token on purpose: the export must flow its own through WithCancellation.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await Export.WriteAsync(target, TabularFormat.Csv, "data", Source(), NoBom, cancel.Token));
+#pragma warning restore xUnit1051, S8949
+
+        Assert.True(seen < 100);
+        Assert.True(target.IsDisposed);
+    }
+
+    [Fact]
+    public async Task ACompletedWritersFileIsNotReportedAsFailed()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        await Export.WriteSheetAsync(writer, "data", Items(2), Token);
+        await writer.CompleteAsync(Token);
+
+        InvalidOperationException first = await Assert.ThrowsAsync<InvalidOperationException>(async () => await Export.WriteSheetAsync(writer, "more", Items(1), Token));
+        InvalidOperationException later = await Assert.ThrowsAsync<InvalidOperationException>(async () => await Export.WriteSheetAsync(writer, "more", Items(1), Token));
+
+        Assert.Contains("complete", first.Message, StringComparison.Ordinal);
+        Assert.Contains("complete", later.Message, StringComparison.Ordinal);
     }
 }

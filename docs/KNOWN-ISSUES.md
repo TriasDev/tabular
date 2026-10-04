@@ -199,4 +199,4 @@ Read back through this library, xlsx and ods follow the same rules and add no ex
 
 Reading ods back with this library, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
 
-TabularExport: a char property resolves to an integer column (its code point), ulong and p => null are ambiguous, an int with a DecimalImportField is ambiguous between decimal and double — convert explicitly; write enums and identifiers as text.
+TabularExport picks a column type by overload resolution, and some lambdas do not resolve: a char property becomes an integer column (its code point); ulong, `p => default` and a lambda returning null are ambiguous; an int or long with a DecimalImportField is ambiguous between decimal and double; TimeSpan, DateTimeOffset, Guid and enums have no overload and fail with a misleading "cannot convert to string" (CS0029). Convert explicitly (`.ToString()`, `.UtcDateTime`, …); write enums and identifiers as text.
