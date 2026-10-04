@@ -195,26 +195,26 @@ TriasDev.Tabular.TabularExport<T>
 TriasDev.Tabular.TabularExport<T>.Columns.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.WriteColumn>!
 TriasDev.Tabular.TabularExportBuilder<T>
 TriasDev.Tabular.TabularExportBuilder<T>.Build() -> TriasDev.Tabular.TabularExport<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, decimal?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, decimal>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, double?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, double>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, long?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, long>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, string?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateOnly?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateOnly>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateTime?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateTime>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.BooleanImportField! field, System.Func<T, bool?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DateImportField! field, System.Func<T, System.DateOnly?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DateImportField! field, System.Func<T, System.DateTime?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DecimalImportField! field, System.Func<T, decimal?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DecimalImportField! field, System.Func<T, double?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.IntegerImportField! field, System.Func<T, long?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.TextImportField! field, System.Func<T, string?>! value, double? width = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool?>! value, double? width = null, System.Func<bool?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool>! value, double? width = null, System.Func<bool, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, decimal?>! value, double? width = null, System.Func<decimal?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, decimal>! value, double? width = null, System.Func<decimal, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, double?>! value, double? width = null, System.Func<double?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, double>! value, double? width = null, System.Func<double, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, long?>! value, double? width = null, System.Func<long?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, long>! value, double? width = null, System.Func<long, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, string?>! value, double? width = null, System.Func<string?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateOnly?>! value, double? width = null, System.Func<System.DateOnly?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateOnly>! value, double? width = null, System.Func<System.DateOnly, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateTime?>! value, double? width = null, System.Func<System.DateTime?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateTime>! value, double? width = null, System.Func<System.DateTime, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.BooleanImportField! field, System.Func<T, bool?>! value, double? width = null, System.Func<bool?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DateImportField! field, System.Func<T, System.DateOnly?>! value, double? width = null, System.Func<System.DateOnly?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DateImportField! field, System.Func<T, System.DateTime?>! value, double? width = null, System.Func<System.DateTime?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DecimalImportField! field, System.Func<T, decimal?>! value, double? width = null, System.Func<decimal?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DecimalImportField! field, System.Func<T, double?>! value, double? width = null, System.Func<double?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.IntegerImportField! field, System.Func<T, long?>! value, double? width = null, System.Func<long?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.TextImportField! field, System.Func<T, string?>! value, double? width = null, System.Func<string?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
 TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.IReadOnlyList<T>!>! chunks, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
 TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
 TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
@@ -275,3 +275,18 @@ TriasDev.Tabular.SheetOptions.HeaderStyle.init -> void
 TriasDev.Tabular.SheetOptions.SheetOptions() -> void
 TriasDev.Tabular.TabularWriter.BeginSheet(string! name, System.ReadOnlySpan<TriasDev.Tabular.WriteColumn> columns, TriasDev.Tabular.SheetOptions? options) -> void
 TriasDev.Tabular.TabularWriter.Merge(int rows, int columns) -> void
+TriasDev.Tabular.ColumnBatch
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.StyleId>! styles) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, System.Func<T, TriasDev.Tabular.CellStyle?>! style) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.StyleId>! styles) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, System.Func<T, TriasDev.Tabular.CellStyle?>! style) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value) -> void
+TriasDev.Tabular.ColumnBatch.ColumnBatch() -> void
+TriasDev.Tabular.ColumnBatch.ColumnCount.get -> int
+TriasDev.Tabular.ColumnBatch.Reset(int rowCount) -> void
+TriasDev.Tabular.ColumnBatch.RowCount.get -> int
+TriasDev.Tabular.TabularWriter.WriteBatch(TriasDev.Tabular.ColumnBatch! batch) -> void
+TriasDev.Tabular.TabularWriter.WriteBatchAsync(TriasDev.Tabular.ColumnBatch! batch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask

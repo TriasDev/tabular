@@ -235,6 +235,8 @@ public sealed class TabularWriter : IAsyncDisposable
         _coveredFrom = null;
         _coveredThrough = null;
         _lastCoveredRow = 0;
+        _lastStyles = null;
+        _lastStyleIds = null;
         _merges = 0;
         _pendingRows = 0;
         _pendingColumns = 0;
@@ -281,6 +283,71 @@ public sealed class TabularWriter : IAsyncDisposable
     {
         ExpectWritable();
         return new StyleId(_stamp, RegisterStyle(style));
+    }
+
+    /// <summary>The most rule-returned styles remembered by reference before the cache starts over.</summary>
+    internal const int StyleCacheLimit = 16_384;
+
+    private readonly Dictionary<CellStyle, StyleId> _byReference = new(ReferenceEqualityComparer.Instance);
+
+    // The last hit per column: a rule across thousands of columns changes colour from one cell to the next,
+    // but a column's own previous cell is usually the same style. Allocated on the sheet's first StyleFor.
+    private CellStyle?[]? _lastStyles;
+    private StyleId[]? _lastStyleIds;
+
+    internal int StyleCacheCount => _byReference.Count;
+
+    /// <summary>
+    /// The id of a style a rule returned: a reference compare when it is the previous one, a lookup by
+    /// reference otherwise, registering it (by value) the first time. Null is the unstyled cell.
+    /// </summary>
+    /// <remarks>
+    /// A rule that builds a new style per cell still writes correctly — registration dedupes by value —
+    /// but the reference cache would grow with every cell, so it starts over at <see cref="StyleCacheLimit"/>.
+    /// </remarks>
+    internal StyleId StyleFor(CellStyle? style)
+    {
+        if (style is null)
+        {
+            return default;
+        }
+
+        // StyleFor runs before the cell's Write, so _column is the cell about to be written. Outside a row,
+        // or on a merged sheet's covered positions, it is only a slot: the cache is checked by reference.
+        int slot = _column;
+
+        if (_lastStyles is null && _columns.Length != 0)
+        {
+            _lastStyles = new CellStyle?[_columns.Length];
+            _lastStyleIds = new StyleId[_columns.Length];
+        }
+
+        bool cached = _lastStyles is not null && (uint)slot < (uint)_lastStyles.Length;
+
+        if (cached && ReferenceEquals(style, _lastStyles![slot]))
+        {
+            return _lastStyleIds![slot];
+        }
+
+        if (!_byReference.TryGetValue(style, out StyleId id))
+        {
+            id = Style(style);
+
+            if (_byReference.Count == StyleCacheLimit)
+            {
+                _byReference.Clear();
+            }
+
+            _byReference.Add(style, id);
+        }
+
+        if (cached)
+        {
+            _lastStyles![slot] = style;
+            _lastStyleIds![slot] = id;
+        }
+
+        return id;
     }
 
     private int RegisterStyle(CellStyle style)
@@ -495,6 +562,103 @@ public sealed class TabularWriter : IAsyncDisposable
         }
 
         FinishRow();
+    }
+
+    /// <summary>
+    /// Writes a batch given by column as its rows, at the sheet's next row: each column's value for the
+    /// row in turn, typed, through the same checks as <c>Write</c>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The batch's columns are not the sheet's.</exception>
+    /// <exception cref="InvalidOperationException">Outside a sheet, or inside a row.</exception>
+    /// <exception cref="TabularWriteException">A value the format cannot hold, located by sheet, row, column and header.</exception>
+    /// <exception cref="TabularLimitException">The sheet outgrew its format's row limit.</exception>
+    public void WriteBatch(ColumnBatch batch)
+    {
+        ExpectBatch(batch);
+
+        try
+        {
+            for (int row = 0; row < batch.RowCount; row++)
+            {
+                WriteBatchRow(batch, row);
+            }
+        }
+        catch
+        {
+            // The caller's selectors, rules and lists run inside: whatever they throw leaves a half-written row.
+            MarkFaulted();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Writes a batch as <see cref="WriteBatch"/> does, flushing to the stream whenever
+    /// <see cref="FlushRecommended"/> after a row — memory stays flat however large the batch.
+    /// </summary>
+    /// <exception cref="ArgumentException">The batch's columns are not the sheet's.</exception>
+    /// <exception cref="InvalidOperationException">Outside a sheet, or inside a row.</exception>
+    /// <exception cref="TabularWriteException">A value the format cannot hold, located by sheet, row, column and header.</exception>
+    /// <exception cref="TabularLimitException">The sheet outgrew its format's row limit.</exception>
+    /// <exception cref="OperationCanceledException">Cancelled; the writer is faulted and the file incomplete.</exception>
+    public async ValueTask WriteBatchAsync(ColumnBatch batch, CancellationToken cancellationToken = default)
+    {
+        ExpectBatch(batch);
+
+        try
+        {
+            for (int row = 0; row < batch.RowCount; row++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBatchRow(batch, row);
+
+                if (FlushRecommended)
+                {
+                    await FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch
+        {
+            MarkFaulted();
+            throw;
+        }
+    }
+
+    private void ExpectBatch(ColumnBatch batch)
+    {
+        ExpectWritable();
+
+        if (batch is null)
+        {
+            throw Faulting(new ArgumentNullException(nameof(batch)));
+        }
+
+        if (_state != State.InSheet)
+        {
+            throw Refuse("A batch is written inside a sheet, between rows.");
+        }
+
+        if (batch.ColumnCount != _columns.Length)
+        {
+            throw Faulting(new ArgumentException($"The batch has {batch.ColumnCount} columns; sheet \"{_sheetName}\" has {_columns.Length}.", nameof(batch)));
+        }
+
+        if (_lastCoveredRow > _rowNumber)
+        {
+            throw Refuse("A merged range still covers rows below; a batch writes plain rows — end the range first.");
+        }
+    }
+
+    private void WriteBatchRow(ColumnBatch batch, int row)
+    {
+        BeginRow();
+
+        for (int column = 0; column < _columns.Length; column++)
+        {
+            batch.Column(column).Write(this, row);
+        }
+
+        EndRow();
     }
 
     /// <summary>Moves everything pending in memory into the stream.</summary>
