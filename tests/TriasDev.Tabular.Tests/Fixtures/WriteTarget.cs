@@ -18,6 +18,9 @@ public sealed class WriteTarget : MemoryStream
     /// <summary>How many times <c>FlushAsync</c> was called.</summary>
     public int AsyncFlushes { get; private set; }
 
+    /// <summary>How many times an asynchronous write reached the target.</summary>
+    public int AsyncWrites { get; private set; }
+
     /// <summary>When set, every asynchronous write throws it — a client that went away.</summary>
     public Exception? FailWith { get; set; }
 
@@ -46,6 +49,7 @@ public sealed class WriteTarget : MemoryStream
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        AsyncWrites++;
 
         if (FailWith is { } failure)
         {

@@ -206,10 +206,16 @@ static readonly TabularExport<Portfolio> Export = TabularExport.For<Portfolio>()
   `.Column(DecimalImportField, Func<T, decimal?>)` and `Func<T, double?>`,
   `.Column(DateImportField, Func<T, DateTime?>)` and `Func<T, DateOnly?>`,
   `.Column(BooleanImportField, Func<T, bool?>)`. A mismatch is a compile error. The header is
-  `field.Name`. An untyped `ImportField` is accepted too and checked against its `Type` at
-  `Build()`, with `ArgumentException`; a translated field throws there.
-- Each column is an `ExportColumn<T, TValue>` holding a typed delegate: one delegate call and one
-  typed `Write` per cell.
+  `field.Name`. An untyped `ImportField` is not accepted: an overload for it would also catch a
+  typed field passed with a lambda of the wrong type, turning the compile error into a run-time one;
+  a caller with an untyped field writes `.Column(field.Name, …)`. A translated field's variant is
+  refused at `Column(...)` with `ArgumentException`.
+- Sources may also be a stream of messages that each carry a chunk, with a selector
+  (`IAsyncEnumerable<TChunk>` and `Func<TChunk, IReadOnlyList<T>>`) — a gRPC server stream whose
+  messages hold a repeated field, passed as it comes.
+- Each column is an `ExportColumn<T, TValue>` holding a typed delegate: per cell, one virtual call
+  and two delegate calls (the accessor and the typed `Write`), no allocation; measured at 1–6% over
+  a hand-written loop.
 - Width: set per column, or defaulted by type (wider for date-time).
 - The built export is immutable and thread-safe.
 

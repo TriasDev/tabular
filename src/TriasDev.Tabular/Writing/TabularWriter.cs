@@ -393,11 +393,17 @@ public sealed class TabularWriter : IAsyncDisposable
         }
     }
 
-    private void CheckColumns(ReadOnlySpan<WriteColumn> columns)
+    /// <summary>
+    /// What is wrong with a sheet's columns, as the exception to throw, or null: 1 to 16,384 columns,
+    /// headers not empty, not padded, unique ignoring case and writable, widths more than 0 and at
+    /// most 255 characters.
+    /// </summary>
+    /// <remarks>Shared with <see cref="TabularExportBuilder{T}.Build"/>, so an export's columns fail where they are declared.</remarks>
+    internal static Exception? ColumnsProblem(ReadOnlySpan<WriteColumn> columns)
     {
         if (columns.IsEmpty || columns.Length > MaxColumns)
         {
-            throw Faulting(new ArgumentOutOfRangeException(nameof(columns), columns.Length, $"A sheet has 1 to {MaxColumns} columns."));
+            return new ArgumentOutOfRangeException(nameof(columns), columns.Length, $"A sheet has 1 to {MaxColumns} columns.");
         }
 
         HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
@@ -406,13 +412,23 @@ public sealed class TabularWriter : IAsyncDisposable
         {
             if (HeaderProblem(column.Header, seen) is { } problem)
             {
-                throw Faulting(new ArgumentException(problem, nameof(columns)));
+                return new ArgumentException(problem, nameof(columns));
             }
 
             if (column.Width is { } width && (!double.IsFinite(width) || width <= 0 || width > MaxWidth))
             {
-                throw Faulting(new ArgumentOutOfRangeException(nameof(columns), width, $"A column is more than 0 and at most {MaxWidth} characters wide."));
+                return new ArgumentOutOfRangeException(nameof(columns), width, $"A column is more than 0 and at most {MaxWidth} characters wide.");
             }
+        }
+
+        return null;
+    }
+
+    private void CheckColumns(ReadOnlySpan<WriteColumn> columns)
+    {
+        if (ColumnsProblem(columns) is { } problem)
+        {
+            throw Faulting(problem);
         }
     }
 
@@ -519,6 +535,16 @@ public sealed class TabularWriter : IAsyncDisposable
     {
         MarkFaulted();
         return exception;
+    }
+
+    /// <summary>Marks the writer unusable after a failure it was driven through, so its file is not completed.</summary>
+    internal void Fault()
+    {
+        // A completed file is whole: a failure after it must not turn it into a failed one.
+        if (_state != State.Completed)
+        {
+            MarkFaulted();
+        }
     }
 
     private void MarkFaulted()

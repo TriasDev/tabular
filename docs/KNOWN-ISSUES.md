@@ -198,3 +198,5 @@ Read back through this library, xlsx and ods follow the same rules and add no ex
 - LibreOffice (and Excel) keep 15 significant digits when they re-save a number: a 16-digit integer such as 9007199254740992 comes back as 9007199254740990 after opening and saving the file there. Write identifiers longer than 15 digits as text.
 
 Reading ods back with this library, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
+
+TabularExport picks a column type by overload resolution, and some lambdas do not resolve: a char property becomes an integer column (its code point); ulong, `p => default` and a lambda returning null are ambiguous; an int or long with a DecimalImportField is ambiguous between decimal and double; TimeSpan, DateTimeOffset, Guid and enums have no overload and fail with a misleading "cannot convert to string" (CS0029). Convert explicitly (`.ToString()`, `.UtcDateTime`, …); write enums and identifiers as text.
