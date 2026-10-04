@@ -16,6 +16,15 @@ public sealed class TabularExportBuilderTests
     private static readonly BooleanImportField ActiveField = ImportField.Boolean("Active");
 
     [Fact]
+    public void ColumnsCannotBeChangedThroughTheirCollection()
+    {
+        TabularExport<Portfolio> export = TabularExport.For<Portfolio>().Column(IdField, p => p.Id).Build();
+
+        Assert.IsNotType<WriteColumn[]>(export.Columns);
+        Assert.Throws<NotSupportedException>(() => ((IList<WriteColumn>)export.Columns)[0] = new WriteColumn("x"));
+    }
+
+    [Fact]
     public void DeclaresColumnsInOrderWithTheirHeaders()
     {
         TabularExport<Portfolio> export = TabularExport.For<Portfolio>()
