@@ -30,9 +30,9 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     private const int TagOverhead = 80;
 
-    private const string NumberEnd = "\"/>";
+    private const string StyleAttribute = " table:style-name=\"";
 
-    private const string StyledCell = "<table:table-cell table:style-name=\"";
+    private const string NumberEnd = "\"/>";
 
     private static readonly int MaxTextChars = OdsCursorOptions.Default.MaxValueChars;
 
@@ -50,6 +50,8 @@ internal sealed class OdsSheetWriter : ISheetWriter
     private int _sheets;
     private long _rowNumber;
     private bool _filter;
+    private string? _span;               // the pending span attributes for the next cell, or null
+    private int _emptyRun;               // unstyled empty cells not yet written
 
     public OdsSheetWriter(SpillBuffer output, OdsWriterOptions options, StyleTable styles)
     {
@@ -147,7 +149,8 @@ internal sealed class OdsSheetWriter : ISheetWriter
     public string? WriteDate(DateTime value, bool hasTime, int style)
     {
         // ISO in an attribute: no serial, so no 1900 floor and no leap-year bug — any year reads back.
-        _row.Append(StyledCell);
+        OpenCell();
+        _row.Append(StyleAttribute);
         _row.Append(DateStyleName(style, hasTime));
         _row.Append("\" office:value-type=\"date\" office:date-value=\"");
         _row.AppendFormatted(value, hasTime ? "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff" : "yyyy'-'MM'-'dd", CultureInfo.InvariantCulture);
@@ -157,7 +160,8 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     public void WriteBoolean(bool value, int style)
     {
-        _row.Append(StyledCell);
+        OpenCell();
+        _row.Append(StyleAttribute);
         _row.Append(style == 0 ? OdsParts.BooleanStyle : _styles.Cell(style, ValueKind.Boolean).Name);
         _row.Append("\" office:value-type=\"boolean\" office:boolean-value=\"");
         _row.Append(value ? "true" : "false");
@@ -168,27 +172,38 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     public int MaxMerges => int.MaxValue;
 
-    public void Merge(int rows, int columns)
-    {
-    }
+    public void Merge(int rows, int columns) =>
+        _span = string.Create(CultureInfo.InvariantCulture, $" table:number-columns-spanned=\"{columns}\" table:number-rows-spanned=\"{rows}\"");
 
-    public void WriteCovered() => WriteEmpty(0);
+    public void WriteCovered()
+    {
+        FlushEmpties();
+        _row.Append("<table:covered-table-cell/>");
+    }
 
     public void WriteEmpty(int style)
     {
-        if (style == 0)
+        if (style == 0 && _span is null)
         {
-            _row.Append("<table:table-cell/>");
+            _emptyRun++;
             return;
         }
 
-        _row.Append(StyledCell);
-        _row.Append(_styles.Cell(style, ValueKind.Empty).Name);
-        _row.Append("\"/>");
+        OpenCell();
+
+        if (style != 0)
+        {
+            _row.Append(StyleAttribute);
+            _row.Append(_styles.Cell(style, ValueKind.Empty).Name);
+            _row.Append('"');
+        }
+
+        _row.Append("/>");
     }
 
     public void EndRow()
     {
+        FlushEmpties();
         _row.Append("</table:table-row>");
         Emit();
     }
@@ -234,8 +249,39 @@ internal sealed class OdsSheetWriter : ISheetWriter
         }
     }
 
-    /// <summary>Opens a number cell up to its value; LibreOffice formats the display from the value.</summary>
-    private void StartFloat() => _row.Append("<table:table-cell office:value-type=\"float\" office:value=\"");
+    /// <summary>Opens a value cell: writes any pending empty run, then <c>&lt;table:table-cell</c> and a pending span.</summary>
+    private void OpenCell()
+    {
+        FlushEmpties();
+        _row.Append("<table:table-cell");
+
+        if (_span is not null)
+        {
+            _row.Append(_span);
+            _span = null;
+        }
+    }
+
+    private void FlushEmpties()
+    {
+        if (_emptyRun == 0)
+        {
+            return;
+        }
+
+        if (_emptyRun == 1)
+        {
+            _row.Append("<table:table-cell/>");
+        }
+        else
+        {
+            _row.Append("<table:table-cell table:number-columns-repeated=\"");
+            _row.AppendFormatted(_emptyRun, default, CultureInfo.InvariantCulture);
+            _row.Append("\"/>");
+        }
+
+        _emptyRun = 0;
+    }
 
     private string DateStyleName(int style, bool hasTime)
     {
@@ -251,12 +297,14 @@ internal sealed class OdsSheetWriter : ISheetWriter
     {
         if (style == 0)
         {
-            StartFloat();
+            OpenCell();
+            _row.Append(" office:value-type=\"float\" office:value=\"");
             return;
         }
 
         OdsCellStyle cell = _styles.Cell(style, kind);
-        _row.Append(StyledCell);
+        OpenCell();
+        _row.Append(StyleAttribute);
         _row.Append(cell.Name);
         _row.Append(cell.Percent ? "\" office:value-type=\"percentage\" office:value=\"" : "\" office:value-type=\"float\" office:value=\"");
     }
@@ -268,11 +316,11 @@ internal sealed class OdsSheetWriter : ISheetWriter
             return ErrorCodes.Write.TextTooLong;
         }
 
-        _row.Append("<table:table-cell");
+        OpenCell();
 
         if (style != 0)
         {
-            _row.Append(" table:style-name=\"");
+            _row.Append(StyleAttribute);
             _row.Append(_styles.Cell(style, ValueKind.Text).Name);
             _row.Append('"');
         }

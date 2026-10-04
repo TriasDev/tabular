@@ -121,4 +121,14 @@ public sealed class StyledInteropTests
         Assert.Contains("table:number-columns-spanned=\"2\"", content, StringComparison.Ordinal);
         Assert.Contains("table:number-rows-spanned=\"2\"", content, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergesOfAnOds()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, MergeTests.Legend);
+        string sheet = Entry(LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx"), "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<mergeCell ref=\"A2:B2\"/>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<mergeCell ref=\"B3:C4\"/>", sheet, StringComparison.Ordinal);
+    }
 }

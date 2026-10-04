@@ -243,4 +243,62 @@ public sealed class MergeTests
         writer.BeginRow();
         Assert.Throws<TabularLimitException>(() => writer.Merge(1, 2));
     }
+
+    [Fact]
+    public async Task OdsSpansTheTopLeftCellAndCoversTheRest()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, Legend);
+        string content = SheetLayoutTests.Entry(ods, "content.xml");
+
+        Assert.Contains("<table:table-row><table:table-cell table:number-columns-spanned=\"2\" table:number-rows-spanned=\"1\" office:value-type=\"string\"><text:p>title</text:p></table:table-cell><table:covered-table-cell/>", content, StringComparison.Ordinal);
+        Assert.Contains("<table:table-cell table:number-columns-spanned=\"2\" table:number-rows-spanned=\"2\" office:value-type=\"string\"><text:p>block</text:p></table:table-cell><table:covered-table-cell/>", content, StringComparison.Ordinal);
+        Assert.Contains("<text:p>a4</text:p></table:table-cell><table:covered-table-cell/><table:covered-table-cell/><table:table-cell office:value-type=\"string\"><text:p>d4</text:p>", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OdsSpansAStyledAndAnEmptyTopLeftCell()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, writer =>
+        {
+            StyleId fill = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0xF8696B) });
+            writer.BeginSheet("data", Four);
+            writer.BeginRow();
+            writer.Merge(1, 2);
+            writer.Write(5.5, fill);
+            writer.Merge(1, 2);
+            writer.WriteEmpty(fill);
+            writer.EndRow();
+        });
+
+        string content = SheetLayoutTests.Entry(ods, "content.xml");
+        Assert.Contains("<table:table-cell table:number-columns-spanned=\"2\" table:number-rows-spanned=\"1\" table:style-name=\"ts1\" office:value-type=\"float\" office:value=\"5.5\"/><table:covered-table-cell/>", content, StringComparison.Ordinal);
+        Assert.Contains("<table:table-cell table:number-columns-spanned=\"2\" table:number-rows-spanned=\"1\" table:style-name=\"ts1\"/><table:covered-table-cell/>", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OdsWritesARunOfEmptyCellsAsOne()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, writer =>
+        {
+            writer.BeginSheet("data", [new("a"), new("b"), new("c"), new("d"), new("e")]);
+            writer.BeginRow();
+            writer.Write("a2");
+            writer.WriteEmpty();
+            writer.WriteEmpty();
+            writer.WriteEmpty();
+            writer.Write("e2");
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Write("a3");
+            writer.EndRow();
+        });
+
+        string content = SheetLayoutTests.Entry(ods, "content.xml");
+        Assert.Contains("<text:p>a2</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"3\"/><table:table-cell office:value-type=\"string\"><text:p>e2</text:p>", content, StringComparison.Ordinal);
+        Assert.Contains("<text:p>a3</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"4\"/></table:table-row>", content, StringComparison.Ordinal);
+
+        List<RawCell[]> rows = SheetLayoutTests.Rows(ods);
+        Assert.Equal(RawCell.FromText("e2"), rows[1][4]);
+        Assert.True(rows[1][2].IsEmpty);
+    }
 }
