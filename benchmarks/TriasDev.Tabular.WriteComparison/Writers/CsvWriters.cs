@@ -40,7 +40,7 @@ internal sealed class CsvHelperWriter : CsvWriterBase
     public override void Write(Scenario scenario, Stream target)
     {
         using StreamWriter text = new(target, Utf8, 64 * 1024, leaveOpen: true);
-        using CsvWriter csv = new(text, new CsvConfiguration(CultureInfo.InvariantCulture));
+        using CsvWriter csv = new(text, new CsvConfiguration(CultureInfo.InvariantCulture) { NewLine = "\r\n" });
 
         // Dates as ISO text, once, in the converters' options: no per-cell format call.
         csv.Context.TypeConverterOptionsCache.GetOptions<DateOnly>().Formats = ["yyyy-MM-dd"];
@@ -106,7 +106,7 @@ internal sealed class CsvHelperWriter : CsvWriterBase
 }
 
 /// <summary>
-/// Sep's <c>SepWriter</c>: one row at a time with <c>NewRow</c>, columns by index (the header declared up
+/// Sep's <c>SepWriter</c> (its row terminator is not configurable: it writes <c>Environment.NewLine</c>, which is LF on macOS and Linux and CR LF on Windows): one row at a time with <c>NewRow</c>, columns by index (the header declared up
 /// front, so no name lookup per cell), values formatted straight into its buffer with <c>Format</c> and interpolated
 /// <c>Set</c> (no strings), escaping switched on because the data needs it.
 /// </summary>
@@ -194,6 +194,8 @@ internal sealed class SylvanCsvWriter : CsvWriterBase
         {
             Culture = CultureInfo.InvariantCulture,
             DateTimeFormat = "yyyy-MM-dd HH:mm:ss",
+            DateOnlyFormat = "yyyy-MM-dd",
+            NewLine = "\r\n",
 
             // The wide scenario's header row alone is 85 KB, over the default 64 KB buffer a record must fit in.
             BufferSize = 1 << 20,

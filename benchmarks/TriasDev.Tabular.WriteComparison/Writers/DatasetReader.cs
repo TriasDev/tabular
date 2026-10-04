@@ -66,7 +66,8 @@ internal sealed class DatasetReader : DbDataReader, IDbColumnSchemaGenerator
         ValueKind.Long => typeof(long),
         ValueKind.Double => typeof(double),
         ValueKind.Decimal => typeof(decimal),
-        ValueKind.Date or ValueKind.DateTime => typeof(DateTime),
+        ValueKind.Date => typeof(DateOnly),
+        ValueKind.DateTime => typeof(DateTime),
         ValueKind.Boolean => typeof(bool),
         _ => typeof(object),
     };
@@ -102,6 +103,10 @@ internal sealed class DatasetReader : DbDataReader, IDbColumnSchemaGenerator
     public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length) => throw new NotSupportedException();
 
     public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length) => throw new NotSupportedException();
+
+    /// <summary>A date column is a <see cref="DateOnly"/> to a reader that asks for one, without boxing.</summary>
+    public override T GetFieldValue<T>(int ordinal) =>
+        typeof(T) == typeof(DateOnly) ? (T)(object)DateOnly.FromDateTime(_cells[ordinal].Date) : (T)GetValue(ordinal);
 
     public override object GetValue(int ordinal)
     {

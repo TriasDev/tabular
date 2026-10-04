@@ -81,7 +81,7 @@ public static class Program
         {
             Stopwatch clock = Stopwatch.StartNew();
 
-            using (FileStream target = new(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 64 * 1024))
+            using (FileStream target = new(path, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024))
             {
                 writer.Write(scenario, target);
             }

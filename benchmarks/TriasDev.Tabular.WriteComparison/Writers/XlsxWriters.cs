@@ -204,8 +204,9 @@ internal sealed class SpreadCheetahWriter : IWriter
 /// <summary>
 /// MiniExcel's <c>SaveAs</c> over an <see cref="System.Data.IDataReader"/>, which it reads row by row: its streaming
 /// form (a collection of dictionaries is its other, and allocates one per row). It has no cell styles, so it
-/// takes part in the unstyled scenarios only. Its dates are written through its <c>DateTimeFormat</c>
-/// configuration, so they carry a date format, and column widths are left alone (auto width needs the whole sheet).
+/// takes part in the unstyled scenarios only. Its dates carry its own date format, and column widths are left
+/// alone (auto width needs the whole sheet). <c>FastMode</c> is left off: it switches the zip to update mode, which
+/// buffers the sheet in memory and needs a readable target.
 /// </summary>
 internal sealed class MiniExcelWriter : IWriter
 {
@@ -221,8 +222,8 @@ internal sealed class MiniExcelWriter : IWriter
     {
         using DatasetReader reader = new(scenario);
 
-        // SaveAs opens its zip in update mode, so the target has to be readable and seekable: the harness opens
-        // its files read-write for that. It is how MiniExcel writes, and its memory is measured as such.
-        target.SaveAs(reader, true, "Data", ExcelType.XLSX, new OpenXmlConfiguration { EnableAutoWidth = false, FastMode = true });
+        // FastMode would open its zip in update mode, which needs a readable, seekable target and buffers the sheet in
+        // memory; left off, it writes the archive straight through to the stream.
+        target.SaveAs(reader, true, "Data", ExcelType.XLSX, new OpenXmlConfiguration { EnableAutoWidth = false });
     }
 }
