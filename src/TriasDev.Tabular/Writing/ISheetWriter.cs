@@ -21,6 +21,9 @@ internal interface ISheetWriter : IDisposable
     /// <summary>Whether the format stores sheet names, which must then meet <see cref="SheetNames"/>' rules.</summary>
     bool NamesSheets { get; }
 
+    /// <summary>A refusal of a sheet name beyond the workbook rules, for a format whose names become something else (a file name); null when the name is fine.</summary>
+    string? NameProblem(string name);
+
     /// <summary>Begins a sheet. <paramref name="options"/> is never null; csv ignores it.</summary>
     void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options);
 

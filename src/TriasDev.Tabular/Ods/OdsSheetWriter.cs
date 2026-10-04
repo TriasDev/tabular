@@ -69,6 +69,8 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     public bool NamesSheets => true;
 
+    public string? NameProblem(string name) => null;
+
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options)
     {
         if (options.FreezeRows > 0 || options.FreezeColumns > 0)

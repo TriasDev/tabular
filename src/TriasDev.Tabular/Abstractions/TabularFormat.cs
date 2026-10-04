@@ -18,7 +18,7 @@ public enum TabularFormat
 
     /// <summary>
     /// A zip archive of files, read as one workbook whose sheets are theirs. The container's format:
-    /// each sheet keeps its own.
+    /// each sheet keeps its own. Written as csv sheets: one <c>&lt;sheet name&gt;.csv</c> entry per sheet.
     /// </summary>
     Zip,
 
