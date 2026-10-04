@@ -144,3 +144,4 @@ nav:
     - Known issues: KNOWN-ISSUES.md
     - Ideas: IDEAS.md
     - Why the parsing is our own: adr/0001-tabular-parsing-is-our-own-cursor.md
+    - Why the writing is our own: adr/0002-writing-is-our-own.md
