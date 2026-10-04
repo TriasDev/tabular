@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
+  </ItemGroup>
+
+  <!-- The endpoint sample is ASP.NET Core code. The shared framework ships with the SDK; the library itself still has no dependency. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

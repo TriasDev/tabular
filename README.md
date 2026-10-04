@@ -213,11 +213,73 @@ foreach (ImportOutcome<Customer> outcome in run.ReadRows())
 The same flow, runnable, with its output: [`samples/TriasDev.Tabular.Samples.Import`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Import).
 Batches, the full rule set, translated fields and every error code are in the [documentation](https://triasdev.github.io/tabular/importing/).
 
+## Writing
+
+The other direction: csv, xlsx, ods and a zip of csv sheets, into any stream, written asynchronously
+and flushed as it goes, so memory stays flat however many rows the file has. An xlsx with a styled,
+frozen header, number and date formats, and a legend that marks late orders:
+
+```csharp
+// Styles are declared once. A style compares by value, so the file holds each one once.
+private static readonly CellStyle HeaderStyle = new()
+{
+    Fill = CellColor.Parse("#1F4E78"),
+    Font = new CellFont { Color = CellColor.Parse("#FFFFFF"), Bold = true },
+};
+
+private static readonly CellStyle MoneyStyle = new() { Number = NumberFormat.Parse("#,##0.00") };
+private static readonly CellStyle DateStyle = new() { Date = DateFormat.Parse("dd/mm/yyyy") };
+
+// A legend: late orders are marked in red, as the declared export's style rule does.
+private static readonly CellStyle LateStyle = new() { Fill = CellColor.Parse("#FFC7CE") };
+
+public static async Task WriteAsync(Stream stream, IEnumerable<Order> orders, CancellationToken cancellationToken)
+{
+    // Disposing the writer closes the stream. Without CompleteAsync the file stays incomplete.
+    await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx);
+
+    writer.BeginSheet(
+        "Orders",
+        [new WriteColumn("Id", 8), new WriteColumn("Customer", 28), new WriteColumn("Placed", 12), new WriteColumn("Amount", 12), new WriteColumn("Status", 10)],
+        new SheetOptions { HeaderStyle = HeaderStyle, FreezeRows = 1, AutoFilter = true });
+
+    StyleId money = writer.Style(MoneyStyle);
+    StyleId date = writer.Style(DateStyle);
+    StyleId late = writer.Style(LateStyle);
+
+    foreach (Order order in orders)
+    {
+        writer.BeginRow();
+        writer.Write(order.Id);
+        writer.Write(order.Customer);
+        writer.Write(order.Placed, date);
+        writer.Write(order.Amount, money);
+        writer.Write(order.Status, order.Status == "late" ? late : default);
+        writer.EndRow();
+
+        // Writes go into memory; this moves them to the stream once about a megabyte is pending.
+        if (writer.FlushRecommended)
+        {
+            await writer.FlushAsync(cancellationToken);
+        }
+    }
+
+    await writer.CompleteAsync(cancellationToken);
+}
+```
+
+Objects are declared once with `TabularExport<T>` (a style rule per column, chunks or a server stream
+as the source); data that arrives by column goes through `ColumnBatch`. The file is valid only after
+`CompleteAsync`; one that is not completed is incomplete, and the caller discards it. The runnable
+version, with an ASP.NET Core endpoint, is
+[`samples/TriasDev.Tabular.Samples.Export`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Export);
+the guide is [Exporting](https://triasdev.github.io/tabular/exporting/).
+
 ## Limits
 
 Stated here so they are found before they are hit:
 
-- **Writing.** It writes csv, xlsx, ods and a zip of csv sheets, streaming and asynchronous towards the target, with styles and layout for xlsx and ods; [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) lists what does not come back exactly as written.
+- **Writing.** csv, xlsx, ods and a zip of csv sheets, asynchronous towards the target; styles and layout apply to xlsx and ods only. An xlsx or ods sheet holds 1,048,576 rows (the header included), a sheet at most 16,384 columns, a file 4,096 distinct styles, an xlsx sheet 65,536 merged ranges; text is limited to 32,767 characters in xlsx, and a date before 1900-01-01 is refused in xlsx. A value a format cannot hold exactly is refused with a located `TabularWriteException`, not rounded. A writer that fails leaves an incomplete file, which the caller discards. [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) lists what does not come back exactly as written.
 - **xlsx, ods and csv only, alone, zipped, tarred or gzipped.** Legacy `.xls`, binary `.xlsb` and flat OpenDocument
   `.fods` are refused as `format.unsupported` rather than misread; inside an archive they are skipped
   and listed. Archives inside archives are not opened.
