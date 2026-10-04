@@ -49,6 +49,7 @@ public static class Program
         new SepCsvWriter(),
         new SylvanCsvWriter(),
         new LargeXlsxWriter(),
+        new LargeXlsxWriter(requireCellReferences: false),
         new SpreadCheetahWriter(),
         new MiniExcelWriter(),
     ];

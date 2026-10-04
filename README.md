@@ -230,7 +230,7 @@ private static readonly CellStyle HeaderStyle = new()
 private static readonly CellStyle MoneyStyle = new() { Number = NumberFormat.Parse("#,##0.00") };
 private static readonly CellStyle DateStyle = new() { Date = DateFormat.Parse("dd/mm/yyyy") };
 
-// A legend: late orders are marked in red, as the declared export's style rule does.
+// A legend: late orders are marked in red.
 private static readonly CellStyle LateStyle = new() { Fill = CellColor.Parse("#FFC7CE") };
 
 public static async Task WriteAsync(Stream stream, IEnumerable<Order> orders, CancellationToken cancellationToken)

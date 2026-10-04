@@ -155,7 +155,7 @@ The same comparison for the other direction: writing the same data with TriasDev
 the libraries a .NET developer would otherwise reach for.
 
 **In short:** on csv TriasDev.Tabular is faster than CsvHelper, which takes 49% longer on the narrow
-file and 24% longer on the wide one, and allocates a tenth of what CsvHelper does. It is slower than
+file and 24% longer on the wide one, and allocates less than a tenth of what CsvHelper does. It is slower than
 Sylvan.Data.Csv (Sylvan takes 25% less time on the narrow file, 42% less on the wide one; in the
 ratios below, X takes N% longer than Y means X's time divided by Y's) and than Sep on the wide file,
 while on the narrow one it is level with Sep (2% longer). On xlsx it is faster than LargeXlsx on the
@@ -164,11 +164,11 @@ pass on the styled narrow one (14% longer than LargeXlsx; an earlier run measure
 below). SpreadCheetah is the fastest xlsx writer in every scenario of this pass: TriasDev.Tabular takes
 3% longer on the unstyled narrow file, 39% longer on the styled one and 20% longer on the wide one.
 MiniExcel is the slowest and allocates the most. On the narrow xlsx files TriasDev.Tabular holds the
-least memory (55 MB against 60 to 67 MB); on csv Sep and CsvHelper hold a little less (53 and 55
+least memory (55 MB against 60 to 79 MB); on csv Sep and CsvHelper hold a little less (53 and 55
 MB against 57 MB), and on the wide files TriasDev.Tabular holds more than the others, because it
 batches 500 rows by column. It is the only library here that writes ods and zip, so those have
 nothing to be compared with. The figures are provisional: they come from a single pass on a machine
-that other work was using.
+that other work was using; they are to be re-measured on a quiet machine: [#96](https://github.com/TriasDev/tabular/issues/96).
 
 ### What was measured
 
@@ -196,7 +196,8 @@ that other work was using.
 - **What differs between the files.** Sep writes LF as its row terminator and cannot be told to write
   CR LF; the others write CR LF. SpreadCheetah leaves out each cell's reference (`r="B7"`) by default,
   which makes its files smaller and the writing faster; TriasDev.Tabular leaves it out where a cell
-  follows the one before it, and LargeXlsx always writes it. TriasDev.Tabular also checks that every
+  follows the one before it, and LargeXlsx writes it by default (`requireCellReferences: true`) and can leave it out; the tables use
+  its default, and a run with it off ("LargeXlsx (no cell references)") is pending, see [#96](https://github.com/TriasDev/tabular/issues/96). TriasDev.Tabular also checks that every
   double survives the round trip (15 significant digits) and fails the write if one would not; the
   others do not. In a profile of the wide xlsx write that check was 13.6% of the time, 0.3 to 0.5 s,
   a large part of the roughly 0.9 s gap to SpreadCheetah in this pass.
@@ -221,7 +222,7 @@ Machine: Apple M1 Max, 10 cores, 64 GB, macOS 26.7.1, .NET 10.0.9, workstation G
 #### 5M rows x 30 columns — 1.6 GB
 
 <!-- provisional: re-run on a quiet machine -->
-*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one ([#96](https://github.com/TriasDev/tabular/issues/96)).*
 
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
@@ -237,7 +238,7 @@ file is 2% larger because it writes a byte order mark and its date-times with mi
 #### 10,000 rows x 5,003 columns — 208 MB
 
 <!-- provisional: re-run on a quiet machine -->
-*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one ([#96](https://github.com/TriasDev/tabular/issues/96)).*
 
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
@@ -251,7 +252,7 @@ file is 2% larger because it writes a byte order mark and its date-times with mi
 #### 1,048,575 rows x 30 columns, unstyled
 
 <!-- provisional: re-run on a quiet machine -->
-*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one ([#96](https://github.com/TriasDev/tabular/issues/96)).*
 
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
@@ -263,7 +264,7 @@ file is 2% larger because it writes a byte order mark and its date-times with mi
 #### 1,048,575 rows x 30 columns, styled
 
 <!-- provisional: re-run on a quiet machine -->
-*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one ([#96](https://github.com/TriasDev/tabular/issues/96)).*
 
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
@@ -281,7 +282,7 @@ against about 0.5 s for the other two — and the quiet-machine run decides it.
 #### 10,000 rows x 5,003 columns, styled
 
 <!-- provisional: re-run on a quiet machine -->
-*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one ([#96](https://github.com/TriasDev/tabular/issues/96)).*
 
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
@@ -290,7 +291,7 @@ against about 0.5 s for the other two — and the quiet-machine run decides it.
 | LargeXlsx | 6.19 s | 62 MB | 3 MB | 355.9 MB |
 
 The sizes are not like for like: SpreadCheetah and TriasDev.Tabular leave out cell references that
-LargeXlsx writes, which is most of why their files are under a third of its size here. TriasDev.Tabular's
+LargeXlsx writes by default, which is most of why their files are under a third of its size here. TriasDev.Tabular's
 peak is higher because a `ColumnBatch` of 500 rows holds 2.5 million values.
 
 ### ods and zip
@@ -298,7 +299,7 @@ peak is higher because a `ColumnBatch` of 500 rows holds 2.5 million values.
 No other library in the comparison writes either.
 
 <!-- provisional: re-run on a quiet machine -->
-*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one ([#96](https://github.com/TriasDev/tabular/issues/96)).*
 
 | TriasDev.Tabular | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
@@ -315,7 +316,7 @@ The xlsx, ods and zip writers compress with `CompressionLevel.Fastest` by defaul
 `Optimal` (TriasDev.Tabular alone, `TABULAR_COMPRESSION=Optimal`):
 
 <!-- provisional: re-run on a quiet machine -->
-*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one ([#96](https://github.com/TriasDev/tabular/issues/96)).*
 
 | Scenario | Fastest | Optimal | Time | Size |
 |---|--:|--:|--:|--:|

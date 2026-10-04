@@ -39,11 +39,12 @@ internal static class XlsxFormats
 /// <summary>
 /// LargeXlsx's streaming <c>XlsxWriter</c>: <c>BeginRow</c> and <c>Write</c> per cell, inline strings (its default,
 /// the constant-memory form), styles as <c>XlsxStyle</c> objects it deduplicates, the header row frozen with
-/// <c>splitRow</c>. Its fastest compression level is its default.
+/// <c>splitRow</c>. Its fastest compression level is its default. It writes each cell's reference by default; the
+/// variant built with <c>requireCellReferences: false</c> leaves them out and is otherwise identical.
 /// </summary>
-internal sealed class LargeXlsxWriter : IWriter
+internal sealed class LargeXlsxWriter(bool requireCellReferences = true) : IWriter
 {
-    public string Name => "LargeXlsx";
+    public string Name => requireCellReferences ? "LargeXlsx" : "LargeXlsx (no cell references)";
 
     public Type Anchor => typeof(XlsxWriter);
 
@@ -53,7 +54,7 @@ internal sealed class LargeXlsxWriter : IWriter
 
     public void Write(Scenario scenario, Stream target)
     {
-        using XlsxWriter xlsx = new(target);
+        using XlsxWriter xlsx = new(target, requireCellReferences: requireCellReferences);
         IDataset dataset = scenario.Dataset;
         DataColumn[] columns = dataset.Columns;
         XlsxStyle plain = XlsxStyle.Default;

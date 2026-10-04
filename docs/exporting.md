@@ -2,7 +2,7 @@
 
 The library writes csv, xlsx, ods and a zip of csv sheets, into any stream that can be written —
 a file, a blob upload, an ASP.NET Core response body. The stream need not seek, and the library only
-ever writes, flushes and closes it asynchronously. Memory stays flat however many rows the file has:
+ever writes, flushes and closes it asynchronously (except that a failed `Create` disposes the stream, unless it was left open). Memory stays flat however many rows the file has:
 a write goes into memory, and a flush moves about a megabyte at a time into the stream.
 
 Every snippet on this page is taken from
@@ -23,7 +23,7 @@ then `BeginRow`, one `Write` per column, `EndRow`, and `CompleteAsync` at the en
   `bool`, `DateTime`, `DateOnly`, each with a `StyleId` overload, and `WriteEmpty`. `null` text is an
   empty cell.
 - `FlushRecommended` turns true when about a megabyte is pending; `FlushAsync` moves it into the stream.
-  Flushing is the only point where the stream is written, so it is also where a slow or gone consumer
+  Flushing and completing are the only points where the stream is written, so it is also where a slow or gone consumer
   shows.
 - `CompleteAsync` ends the file. **Only then is the file valid.** A writer disposed without it, or
   after an exception, leaves an incomplete file behind: a workbook that does not open, but a csv that
@@ -219,7 +219,7 @@ it to a temporary name and rename on success.
 - `TabularWriteException` — a value the chosen format cannot hold exactly. `Code` is one of
   `write.precision-loss`, `write.not-finite`, `write.date-out-of-range`, `write.text-too-long`,
   `write.too-many-lines`, `write.ambiguous-line-breaks`, `write.invalid-character`
-  ([error codes](error-codes.md)); `SheetName`, `RowNumber`, `ColumnIndex` and `Header` say where. The
+  ([error codes](error-codes.md)); `SheetName`, `RowNumber`, `ColumnIndex` (counted from zero) and `Header` say where. The
   file is incomplete.
 - `TabularLimitException` — a bound of the format: more rows than an xlsx or ods sheet holds
   (1,048,576, the header included), more than 4,096 styles, more than 65,536 merges in an xlsx sheet.

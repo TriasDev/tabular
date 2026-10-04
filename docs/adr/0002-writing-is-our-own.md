@@ -49,7 +49,7 @@ provisional benchmarks.
 **The zip writer is ours.** Small parts — the ods `mimetype`, the manifests, the styles — are stored
 with their sizes up front. Large entries are deflated and streamed with data descriptors. Past 4 GB
 it writes zip64; a 7.39 GB csv entry was checked with `unzip -t`, with `ZipArchive` and with our own
-reader. Names are UTF-8 with flag `0x0800`, and the DOS date is fixed, so the same data gives the
+reader. Names are flagged UTF-8 (`0x0800`) when one holds non-ASCII characters, and ASCII names are unflagged, and the DOS date is fixed, so the same data gives the
 same bytes. The CRC-32 is the one the gzip reader already uses, hardware-accelerated on ARM64.
 
 **xlsx uses inline strings**, so no shared string table is held in memory. A cell's reference is
@@ -73,7 +73,7 @@ are what say whether the files are right; that is paid in tests rather than in d
 
 **The measured results are provisional**, from a single pass on a machine other work was using; see
 [benchmarks](../benchmarks.md#writing), which is kept current and not this page. On csv we are faster
-than CsvHelper and slower than Sylvan.Data.Csv. On xlsx we are faster than LargeXlsx in most
+than CsvHelper and slower than Sylvan.Data.Csv. On xlsx we are faster than LargeXlsx (at its default, which writes every cell reference; a run with references off is pending, [#96](https://github.com/TriasDev/tabular/issues/96)) in most
 scenarios; one scenario, the styled narrow xlsx, was slower than LargeXlsx in this pass and its sign
 is unsettled. SpreadCheetah is faster than we are. MiniExcel is the slowest and allocates the most.
 No other library measured writes ods or a zip of csv sheets. On the narrow files we hold the least
