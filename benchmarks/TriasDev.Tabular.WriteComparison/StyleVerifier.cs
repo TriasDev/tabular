@@ -23,6 +23,10 @@ internal static class StyleVerifier
     private static readonly XNamespace Style = "urn:oasis:names:tc:opendocument:xmlns:style:1.0";
     private static readonly XNamespace Fo = "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0";
     private static readonly XNamespace Number = "urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0";
+
+    /// <summary>The built-in number formats the specification fixes to one code in every locale (ids 1 to 4); a writer may reference them instead of declaring the code.</summary>
+    private static readonly Dictionary<int, string> BuiltInFormats = new() { [1] = "0", [2] = "0.00", [3] = "#,##0", [4] = "#,##0.00" };
+
     private const string TableNamespace = "urn:oasis:names:tc:opendocument:xmlns:table:1.0";
 
     /// <summary>What a cell looks like: its fill as RRGGBB and its number or date format code, either null.</summary>
@@ -73,8 +77,13 @@ internal static class StyleVerifier
     private static Func<int, int, Look> XlsxLooks(ZipArchive zip)
     {
         XDocument styles = Load(zip, "xl/styles.xml");
-        Dictionary<int, string> formats = styles.Descendants(Main + "numFmt")
-            .ToDictionary(n => (int)n.Attribute("numFmtId")!, n => Plain((string)n.Attribute("formatCode")!));
+        Dictionary<int, string> formats = new(BuiltInFormats);
+
+        foreach (XElement declared in styles.Descendants(Main + "numFmt"))
+        {
+            formats[(int)declared.Attribute("numFmtId")!] = Plain((string)declared.Attribute("formatCode")!);
+        }
+
         List<string?> fills = [.. styles.Descendants(Main + "fills").Elements(Main + "fill").Select(FillOf)];
         List<Look> xfs = [.. styles.Descendants(Main + "cellXfs").Elements(Main + "xf")
             .Select(x => new Look(
@@ -97,28 +106,38 @@ internal static class StyleVerifier
 
         using Stream stream = zip.GetEntry(sheet)!.Open();
         using XmlReader reader = XmlReader.Create(stream);
+        int row = -1;
+        int column = -1;
 
-        while (reader.Read())
+        while (row <= 1 && reader.Read())
         {
-            if (reader.NodeType != XmlNodeType.Element || reader.LocalName != "c" || reader.GetAttribute("r") is not { } reference)
+            if (reader.NodeType != XmlNodeType.Element)
             {
                 continue;
             }
 
-            (int row, int column) = Split(reference);
-
-            if (row > 1)
+            // The row and column attributes are optional: a cell without one follows the previous.
+            if (reader.LocalName == "row")
             {
-                break;
+                row = int.TryParse(reader.GetAttribute("r"), CultureInfo.InvariantCulture, out int rowNumber) ? rowNumber - 1 : row + 1;
+                column = -1;
             }
-
-            if (int.TryParse(reader.GetAttribute("s"), CultureInfo.InvariantCulture, out int style))
+            else if (reader.LocalName == "c")
             {
-                cells[(row, column)] = style;
+                column = reader.GetAttribute("r") is { } reference ? Split(reference).Column : column + 1;
+                RecordStyle(cells, reader, row, column);
             }
         }
 
         return cells;
+    }
+
+    private static void RecordStyle(Dictionary<(int Row, int Column), int> cells, XmlReader cell, int row, int column)
+    {
+        if (row <= 1 && int.TryParse(cell.GetAttribute("s"), CultureInfo.InvariantCulture, out int style))
+        {
+            cells[(row, column)] = style;
+        }
     }
 
     /// <summary>"AB12" as (row 11, column 27), both 0-based.</summary>

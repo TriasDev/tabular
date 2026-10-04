@@ -35,6 +35,12 @@ public static class Program
         new TabularXlsxWriter(),
         new TabularOdsWriter(),
         new TabularZipWriter(),
+        new CsvHelperWriter(),
+        new SepCsvWriter(),
+        new SylvanCsvWriter(),
+        new LargeXlsxWriter(),
+        new SpreadCheetahWriter(),
+        new MiniExcelWriter(),
     ];
 
     public static int Main(string[] args)
@@ -75,7 +81,7 @@ public static class Program
         {
             Stopwatch clock = Stopwatch.StartNew();
 
-            using (FileStream target = new(path, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024))
+            using (FileStream target = new(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 64 * 1024))
             {
                 writer.Write(scenario, target);
             }
