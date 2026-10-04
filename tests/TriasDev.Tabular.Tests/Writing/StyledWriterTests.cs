@@ -100,4 +100,53 @@ public sealed class StyledWriterTests
 
         Assert.Throws<ArgumentNullException>(() => writer.Style(null!));
     }
+
+    [Theory]
+    [InlineData(TabularFormat.Csv)]
+    [InlineData(TabularFormat.Xlsx)]
+    [InlineData(TabularFormat.Ods)]
+    public async Task AllocatesNothingPerStyledCell(TabularFormat format)
+    {
+        CellStyle[] palette = [.. Enumerable.Range(0, 8).Select(i => new CellStyle { Fill = CellColor.FromRgb(i * 0x101010), Number = NumberFormat.Parse("0.00"), Date = DateFormat.Parse("dd/mm/yyyy") })];
+
+        async ValueTask<long> Allocated(int rows)
+        {
+            long before = GC.GetAllocatedBytesForCurrentThread();
+
+            await using (TabularWriter writer = TabularWriter.Create(Stream.Null, format, new TabularWriterOptions { LeaveOpen = true }))
+            {
+                StyleId[] styles = [.. palette.Select(writer.Style)];
+                writer.BeginSheet("data", [new("text"), new("number"), new("integer"), new("date"), new("flag")]);
+
+                for (int i = 0; i < rows; i++)
+                {
+                    StyleId style = styles[i % styles.Length];
+                    writer.BeginRow();
+                    writer.Write("text", style);
+                    writer.Write(i * 0.5, style);
+                    writer.Write((long)i, style);
+                    writer.Write(new DateOnly(2026, 10, 4), style);
+                    writer.Write(i % 2 == 0, style);
+                    writer.EndRow();
+
+                    if (writer.FlushRecommended)
+                    {
+                        await writer.FlushAsync(Token);
+                    }
+                }
+
+                await writer.CompleteAsync(Token);
+            }
+
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+
+        // Warm-up at the full size: static state, JIT, and the array pool reaching the 1 MB working set one flush holds.
+        await Allocated(100_000);
+        long tenThousand = await Allocated(10_000);
+        long hundredThousand = await Allocated(100_000);
+
+        // 90,000 more rows of five styled cells: what grows with them is under a byte a row.
+        Assert.True(hundredThousand - tenThousand < 90_000, $"{format}: {tenThousand:N0} bytes for 10k rows, {hundredThousand:N0} for 100k");
+    }
 }
