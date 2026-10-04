@@ -4,6 +4,7 @@ namespace TriasDev.Tabular.Tests.Writing;
 
 /// <summary>The characters no format may carry, checked on every text cell.</summary>
 /// <remarks>Surrogates are built in code: a lone one in attribute data does not survive the test framework.</remarks>
+[Collection(AllocationMeasurementCollection.Name)]
 public sealed class TextRulesTests
 {
     [Theory]

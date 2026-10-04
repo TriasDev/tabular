@@ -78,7 +78,7 @@ internal sealed class CsvSheetWriter : ISheetWriter
 
     public string? WriteHeader(string value) => WriteField(value, guard: false, column: -1);
 
-    public string? WriteText(string value, int column)
+    public string? WriteText(string value, int column, int style)
     {
         bool guard = _format.FormulaGuard && value.Length > 0 && value[0] is '=' or '+' or '-' or '@' or '\t' or '\r';
         return WriteField(value, guard, column);
@@ -169,28 +169,28 @@ internal sealed class CsvSheetWriter : ISheetWriter
         return count;
     }
 
-    public string? WriteLong(long value)
+    public string? WriteLong(long value, int style)
     {
         Separate();
         AppendFormatted(value, default);
         return null;
     }
 
-    public string? WriteDecimal(decimal value)
+    public string? WriteDecimal(decimal value, int style)
     {
         Separate();
         AppendFormatted(value, default);
         return null;
     }
 
-    public string? WriteDouble(double value)
+    public string? WriteDouble(double value, int style)
     {
         Separate();
         AppendFormatted(value, "R");
         return null;
     }
 
-    public string? WriteDate(DateTime value, bool hasTime)
+    public string? WriteDate(DateTime value, bool hasTime, int style)
     {
         // The import's date reader refuses year 1 — it cannot tell it from a date with no year.
         if (value.Year == 1)
@@ -203,13 +203,13 @@ internal sealed class CsvSheetWriter : ISheetWriter
         return null;
     }
 
-    public void WriteBoolean(bool value)
+    public void WriteBoolean(bool value, int style)
     {
         Separate();
         _row.Append(value ? "true" : "false");
     }
 
-    public void WriteEmpty() => Separate();
+    public void WriteEmpty(int style) => Separate();
 
     public void EndRow()
     {

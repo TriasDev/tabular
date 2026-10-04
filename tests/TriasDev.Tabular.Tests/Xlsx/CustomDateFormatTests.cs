@@ -37,6 +37,7 @@ public sealed class CustomDateFormatTests
     [InlineData("[h]:mm:ss")]                      // elapsed time: the bracket is skipped, :mm:ss is not
     [InlineData("mm:ss.0")]
     [InlineData("YYYY-MM-DD")]                     // upper case, as some producers write it
+    [InlineData("\"[\" yyyy")]                      // a bracket inside quotes opens no section, so the year after it counts
     [InlineData("dd\\.mm\\.yyyy")]                 // escaped separators around real tokens
     [InlineData("[$-411]ggge\"年\"m\"月\"d\"日\"")]  // a Japanese era date: quoted CJK text between tokens
     public void ReadsAFormatWithDateTokensAsADate(string formatCode)
@@ -48,6 +49,7 @@ public sealed class CustomDateFormatTests
     [InlineData("0.00")]
     [InlineData("#,##0 \"Dm\"")]                   // a currency word in quotes, with a d in it
     [InlineData("0 \"days\"")]
+    [InlineData("\"x\\\"0\" days\"")]           // a backslash inside a quoted literal does not escape the closing quote
     [InlineData("\\d0")]                           // an escaped d is a literal character
     [InlineData("[Red]0.00")]
     [InlineData("#,##0_);[Red](#,##0)")]

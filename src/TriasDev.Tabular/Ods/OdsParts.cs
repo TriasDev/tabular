@@ -20,9 +20,9 @@ internal static class OdsParts
 
     public const string ContentEnd = "</table:table></office:spreadsheet></office:body></office:document-content>";
 
-    private const string XmlDeclaration = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+    internal const string XmlDeclaration = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
-    private const string Namespaces =
+    internal const string Namespaces =
         " xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\""
         + " xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\""
         + " xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\""
@@ -47,12 +47,21 @@ internal static class OdsParts
         + "<manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/>"
         + "</manifest:manifest>");
 
-    public static readonly byte[] Styles = Encoding.UTF8.GetBytes(
-        XmlDeclaration + "<office:document-styles" + Namespaces + "><office:styles/></office:document-styles>");
-
     /// <summary>The column style for a width in characters, rounded to the nearest whole one.</summary>
     public static string ColumnStyleFor(double width) =>
         ColumnStyleNames[Math.Clamp((int)Math.Round(width, MidpointRounding.AwayFromZero), 1, WidestColumn)];
+
+    /// <summary>The default date data style, named <paramref name="name"/>.</summary>
+    public static string DateDataStyle(string name) =>
+        $"<number:date-style style:name=\"{name}\"><number:year number:style=\"long\"/><number:text>-</number:text>"
+        + "<number:month number:style=\"long\"/><number:text>-</number:text><number:day number:style=\"long\"/></number:date-style>";
+
+    /// <summary>The default date and time data style, named <paramref name="name"/>.</summary>
+    public static string DateTimeDataStyle(string name) =>
+        $"<number:date-style style:name=\"{name}\"><number:year number:style=\"long\"/><number:text>-</number:text>"
+        + "<number:month number:style=\"long\"/><number:text>-</number:text><number:day number:style=\"long\"/>"
+        + "<number:text> </number:text><number:hours number:style=\"long\"/><number:text>:</number:text>"
+        + "<number:minutes number:style=\"long\"/><number:text>:</number:text><number:seconds number:style=\"long\"/></number:date-style>";
 
     private static string BuildContentStart()
     {
@@ -67,12 +76,8 @@ internal static class OdsParts
         }
 
         xml.Append(
-            "<number:date-style style:name=\"N1\"><number:year number:style=\"long\"/><number:text>-</number:text>"
-            + "<number:month number:style=\"long\"/><number:text>-</number:text><number:day number:style=\"long\"/></number:date-style>"
-            + "<number:date-style style:name=\"N2\"><number:year number:style=\"long\"/><number:text>-</number:text>"
-            + "<number:month number:style=\"long\"/><number:text>-</number:text><number:day number:style=\"long\"/>"
-            + "<number:text> </number:text><number:hours number:style=\"long\"/><number:text>:</number:text>"
-            + "<number:minutes number:style=\"long\"/><number:text>:</number:text><number:seconds number:style=\"long\"/></number:date-style>"
+            DateDataStyle("N1")
+            + DateTimeDataStyle("N2")
             + "<number:boolean-style style:name=\"N3\"><number:boolean/></number:boolean-style>"
             + "<style:style style:name=\"" + DateStyle + "\" style:family=\"table-cell\" style:data-style-name=\"N1\"/>"
             + "<style:style style:name=\"" + DateTimeStyle + "\" style:family=\"table-cell\" style:data-style-name=\"N2\"/>"

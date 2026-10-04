@@ -175,7 +175,7 @@ public sealed class CsvTextTests
         sheet.BeginSheet("data", [new("v")]);
 
         sheet.BeginRow();
-        Assert.Null(sheet.WriteText(new string('x', 10_000_000), 0));
+        Assert.Null(sheet.WriteText(new string('x', 10_000_000), 0, 0));
         sheet.EndRow();
 
         Assert.True(sheet.RowBufferLength <= 4 * 1024);

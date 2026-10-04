@@ -16,8 +16,18 @@ public static class LibreOffice
 {
     private static readonly string? Soffice = Find();
 
-    /// <summary>Converts the file's first sheet to csv with LibreOffice and returns its lines.</summary>
-    public static string[] ConvertToCsv(byte[] file, string extension)
+    /// <summary>Converts the file's first sheet to csv with LibreOffice and returns its lines, values as shown.</summary>
+    public static string[] ConvertToCsv(byte[] file, string extension) =>
+        Encoding.UTF8.GetString(Convert(file, extension, "csv:Text - txt - csv (StarCalc):44,34,76,1,,0,true", "csv"))
+            .Split('\n')
+            .Select(line => line.TrimEnd('\r'))
+            .Reverse()
+            .SkipWhile((line, i) => i == 0 && line.Length == 0)
+            .Reverse()
+            .ToArray();
+
+    /// <summary>Converts a file with LibreOffice, by an export filter, and returns the converted file.</summary>
+    public static byte[] Convert(byte[] file, string extension, string filter, string outputExtension)
     {
         if (Soffice is null)
         {
@@ -40,7 +50,7 @@ public static class LibreOffice
                     "--headless",
                     $"-env:UserInstallation={new Uri(Path.Combine(folder, "profile")).AbsoluteUri}",
                     "--convert-to",
-                    "csv:Text - txt - csv (StarCalc):44,34,76,1,,0,true",
+                    filter,
                     "--outdir",
                     folder,
                     input,
@@ -66,10 +76,10 @@ public static class LibreOffice
                 // The pipes close with the process; read after it exited so a full pipe cannot stall it.
                 string output = standardOutput.GetAwaiter().GetResult() + standardError.GetAwaiter().GetResult();
 
-                string csv = Path.Combine(folder, "file.csv");
-                Assert.True(File.Exists(csv), $"LibreOffice could not convert the file: {output}");
+                string converted = Path.Combine(folder, "file." + outputExtension);
+                Assert.True(File.Exists(converted), $"LibreOffice could not convert the file: {output}");
 
-                return File.ReadAllLines(csv, Encoding.UTF8);
+                return File.ReadAllBytes(converted);
             }
             finally
             {

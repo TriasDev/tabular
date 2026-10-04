@@ -200,3 +200,11 @@ Read back through this library, xlsx and ods follow the same rules and add no ex
 Reading ods back with this library, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
 
 TabularExport picks a column type by overload resolution, and some lambdas do not resolve: a char property becomes an integer column (its code point); ulong, `p => default` and a lambda returning null are ambiguous; an int or long with a DecimalImportField is ambiguous between decimal and double; TimeSpan, DateTimeOffset, Guid and enums have no overload and fail with a misleading "cannot convert to string" (CS0029). Convert explicitly (`.ToString()`, `.UtcDateTime`, …); write enums and identifiers as text.
+
+## Styles
+
+- Styles are for xlsx and ods; csv ignores them, so one code path writes every format.
+- Format codes are a subset of Excel's (see `NumberFormat` and `DateFormat`); anything else is refused when parsed, never at write time.
+- Separators in a date format show as written (`dd/mm/yyyy` shows slashes in every locale); the decimal point and thousands separator of a number format follow the reader's locale.
+- A `StyleId` belongs to the writer that returned it; passing it to another writer is refused with an `ArgumentException` (the default `StyleId`, the unstyled cell, is accepted by every writer).
+- At most 4096 distinct styles per file. Declare the styles once (`static readonly`) and register each once per writer.

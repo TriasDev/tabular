@@ -15,28 +15,6 @@ internal static class XlsxParts
 
     public const string WorksheetEnd = "</sheetData></worksheet>";
 
-    /// <summary>
-    /// Four cell formats, by index: 0 General, 1 a date, 2 a date and time, 3 an integer (format
-    /// <c>0</c>, so an id of twelve digits does not show as <c>1.23457E+11</c>). The reader takes
-    /// formats 14 and 164 for dates, 0 and 1 for numbers.
-    /// </summary>
-    public static readonly byte[] Styles = Encoding.UTF8.GetBytes(
-        XmlDeclaration
-        + "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
-        + "<numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"yyyy\\-mm\\-dd\\ hh:mm:ss\"/></numFmts>"
-        + "<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>"
-        + "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
-        + "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
-        + "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>"
-        + "<cellXfs count=\"4\">"
-        + "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"
-        + "<xf numFmtId=\"14\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>"
-        + "<xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>"
-        + "<xf numFmtId=\"1\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>"
-        + "</cellXfs>"
-        + "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>"
-        + "</styleSheet>");
-
     public static readonly byte[] PackageRelationships = Encoding.UTF8.GetBytes(
         XmlDeclaration
         + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"

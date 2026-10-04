@@ -32,17 +32,21 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     private const string NumberEnd = "\"/>";
 
+    private const string StyledCell = "<table:table-cell table:style-name=\"";
+
     private static readonly int MaxTextChars = OdsCursorOptions.Default.MaxValueChars;
 
     private static readonly SearchValues<char> NeedsMarkup = SearchValues.Create("&<> \t\n\r");
 
     private readonly ZipWriter _zip;
+    private readonly OdsStyles _styles;
     private readonly RowText _row = new();
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
     private Stream? _content;
 
-    public OdsSheetWriter(SpillBuffer output, OdsWriterOptions options)
+    public OdsSheetWriter(SpillBuffer output, OdsWriterOptions options, StyleTable styles)
     {
+        _styles = new OdsStyles(styles);
         _zip = new ZipWriter(output, options.CompressionLevel);
 
         // OpenDocument's rule: the mimetype is the first entry, stored, so a reader knows the file
@@ -83,59 +87,59 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _row.Append("<table:table-row>");
     }
 
-    public string? WriteHeader(string value) => WriteString(value);
+    public string? WriteHeader(string value) => WriteString(value, 0);
 
-    public string? WriteText(string value, int column) => WriteString(value);
+    public string? WriteText(string value, int column, int style) => WriteString(value, style);
 
-    public string? WriteLong(long value)
+    public string? WriteLong(long value, int style)
     {
         if (ValueChecks.LongInDouble(value) is { } code)
         {
             return code;
         }
 
-        StartFloat();
+        StartNumber(style, ValueKind.Integer);
         _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
         _row.Append(NumberEnd);
         return null;
     }
 
-    public string? WriteDecimal(decimal value)
+    public string? WriteDecimal(decimal value, int style)
     {
         if (ValueChecks.DecimalInDouble(value) is { } code)
         {
             return code;
         }
 
-        StartFloat();
+        StartNumber(style, ValueKind.Number);
         _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
         _row.Append(NumberEnd);
         return null;
     }
 
-    public string? WriteDouble(double value)
+    public string? WriteDouble(double value, int style)
     {
-        StartFloat();
+        StartNumber(style, ValueKind.Number);
         _row.AppendFormatted(value, "R", CultureInfo.InvariantCulture);
         _row.Append(NumberEnd);
         return null;
     }
 
-    public string? WriteDate(DateTime value, bool hasTime)
+    public string? WriteDate(DateTime value, bool hasTime, int style)
     {
         // ISO in an attribute: no serial, so no 1900 floor and no leap-year bug — any year reads back.
-        _row.Append("<table:table-cell table:style-name=\"");
-        _row.Append(hasTime ? OdsParts.DateTimeStyle : OdsParts.DateStyle);
+        _row.Append(StyledCell);
+        _row.Append(DateStyleName(style, hasTime));
         _row.Append("\" office:value-type=\"date\" office:date-value=\"");
         _row.AppendFormatted(value, hasTime ? "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff" : "yyyy'-'MM'-'dd", CultureInfo.InvariantCulture);
         _row.Append("\"/>");
         return null;
     }
 
-    public void WriteBoolean(bool value)
+    public void WriteBoolean(bool value, int style)
     {
-        _row.Append("<table:table-cell table:style-name=\"");
-        _row.Append(OdsParts.BooleanStyle);
+        _row.Append(StyledCell);
+        _row.Append(style == 0 ? OdsParts.BooleanStyle : _styles.Cell(style, ValueKind.Boolean).Name);
         _row.Append("\" office:value-type=\"boolean\" office:boolean-value=\"");
         _row.Append(value ? "true" : "false");
         _row.Append("\"><text:p>");
@@ -143,7 +147,18 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _row.Append("</text:p></table:table-cell>");
     }
 
-    public void WriteEmpty() => _row.Append("<table:table-cell/>");
+    public void WriteEmpty(int style)
+    {
+        if (style == 0)
+        {
+            _row.Append("<table:table-cell/>");
+            return;
+        }
+
+        _row.Append(StyledCell);
+        _row.Append(_styles.Cell(style, ValueKind.Empty).Name);
+        _row.Append("\"/>");
+    }
 
     public void EndRow()
     {
@@ -163,7 +178,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         }
 
         _zip.AddStored("META-INF/manifest.xml", OdsParts.Manifest);
-        _zip.AddStored("styles.xml", OdsParts.Styles);
+        _zip.AddStored("styles.xml", _styles.Build());
         _zip.Complete();
     }
 
@@ -177,14 +192,47 @@ internal sealed class OdsSheetWriter : ISheetWriter
     /// <summary>Opens a number cell up to its value; LibreOffice formats the display from the value.</summary>
     private void StartFloat() => _row.Append("<table:table-cell office:value-type=\"float\" office:value=\"");
 
-    private string? WriteString(string value)
+    private string DateStyleName(int style, bool hasTime)
+    {
+        if (style == 0)
+        {
+            return hasTime ? OdsParts.DateTimeStyle : OdsParts.DateStyle;
+        }
+
+        return _styles.Cell(style, hasTime ? ValueKind.DateTime : ValueKind.Date).Name;
+    }
+
+    private void StartNumber(int style, ValueKind kind)
+    {
+        if (style == 0)
+        {
+            StartFloat();
+            return;
+        }
+
+        OdsCellStyle cell = _styles.Cell(style, kind);
+        _row.Append(StyledCell);
+        _row.Append(cell.Name);
+        _row.Append(cell.Percent ? "\" office:value-type=\"percentage\" office:value=\"" : "\" office:value-type=\"float\" office:value=\"");
+    }
+
+    private string? WriteString(string value, int style)
     {
         if (value.Length > MaxTextChars || (value.Length * 6L) + TokenMargin > SheetScanner.MaxBufferChars && LongestToken(value) > SheetScanner.MaxBufferChars - TokenMargin)
         {
             return ErrorCodes.Write.TextTooLong;
         }
 
-        _row.Append("<table:table-cell office:value-type=\"string\"");
+        _row.Append("<table:table-cell");
+
+        if (style != 0)
+        {
+            _row.Append(" table:style-name=\"");
+            _row.Append(_styles.Cell(style, ValueKind.Text).Name);
+            _row.Append('"');
+        }
+
+        _row.Append(" office:value-type=\"string\"");
 
         if (value.Contains('\r', StringComparison.Ordinal))
         {
