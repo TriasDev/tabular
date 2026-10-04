@@ -30,11 +30,25 @@ internal abstract class TabularWriters : IWriter
 
     protected abstract TabularFormat Format { get; }
 
+    /// <summary>
+    /// The writer's options: the defaults, except that <c>TABULAR_COMPRESSION</c> (Optimal, SmallestSize, NoCompression)
+    /// sets the compression level of the xlsx, ods and zip writers, for measuring what a harder compression costs.
+    /// </summary>
+    private static TabularWriterOptions Options { get; } =
+        Enum.TryParse(Environment.GetEnvironmentVariable("TABULAR_COMPRESSION"), true, out System.IO.Compression.CompressionLevel level)
+            ? new TabularWriterOptions
+            {
+                Xlsx = new Xlsx.XlsxWriterOptions { CompressionLevel = level },
+                Ods = new Ods.OdsWriterOptions { CompressionLevel = level },
+                Zip = new Archive.ZipWriterOptions { CompressionLevel = level },
+            }
+            : TabularWriterOptions.Default;
+
     public void Write(Scenario scenario, Stream target) => WriteAsync(scenario, target).GetAwaiter().GetResult();
 
     private async Task WriteAsync(Scenario scenario, Stream target)
     {
-        await using TabularWriter writer = TabularWriter.Create(target, Format);
+        await using TabularWriter writer = TabularWriter.Create(target, Format, Options);
 
         if (scenario.Dataset is WideDataset)
         {
