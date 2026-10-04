@@ -54,7 +54,7 @@ internal sealed class SheetScanner : IDisposable
     /// its content while copying. Sixteen million characters is far above any cell a spreadsheet
     /// program will write and far below what it takes to exhaust a host.
     /// </remarks>
-    private const int MaxBufferChars = 16 * 1024 * 1024;
+    internal const int MaxBufferChars = 16 * 1024 * 1024;
     private const int MaxAttributes = 16;
 
     private readonly TextReader _reader;

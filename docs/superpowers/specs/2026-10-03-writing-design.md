@@ -113,8 +113,11 @@ value a format cannot hold exactly is an error, never a silent change.
 
 "A character XML 1.0 forbids" is exact: U+0000–U+0008, U+000B, U+000C, U+000E–U+001F, U+FFFE,
 U+FFFF and unpaired surrogates. Tab, LF and CR are allowed and written as above. `\r` needs the
-escape in xlsx because the scanner turns a literal CR into LF (`SheetScanner`); in ods a CR is a
-line break like LF, and `\r\n` is one line break.
+escape in xlsx because the scanner turns a literal CR into LF (`SheetScanner`). In ods a paragraph
+cannot keep a CR, so text holding one also states its exact value in `office:string-value` (CR, LF and
+tab as character references), which the reader prefers; the paragraphs show it, a CR as a line
+break. Ods column widths are rounded to whole characters: `content.xml` streams, so its column
+styles are declared before the first sheet.
 
 Strings are not written as a shared-string table: it would hold every distinct string until the end.
 
