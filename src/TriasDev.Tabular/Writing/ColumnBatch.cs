@@ -48,27 +48,42 @@ public sealed class ColumnBatch
 
     /// <summary>Adds the next column: its values, one per row.</summary>
     /// <exception cref="ArgumentException">A type that cannot be written, or not one value per row.</exception>
+    /// <exception cref="ArgumentNullException">The list is null.</exception>
     public void Add<T>(IReadOnlyList<T> values) => AddValues(values, default);
 
     /// <summary>Adds the next column, every cell in one style.</summary>
+    /// <exception cref="ArgumentException">A type that cannot be written, or not one value (or style) per row.</exception>
+    /// <exception cref="ArgumentNullException">A list, selector or rule is null.</exception>
     public void Add<T>(IReadOnlyList<T> values, StyleId style) => AddValues(values, new BatchStyle<T> { Constant = style });
 
     /// <summary>Adds the next column, each cell in the style at its row.</summary>
+    /// <exception cref="ArgumentException">A type that cannot be written, or not one value (or style) per row.</exception>
+    /// <exception cref="ArgumentNullException">A list, selector or rule is null.</exception>
     public void Add<T>(IReadOnlyList<T> values, IReadOnlyList<StyleId> styles) => AddValues(values, new BatchStyle<T> { Vector = Checked(styles, nameof(styles)) });
 
     /// <summary>Adds the next column, each cell in the style the rule returns for its value; null for none.</summary>
+    /// <exception cref="ArgumentException">A type that cannot be written, or not one value (or style) per row.</exception>
+    /// <exception cref="ArgumentNullException">A list, selector or rule is null.</exception>
     public void Add<T>(IReadOnlyList<T> values, Func<T, CellStyle?> style) => AddValues(values, new BatchStyle<T> { Rule = style ?? throw new ArgumentNullException(nameof(style)) });
 
     /// <summary>Adds the next column: a value selected from each item, one item per row.</summary>
+    /// <exception cref="ArgumentException">A type that cannot be written, or not one value (or style) per row.</exception>
+    /// <exception cref="ArgumentNullException">A list, selector or rule is null.</exception>
     public void Add<TItem, T>(IReadOnlyList<TItem> items, Func<TItem, T> value) => AddSelected(items, value, default);
 
     /// <summary>Adds the next column of selected values, every cell in one style.</summary>
+    /// <exception cref="ArgumentException">A type that cannot be written, or not one value (or style) per row.</exception>
+    /// <exception cref="ArgumentNullException">A list, selector or rule is null.</exception>
     public void Add<TItem, T>(IReadOnlyList<TItem> items, Func<TItem, T> value, StyleId style) => AddSelected(items, value, new BatchStyle<T> { Constant = style });
 
     /// <summary>Adds the next column of selected values, each cell in the style at its row.</summary>
+    /// <exception cref="ArgumentException">A type that cannot be written, or not one value (or style) per row.</exception>
+    /// <exception cref="ArgumentNullException">A list, selector or rule is null.</exception>
     public void Add<TItem, T>(IReadOnlyList<TItem> items, Func<TItem, T> value, IReadOnlyList<StyleId> styles) => AddSelected(items, value, new BatchStyle<T> { Vector = Checked(styles, nameof(styles)) });
 
     /// <summary>Adds the next column of selected values, each cell in the style the rule returns; null for none.</summary>
+    /// <exception cref="ArgumentException">A type that cannot be written, or not one value (or style) per row.</exception>
+    /// <exception cref="ArgumentNullException">A list, selector or rule is null.</exception>
     public void Add<TItem, T>(IReadOnlyList<TItem> items, Func<TItem, T> value, Func<T, CellStyle?> style) => AddSelected(items, value, new BatchStyle<T> { Rule = style ?? throw new ArgumentNullException(nameof(style)) });
 
     internal IBatchColumn Column(int index) => _columns[index];
@@ -102,7 +117,6 @@ public sealed class ColumnBatch
         {
             throw new ArgumentNullException(name);
         }
-
 
         if (list.Count != RowCount)
         {

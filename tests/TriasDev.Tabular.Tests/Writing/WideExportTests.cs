@@ -92,22 +92,31 @@ public sealed class WideExportTests
         Assert.Equal(1_001, rows.Count);
         Assert.Equal(Measured + 3, rows[0].Length);
 
-        foreach (int r in new[] { 0, 1, 499, 999 })
+        for (int r = 0; r < 1_000; r++)
         {
-            RawCell[] row = rows[r + 1];
+            AssertRow(format, rows[r + 1], r);
+        }
+    }
 
-            foreach (int c in new[] { 0, 1, 2_499, Measured - 1 })
+    /// <summary>Every cell of a row: Id, Name, Start and all the measured columns, empty ones included.</summary>
+    private static void AssertRow(TabularFormat format, RawCell[] row, int r)
+    {
+        Assert.InRange(row.Length, 3, Measured + 3);          // a reader drops trailing empty cells
+        Assert.Equal(format == TabularFormat.Csv ? RawCell.FromText(r.ToString(System.Globalization.CultureInfo.InvariantCulture)) : RawCell.FromNumber(r), row[0]);
+        Assert.Equal(RawCell.FromText($"Location {r}"), row[1]);
+        Assert.False(row[2].IsEmpty, $"row {r}: Start");
+
+        for (int c = 0; c < Measured; c++)
+        {
+            RawCell cell = c + 3 < row.Length ? row[c + 3] : default;
+
+            if (Value(r, c) is { } expected)
             {
-                RawCell cell = c + 3 < row.Length ? row[c + 3] : default;
-
-                if (Value(r, c) is { } expected)
-                {
-                    Assert.Equal(format == TabularFormat.Csv ? RawCell.FromText(expected.ToString(System.Globalization.CultureInfo.InvariantCulture)) : RawCell.FromNumber(expected), cell);
-                }
-                else
-                {
-                    Assert.True(cell.IsEmpty, $"row {r}, column {c}");
-                }
+                Assert.Equal(format == TabularFormat.Csv ? RawCell.FromText(expected.ToString(System.Globalization.CultureInfo.InvariantCulture)) : RawCell.FromNumber(expected), cell);
+            }
+            else
+            {
+                Assert.True(cell.IsEmpty, $"row {r}, column {c}");
             }
         }
     }
@@ -124,6 +133,8 @@ public sealed class WideExportTests
         string[] names = new string[Chunk];
         DateOnly[] starts = new DateOnly[Chunk];
 
+        // GetAllocatedBytesForCurrentThread is read across awaits: that holds because every await here
+        // completes synchronously on Stream.Null, so the whole run stays on this thread.
         async ValueTask<long> Allocated(int batches)
         {
             await using TabularWriter writer = TabularWriter.Create(Stream.Null, format, new TabularWriterOptions { LeaveOpen = true });

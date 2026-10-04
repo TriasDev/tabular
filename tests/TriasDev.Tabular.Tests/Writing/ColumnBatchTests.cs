@@ -124,6 +124,7 @@ public sealed class ColumnBatchTests
         batch.Add(new[] { 1L });
 
         Assert.Throws<ArgumentException>(() => writer.WriteBatch(batch));
+        await AssertFaulted(writer);
     }
 
     [Fact]
@@ -135,6 +136,7 @@ public sealed class ColumnBatchTests
         await using (TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv))
         {
             Assert.Throws<InvalidOperationException>(() => writer.WriteBatch(batch));
+            await AssertFaulted(writer);
         }
 
         await using (TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv))
@@ -142,6 +144,7 @@ public sealed class ColumnBatchTests
             writer.BeginSheet("data", [new("a")]);
             writer.BeginRow();
             Assert.Throws<InvalidOperationException>(() => writer.WriteBatch(batch));
+            await AssertFaulted(writer);
         }
     }
 
@@ -237,5 +240,75 @@ public sealed class ColumnBatchTests
         await cancelled.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await writer.WriteBatchAsync(batch, cancelled.Token));
+        await AssertFaulted(writer);
+    }
+
+    /// <summary>A faulted writer refuses everything, completing included.</summary>
+    private static async Task AssertFaulted(TabularWriter writer)
+    {
+        Assert.Contains("failed earlier", Assert.Throws<InvalidOperationException>(() => writer.BeginRow()).Message, StringComparison.Ordinal);
+        InvalidOperationException completing = await Assert.ThrowsAsync<InvalidOperationException>(async () => await writer.CompleteAsync(Token));
+        Assert.Contains("failed earlier", completing.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASelectorThatThrowsFaultsTheWriter()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        writer.BeginSheet("data", [new("n")]);
+        ColumnBatch batch = new();
+        batch.Reset(3);
+        batch.Add(new[] { 1, 2, 3 }, i => i == 2 ? throw new NotSupportedException("boom") : (long)i);
+
+        Assert.Throws<NotSupportedException>(() => writer.WriteBatch(batch));
+        await AssertFaulted(writer);
+    }
+
+    [Fact]
+    public async Task AStyleRuleThatThrowsFaultsTheWriterInTheAsyncWriteToo()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("n")]);
+        ColumnBatch batch = new();
+        batch.Reset(3);
+        batch.Add(new long[] { 1, 2, 3 }, v => v == 2 ? throw new NotSupportedException("boom") : Low);
+
+        await Assert.ThrowsAsync<NotSupportedException>(async () => await writer.WriteBatchAsync(batch, Token));
+        await AssertFaulted(writer);
+    }
+
+    [Fact]
+    public async Task AListThatShrankAfterAddFaultsTheWriter()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        writer.BeginSheet("data", [new("n")]);
+        List<long> values = [1, 2, 3];
+        ColumnBatch batch = new();
+        batch.Reset(3);
+        batch.Add(values);
+        values.Clear();
+
+        Assert.ThrowsAny<ArgumentException>(() => writer.WriteBatch(batch));
+        await AssertFaulted(writer);
+    }
+
+    [Fact]
+    public async Task ABatchOverRowsAMergeStillCoversIsRefusedUpFront()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        writer.BeginSheet("data", [new("a"), new("b")]);
+        writer.BeginRow();
+        writer.Merge(2, 1);
+        writer.Write("x");
+        writer.Write("y");
+        writer.EndRow();
+        ColumnBatch batch = new();
+        batch.Reset(1);
+        batch.Add(new[] { 1L });
+        batch.Add(new[] { 2L });
+
+        InvalidOperationException refused = Assert.Throws<InvalidOperationException>(() => writer.WriteBatch(batch));
+        Assert.Contains("still covers rows below", refused.Message, StringComparison.Ordinal);
+        await AssertFaulted(writer);
     }
 }

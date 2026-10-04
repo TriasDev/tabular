@@ -130,4 +130,41 @@ public sealed class CellValueTests
 
         Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - before, 0, 99_999);
     }
+
+    [Fact]
+    public async Task StyleForKeepsTheLastHitPerColumnSoAlternatingStylesAcrossARowAllocateNothing()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        CellStyle blue = new() { Fill = CellColor.FromRgb(0x0000FF) };
+        writer.BeginSheet("data", [new("a"), new("b")]);
+        StyleId red = writer.Style(Red);
+        StyleId blueId = writer.Style(blue);
+
+        bool same = Row(writer, red, blueId);
+        same &= Row(writer, red, blueId);
+
+        Assert.True(same);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        for (int i = 0; i < 1_000; i++)
+        {
+            same &= Row(writer, red, blueId);
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(same);
+        Assert.InRange(allocated, 0, 99_999);
+
+        bool Row(TabularWriter w, StyleId first, StyleId second)
+        {
+            w.BeginRow();
+            bool one = w.StyleFor(Red) == first;
+            w.Write(1L);
+            bool two = w.StyleFor(blue) == second;
+            w.Write(2L);
+            w.EndRow();
+            return one && two;
+        }
+    }
 }

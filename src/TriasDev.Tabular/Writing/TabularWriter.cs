@@ -235,6 +235,8 @@ public sealed class TabularWriter : IAsyncDisposable
         _coveredFrom = null;
         _coveredThrough = null;
         _lastCoveredRow = 0;
+        _lastStyles = null;
+        _lastStyleIds = null;
         _merges = 0;
         _pendingRows = 0;
         _pendingColumns = 0;
@@ -287,8 +289,11 @@ public sealed class TabularWriter : IAsyncDisposable
     internal const int StyleCacheLimit = 16_384;
 
     private readonly Dictionary<CellStyle, StyleId> _byReference = new(ReferenceEqualityComparer.Instance);
-    private CellStyle? _lastStyle;
-    private StyleId _lastStyleId;
+
+    // The last hit per column: a rule across thousands of columns changes colour from one cell to the next,
+    // but a column's own previous cell is usually the same style. Allocated on the sheet's first StyleFor.
+    private CellStyle?[]? _lastStyles;
+    private StyleId[]? _lastStyleIds;
 
     internal int StyleCacheCount => _byReference.Count;
 
@@ -307,9 +312,21 @@ public sealed class TabularWriter : IAsyncDisposable
             return default;
         }
 
-        if (ReferenceEquals(style, _lastStyle))
+        // StyleFor runs before the cell's Write, so _column is the cell about to be written. Outside a row,
+        // or on a merged sheet's covered positions, it is only a slot: the cache is checked by reference.
+        int slot = _column;
+
+        if (_lastStyles is null && _columns.Length != 0)
         {
-            return _lastStyleId;
+            _lastStyles = new CellStyle?[_columns.Length];
+            _lastStyleIds = new StyleId[_columns.Length];
+        }
+
+        bool cached = _lastStyles is not null && (uint)slot < (uint)_lastStyles.Length;
+
+        if (cached && ReferenceEquals(style, _lastStyles![slot]))
+        {
+            return _lastStyleIds![slot];
         }
 
         if (!_byReference.TryGetValue(style, out StyleId id))
@@ -324,8 +341,12 @@ public sealed class TabularWriter : IAsyncDisposable
             _byReference.Add(style, id);
         }
 
-        _lastStyle = style;
-        _lastStyleId = id;
+        if (cached)
+        {
+            _lastStyles![slot] = style;
+            _lastStyleIds![slot] = id;
+        }
+
         return id;
     }
 
@@ -555,9 +576,18 @@ public sealed class TabularWriter : IAsyncDisposable
     {
         ExpectBatch(batch);
 
-        for (int row = 0; row < batch.RowCount; row++)
+        try
         {
-            WriteBatchRow(batch, row);
+            for (int row = 0; row < batch.RowCount; row++)
+            {
+                WriteBatchRow(batch, row);
+            }
+        }
+        catch
+        {
+            // The caller's selectors, rules and lists run inside: whatever they throw leaves a half-written row.
+            MarkFaulted();
+            throw;
         }
     }
 
@@ -587,7 +617,7 @@ public sealed class TabularWriter : IAsyncDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch
         {
             MarkFaulted();
             throw;
@@ -611,6 +641,11 @@ public sealed class TabularWriter : IAsyncDisposable
         if (batch.ColumnCount != _columns.Length)
         {
             throw Faulting(new ArgumentException($"The batch has {batch.ColumnCount} columns; sheet \"{_sheetName}\" has {_columns.Length}.", nameof(batch)));
+        }
+
+        if (_lastCoveredRow > _rowNumber)
+        {
+            throw Refuse("A merged range still covers rows below; a batch writes plain rows — end the range first.");
         }
     }
 
