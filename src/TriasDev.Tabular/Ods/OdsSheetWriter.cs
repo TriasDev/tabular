@@ -23,8 +23,6 @@ namespace TriasDev.Tabular.Ods;
 /// </remarks>
 internal sealed class OdsSheetWriter : ISheetWriter
 {
-    private const int RetainedBytes = 3 * RowText.RetainedChars;
-
     /// <summary>Room left under the reader's token limit for markup around the text.</summary>
     private const int TokenMargin = 1024;
 
@@ -42,7 +40,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
     private readonly OdsStyles _styles;
     private readonly RowText _row = new();
     private readonly List<(string Name, int Rows, int Columns)> _frozen = [];
-    private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
+    private readonly RowBytes _bytes = new();
     private readonly List<(int Sheet, string Name, int Columns, long Rows)> _filters = [];
     private Stream? _content;
     private string _name = string.Empty;
@@ -89,6 +87,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         if (_content is null)
         {
             _content = _zip.BeginDeflated("content.xml");
+            _bytes.Begin(_content);
             _row.Append(OdsParts.ContentStart);
         }
         else
@@ -220,6 +219,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
             _row.Append(OdsParts.DatabaseRanges(_filters));
             _row.Append(OdsParts.SpreadsheetEnd);
             Emit();
+            _bytes.Flush();
             _zip.EndEntry();
             _content = null;
         }
@@ -508,17 +508,10 @@ internal sealed class OdsSheetWriter : ISheetWriter
         }
     }
 
-    /// <summary>Encodes what the row buffer holds into content.xml, and empties it.</summary>
+    /// <summary>Encodes what the row buffer holds into the bytes waiting for content.xml, and empties it.</summary>
     private void Emit()
     {
         _row.WriteUtf8To(_bytes);
-        _content!.Write(_bytes.WrittenSpan);
-        _bytes.ResetWrittenCount();
         _row.Clear();
-
-        if (_bytes.Capacity > RetainedBytes)
-        {
-            _bytes = new ArrayBufferWriter<byte>(16 * 1024);
-        }
     }
 }

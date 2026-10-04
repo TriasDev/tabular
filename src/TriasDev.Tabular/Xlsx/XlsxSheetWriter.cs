@@ -24,9 +24,6 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     /// <summary>The most characters a cell holds.</summary>
     public const int MaxTextChars = 32_767;
 
-    /// <summary>Three bytes a character is what UTF-8 may take, so a row at the row buffer's cap does not reallocate.</summary>
-    private const int RetainedBytes = 3 * RowText.RetainedChars;
-
     private const string ValueEnd = "</v></c>";
 
     /// <summary>The first day a workbook holds, as the reader reads serials.</summary>
@@ -47,7 +44,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private readonly List<(int Sheet, string Range)> _filters = [];
     private readonly List<string> _merges = [];
     private readonly RowText _row = new();
-    private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
+    private readonly RowBytes _bytes = new();
     private Stream? _sheet;
     private string[] _columnNames = [];
     private long _rowNumber;
@@ -90,6 +87,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         CloseSheet();
         _sheetNames.Add(name);
         _sheet = _zip.BeginDeflated(XlsxParts.SheetPath(_sheetNames.Count));
+        _bytes.Begin(_sheet);
         _columnNames = new string[columns.Length];
 
         for (int i = 0; i < columns.Length; i++)
@@ -431,18 +429,11 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
     }
 
-    /// <summary>Encodes what the row buffer holds into the open sheet entry, and empties it.</summary>
+    /// <summary>Encodes what the row buffer holds into the bytes waiting for the open sheet entry, and empties it.</summary>
     private void Emit()
     {
         _row.WriteUtf8To(_bytes);
-        _sheet!.Write(_bytes.WrittenSpan);
-        _bytes.ResetWrittenCount();
         _row.Clear();
-
-        if (_bytes.Capacity > RetainedBytes)
-        {
-            _bytes = new ArrayBufferWriter<byte>(16 * 1024);
-        }
     }
 
     /// <summary>The filter over the header through the last row; the workbook names the same range for Excel.</summary>
@@ -495,6 +486,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         AppendMerges();
         _row.Append(XlsxParts.WorksheetClose);
         Emit();
+        _bytes.Flush();
         _zip.EndEntry();
         _sheet = null;
     }
