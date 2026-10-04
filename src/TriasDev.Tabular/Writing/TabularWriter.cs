@@ -230,14 +230,9 @@ public sealed class TabularWriter : IAsyncDisposable
 
         SheetOptions layout = options ?? SheetOptions.Default;
 
-        if (layout.FreezeRows < 0 || layout.FreezeRows >= _sheet.MaxRows)
+        if (layout.FreezeProblem(nameof(options), _sheet.MaxRows, columns.Length) is { } freezeProblem)
         {
-            throw Faulting(new ArgumentOutOfRangeException(nameof(options), layout.FreezeRows, $"A sheet freezes 0 to {_sheet.MaxRows - 1} rows."));
-        }
-
-        if (layout.FreezeColumns < 0 || layout.FreezeColumns > columns.Length)
-        {
-            throw Faulting(new ArgumentOutOfRangeException(nameof(options), layout.FreezeColumns, $"A sheet of {columns.Length} columns freezes 0 to {columns.Length} of them."));
+            throw Faulting(freezeProblem);
         }
 
         int headerStyle = layout.HeaderStyle is { } header ? RegisterStyle(header) : 0;

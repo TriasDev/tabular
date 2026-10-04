@@ -30,7 +30,11 @@ public sealed class TabularExportBuilder<T>
     /// <summary>The width a date column gets unless told otherwise: <c>yyyy-mm-dd</c>.</summary>
     private const double DateWidth = 10;
 
+    /// <summary>The rows of the workbook formats; a freeze must stay below it.</summary>
+    private const long WorkbookMaxRows = 1_048_576;
+
     private readonly List<ExportColumn<T>> _columns = [];
+    private SheetOptions? _sheet;
 
     internal TabularExportBuilder()
     {
@@ -97,11 +101,25 @@ public sealed class TabularExportBuilder<T>
     public TabularExportBuilder<T> Column(BooleanImportField field, Func<T, bool?> value, double? width = null, Func<bool?, CellStyle?>? style = null) => Column(HeaderOf(field), value, width, style);
 
     /// <summary>
+    /// Lays out every sheet the export writes: header style, frozen rows and columns, auto-filter. Csv
+    /// ignores it. Calling it again replaces the options.
+    /// </summary>
+    /// <param name="options">The layout; the export keeps this instance, which is immutable.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+    public TabularExportBuilder<T> Sheet(SheetOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        _sheet = options;
+        return this;
+    }
+
+    /// <summary>
     /// The export as declared so far, checked by the writer's rules for columns. The builder may go on
     /// being changed; the export it returned does not change with it.
     /// </summary>
     /// <exception cref="InvalidOperationException">No column was declared.</exception>
     /// <exception cref="ArgumentException">A header is empty, padded, repeated ignoring case or not writable, or a width is out of range.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The sheet options freeze a negative number of rows or columns, too many rows, or more columns than the export has.</exception>
     public TabularExport<T> Build()
     {
         if (_columns.Count == 0)
@@ -117,7 +135,12 @@ public sealed class TabularExportBuilder<T>
             throw problem;
         }
 
-        return new TabularExport<T>(columns, declared);
+        if (_sheet?.FreezeProblem(nameof(Sheet), WorkbookMaxRows, declared.Length) is { } freezeProblem)
+        {
+            throw freezeProblem;
+        }
+
+        return new TabularExport<T>(columns, declared, _sheet);
     }
 
     private static string HeaderOf(ImportField field)

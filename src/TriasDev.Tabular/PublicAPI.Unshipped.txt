@@ -194,6 +194,8 @@ TriasDev.Tabular.TabularExport
 TriasDev.Tabular.TabularExport<T>
 TriasDev.Tabular.TabularExport<T>.Columns.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.WriteColumn>!
 TriasDev.Tabular.TabularExportBuilder<T>
+TriasDev.Tabular.TabularExport<T>.Sheet.get -> TriasDev.Tabular.SheetOptions?
+TriasDev.Tabular.TabularExportBuilder<T>.Sheet(TriasDev.Tabular.SheetOptions! options) -> TriasDev.Tabular.TabularExportBuilder<T>!
 TriasDev.Tabular.TabularExportBuilder<T>.Build() -> TriasDev.Tabular.TabularExport<T>!
 TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool?>! value, double? width = null, System.Func<bool?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
 TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool>! value, double? width = null, System.Func<bool, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!

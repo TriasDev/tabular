@@ -138,8 +138,9 @@ format's decimal point and thousands separator follow the reader's locale.
 
 `SheetOptions` goes with `BeginSheet`: a `HeaderStyle`, `FreezeRows` and `FreezeColumns` (how many
 stay in view), and `AutoFilter` on the header row through the last row written. Csv ignores it. A
-declared export's methods take no `SheetOptions`; its header row is unstyled. For a styled, frozen
-or filtered header, write with `TabularWriter` as in the first example.
+declared export takes it once, on the builder — `.Sheet(new SheetOptions { … })`, as in the example
+above — and applies it to every sheet it writes; the freeze is checked against the export's columns
+when it is built.
 
 `writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips
 the covered positions — the next write in the row lands after the range, and later rows skip it
