@@ -172,7 +172,7 @@ public sealed class CsvTextTests
     {
         using SpillBuffer buffer = new();
         CsvSheetWriter sheet = new(buffer, CsvWriterOptions.Default.Resolve());
-        sheet.BeginSheet("data", [new("v")]);
+        sheet.BeginSheet("data", [new("v")], SheetOptions.Default);
 
         sheet.BeginRow();
         Assert.Null(sheet.WriteText(new string('x', 10_000_000), 0, 0));

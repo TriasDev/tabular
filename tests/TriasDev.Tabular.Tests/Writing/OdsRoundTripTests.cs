@@ -202,7 +202,7 @@ public sealed class OdsRoundTripTests
         Assert.Equal(RawCell.FromNumber(1_048_575), last);
 
         await using TabularWriter full = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
-        full.BeginSheet("data", [new("n")]);
+        full.BeginSheet("data", [new("n")], SheetOptions.Default);
 
         for (long n = 1; n < 1_048_576; n++)
         {

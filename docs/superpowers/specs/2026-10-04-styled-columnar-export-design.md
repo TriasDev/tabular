@@ -94,21 +94,23 @@ writer.BeginSheet("Legend", columns, new SheetOptions
 });
 
 writer.BeginRow();
-writer.Write("Hazard legend", title, span: new CellSpan(Rows: 1, Columns: 4));
+writer.Merge(rows: 1, columns: 4);          // the next cell is the top-left of a 1 × 4 range
+writer.Write("Hazard legend", title);
 writer.EndRow();
 ```
 
 - `BeginSheet(name, columns, SheetOptions? options)` is a new overload; the existing one means
   default options.
-- **Merged cells** are declared on the top-left cell through the optional `span` parameter of the
-  styled `Write` overloads, because ods must know them when that
-  cell is written. Covered positions are skipped automatically: the next write in the row lands at
+- **Merged cells** are declared with `writer.Merge(rows, columns)` right before the top-left cell's
+  `Write` (any overload, styled or not, or `WriteEmpty`), because ods must know them when that cell
+  is written. One method instead of a `span` parameter on every `Write` overload. Covered positions are skipped automatically: the next write in the row lands at
   column + `Columns`; in the rows below, the writer emits the covered cells itself when the row
   reaches them. The caller never writes placeholders.
-  - Errors, thrown at the write that causes them (`ArgumentException` for an invalid span,
-    `InvalidOperationException` for the state): a span overlapping another, reaching past the sheet's
-    columns, rows or columns < 1, a 1 × 1 span; a sheet ended (`BeginSheet`, `CompleteAsync`) while
-    a span still has rows to cover.
+  - Errors: `Merge` refuses rows or columns < 1 and a 1 × 1 range (`ArgumentOutOfRangeException`),
+    and a second `Merge` before a cell (`InvalidOperationException`); the top-left cell's write
+    refuses a range overlapping another or reaching past the sheet's columns, `EndRow` a `Merge`
+    no cell followed, and `BeginSheet` / `CompleteAsync` a sheet ended while a range still has rows
+    to cover (`InvalidOperationException`).
   - xlsx: ranges are kept in memory and written as `<mergeCells>` after the sheet data; at most
     65,536 merges per sheet, the next throws `TabularLimitException`.
   - ods: `table:number-columns-spanned` / `table:number-rows-spanned` and `table:covered-table-cell`.
@@ -119,8 +121,9 @@ writer.EndRow();
 - **Auto-filter** on the header row through the last row written: xlsx `<autoFilter>` after the data
   and the hidden defined name `_xlnm._FilterDatabase` in `workbook.xml`, as Excel writes it; ods
   `table:database-ranges` at the end of `content.xml`. Requires a header (columns given).
-- **Column limit:** 16,384 columns per sheet for xlsx and ods (Excel; LibreOffice since 7.4),
-  checked by `BeginSheet` with `TabularLimitException`. csv and zip have none.
+- **Column limit:** 16,384 columns per sheet (Excel; LibreOffice since 7.4) — already enforced by
+  `BeginSheet` for every format (`ArgumentOutOfRangeException`), since our csv reader has the same
+  ceiling.
 - **Empty runs in ods** are written as one cell with `table:number-columns-repeated`, so wide sheets
   with gaps stay small. xlsx already omits empty cells.
 - Widths stay as today (`WriteColumn.Width`). No row heights: Excel and LibreOffice size rows,

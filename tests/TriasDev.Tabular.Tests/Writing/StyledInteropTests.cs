@@ -83,4 +83,195 @@ public sealed class StyledInteropTests
         Assert.Contains("rgb=\"FFF8696B\"", styles, StringComparison.OrdinalIgnoreCase);
         Assert.Matches("<b( val=\"(true|1)\")?/>", styles);
     }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheFilterOfAnOds()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, writer =>
+        {
+            writer.BeginSheet("Bob's data", [new("a"), new("b")], new SheetOptions { AutoFilter = true });
+            writer.BeginRow();
+            writer.Write(1L);
+            writer.EndRow();
+        });
+
+        Assert.Contains("<autoFilter ref=\"A1:B2\"", Entry(LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx"), "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheFilterOfAnXlsx()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            writer.BeginSheet("Bob's data", [new("a"), new("b")], new SheetOptions { AutoFilter = true });
+            writer.BeginRow();
+            writer.Write(1L);
+            writer.EndRow();
+        });
+
+        Assert.Contains("table:display-filter-buttons=\"true\"", Entry(LibreOffice.Convert(xlsx, "xlsx", "ods", "ods"), "content.xml"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergesOfAnXlsx()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, MergeTests.Legend);
+        string content = Entry(LibreOffice.Convert(xlsx, "xlsx", "ods", "ods"), "content.xml");
+
+        Assert.Contains("table:number-columns-spanned=\"2\"", content, StringComparison.Ordinal);
+        Assert.Contains("table:number-rows-spanned=\"2\"", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergesOfAnOds()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, MergeTests.Legend);
+        string sheet = Entry(LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx"), "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<mergeCell ref=\"A2:B2\"/>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<mergeCell ref=\"B3:C4\"/>", sheet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergeOfARowThatEndsEarly()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, MergeTests.EndsEarly);
+        string sheet = Entry(LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx"), "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<mergeCell ref=\"C2:D3\"/>", sheet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergeAndFillOfAnXlsx()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, FilledMerge);
+        byte[] ods = LibreOffice.Convert(xlsx, "xlsx", "ods", "ods");
+        string styles = Entry(ods, "content.xml") + Entry(ods, "styles.xml");
+
+        Assert.Contains("table:number-columns-spanned=\"3\"", styles, StringComparison.Ordinal);
+        Assert.Contains("fo:background-color=\"#f8696b\"", styles, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergeAndFillOfAnOds()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, FilledMerge);
+        byte[] xlsx = LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx");
+
+        Assert.Contains("<mergeCell ref=\"A2:C2\"/>", Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+        Assert.Contains("rgb=\"FFF8696B\"", Entry(xlsx, "xl/styles.xml"), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void FilledMerge(TabularWriter writer)
+    {
+        StyleId fill = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0xF8696B) });
+        writer.BeginSheet("data", [new("a"), new("b"), new("c")]);
+        writer.BeginRow();
+        writer.Merge(1, 3);
+        writer.Write("filled", fill);
+        writer.EndRow();
+    }
+
+    private static void ThreeFrozenSheets(TabularWriter writer)
+    {
+        writer.BeginSheet("rows", [new("a"), new("b")], new SheetOptions { FreezeRows = 1 });
+        writer.BeginRow();
+        writer.Write("x");
+        writer.Write(1L);
+        writer.EndRow();
+        writer.BeginSheet("columns", [new("a"), new("b"), new("c")], new SheetOptions { FreezeColumns = 2 });
+        writer.BeginSheet("both", [new("a"), new("b"), new("c")], new SheetOptions { FreezeRows = 1, FreezeColumns = 2 });
+    }
+
+    [Theory]
+    [InlineData(TabularFormat.Ods, "ods")]
+    [InlineData(TabularFormat.Xlsx, "xlsx")]
+    public async Task LibreOfficeKeepsTheFrozenPanes(TabularFormat format, string extension)
+    {
+        byte[] file = await SheetLayoutTests.Write(format, ThreeFrozenSheets);
+
+        string settings = Entry(LibreOffice.Resave(file, extension), "settings.xml");
+
+        // columns = horizontal split, rows = vertical split.
+        AssertPane(settings, "rows", horizontalMode: 0, verticalMode: 2, horizontal: 0, vertical: 1);
+        AssertPane(settings, "columns", horizontalMode: 2, verticalMode: 0, horizontal: 2, vertical: 0);
+        AssertPane(settings, "both", horizontalMode: 2, verticalMode: 2, horizontal: 2, vertical: 1);
+    }
+
+    private static void AssertPane(string settings, string sheet, int horizontalMode, int verticalMode, int horizontal, int vertical)
+    {
+        int start = settings.IndexOf($"config:name=\"{sheet}\"", StringComparison.Ordinal);
+        Assert.True(start >= 0, $"The resaved settings have no entry for sheet '{sheet}': {settings}");
+        string entry = settings[start..];
+
+        static string Value(string entry, string name)
+        {
+            int at = entry.IndexOf($"config:name=\"{name}\"", StringComparison.Ordinal);
+            Assert.True(at >= 0, $"The resaved entry has no {name}: {entry[..Math.Min(entry.Length, 400)]}");
+            int from = entry.IndexOf('>', at) + 1;
+            return entry[from..entry.IndexOf('<', from)];
+        }
+
+        Assert.Equal(horizontalMode.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "HorizontalSplitMode"));
+        Assert.Equal(verticalMode.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "VerticalSplitMode"));
+        Assert.Equal(horizontal.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "HorizontalSplitPosition"));
+        Assert.Equal(vertical.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "VerticalSplitPosition"));
+    }
+
+    [Theory]
+    [InlineData(TabularFormat.Xlsx, "xlsx")]
+    [InlineData(TabularFormat.Ods, "ods")]
+    public async Task ALaidOutWorkbookOpensAndReadsBack(TabularFormat format, string extension)
+    {
+        CellStyle header = new() { Fill = CellColor.FromRgb(0x1F4E78), Font = new CellFont { Color = CellColor.FromRgb(0xFFFFFF), Bold = true } };
+        CellStyle[] legend = [new() { Fill = CellColor.FromRgb(0x63BE7B) }, new() { Fill = CellColor.FromRgb(0xFFEB84) }, new() { Fill = CellColor.FromRgb(0xF8696B) }];
+
+        byte[] file = await SheetLayoutTests.Write(format, writer =>
+        {
+            StyleId[] colours = [.. legend.Select(writer.Style)];
+            StyleId title = writer.Style(new CellStyle { Font = new CellFont { Bold = true }, Horizontal = HorizontalAlignment.Center });
+
+            writer.BeginSheet("Data", [new("Id"), new("Score"), new("Date", 12)], new SheetOptions { HeaderStyle = header, FreezeRows = 1, AutoFilter = true });
+
+            for (int i = 1; i <= 100; i++)
+            {
+                writer.BeginRow();
+                writer.Write((long)i);
+                writer.Write(i / 10.0, colours[i % 3]);
+                writer.Write(new DateOnly(2026, 1, 1).AddDays(i));
+                writer.EndRow();
+            }
+
+            writer.BeginSheet("Legend", [new("Range"), new("Colour"), new("Meaning")], new SheetOptions { HeaderStyle = header });
+            writer.BeginRow();
+            writer.Merge(1, 3);
+            writer.Write("Score legend", title);
+            writer.EndRow();
+
+            for (int i = 0; i < legend.Length; i++)
+            {
+                writer.BeginRow();
+                writer.Write($"{i * 3}–{(i * 3) + 3}");
+                writer.WriteEmpty(colours[i]);
+                writer.Write(i switch { 0 => "low", 1 => "medium", _ => "high" });
+                writer.EndRow();
+            }
+        });
+
+        if (format == TabularFormat.Xlsx)
+        {
+            Assert.Empty(OoxmlValidation.Errors(file));
+        }
+
+        string[] lines = LibreOffice.ConvertToCsv(file, extension);
+        Assert.Equal(101, lines.Length);
+
+        List<RawCell[]> data = SheetLayoutTests.Rows(file, 0);
+        Assert.Equal(101, data.Count);
+        Assert.Equal(RawCell.FromNumber(5), data[50][1]);
+
+        List<RawCell[]> legendRows = SheetLayoutTests.Rows(file, 1);
+        Assert.Equal(RawCell.FromText("Score legend"), legendRows[1][0]);
+        Assert.Equal(RawCell.FromText("high"), legendRows[4][2]);
+    }
 }

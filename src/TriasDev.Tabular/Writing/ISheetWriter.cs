@@ -21,7 +21,8 @@ internal interface ISheetWriter : IDisposable
     /// <summary>Whether the format stores sheet names, which must then meet <see cref="SheetNames"/>' rules.</summary>
     bool NamesSheets { get; }
 
-    void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns);
+    /// <summary>Begins a sheet. <paramref name="options"/> is never null; csv ignores it.</summary>
+    void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options);
 
     void BeginRow();
 
@@ -30,7 +31,8 @@ internal interface ISheetWriter : IDisposable
     /// import compares headers as written — and never judged against a record's width, which the
     /// reader learns from the header. Returns a code if the format cannot hold it.
     /// </summary>
-    string? WriteHeader(string value);
+    /// <remarks><paramref name="style"/> is the header row's style index, 0 for none.</remarks>
+    string? WriteHeader(string value, int style);
 
     // Every Write* method below takes `style`: the cell's index in the writer's StyleTable; 0 is unstyled.
 
@@ -55,6 +57,15 @@ internal interface ISheetWriter : IDisposable
     void WriteBoolean(bool value, int style);
 
     void WriteEmpty(int style);
+
+    /// <summary>The most merged ranges a sheet holds.</summary>
+    int MaxMerges { get; }
+
+    /// <summary>The next cell written is the top-left of a range this many rows high and columns wide; checked by the writer.</summary>
+    void Merge(int rows, int columns);
+
+    /// <summary>Writes a position a merged range covers, other than its top-left cell.</summary>
+    void WriteCovered();
 
     void EndRow();
 

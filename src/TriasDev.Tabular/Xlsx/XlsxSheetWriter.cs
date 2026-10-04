@@ -44,12 +44,22 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private readonly ZipWriter _zip;
     private readonly XlsxStyles _styles;
     private readonly List<string> _sheetNames = [];
+    private readonly List<(int Sheet, string Range)> _filters = [];
+    private readonly List<string> _merges = [];
     private readonly RowText _row = new();
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
     private Stream? _sheet;
     private string[] _columnNames = [];
     private long _rowNumber;
+    private bool _filter;
     private int _column;
+
+    // A merged range's covered positions are written empty in the top-left cell's style, so Excel
+    // finds a bordered range's right and bottom edges on the cells that sit there. Per column, the
+    // style of the latest range over it; allocated on the first styled range, so a sheet without
+    // styled merges pays nothing.
+    private int[]? _coverXf;
+    private int _pendingColumns;
 
     public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options, StyleTable styles)
     {
@@ -73,7 +83,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public bool NamesSheets => true;
 
-    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options)
     {
         CloseSheet();
         _sheetNames.Add(name);
@@ -86,8 +96,13 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
 
         _rowNumber = 0;
+        _merges.Clear();
+        _coverXf = null;
+        _pendingColumns = 0;
+        _filter = options.AutoFilter;
         _row.Clear();
         _row.Append(XlsxParts.WorksheetStart);
+        AppendFreeze(options.FreezeRows, options.FreezeColumns);
         AppendWidths(columns);
         _row.Append("<sheetData>");
         Emit();
@@ -103,7 +118,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Append("\">");
     }
 
-    public string? WriteHeader(string value) => WriteInline(value, 0);
+    public string? WriteHeader(string value, int style) => WriteInline(value, style == 0 ? 0 : _styles.Xf(style, ValueKind.Text));
 
     public string? WriteText(string value, int column, int style) => WriteInline(value, style == 0 ? 0 : _styles.Xf(style, ValueKind.Text));
 
@@ -163,10 +178,35 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Append(ValueEnd);
     }
 
+    public int MaxMerges => 65_536;
+
+    public void Merge(int rows, int columns)
+    {
+        _merges.Add(string.Create(CultureInfo.InvariantCulture, $"{_columnNames[_column]}{_rowNumber}:{_columnNames[_column + columns - 1]}{_rowNumber + rows - 1}"));
+        _pendingColumns = columns;
+    }
+
+    public void WriteCovered()
+    {
+        if (_coverXf is { } cover && cover[_column] != 0)
+        {
+            StartCell(cover[_column]);
+            _row.Append("/>");
+            return;
+        }
+
+        _column++;
+    }
+
     public void WriteEmpty(int style)
     {
         if (style == 0)
         {
+            if (_pendingColumns != 0)
+            {
+                TakeRange(0);
+            }
+
             _column++;
             return;
         }
@@ -186,7 +226,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         CloseSheet();
         _zip.AddStored("[Content_Types].xml", XlsxParts.ContentTypes(_sheetNames.Count));
         _zip.AddStored("_rels/.rels", XlsxParts.PackageRelationships);
-        _zip.AddStored("xl/workbook.xml", XlsxParts.Workbook(_sheetNames));
+        _zip.AddStored("xl/workbook.xml", XlsxParts.Workbook(_sheetNames, _filters));
         _zip.AddStored("xl/_rels/workbook.xml.rels", XlsxParts.WorkbookRelationships(_sheetNames.Count));
         _zip.AddStored("xl/styles.xml", _styles.Build());
         _zip.Complete();
@@ -243,6 +283,11 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     /// <summary>Opens a cell at the current column, with its reference; the caller writes the rest.</summary>
     private void StartCell(int xf)
     {
+        if (_pendingColumns != 0)
+        {
+            TakeRange(xf);
+        }
+
         _row.Append("<c r=\"");
         _row.Append(_columnNames[_column]);
         _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
@@ -256,6 +301,21 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
 
         _column++;
+    }
+
+    /// <summary>The waiting merge's top-left cell is at the current column: its style is the range's.</summary>
+    private void TakeRange(int xf)
+    {
+        int columns = _pendingColumns;
+        _pendingColumns = 0;
+
+        if (xf == 0 && _coverXf is null)
+        {
+            return;
+        }
+
+        _coverXf ??= new int[_columnNames.Length];
+        Array.Fill(_coverXf, xf, _column, columns);
     }
 
     private void AppendEscaped(ReadOnlySpan<char> text)
@@ -294,6 +354,47 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
             text = text[(at + 1)..];
         }
+    }
+
+    /// <summary>Freezes the top rows and left columns: a split pane, in the state Excel writes for "Freeze Panes".</summary>
+    private void AppendFreeze(int rows, int columns)
+    {
+        if (rows == 0 && columns == 0)
+        {
+            return;
+        }
+
+        string pane = (rows, columns) switch
+        {
+            ( > 0, > 0) => "bottomRight",
+            ( > 0, _) => "bottomLeft",
+            _ => "topRight",
+        };
+
+        _row.Append("<sheetViews><sheetView workbookViewId=\"0\"><pane");
+
+        if (columns > 0)
+        {
+            _row.Append(" xSplit=\"");
+            _row.AppendFormatted(columns, default, CultureInfo.InvariantCulture);
+            _row.Append('"');
+        }
+
+        if (rows > 0)
+        {
+            _row.Append(" ySplit=\"");
+            _row.AppendFormatted(rows, default, CultureInfo.InvariantCulture);
+            _row.Append('"');
+        }
+
+        _row.Append(" topLeftCell=\"");
+        _row.Append(XlsxParts.ColumnName(Math.Min(columns, 16_383)));
+        _row.AppendFormatted(rows + 1, default, CultureInfo.InvariantCulture);
+        _row.Append("\" activePane=\"");
+        _row.Append(pane);
+        _row.Append("\" state=\"frozen\"/><selection pane=\"");
+        _row.Append(pane);
+        _row.Append("\"/></sheetView></sheetViews>");
     }
 
     private void AppendWidths(ReadOnlySpan<WriteColumn> columns)
@@ -342,6 +443,43 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
     }
 
+    /// <summary>The filter over the header through the last row; the workbook names the same range for Excel.</summary>
+    private void AppendAutoFilter()
+    {
+        if (!_filter)
+        {
+            return;
+        }
+
+        string last = _columnNames[^1];
+        _row.Append("<autoFilter ref=\"A1:");
+        _row.Append(last);
+        _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
+        _row.Append("\"/>");
+        _filters.Add((_sheetNames.Count - 1, string.Create(CultureInfo.InvariantCulture, $"$A$1:${last}${_rowNumber}")));
+    }
+
+    private void AppendMerges()
+    {
+        if (_merges.Count == 0)
+        {
+            return;
+        }
+
+        _row.Append("<mergeCells count=\"");
+        _row.AppendFormatted(_merges.Count, default, CultureInfo.InvariantCulture);
+        _row.Append("\">");
+
+        foreach (string range in _merges)
+        {
+            _row.Append("<mergeCell ref=\"");
+            _row.Append(range);
+            _row.Append("\"/>");
+        }
+
+        _row.Append("</mergeCells>");
+    }
+
     private void CloseSheet()
     {
         if (_sheet is null)
@@ -350,7 +488,10 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
 
         _row.Clear();
-        _row.Append(XlsxParts.WorksheetEnd);
+        _row.Append(XlsxParts.SheetDataEnd);
+        AppendAutoFilter();
+        AppendMerges();
+        _row.Append(XlsxParts.WorksheetClose);
         Emit();
         _zip.EndEntry();
         _sheet = null;

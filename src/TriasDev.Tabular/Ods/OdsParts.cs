@@ -18,7 +18,30 @@ internal static class OdsParts
 
     public const string BooleanStyle = "ce3";
 
-    public const string ContentEnd = "</table:table></office:spreadsheet></office:body></office:document-content>";
+    public const string TableEnd = "</table:table>";
+
+    public const string SpreadsheetEnd = "</office:spreadsheet></office:body></office:document-content>";
+
+    /// <summary>The auto-filters, as LibreOffice's sheet-local anonymous database ranges, header through last row.</summary>
+    public static string DatabaseRanges(IReadOnlyList<(int Sheet, string Name, int Columns, long Rows)> filters)
+    {
+        if (filters.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        StringBuilder xml = new("<table:database-ranges>");
+
+        foreach ((int sheet, string name, int columns, long rows) in filters)
+        {
+            string quoted = "'" + name.Replace("'", "''", StringComparison.Ordinal) + "'";
+            xml.Append(CultureInfo.InvariantCulture, $"<table:database-range table:name=\"__Anonymous_Sheet_DB__{sheet}\" table:target-range-address=\"");
+            AppendAttribute(xml, $"{quoted}.A1:{quoted}.{Xlsx.XlsxParts.ColumnName(columns - 1)}{rows}");
+            xml.Append("\" table:display-filter-buttons=\"true\"/>");
+        }
+
+        return xml.Append("</table:database-ranges>").ToString();
+    }
 
     internal const string XmlDeclaration = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
@@ -39,13 +62,66 @@ internal static class OdsParts
     /// </summary>
     public static readonly string ContentStart = BuildContentStart();
 
-    public static readonly byte[] Manifest = Encoding.UTF8.GetBytes(
+    public static byte[] Manifest(bool settings) => Encoding.UTF8.GetBytes(
         XmlDeclaration
         + "<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.3\">"
         + "<manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.3\" manifest:media-type=\"" + Mimetype + "\"/>"
         + "<manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/>"
         + "<manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/>"
+        + (settings ? "<manifest:file-entry manifest:full-path=\"settings.xml\" manifest:media-type=\"text/xml\"/>" : string.Empty)
         + "</manifest:manifest>");
+
+    /// <summary>
+    /// The view settings that freeze panes, as LibreOffice stores them: per sheet, a split mode of 2
+    /// (frozen) and the split position in rows or columns, the bottom-right part active. The root declares
+    /// <c>ooo</c>: the view-settings set's name is a QName, and LibreOffice ignores the set without it.
+    /// </summary>
+    public static byte[] Settings(IReadOnlyList<(string Name, int Rows, int Columns)> frozen)
+    {
+        StringBuilder xml = new(
+            XmlDeclaration
+            + "<office:document-settings xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\" office:version=\"1.3\">"
+            + "<office:settings><config:config-item-set config:name=\"ooo:view-settings\"><config:config-item-map-indexed config:name=\"Views\"><config:config-item-map-entry>"
+            + "<config:config-item config:name=\"ViewId\" config:type=\"string\">view1</config:config-item><config:config-item-map-named config:name=\"Tables\">");
+
+        foreach ((string name, int rows, int columns) in frozen)
+        {
+            xml.Append("<config:config-item-map-entry config:name=\"");
+            AppendAttribute(xml, name);
+            xml.Append("\">");
+            Item(xml, "HorizontalSplitMode", "short", columns > 0 ? 2 : 0);
+            Item(xml, "VerticalSplitMode", "short", rows > 0 ? 2 : 0);
+            Item(xml, "HorizontalSplitPosition", "int", columns);
+            Item(xml, "VerticalSplitPosition", "int", rows);
+            Item(xml, "ActiveSplitRange", "short", 2);
+            Item(xml, "PositionLeft", "int", 0);
+            Item(xml, "PositionRight", "int", columns);
+            Item(xml, "PositionTop", "int", 0);
+            Item(xml, "PositionBottom", "int", rows);
+            xml.Append("</config:config-item-map-entry>");
+        }
+
+        xml.Append("</config:config-item-map-named></config:config-item-map-entry></config:config-item-map-indexed></config:config-item-set></office:settings></office:document-settings>");
+        return Encoding.UTF8.GetBytes(xml.ToString());
+    }
+
+    private static void Item(StringBuilder xml, string name, string type, int value) =>
+        xml.Append(CultureInfo.InvariantCulture, $"<config:config-item config:name=\"{name}\" config:type=\"{type}\">{value}</config:config-item>");
+
+    private static void AppendAttribute(StringBuilder xml, string value)
+    {
+        foreach (char c in value)
+        {
+            _ = c switch
+            {
+                '&' => xml.Append("&amp;"),
+                '<' => xml.Append("&lt;"),
+                '>' => xml.Append("&gt;"),
+                '"' => xml.Append("&quot;"),
+                _ => xml.Append(c),
+            };
+        }
+    }
 
     /// <summary>The column style for a width in characters, rounded to the nearest whole one.</summary>
     public static string ColumnStyleFor(double width) =>

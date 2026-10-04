@@ -48,6 +48,15 @@ public sealed class TabularWriter : IAsyncDisposable
     private long _rowNumber;
     private int _column;
 
+    // Merges: per column, the rows a range covers there (first..last, 0 when none). Allocated on a
+    // sheet's first merge, so a sheet without merges pays one null check per cell.
+    private long[]? _coveredFrom;
+    private long[]? _coveredThrough;
+    private long _lastCoveredRow;
+    private int _pendingRows;
+    private int _pendingColumns;
+    private int _merges;
+
     private TabularWriter(Stream target, TabularFormat format, SpillBuffer buffer, ISheetWriter sheet, StyleTable styles, bool leaveOpen)
     {
         _target = target;
@@ -166,7 +175,17 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <summary>Begins a sheet and writes its header row.</summary>
     /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
     /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
-    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns) => BeginSheet(name, columns, null);
+
+    /// <summary>Begins a sheet laid out by <paramref name="options"/> and writes its header row.</summary>
+    /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
+    /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
+    /// <param name="options">The header style, frozen rows and columns, and filter; null for none.</param>
+    /// <exception cref="ArgumentOutOfRangeException">A freeze outside the sheet: rows from 0 to the format's row limit less one, columns from 0 to the column count.</exception>
+    /// <exception cref="InvalidOperationException">A merged range of the previous sheet still covers rows the sheet did not write.</exception>
+    /// <exception cref="ArgumentException">The <see cref="SheetOptions.HeaderStyle"/> has an alignment that is not a defined value, as <see cref="Style"/> refuses.</exception>
+    /// <exception cref="TabularLimitException">The <see cref="SheetOptions.HeaderStyle"/> would be the file's 4097th distinct style, as <see cref="Style"/> refuses.</exception>
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions? options)
     {
         ExpectWritable();
 
@@ -174,6 +193,8 @@ public sealed class TabularWriter : IAsyncDisposable
         {
             throw Refuse("A sheet begins outside a row.");
         }
+
+        ExpectRangesClosed();
 
         if (_sheets > 0 && !_sheet.AllowsSeveralSheets)
         {
@@ -192,20 +213,40 @@ public sealed class TabularWriter : IAsyncDisposable
 
         CheckColumns(columns);
 
+        SheetOptions layout = options ?? SheetOptions.Default;
+
+        if (layout.FreezeRows < 0 || layout.FreezeRows >= _sheet.MaxRows)
+        {
+            throw Faulting(new ArgumentOutOfRangeException(nameof(options), layout.FreezeRows, $"A sheet freezes 0 to {_sheet.MaxRows - 1} rows."));
+        }
+
+        if (layout.FreezeColumns < 0 || layout.FreezeColumns > columns.Length)
+        {
+            throw Faulting(new ArgumentOutOfRangeException(nameof(options), layout.FreezeColumns, $"A sheet of {columns.Length} columns freezes 0 to {columns.Length} of them."));
+        }
+
+        int headerStyle = layout.HeaderStyle is { } header ? RegisterStyle(header) : 0;
+
         _columns = columns.ToArray();
         _sheetName = name;
         _sheetNames.Add(name);
         _sheets++;
         _rowNumber = 0;
-        _sheet.BeginSheet(name, _columns);
+        _coveredFrom = null;
+        _coveredThrough = null;
+        _lastCoveredRow = 0;
+        _merges = 0;
+        _pendingRows = 0;
+        _pendingColumns = 0;
+        _sheet.BeginSheet(name, _columns, layout);
 
         StartRow();
 
-        foreach (string header in _columns.Select(column => column.Header))
+        foreach (string headerText in _columns.Select(column => column.Header))
         {
-            if (_sheet.WriteHeader(header) is { } code)
+            if (_sheet.WriteHeader(headerText, headerStyle) is { } code)
             {
-                throw Faulting(new ArgumentException($"The header \"{header}\" cannot be written: {code}.", nameof(columns)));
+                throw Faulting(new ArgumentException($"The header \"{headerText}\" cannot be written: {code}.", nameof(columns)));
             }
 
             _column++;
@@ -239,10 +280,14 @@ public sealed class TabularWriter : IAsyncDisposable
     public StyleId Style(CellStyle style)
     {
         ExpectWritable();
+        return new StyleId(_stamp, RegisterStyle(style));
+    }
 
+    private int RegisterStyle(CellStyle style)
+    {
         try
         {
-            return new StyleId(_stamp, _styles.Add(style));
+            return _styles.Add(style);
         }
         catch (Exception refused) when (refused is ArgumentException or TabularLimitException)
         {
@@ -253,12 +298,14 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Writes the next cell as text; null writes an empty cell.</summary>
     /// <remarks>The import trims text and reads empty or whitespace-only text as no value.</remarks>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns. This applies to every <c>Write</c> overload and <see cref="WriteEmpty()"/>.</exception>
     public void Write(string? value) => Write(value, default);
 
     /// <inheritdoc cref="Write(string?)"/>
     /// <param name="value">The text; null writes an empty cell.</param>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(string? value, StyleId style)
     {
         int column = NextCell();
@@ -280,12 +327,14 @@ public sealed class TabularWriter : IAsyncDisposable
     /// implicitly to both <see cref="double"/> and <see cref="decimal"/>, so the call is ambiguous and
     /// does not compile; convert it explicitly, to <see cref="long"/> or <see cref="decimal"/>.
     /// </remarks>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(long value) => Write(value, default);
 
     /// <inheritdoc cref="Write(long)"/>
     /// <param name="value">The integer.</param>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(long value, StyleId style)
     {
         int column = NextCell();
@@ -293,12 +342,14 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Writes the next cell as a decimal number.</summary>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(decimal value) => Write(value, default);
 
     /// <inheritdoc cref="Write(decimal)"/>
     /// <param name="value">The number.</param>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(decimal value, StyleId style)
     {
         int column = NextCell();
@@ -309,12 +360,14 @@ public sealed class TabularWriter : IAsyncDisposable
     /// Writes the next cell as a number. Refused when not finite, or when it has more than 15
     /// significant digits — which a workbook would not give back.
     /// </summary>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(double value) => Write(value, default);
 
     /// <inheritdoc cref="Write(double)"/>
     /// <param name="value">The number.</param>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(double value, StyleId style)
     {
         int column = NextCell();
@@ -325,12 +378,14 @@ public sealed class TabularWriter : IAsyncDisposable
     /// Writes the next cell as a date, with its time of day when it has one. Anything finer than a
     /// millisecond is dropped, and the kind is not kept: the import returns the wall-clock value.
     /// </summary>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(DateTime value) => Write(value, default);
 
     /// <inheritdoc cref="Write(DateTime)"/>
     /// <param name="value">The date and time.</param>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(DateTime value, StyleId style)
     {
         int column = NextCell();
@@ -339,12 +394,14 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Writes the next cell as a date. The import returns it as a <see cref="DateTime"/> at midnight.</summary>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(DateOnly value) => Write(value, default);
 
     /// <inheritdoc cref="Write(DateOnly)"/>
     /// <param name="value">The date.</param>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(DateOnly value, StyleId style)
     {
         int column = NextCell();
@@ -352,12 +409,14 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Writes the next cell as a boolean.</summary>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(bool value) => Write(value, default);
 
     /// <inheritdoc cref="Write(bool)"/>
     /// <param name="value">The boolean.</param>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void Write(bool value, StyleId style)
     {
         NextCell();
@@ -365,15 +424,59 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Writes the next cell empty.</summary>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void WriteEmpty() => WriteEmpty(default);
 
     /// <inheritdoc cref="WriteEmpty()"/>
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
     public void WriteEmpty(StyleId style)
     {
         NextCell();
         _sheet.WriteEmpty(Index(style));
+    }
+
+    /// <summary>
+    /// Merges the next cell written with the cells right of and below it: it becomes the top-left of
+    /// a range <paramref name="rows"/> high and <paramref name="columns"/> wide, which shows its value.
+    /// The writer skips the covered positions — the row's next write lands after the range, and later
+    /// rows skip it too — and writes them itself. Csv writes the value in the top-left cell and empty
+    /// fields elsewhere.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Rows or columns below 1, or a single cell.</exception>
+    /// <exception cref="InvalidOperationException">Outside a row, or a merge already waits for its cell.</exception>
+    /// <exception cref="TabularLimitException">The sheet already holds as many merges as its format allows.</exception>
+    public void Merge(int rows, int columns)
+    {
+        ExpectWritable();
+
+        if (_state != State.InRow)
+        {
+            throw Refuse("A merge is declared inside a row, right before its top-left cell.");
+        }
+
+        if (_pendingColumns != 0)
+        {
+            throw Refuse("A merge already waits for its top-left cell.");
+        }
+
+        if (rows < 1 || columns < 1 || (rows == 1 && columns == 1))
+        {
+            throw Faulting(new ArgumentOutOfRangeException(rows < 1 ? nameof(rows) : nameof(columns), $"A merged range is at least 1 × 1 and more than one cell; {rows} × {columns} is not."));
+        }
+
+        if (_merges == _sheet.MaxMerges)
+        {
+            throw Faulting(new TabularLimitException("MaxMerges", _sheet.MaxMerges, $"A {Format} sheet holds at most {_sheet.MaxMerges} merged ranges."));
+        }
+
+        // Allocated here, on the sheet's first merge, so that a merge waiting implies the arrays exist
+        // and a cell of a sheet without merges pays a single null check.
+        _coveredFrom ??= new long[_columns.Length];
+        _coveredThrough ??= new long[_columns.Length];
+        _pendingRows = rows;
+        _pendingColumns = columns;
     }
 
     /// <summary>Ends the row; columns it did not reach are written empty.</summary>
@@ -384,6 +487,11 @@ public sealed class TabularWriter : IAsyncDisposable
         if (_state != State.InRow)
         {
             throw Refuse("A row ends after it began.");
+        }
+
+        if (_pendingColumns != 0)
+        {
+            throw Refuse("A merge was declared but no cell followed it in the row.");
         }
 
         FinishRow();
@@ -408,6 +516,7 @@ public sealed class TabularWriter : IAsyncDisposable
     }
 
     /// <summary>Ends the file, writes what is pending and flushes the stream. Only now is the file valid.</summary>
+    /// <exception cref="InvalidOperationException">A row has not ended, no sheet was begun, or a merged range still covers rows the sheet did not write.</exception>
     public async ValueTask CompleteAsync(CancellationToken cancellationToken = default)
     {
         ExpectWritable();
@@ -421,6 +530,8 @@ public sealed class TabularWriter : IAsyncDisposable
         {
             throw Refuse("A file has at least one sheet.");
         }
+
+        ExpectRangesClosed();
 
         try
         {
@@ -547,7 +658,14 @@ public sealed class TabularWriter : IAsyncDisposable
     {
         for (; _column < _columns.Length; _column++)
         {
-            _sheet.WriteEmpty(0);
+            if (_coveredFrom is not null && IsCovered(_column))
+            {
+                _sheet.WriteCovered();
+            }
+            else
+            {
+                _sheet.WriteEmpty(0);
+            }
         }
 
         _sheet.EndRow();
@@ -583,12 +701,93 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Refuse("A value is written between BeginRow and EndRow.");
         }
 
+        if (_coveredFrom is not null)
+        {
+            return NextCellOfMergedSheet();
+        }
+
         if (_column == _columns.Length)
         {
             throw Refuse($"The row already has a value for each of the sheet's {_columns.Length} columns.");
         }
 
         return _column++;
+    }
+
+    /// <summary>The next cell on a sheet that has a merge: covered positions are written first, and a waiting merge begins here.</summary>
+    private int NextCellOfMergedSheet()
+    {
+        SkipCovered();
+
+        if (_column == _columns.Length)
+        {
+            throw Refuse($"The row already has a value for each of the sheet's {_columns.Length} columns.");
+        }
+
+        if (_pendingColumns != 0)
+        {
+            BeginMerge(_column);
+        }
+
+        return _column++;
+    }
+
+    /// <summary>Writes the covered positions the row has reached.</summary>
+    private void SkipCovered()
+    {
+        while (_column < _columns.Length && IsCovered(_column))
+        {
+            _sheet.WriteCovered();
+            _column++;
+        }
+    }
+
+    private bool IsCovered(int column) =>
+        _coveredFrom![column] <= _rowNumber && _rowNumber <= _coveredThrough![column];
+
+    /// <summary>Checks the waiting merge against the sheet and earlier ranges, records it, and tells the format.</summary>
+    private void BeginMerge(int column)
+    {
+        int rows = _pendingRows;
+        int columns = _pendingColumns;
+        _pendingRows = 0;
+        _pendingColumns = 0;
+
+        if (columns > _columns.Length - column)
+        {
+            throw Refuse($"A merge of {columns} columns from column {column + 1} reaches past the sheet's {_columns.Length} columns.");
+        }
+
+        long[] coveredFrom = _coveredFrom!;
+        long[] coveredThrough = _coveredThrough!;
+        long last = _rowNumber + rows - 1;
+
+        for (int c = column; c < column + columns; c++)
+        {
+            if (coveredThrough[c] >= _rowNumber && coveredFrom[c] <= last)
+            {
+                throw Refuse($"The merge from row {_rowNumber}, column {column + 1} overlaps a range declared earlier.");
+            }
+        }
+
+        for (int c = column; c < column + columns; c++)
+        {
+            // The top-left cell holds the value; every other position in the range is covered.
+            coveredFrom[c] = c == column ? _rowNumber + 1 : _rowNumber;
+            coveredThrough[c] = c == column && rows == 1 ? 0 : last;
+        }
+
+        _lastCoveredRow = Math.Max(_lastCoveredRow, last);
+        _merges++;
+        _sheet.Merge(rows, columns);
+    }
+
+    private void ExpectRangesClosed()
+    {
+        if (_lastCoveredRow > _rowNumber)
+        {
+            throw Refuse($"A merged range reaches row {_lastCoveredRow}, but sheet \"{_sheetName}\" ends at row {_rowNumber}.");
+        }
     }
 
     private void Check(string? code, int column)
