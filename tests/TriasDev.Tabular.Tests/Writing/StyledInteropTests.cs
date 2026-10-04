@@ -55,6 +55,7 @@ public sealed class StyledInteropTests
 
     [Theory]
     [InlineData(TabularFormat.Xlsx, "xlsx")]
+    [InlineData(TabularFormat.Ods, "ods")]
     public async Task ShowsTheFormats(TabularFormat format, string extension)
     {
         string[] lines = LibreOffice.ConvertToCsv(await Write(format), extension);
@@ -71,5 +72,15 @@ public sealed class StyledInteropTests
 
         Assert.Contains("fo:background-color=\"#f8696b\"", styles, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("fo:font-weight=\"bold\"", styles, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task KeepsTheFillAndFontOfAnOds()
+    {
+        byte[] xlsx = LibreOffice.Convert(await Write(TabularFormat.Ods), "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx");
+        string styles = Entry(xlsx, "xl/styles.xml");
+
+        Assert.Contains("rgb=\"FFF8696B\"", styles, StringComparison.OrdinalIgnoreCase);
+        Assert.Matches("<b( val=\"(true|1)\")?/>", styles);
     }
 }
