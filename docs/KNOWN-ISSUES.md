@@ -201,6 +201,13 @@ Reading ods back with this library, an all-empty row is passed over rather than 
 
 TabularExport picks a column type by overload resolution, and some lambdas do not resolve: a char property becomes an integer column (its code point); ulong, `p => default` and a lambda returning null are ambiguous; an int or long with a DecimalImportField is ambiguous between decimal and double; TimeSpan, DateTimeOffset, Guid and enums have no overload and fail with a misleading "cannot convert to string" (CS0029). Convert explicitly (`.ToString()`, `.UtcDateTime`, …); write enums and identifiers as text.
 
+### A zip of csv sheets
+
+- `TabularFormat.Zip` writes every sheet as `<sheet name>.csv` in one zip — csv sheets only, each exactly the csv file that sheet alone would be (`CsvWriterOptions` apply to every entry). Use it for several sheets past the xlsx row limit, or wherever csv is wanted but one file holds several tables.
+- Sheet names follow the workbook rules and, since they become file names, may not hold `< > " |` or end with a dot or a space. Names are stored as UTF-8.
+- Reading the zip back gives the same sheets by name. Their order follows the entries' paths, not the order they were written in.
+- The zip is written by the library's own streaming zip writer — asynchronously, so it can go straight into an ASP.NET Core response — with zip64 past 4 GB.
+
 ## Styles
 
 - Styles are for xlsx and ods; csv ignores them, so one code path writes every format.

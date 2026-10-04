@@ -217,4 +217,72 @@ public sealed class ZipCsvWriterTests
 
         Assert.Equal(plain, laidOut);
     }
+
+    private sealed record Item(long Id, string Name);
+
+    private static readonly TabularExport<Item> Export = TabularExport.For<Item>().Column("Id", i => i.Id).Column("Name", i => i.Name).Build();
+
+    [Fact]
+    public async Task AnExportWritesSeveralSheetsIntoOneZip()
+    {
+        WriteTarget target = new();
+
+        await using (TabularWriter writer = TabularWriter.Create(target, TabularFormat.Zip))
+        {
+            await Export.WriteSheetAsync(writer, "First", new[] { new Item(1, "a") }, Token);
+            await Export.WriteSheetAsync(writer, "Second", new[] { new Item(2, "b"), new Item(3, "c") }, Token);
+            await writer.CompleteAsync(Token);
+        }
+
+        Dictionary<string, string> entries = Entries(target.ToArray());
+        Assert.Equal("\uFEFFId,Name\r\n1,a\r\n", entries["First.csv"]);
+        Assert.Equal("\uFEFFId,Name\r\n2,b\r\n3,c\r\n", entries["Second.csv"]);
+    }
+
+    [Fact]
+    public async Task AFiveHundredThousandRowSheetStreamsWithFlatMemory()
+    {
+        WriteTarget target = new();
+        long[] ids = [.. Enumerable.Range(0, 10_000).Select(i => (long)i)];
+        double[] scores = [.. Enumerable.Range(0, 10_000).Select(i => i / 4.0)];
+        int largestPending = 0;
+
+        await using (TabularWriter writer = TabularWriter.Create(target, TabularFormat.Zip))
+        {
+            writer.BeginSheet("Big", [new("Id"), new("Score")]);
+            ColumnBatch batch = new();
+
+            for (int chunk = 0; chunk < 50; chunk++)
+            {
+                batch.Reset(ids.Length);
+                batch.Add(ids);
+                batch.Add(scores);
+                await writer.WriteBatchAsync(batch, Token);
+                largestPending = Math.Max(largestPending, writer.PendingBytes);
+            }
+
+            writer.BeginSheet("Small", [new("a")]);
+            await writer.CompleteAsync(Token);
+        }
+
+        Assert.True(largestPending < 2 * 1024 * 1024, $"{largestPending:N0} bytes pending after a batch");
+
+        int lines = CountLines(target.ToArray(), "Big.csv");
+
+        Assert.Equal(500_001, lines);
+    }
+
+    private static int CountLines(byte[] zip, string name)
+    {
+        using ZipArchive archive = new(new MemoryStream(zip, writable: false), ZipArchiveMode.Read);
+        using StreamReader reader = new(archive.GetEntry(name)!.Open());
+        int lines = 0;
+
+        while (reader.ReadLine() is not null)
+        {
+            lines++;
+        }
+
+        return lines;
+    }
 }

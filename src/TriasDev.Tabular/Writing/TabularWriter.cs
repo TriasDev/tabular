@@ -86,6 +86,9 @@ public sealed class TabularWriter : IAsyncDisposable
     /// </summary>
     public bool FlushRecommended => _buffer.Pending >= FlushThreshold;
 
+    /// <summary>Bytes held in memory and not yet handed to the stream; a test hook for the memory bound.</summary>
+    internal int PendingBytes => (int)Math.Min(int.MaxValue, _buffer.Pending);
+
     /// <summary>Creates a writer for a format, into a stream.</summary>
     /// <param name="stream">Where the file goes: a file, a blob, a response body. It need not seek.</param>
     /// <param name="format">The format to write: csv, a zip of csv sheets, xlsx or ods.</param>
