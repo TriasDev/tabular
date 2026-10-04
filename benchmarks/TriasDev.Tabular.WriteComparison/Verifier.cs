@@ -13,11 +13,18 @@ namespace TriasDev.Tabular.WriteComparison;
 /// </remarks>
 internal static class Verifier
 {
+    /// <summary>
+    /// Rows (1-based, after the header) that are always checked: the first two, and the first of each row that
+    /// the narrow dataset gives text needing quotes (row % 7 == 3: a comma; row % 11 == 5: a quote; countries 10
+    /// and 11, at rows 10 and 11: a delimiter, a quote), taking the row after the data row's index.
+    /// </summary>
+    private static readonly long[] SampledRows = [1, 2, 4, 6, 11, 12];
+
     /// <summary>Null when the file holds the scenario's data; otherwise what is wrong.</summary>
     public static string? Check(Scenario scenario, string path)
     {
         long expectedRows = scenario.Rows + 1;
-        long[] sample = [.. new[] { 1L, 2L, (scenario.Rows / 2) + 1, scenario.Rows }.Where(r => r >= 1 && r <= scenario.Rows).Distinct()];
+        long[] sample = [.. SampledRows.Where(r => r >= 1 && r <= scenario.Rows).Concat([(scenario.Rows / 2) + 1, scenario.Rows]).Distinct()];
         bool textual = scenario.Kind is FileKind.Csv or FileKind.Zip;
         DataColumn[] columns = scenario.Dataset.Columns;
         Datum[] expected = new Datum[columns.Length];
@@ -52,7 +59,12 @@ internal static class Verifier
             return problem;
         }
 
-        return rows == expectedRows ? null : $"read back {rows:N0} rows, expected {expectedRows:N0}";
+        if (rows != expectedRows)
+        {
+            return $"read back {rows:N0} rows, expected {expectedRows:N0}";
+        }
+
+        return StyleVerifier.Check(scenario, path);
     }
 
     private static string? CheckHeader(ReadOnlySpan<RawCell> row, DataColumn[] columns)

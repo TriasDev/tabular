@@ -44,6 +44,11 @@ public static class Program
             return Measure(args[1], args[2], args[3]);
         }
 
+        if (args.Length == 3 && args[0] == "generate")
+        {
+            return Generate(args[1], args[2]);
+        }
+
         if (args.Length == 3 && args[0] == "verify")
         {
             // Checks a file already on disk against a scenario's data: for trying the verification itself.
@@ -107,6 +112,26 @@ public static class Program
         return 0;
     }
 
+    /// <summary>Generates one scenario's data and writes nothing, in this process, and prints one result line.</summary>
+    private static int Generate(string scenarioName, string mode)
+    {
+        Scenario scenario = Scenario.All.Single(s => s.Name == scenarioName);
+        Stopwatch clock = Stopwatch.StartNew();
+        long values = mode == "columns" ? Generation.ByColumn(scenario, TabularWriters.WideChunkRows) : Generation.ByRow(scenario);
+        clock.Stop();
+
+        Console.WriteLine(string.Join(
+            '\t',
+            "OK",
+            ((long)clock.Elapsed.TotalMilliseconds).ToString(CultureInfo.InvariantCulture),
+            PeakMemory.ResidentBytes().ToString(CultureInfo.InvariantCulture),
+            GC.GetTotalAllocatedBytes(precise: true).ToString(CultureInfo.InvariantCulture),
+            values.ToString(CultureInfo.InvariantCulture),
+            scenario.Rows.ToString(CultureInfo.InvariantCulture)));
+
+        return 0;
+    }
+
     private static int Drive()
     {
         int runs = int.TryParse(Environment.GetEnvironmentVariable("TABULAR_RUNS"), out int r) && r > 0 ? r : 3;
@@ -126,6 +151,7 @@ public static class Program
             [
                 .. Writers
                     .Where(w => w.Kind == scenario.Kind)
+                    .Where(w => !scenario.TabularOnly || w.Name == "TriasDev.Tabular")
                     .Where(w => onlyWriters.Length == 0 || onlyWriters.Contains(w.Name, StringComparer.OrdinalIgnoreCase)),
             ];
 
@@ -136,7 +162,7 @@ public static class Program
                 results.Add(Repeat(scenario, writer, folder, runs, timeout));
             }
 
-            Print(scenario, results, [.. candidates.Where(w => scenario.Styled && !w.Styled)]);
+            Print(scenario, results, [.. candidates.Where(w => scenario.Styled && !w.Styled)], Baselines(scenario, runs, timeout));
         }
 
         return 0;
@@ -146,31 +172,53 @@ public static class Program
         (Environment.GetEnvironmentVariable(variable) ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    private sealed record Result(IWriter Writer, string? Failure, long Ms, long Peak, long Allocated, long Bytes, long Rows);
+    private sealed record Result(IWriter? Writer, string? Failure, long Ms, long Peak, long Allocated, long Bytes, long Rows);
+
+    /// <summary>The data generation alone, as each way of consuming it pays for it: by row (every row writer) and, for wide data, by typed column.</summary>
+    private static List<(string Label, Result Result)> Baselines(Scenario scenario, int runs, int timeout)
+    {
+        List<(string, Result)> baselines =
+        [
+            ("row by row, one cell struct per value (what a row-oriented writer consumes)", RepeatChild(null, ["generate", scenario.Name, "rows"], runs, timeout)),
+        ];
+
+        if (scenario.Dataset is WideDataset)
+        {
+            baselines.Add(("typed column arrays in batches of 500 rows (what `ColumnBatch` consumes)", RepeatChild(null, ["generate", scenario.Name, "columns"], runs, timeout)));
+        }
+
+        return baselines;
+    }
 
     private static Result Repeat(Scenario scenario, IWriter writer, string folder, int runs, int timeout)
     {
-        List<string[]> ok = [];
         string path = Path.Combine(folder, $"{scenario.Name}-{Guid.NewGuid():N}{scenario.Extension}");
 
         try
         {
-            for (int i = 0; i < runs; i++)
-            {
-                string[] parts = RunChild(scenario.Name, Key(writer), path, timeout);
-
-                if (parts[0] != "OK")
-                {
-                    // A failure is a result, not noise: the same input fails the same way every time.
-                    return new Result(writer, parts.Length > 1 ? parts[1] : parts[0], 0, 0, 0, 0, 0);
-                }
-
-                ok.Add(parts);
-            }
+            return RepeatChild(writer, ["measure", scenario.Name, Key(writer), path], runs, timeout);
         }
         finally
         {
             File.Delete(path);
+        }
+    }
+
+    private static Result RepeatChild(IWriter? writer, string[] arguments, int runs, int timeout)
+    {
+        List<string[]> ok = [];
+
+        for (int i = 0; i < runs; i++)
+        {
+            string[] parts = RunChild(arguments, timeout);
+
+            if (parts[0] != "OK")
+            {
+                // A failure is a result, not noise: the same input fails the same way every time.
+                return new Result(writer, parts.Length > 1 ? parts[1] : parts[0], 0, 0, 0, 0, 0);
+            }
+
+            ok.Add(parts);
         }
 
         long Median(int field) =>
@@ -179,7 +227,7 @@ public static class Program
         return new Result(writer, null, Median(1), Median(2), Median(3), Median(4), Median(5));
     }
 
-    private static string[] RunChild(string scenario, string key, string path, int timeoutSeconds)
+    private static string[] RunChild(string[] arguments, int timeoutSeconds)
     {
         ProcessStartInfo start = new()
         {
@@ -194,7 +242,7 @@ public static class Program
             start.ArgumentList.Add(Environment.GetCommandLineArgs()[0]);
         }
 
-        foreach (string argument in (string[])["measure", scenario, key, path])
+        foreach (string argument in arguments)
         {
             start.ArgumentList.Add(argument);
         }
@@ -222,7 +270,7 @@ public static class Program
         return line.Split('\t');
     }
 
-    private static void Print(Scenario scenario, List<Result> results, List<IWriter> left)
+    private static void Print(Scenario scenario, List<Result> results, List<IWriter> left, List<(string Label, Result Result)> baselines)
     {
         Console.WriteLine($"## {scenario.Name}: {scenario.Dataset.Name}, {scenario.Rows:N0} rows x {scenario.Dataset.Columns.Length:N0} columns, {scenario.Kind.ToString().ToLowerInvariant()}{(scenario.Styled ? ", styled" : string.Empty)}");
         Console.WriteLine();
@@ -231,7 +279,7 @@ public static class Program
 
         foreach (Result x in results.OrderBy(x => x.Failure is null ? 0 : 1).ThenBy(x => x.Ms))
         {
-            string version = Version(x.Writer.Anchor);
+            string version = Version(x.Writer!.Anchor);
 
             if (x.Failure is not null)
             {
@@ -241,6 +289,15 @@ public static class Program
 
             Console.WriteLine(
                 $"| {x.Writer.Name} | {version} | {x.Ms / 1000d:N2} s | {Megabytes(x.Peak)} | {Megabytes(x.Allocated)} | {x.Bytes / 1024d / 1024d:N1} MB | |");
+        }
+
+        Console.WriteLine();
+
+        foreach ((string label, Result generation) in baselines)
+        {
+            Console.WriteLine(generation.Failure is null
+                ? $"Generating the data alone, {label}: {generation.Ms / 1000d:N2} s, {Megabytes(generation.Allocated)} allocated. Every library's time includes the matching share."
+                : $"Generating the data alone, {label}: failed ({generation.Failure}).");
         }
 
         Console.WriteLine();
@@ -262,7 +319,7 @@ public static class Program
         Console.WriteLine($"- Runtime: {RuntimeInformation.FrameworkDescription}, "
             + $"{(System.Runtime.GCSettings.IsServerGC ? "server" : "workstation")} GC");
         Console.WriteLine($"- Each figure is the median of {runs} runs, each in a fresh process. Time covers creating the "
-            + "file, writing every row and closing it; the data is generated inside the timed part, identically for every library. "
+            + "file, writing every row and closing it; the data is generated inside the timed part, from the same generators for every library, so each scenario also reports what generating it alone costs, in the form a row-oriented writer consumes it (one cell struct per value) and, for wide data, as typed column arrays; a library's time includes the share that matches how it takes its data. "
             + "Peak memory is the process's peak resident set; allocated is everything the garbage collector handed out over the run. "
             + "Every file is read back with TriasDev.Tabular after the timed part and checked against the data.");
         Console.WriteLine();

@@ -14,7 +14,7 @@ namespace TriasDev.Tabular.WriteComparison.Writers;
 internal abstract class TabularWriters : IWriter
 {
     /// <summary>Rows per batch of the wide scenarios: a batch holds <c>5,000 × rows</c> doubles, so this is what the harness holds.</summary>
-    private const int WideChunk = 500;
+    internal const int WideChunkRows = 500;
 
     private static readonly CellStyle[] Legend = [.. Styles.LegendFills.Select(f => new CellStyle { Fill = CellColor.FromRgb(f) })];
 
@@ -133,12 +133,12 @@ internal abstract class TabularWriters : IWriter
         StyleId date = scenario.Styled ? writer.Style(new CellStyle { Date = DateFormat.Parse(Styles.DateFormat) }) : default;
 
         ColumnBatch batch = new();
-        Chunk chunk = new(WideChunk);
+        WideChunk chunk = new(WideChunkRows);
 
-        for (long first = 0; first < scenario.Rows; first += WideChunk)
+        for (long first = 0; first < scenario.Rows; first += WideChunkRows)
         {
-            int rows = (int)Math.Min(WideChunk, scenario.Rows - first);
-            Chunk current = rows == WideChunk ? chunk : new Chunk(rows);
+            int rows = (int)Math.Min(WideChunkRows, scenario.Rows - first);
+            WideChunk current = rows == WideChunkRows ? chunk : new WideChunk(rows);
 
             current.Fill(first);
             batch.Reset(rows);
@@ -159,47 +159,6 @@ internal abstract class TabularWriters : IWriter
             }
 
             writer.WriteBatchAsync(batch).AsTask().GetAwaiter().GetResult();
-        }
-    }
-
-    /// <summary>The column arrays of one batch of the wide dataset, reused from batch to batch.</summary>
-    private sealed class Chunk
-    {
-        public Chunk(int rows)
-        {
-            Ids = new long[rows];
-            Names = new string[rows];
-            Starts = new DateOnly[rows];
-            Measured = [.. Enumerable.Range(0, WideDataset.Measured).Select(_ => new double?[rows])];
-        }
-
-        public long[] Ids { get; }
-
-        public string[] Names { get; }
-
-        public DateOnly[] Starts { get; }
-
-        public double?[][] Measured { get; }
-
-        public void Fill(long first)
-        {
-            for (int r = 0; r < Ids.Length; r++)
-            {
-                long row = first + r;
-                Ids[r] = row;
-                Names[r] = WideDataset.NameOf(row);
-                Starts[r] = DateOnly.FromDateTime(WideDataset.Start(row));
-            }
-
-            for (int c = 0; c < Measured.Length; c++)
-            {
-                double?[] column = Measured[c];
-
-                for (int r = 0; r < column.Length; r++)
-                {
-                    column[r] = WideDataset.Value(first + r, c);
-                }
-            }
         }
     }
 }
