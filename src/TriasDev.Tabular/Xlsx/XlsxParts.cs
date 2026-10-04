@@ -13,7 +13,9 @@ internal static class XlsxParts
         + "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
         + "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">";
 
-    public const string WorksheetEnd = "</sheetData></worksheet>";
+    public const string SheetDataEnd = "</sheetData>";
+
+    public const string WorksheetClose = "</worksheet>";
 
     public static readonly byte[] PackageRelationships = Encoding.UTF8.GetBytes(
         XmlDeclaration
@@ -41,7 +43,7 @@ internal static class XlsxParts
         return Encoding.UTF8.GetBytes(xml.Append("</Types>").ToString());
     }
 
-    public static byte[] Workbook(IReadOnlyList<string> sheetNames)
+    public static byte[] Workbook(IReadOnlyList<string> sheetNames, IReadOnlyList<(int Sheet, string Range)> filters)
     {
         StringBuilder xml = new(
             XmlDeclaration
@@ -55,7 +57,23 @@ internal static class XlsxParts
             xml.Append(CultureInfo.InvariantCulture, $"\" sheetId=\"{i + 1}\" r:id=\"rId{i + 1}\"/>");
         }
 
-        return Encoding.UTF8.GetBytes(xml.Append("</sheets></workbook>").ToString());
+        xml.Append("</sheets>");
+
+        if (filters.Count > 0)
+        {
+            xml.Append("<definedNames>");
+
+            foreach ((int sheet, string range) in filters)
+            {
+                xml.Append(CultureInfo.InvariantCulture, $"<definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"{sheet}\" hidden=\"1\">'");
+                AppendEscaped(xml, sheetNames[sheet].Replace("'", "''", StringComparison.Ordinal));
+                xml.Append("'!").Append(range).Append("</definedName>");
+            }
+
+            xml.Append("</definedNames>");
+        }
+
+        return Encoding.UTF8.GetBytes(xml.Append("</workbook>").ToString());
     }
 
     public static byte[] WorkbookRelationships(int sheets)

@@ -43,7 +43,13 @@ internal sealed class OdsSheetWriter : ISheetWriter
     private readonly RowText _row = new();
     private readonly List<(string Name, int Rows, int Columns)> _frozen = [];
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
+    private readonly List<(int Sheet, string Name, int Columns, long Rows)> _filters = [];
     private Stream? _content;
+    private string _name = string.Empty;
+    private int _columns;
+    private int _sheets;
+    private long _rowNumber;
+    private bool _filter;
 
     public OdsSheetWriter(SpillBuffer output, OdsWriterOptions options, StyleTable styles)
     {
@@ -68,6 +74,12 @@ internal sealed class OdsSheetWriter : ISheetWriter
             _frozen.Add((name, options.FreezeRows, options.FreezeColumns));
         }
 
+        RecordFilter();
+        _name = name;
+        _columns = columns.Length;
+        _filter = options.AutoFilter;
+        _rowNumber = 0;
+        _sheets++;
         _row.Clear();
 
         if (_content is null)
@@ -77,7 +89,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         }
         else
         {
-            _row.Append("</table:table>");
+            _row.Append(OdsParts.TableEnd);
         }
 
         _row.Append("<table:table table:name=\"");
@@ -89,6 +101,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     public void BeginRow()
     {
+        _rowNumber++;
         _row.Clear();
         _row.Append("<table:table-row>");
     }
@@ -177,7 +190,10 @@ internal sealed class OdsSheetWriter : ISheetWriter
         if (_content is not null)
         {
             _row.Clear();
-            _row.Append(OdsParts.ContentEnd);
+            RecordFilter();
+            _row.Append(OdsParts.TableEnd);
+            _row.Append(OdsParts.DatabaseRanges(_filters));
+            _row.Append(OdsParts.SpreadsheetEnd);
             Emit();
             _zip.EndEntry();
             _content = null;
@@ -199,6 +215,15 @@ internal sealed class OdsSheetWriter : ISheetWriter
         // An abandoned spreadsheet: release the open entry's deflate state, write nothing more.
         _content?.Dispose();
         _content = null;
+    }
+
+    /// <summary>At a sheet's end: notes its filter, if it has one, for the database ranges written after the last sheet.</summary>
+    private void RecordFilter()
+    {
+        if (_filter)
+        {
+            _filters.Add((_sheets - 1, _name, _columns, _rowNumber));
+        }
     }
 
     /// <summary>Opens a number cell up to its value; LibreOffice formats the display from the value.</summary>

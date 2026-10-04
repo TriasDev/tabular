@@ -44,11 +44,13 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private readonly ZipWriter _zip;
     private readonly XlsxStyles _styles;
     private readonly List<string> _sheetNames = [];
+    private readonly List<(int Sheet, string Range)> _filters = [];
     private readonly RowText _row = new();
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
     private Stream? _sheet;
     private string[] _columnNames = [];
     private long _rowNumber;
+    private bool _filter;
     private int _column;
 
     public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options, StyleTable styles)
@@ -86,6 +88,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
 
         _rowNumber = 0;
+        _filter = options.AutoFilter;
         _row.Clear();
         _row.Append(XlsxParts.WorksheetStart);
         AppendFreeze(options.FreezeRows, options.FreezeColumns);
@@ -187,7 +190,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         CloseSheet();
         _zip.AddStored("[Content_Types].xml", XlsxParts.ContentTypes(_sheetNames.Count));
         _zip.AddStored("_rels/.rels", XlsxParts.PackageRelationships);
-        _zip.AddStored("xl/workbook.xml", XlsxParts.Workbook(_sheetNames));
+        _zip.AddStored("xl/workbook.xml", XlsxParts.Workbook(_sheetNames, _filters));
         _zip.AddStored("xl/_rels/workbook.xml.rels", XlsxParts.WorkbookRelationships(_sheetNames.Count));
         _zip.AddStored("xl/styles.xml", _styles.Build());
         _zip.Complete();
@@ -384,6 +387,22 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
     }
 
+    /// <summary>The filter over the header through the last row; the workbook names the same range for Excel.</summary>
+    private void AppendAutoFilter()
+    {
+        if (!_filter)
+        {
+            return;
+        }
+
+        string last = _columnNames[^1];
+        _row.Append("<autoFilter ref=\"A1:");
+        _row.Append(last);
+        _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
+        _row.Append("\"/>");
+        _filters.Add((_sheetNames.Count - 1, string.Create(CultureInfo.InvariantCulture, $"$A$1:${last}${_rowNumber}")));
+    }
+
     private void CloseSheet()
     {
         if (_sheet is null)
@@ -392,7 +411,9 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
 
         _row.Clear();
-        _row.Append(XlsxParts.WorksheetEnd);
+        _row.Append(XlsxParts.SheetDataEnd);
+        AppendAutoFilter();
+        _row.Append(XlsxParts.WorksheetClose);
         Emit();
         _zip.EndEntry();
         _sheet = null;

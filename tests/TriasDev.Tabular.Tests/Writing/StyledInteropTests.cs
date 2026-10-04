@@ -83,4 +83,32 @@ public sealed class StyledInteropTests
         Assert.Contains("rgb=\"FFF8696B\"", styles, StringComparison.OrdinalIgnoreCase);
         Assert.Matches("<b( val=\"(true|1)\")?/>", styles);
     }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheFilterOfAnOds()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, writer =>
+        {
+            writer.BeginSheet("Bob's data", [new("a"), new("b")], new SheetOptions { AutoFilter = true });
+            writer.BeginRow();
+            writer.Write(1L);
+            writer.EndRow();
+        });
+
+        Assert.Contains("<autoFilter ref=\"A1:B2\"", Entry(LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx"), "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheFilterOfAnXlsx()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            writer.BeginSheet("Bob's data", [new("a"), new("b")], new SheetOptions { AutoFilter = true });
+            writer.BeginRow();
+            writer.Write(1L);
+            writer.EndRow();
+        });
+
+        Assert.Contains("table:display-filter-buttons=\"true\"", Entry(LibreOffice.Convert(xlsx, "xlsx", "ods", "ods"), "content.xml"), StringComparison.Ordinal);
+    }
 }

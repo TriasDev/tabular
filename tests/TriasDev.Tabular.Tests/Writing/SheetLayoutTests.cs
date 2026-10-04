@@ -158,4 +158,43 @@ public sealed class SheetLayoutTests
 
         Assert.Equal(plain, laidOut);
     }
+
+    private static void Filtered(TabularWriter writer)
+    {
+        writer.BeginSheet("Bob's data", [new("a"), new("b"), new("c")], new SheetOptions { AutoFilter = true });
+
+        for (int i = 0; i < 3; i++)
+        {
+            writer.BeginRow();
+            writer.Write((long)i);
+            writer.EndRow();
+        }
+
+        writer.BeginSheet("plain", [new("a")]);
+        writer.BeginSheet("second", [new("a"), new("b")], new SheetOptions { AutoFilter = true });
+    }
+
+    [Fact]
+    public async Task XlsxFiltersTheHeaderThroughTheLastRow()
+    {
+        byte[] xlsx = await Write(TabularFormat.Xlsx, Filtered);
+
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+        Assert.Contains("</sheetData><autoFilter ref=\"A1:C4\"/></worksheet>", Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+        Assert.DoesNotContain("autoFilter", Entry(xlsx, "xl/worksheets/sheet2.xml"), StringComparison.Ordinal);
+        Assert.Contains("<autoFilter ref=\"A1:B1\"/>", Entry(xlsx, "xl/worksheets/sheet3.xml"), StringComparison.Ordinal);
+
+        string workbook = Entry(xlsx, "xl/workbook.xml");
+        Assert.Contains("<definedNames><definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"0\" hidden=\"1\">'Bob''s data'!$A$1:$C$4</definedName><definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"2\" hidden=\"1\">'second'!$A$1:$B$1</definedName></definedNames>", workbook, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OdsFiltersTheHeaderThroughTheLastRow()
+    {
+        byte[] ods = await Write(TabularFormat.Ods, Filtered);
+        string content = Entry(ods, "content.xml");
+
+        Assert.Contains("</table:table><table:database-ranges><table:database-range table:name=\"__Anonymous_Sheet_DB__0\" table:target-range-address=\"'Bob''s data'.A1:'Bob''s data'.C4\" table:display-filter-buttons=\"true\"/><table:database-range table:name=\"__Anonymous_Sheet_DB__2\" table:target-range-address=\"'second'.A1:'second'.B1\" table:display-filter-buttons=\"true\"/></table:database-ranges></office:spreadsheet>", content, StringComparison.Ordinal);
+        Assert.Equal(4, Rows(ods).Count);
+    }
 }

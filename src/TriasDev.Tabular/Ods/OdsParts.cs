@@ -18,7 +18,30 @@ internal static class OdsParts
 
     public const string BooleanStyle = "ce3";
 
-    public const string ContentEnd = "</table:table></office:spreadsheet></office:body></office:document-content>";
+    public const string TableEnd = "</table:table>";
+
+    public const string SpreadsheetEnd = "</office:spreadsheet></office:body></office:document-content>";
+
+    /// <summary>The auto-filters, as LibreOffice's sheet-local anonymous database ranges, header through last row.</summary>
+    public static string DatabaseRanges(IReadOnlyList<(int Sheet, string Name, int Columns, long Rows)> filters)
+    {
+        if (filters.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        StringBuilder xml = new("<table:database-ranges>");
+
+        foreach ((int sheet, string name, int columns, long rows) in filters)
+        {
+            string quoted = "'" + name.Replace("'", "''", StringComparison.Ordinal) + "'";
+            xml.Append(CultureInfo.InvariantCulture, $"<table:database-range table:name=\"__Anonymous_Sheet_DB__{sheet}\" table:target-range-address=\"");
+            AppendAttribute(xml, $"{quoted}.A1:{quoted}.{Xlsx.XlsxParts.ColumnName(columns - 1)}{rows}");
+            xml.Append("\" table:display-filter-buttons=\"true\"/>");
+        }
+
+        return xml.Append("</table:database-ranges>").ToString();
+    }
 
     internal const string XmlDeclaration = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
