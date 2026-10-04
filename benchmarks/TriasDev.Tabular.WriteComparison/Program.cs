@@ -15,15 +15,23 @@ namespace TriasDev.Tabular.WriteComparison;
 /// <remarks>
 /// <para>
 /// Every measurement runs in a process of its own, because peak memory only ever rises within a
-/// process, and each is repeated and the median reported. After the timed part the process re-reads
-/// the file with <see cref="TabularFile"/> and checks it against the dataset; a file that does not read
-/// back is reported as failed, not timed.
+/// process, and each is repeated and the median reported.
+/// </para>
+/// <para>
+/// The timed write goes into a <see cref="CountingStream"/>, which discards the bytes and counts them (the
+/// reported size), so no library's time includes the file system's: flushing gigabytes to disk made the
+/// times depend on what the runs before had written. Every writer streams into it, none needs to read or
+/// seek its target. After the timed part, and after peak memory and allocation are sampled, the process
+/// writes the same scenario again, untimed, into a file, checks that it is as long as the timed write (within
+/// a kilobyte: a writer may put random ids into its file), re-reads
+/// it with <see cref="TabularFile"/> and checks it against the dataset; a file that does not read back is
+/// reported as failed, not timed.
 /// </para>
 /// <para>
 /// Configured through the environment: <c>TABULAR_RUNS</c> (repetitions, default 3),
 /// <c>TABULAR_WRITERS</c> and <c>TABULAR_SCENARIOS</c> (comma-separated names to restrict to),
 /// <c>TABULAR_OUT</c> (folder for the files; default a temporary one; each file is deleted after its
-/// measurement), <c>TABULAR_TIMEOUT</c> (seconds per run, default 900) and <c>TABULAR_ROWS_SCALE</c>
+/// measurement; only the untimed check writes it), <c>TABULAR_TIMEOUT</c> (seconds per run, default 900) and <c>TABULAR_ROWS_SCALE</c>
 /// (a fraction below 1 of every scenario's rows, for trying the harness).
 /// </para>
 /// </remarks>
@@ -81,18 +89,34 @@ public static class Program
         {
             Stopwatch clock = Stopwatch.StartNew();
 
-            using (FileStream target = new(path, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024))
+            using (CountingStream target = new())
             {
                 writer.Write(scenario, target);
+                bytes = target.Count;
             }
 
             clock.Stop();
             milliseconds = (long)clock.Elapsed.TotalMilliseconds;
 
-            // Taken before the verification, which reads the file and would raise both.
+            // Taken before the verification, which writes and reads the file and would raise both.
             peak = PeakMemory.ResidentBytes();
             allocated = GC.GetTotalAllocatedBytes(precise: true);
-            bytes = new FileInfo(path).Length;
+
+            // The same write again, untimed, into a file that is then read back: what was timed is what is checked.
+            // It goes through the same forward-only stream, so the writer makes the same choices and the same bytes.
+            using (FileStream file = new(path, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024))
+            using (CountingStream target = new(file))
+            {
+                writer.Write(scenario, target);
+            }
+
+            // A writer may put random ids into its file (MiniExcel's relationship ids), which compress a byte or two differently;
+            // anything more means the two writes were not the same.
+            if (new FileInfo(path).Length is var written && Math.Abs(written - bytes) > 1024)
+            {
+                Console.WriteLine($"FAILED\tthe file written for the check ({written:N0} bytes) differs in size from the timed write ({bytes:N0} bytes)");
+                return 0;
+            }
 
             if (Verifier.Check(scenario, path) is { } problem)
             {
@@ -327,7 +351,8 @@ public static class Program
         Console.WriteLine($"- Each figure is the median of {runs} runs, each in a fresh process. Time covers creating the "
             + "file, writing every row and closing it; the data is generated inside the timed part, from the same generators for every library, so each scenario also reports what generating it alone costs, in the form a row-oriented writer consumes it (one cell struct per value) and, for wide data, as typed column arrays; a library's time includes the share that matches how it takes its data. "
             + "Peak memory is the process's peak resident set; allocated is everything the garbage collector handed out over the run. "
-            + "Every file is read back with TriasDev.Tabular after the timed part and checked against the data.");
+            + "The timed write goes into a stream that counts the bytes and discards them, so no time includes the file system's; "
+            + "the same file is then written again, untimed, to disk, read back with TriasDev.Tabular and checked against the data.");
         Console.WriteLine();
     }
 
