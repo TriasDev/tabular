@@ -36,6 +36,7 @@ public sealed class TabularWriter : IAsyncDisposable
     private readonly Stream _target;
     private readonly SpillBuffer _buffer;
     private readonly ISheetWriter _sheet;
+    private readonly StyleTable _styles;
     private readonly bool _leaveOpen;
     private State _state = State.Open;
     private WriteColumn[] _columns = [];
@@ -45,12 +46,13 @@ public sealed class TabularWriter : IAsyncDisposable
     private long _rowNumber;
     private int _column;
 
-    private TabularWriter(Stream target, TabularFormat format, SpillBuffer buffer, ISheetWriter sheet, bool leaveOpen)
+    private TabularWriter(Stream target, TabularFormat format, SpillBuffer buffer, ISheetWriter sheet, StyleTable styles, bool leaveOpen)
     {
         _target = target;
         Format = format;
         _buffer = buffer;
         _sheet = sheet;
+        _styles = styles;
         _leaveOpen = leaveOpen;
     }
 
@@ -115,20 +117,22 @@ public sealed class TabularWriter : IAsyncDisposable
 #pragma warning restore S3928
             }
 
+            StyleTable styles = new();
+
             switch (format)
             {
                 case TabularFormat.Csv:
                     CsvFormat csv = effective.Csv.Resolve();
                     SpillBuffer buffer = new();
-                    return new TabularWriter(stream, format, buffer, new CsvSheetWriter(buffer, csv), effective.LeaveOpen);
+                    return new TabularWriter(stream, format, buffer, new CsvSheetWriter(buffer, csv), styles, effective.LeaveOpen);
                 case TabularFormat.Xlsx:
                     XlsxWriterOptions xlsx = effective.Xlsx.Checked();
                     SpillBuffer workbook = new();
-                    return new TabularWriter(stream, format, workbook, new XlsxSheetWriter(workbook, xlsx), effective.LeaveOpen);
+                    return new TabularWriter(stream, format, workbook, new XlsxSheetWriter(workbook, xlsx, styles), styles, effective.LeaveOpen);
                 case TabularFormat.Ods:
                     OdsWriterOptions ods = effective.Ods.Checked();
                     SpillBuffer spreadsheet = new();
-                    return new TabularWriter(stream, format, spreadsheet, new OdsSheetWriter(spreadsheet, ods), effective.LeaveOpen);
+                    return new TabularWriter(stream, format, spreadsheet, new OdsSheetWriter(spreadsheet, ods, styles), styles, effective.LeaveOpen);
                 default:
                     throw new ArgumentOutOfRangeException(nameof(format), format, $"Writing {format} is not supported.");
             }
@@ -222,19 +226,48 @@ public sealed class TabularWriter : IAsyncDisposable
         StartRow();
     }
 
+    /// <summary>
+    /// Registers a style for this writer's cells and returns its id, to pass to the <c>Write</c>
+    /// overloads. The same style, by value, returns the same id. Call it before or during any sheet;
+    /// csv files ignore styles.
+    /// </summary>
+    /// <exception cref="TabularLimitException">The file already holds 4096 distinct styles.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The style's alignment is not a defined value.</exception>
+    public StyleId Style(CellStyle style)
+    {
+        ExpectWritable();
+
+        try
+        {
+            return new StyleId(_styles.Add(style));
+        }
+        catch (Exception refused) when (refused is ArgumentException or TabularLimitException)
+        {
+            MarkFaulted();
+            throw;
+        }
+    }
+
     /// <summary>Writes the next cell as text; null writes an empty cell.</summary>
     /// <remarks>The import trims text and reads empty or whitespace-only text as no value.</remarks>
-    public void Write(string? value)
+    public void Write(string? value) => Write(value, default);
+
+    /// <inheritdoc cref="Write(string?)"/>
+    /// <param name="value">The text; null writes an empty cell.</param>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void Write(string? value, StyleId style)
     {
         int column = NextCell();
+        int index = Index(style);
 
         if (value is null)
         {
-            _sheet.WriteEmpty();
+            _sheet.WriteEmpty(index);
             return;
         }
 
-        Check(TextRules.Check(value) ?? _sheet.WriteText(value, column), column);
+        Check(TextRules.Check(value) ?? _sheet.WriteText(value, column, index), column);
     }
 
     /// <summary>Writes the next cell as an integer. Narrower integers arrive here by implicit conversion.</summary>
@@ -244,59 +277,100 @@ public sealed class TabularWriter : IAsyncDisposable
     /// implicitly to both <see cref="double"/> and <see cref="decimal"/>, so the call is ambiguous and
     /// does not compile; convert it explicitly, to <see cref="long"/> or <see cref="decimal"/>.
     /// </remarks>
-    public void Write(long value)
+    public void Write(long value) => Write(value, default);
+
+    /// <inheritdoc cref="Write(long)"/>
+    /// <param name="value">The integer.</param>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void Write(long value, StyleId style)
     {
         int column = NextCell();
-        Check(_sheet.WriteLong(value), column);
+        Check(_sheet.WriteLong(value, Index(style)), column);
     }
 
     /// <summary>Writes the next cell as a decimal number.</summary>
-    public void Write(decimal value)
+    public void Write(decimal value) => Write(value, default);
+
+    /// <inheritdoc cref="Write(decimal)"/>
+    /// <param name="value">The number.</param>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void Write(decimal value, StyleId style)
     {
         int column = NextCell();
-        Check(_sheet.WriteDecimal(value), column);
+        Check(_sheet.WriteDecimal(value, Index(style)), column);
     }
 
     /// <summary>
     /// Writes the next cell as a number. Refused when not finite, or when it has more than 15
     /// significant digits — which a workbook would not give back.
     /// </summary>
-    public void Write(double value)
+    public void Write(double value) => Write(value, default);
+
+    /// <inheritdoc cref="Write(double)"/>
+    /// <param name="value">The number.</param>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void Write(double value, StyleId style)
     {
         int column = NextCell();
-        Check(ValueChecks.Double(value) ?? _sheet.WriteDouble(value), column);
+        Check(ValueChecks.Double(value) ?? _sheet.WriteDouble(value, Index(style)), column);
     }
 
     /// <summary>
     /// Writes the next cell as a date, with its time of day when it has one. Anything finer than a
     /// millisecond is dropped, and the kind is not kept: the import returns the wall-clock value.
     /// </summary>
-    public void Write(DateTime value)
+    public void Write(DateTime value) => Write(value, default);
+
+    /// <inheritdoc cref="Write(DateTime)"/>
+    /// <param name="value">The date and time.</param>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void Write(DateTime value, StyleId style)
     {
         int column = NextCell();
         DateTime truncated = ValueChecks.Truncated(value);
-        Check(_sheet.WriteDate(truncated, truncated.TimeOfDay != TimeSpan.Zero), column);
+        Check(_sheet.WriteDate(truncated, truncated.TimeOfDay != TimeSpan.Zero, Index(style)), column);
     }
 
     /// <summary>Writes the next cell as a date. The import returns it as a <see cref="DateTime"/> at midnight.</summary>
-    public void Write(DateOnly value)
+    public void Write(DateOnly value) => Write(value, default);
+
+    /// <inheritdoc cref="Write(DateOnly)"/>
+    /// <param name="value">The date.</param>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void Write(DateOnly value, StyleId style)
     {
         int column = NextCell();
-        Check(_sheet.WriteDate(value.ToDateTime(TimeOnly.MinValue), hasTime: false), column);
+        Check(_sheet.WriteDate(value.ToDateTime(TimeOnly.MinValue), hasTime: false, Index(style)), column);
     }
 
     /// <summary>Writes the next cell as a boolean.</summary>
-    public void Write(bool value)
+    public void Write(bool value) => Write(value, default);
+
+    /// <inheritdoc cref="Write(bool)"/>
+    /// <param name="value">The boolean.</param>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void Write(bool value, StyleId style)
     {
         NextCell();
-        _sheet.WriteBoolean(value);
+        _sheet.WriteBoolean(value, Index(style));
     }
 
     /// <summary>Writes the next cell empty.</summary>
-    public void WriteEmpty()
+    public void WriteEmpty() => WriteEmpty(default);
+
+    /// <inheritdoc cref="WriteEmpty()"/>
+    /// <param name="style">A style this writer handed out, or the default for none.</param>
+    /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
+    public void WriteEmpty(StyleId style)
     {
         NextCell();
-        _sheet.WriteEmpty();
+        _sheet.WriteEmpty(Index(style));
     }
 
     /// <summary>Ends the row; columns it did not reach are written empty.</summary>
@@ -470,11 +544,24 @@ public sealed class TabularWriter : IAsyncDisposable
     {
         for (; _column < _columns.Length; _column++)
         {
-            _sheet.WriteEmpty();
+            _sheet.WriteEmpty(0);
         }
 
         _sheet.EndRow();
         _state = State.InSheet;
+    }
+
+    /// <summary>The style's index, refused unless this writer handed it out.</summary>
+    private int Index(StyleId style)
+    {
+        int index = style.Value;
+
+        if ((uint)index >= (uint)_styles.Count)
+        {
+            throw Faulting(new ArgumentException($"{style} was not handed out by this writer's Style method.", nameof(style)));
+        }
+
+        return index;
     }
 
     private int NextCell()

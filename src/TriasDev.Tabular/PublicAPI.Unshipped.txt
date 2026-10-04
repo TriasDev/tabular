@@ -247,3 +247,12 @@ TriasDev.Tabular.NumberFormat
 TriasDev.Tabular.NumberFormat.<Clone>$() -> TriasDev.Tabular.NumberFormat!
 TriasDev.Tabular.NumberFormat.Code.get -> string!
 TriasDev.Tabular.NumberFormat.Equals(TriasDev.Tabular.NumberFormat? other) -> bool
+TriasDev.Tabular.TabularWriter.Style(TriasDev.Tabular.CellStyle! style) -> TriasDev.Tabular.StyleId
+TriasDev.Tabular.TabularWriter.Write(string? value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(long value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(decimal value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(double value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateTime value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateOnly value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(bool value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.WriteEmpty(TriasDev.Tabular.StyleId style) -> void

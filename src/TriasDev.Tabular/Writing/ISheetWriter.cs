@@ -32,27 +32,29 @@ internal interface ISheetWriter : IDisposable
     /// </summary>
     string? WriteHeader(string value);
 
+    // Every Write* method below takes `style`: the cell's index in the writer's StyleTable; 0 is unstyled.
+
     /// <summary>
     /// Writes text already checked by <see cref="TextRules"/> into the zero-based
     /// <paramref name="column"/>; returns a code if the format cannot hold it.
     /// </summary>
-    string? WriteText(string value, int column);
+    string? WriteText(string value, int column, int style);
 
     /// <summary>Writes an integer; returns a code if the format cannot hold it exactly.</summary>
-    string? WriteLong(long value);
+    string? WriteLong(long value, int style);
 
     /// <summary>Writes a decimal; returns a code if the format cannot hold it exactly.</summary>
-    string? WriteDecimal(decimal value);
+    string? WriteDecimal(decimal value, int style);
 
     /// <summary>Writes a double already checked by <see cref="ValueChecks.Double"/>.</summary>
-    string? WriteDouble(double value);
+    string? WriteDouble(double value, int style);
 
     /// <summary>Writes a date already truncated to the millisecond; <paramref name="hasTime"/> says whether it has a time of day.</summary>
-    string? WriteDate(DateTime value, bool hasTime);
+    string? WriteDate(DateTime value, bool hasTime, int style);
 
-    void WriteBoolean(bool value);
+    void WriteBoolean(bool value, int style);
 
-    void WriteEmpty();
+    void WriteEmpty(int style);
 
     void EndRow();
 

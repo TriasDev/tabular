@@ -3,7 +3,7 @@ using System.Globalization;
 namespace TriasDev.Tabular;
 
 /// <summary>
-/// A style registered with one writer by its Style method, to pass with each cell written in it.
+/// A style registered with one writer by <see cref="TabularWriter.Style"/>, to pass with each cell written in it.
 /// Valid only with the writer that returned it. The default value is the unstyled cell.
 /// </summary>
 public readonly record struct StyleId

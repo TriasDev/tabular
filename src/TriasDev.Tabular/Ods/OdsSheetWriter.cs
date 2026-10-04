@@ -37,12 +37,16 @@ internal sealed class OdsSheetWriter : ISheetWriter
     private static readonly SearchValues<char> NeedsMarkup = SearchValues.Create("&<> \t\n\r");
 
     private readonly ZipWriter _zip;
+#pragma warning disable S4487 // Justification: read once the styled cells are written, in the part that follows
+    private readonly StyleTable _styles;
+#pragma warning restore S4487
     private readonly RowText _row = new();
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
     private Stream? _content;
 
-    public OdsSheetWriter(SpillBuffer output, OdsWriterOptions options)
+    public OdsSheetWriter(SpillBuffer output, OdsWriterOptions options, StyleTable styles)
     {
+        _styles = styles;
         _zip = new ZipWriter(output, options.CompressionLevel);
 
         // OpenDocument's rule: the mimetype is the first entry, stored, so a reader knows the file
@@ -85,9 +89,9 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     public string? WriteHeader(string value) => WriteString(value);
 
-    public string? WriteText(string value, int column) => WriteString(value);
+    public string? WriteText(string value, int column, int style) => WriteString(value);
 
-    public string? WriteLong(long value)
+    public string? WriteLong(long value, int style)
     {
         if (ValueChecks.LongInDouble(value) is { } code)
         {
@@ -100,7 +104,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         return null;
     }
 
-    public string? WriteDecimal(decimal value)
+    public string? WriteDecimal(decimal value, int style)
     {
         if (ValueChecks.DecimalInDouble(value) is { } code)
         {
@@ -113,7 +117,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         return null;
     }
 
-    public string? WriteDouble(double value)
+    public string? WriteDouble(double value, int style)
     {
         StartFloat();
         _row.AppendFormatted(value, "R", CultureInfo.InvariantCulture);
@@ -121,7 +125,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         return null;
     }
 
-    public string? WriteDate(DateTime value, bool hasTime)
+    public string? WriteDate(DateTime value, bool hasTime, int style)
     {
         // ISO in an attribute: no serial, so no 1900 floor and no leap-year bug — any year reads back.
         _row.Append("<table:table-cell table:style-name=\"");
@@ -132,7 +136,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         return null;
     }
 
-    public void WriteBoolean(bool value)
+    public void WriteBoolean(bool value, int style)
     {
         _row.Append("<table:table-cell table:style-name=\"");
         _row.Append(OdsParts.BooleanStyle);
@@ -143,7 +147,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _row.Append("</text:p></table:table-cell>");
     }
 
-    public void WriteEmpty() => _row.Append("<table:table-cell/>");
+    public void WriteEmpty(int style) => _row.Append("<table:table-cell/>");
 
     public void EndRow()
     {

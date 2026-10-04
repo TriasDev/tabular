@@ -45,6 +45,9 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private static readonly SearchValues<char> NeedsEscape = SearchValues.Create("&<>\r_");
 
     private readonly ZipWriter _zip;
+#pragma warning disable S4487 // Justification: read once the styled cells are written, in the part that follows
+    private readonly StyleTable _styles;
+#pragma warning restore S4487
     private readonly List<string> _sheetNames = [];
     private readonly RowText _row = new();
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
@@ -53,8 +56,9 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private long _rowNumber;
     private int _column;
 
-    public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options)
+    public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options, StyleTable styles)
     {
+        _styles = styles;
         _zip = new ZipWriter(output, options.CompressionLevel);
     }
 
@@ -106,9 +110,9 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public string? WriteHeader(string value) => WriteInline(value);
 
-    public string? WriteText(string value, int column) => WriteInline(value);
+    public string? WriteText(string value, int column, int style) => WriteInline(value);
 
-    public string? WriteLong(long value)
+    public string? WriteLong(long value, int style)
     {
         if (ValueChecks.LongInDouble(value) is { } code)
         {
@@ -121,7 +125,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         return null;
     }
 
-    public string? WriteDecimal(decimal value)
+    public string? WriteDecimal(decimal value, int style)
     {
         if (ValueChecks.DecimalInDouble(value) is { } code)
         {
@@ -134,7 +138,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         return null;
     }
 
-    public string? WriteDouble(double value)
+    public string? WriteDouble(double value, int style)
     {
         WriteNumber(style: 0);
         _row.AppendFormatted(value, "R", CultureInfo.InvariantCulture);
@@ -142,7 +146,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         return null;
     }
 
-    public string? WriteDate(DateTime value, bool hasTime)
+    public string? WriteDate(DateTime value, bool hasTime, int style)
     {
         if (value < FirstDay)
         {
@@ -155,7 +159,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         return null;
     }
 
-    public void WriteBoolean(bool value)
+    public void WriteBoolean(bool value, int style)
     {
         StartCell();
         _row.Append(" t=\"b\"><v>");
@@ -163,7 +167,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Append(ValueEnd);
     }
 
-    public void WriteEmpty() => _column++;
+    public void WriteEmpty(int style) => _column++;
 
     public void EndRow()
     {
