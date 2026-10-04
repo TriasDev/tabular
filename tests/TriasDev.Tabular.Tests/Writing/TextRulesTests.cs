@@ -32,13 +32,16 @@ public sealed class TextRulesTests
         string text = string.Concat("Portfolio 12, \"quoted\" ", "\uD83D", "\uDE00");
         TextRules.Check(text);
 
+        const int Calls = 100_000;
         long before = GC.GetAllocatedBytesForCurrentThread();
 
-        for (int i = 0; i < 100_000; i++)
+        for (int i = 0; i < Calls; i++)
         {
             TextRules.Check(text);
         }
 
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        // Less than a byte per call: a one-off from the runtime tiering the loop up is not a per-call
+        // allocation; the boxing this guards against cost 96 bytes on every call.
+        Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - before, 0, Calls - 1);
     }
 }
