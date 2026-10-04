@@ -132,6 +132,46 @@ public sealed class StyledInteropTests
         Assert.Contains("<mergeCell ref=\"B3:C4\"/>", sheet, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergeOfARowThatEndsEarly()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, MergeTests.EndsEarly);
+        string sheet = Entry(LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx"), "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<mergeCell ref=\"C2:D3\"/>", sheet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergeAndFillOfAnXlsx()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, FilledMerge);
+        byte[] ods = LibreOffice.Convert(xlsx, "xlsx", "ods", "ods");
+        string styles = Entry(ods, "content.xml") + Entry(ods, "styles.xml");
+
+        Assert.Contains("table:number-columns-spanned=\"3\"", styles, StringComparison.Ordinal);
+        Assert.Contains("fo:background-color=\"#f8696b\"", styles, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergeAndFillOfAnOds()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, FilledMerge);
+        byte[] xlsx = LibreOffice.Convert(ods, "ods", "xlsx:Calc MS Excel 2007 XML", "xlsx");
+
+        Assert.Contains("<mergeCell ref=\"A2:C2\"/>", Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+        Assert.Contains("rgb=\"FFF8696B\"", Entry(xlsx, "xl/styles.xml"), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void FilledMerge(TabularWriter writer)
+    {
+        StyleId fill = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0xF8696B) });
+        writer.BeginSheet("data", [new("a"), new("b"), new("c")]);
+        writer.BeginRow();
+        writer.Merge(1, 3);
+        writer.Write("filled", fill);
+        writer.EndRow();
+    }
+
     [Theory]
     [InlineData(TabularFormat.Xlsx, "xlsx")]
     [InlineData(TabularFormat.Ods, "ods")]

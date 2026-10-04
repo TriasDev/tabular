@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using TriasDev.Tabular.Tests.Fixtures;
 
 using Xunit;
@@ -46,23 +48,50 @@ public sealed class MergeTests
         Assert.Equal(["a4", "", "", "d4"], rows[3].Select(c => c.Text ?? string.Empty));
     }
 
-    [Fact]
-    public async Task ARowThatEndsEarlyStillCoversItsMergedColumns()
+    /// <summary>
+    /// Row 2: a2, an unstyled empty, then a 2 × 2 "wide" in c–d. Row 3 ends after a3: b3 is an empty and
+    /// c3–d3 are covered, all written by EndRow.
+    /// </summary>
+    internal static void EndsEarly(TabularWriter writer)
     {
-        byte[] csv = await SheetLayoutTests.Write(TabularFormat.Csv, writer =>
-        {
-            writer.BeginSheet("data", Four);
-            writer.BeginRow();
-            writer.Write("a2");
-            writer.Merge(2, 3);
-            writer.Write("wide");
-            writer.EndRow();
-            writer.BeginRow();
-            writer.Write("a3");
-            writer.EndRow();                // b3–d3 covered, written by EndRow
-        });
+        writer.BeginSheet("data", Four);
+        writer.BeginRow();
+        writer.Write("a2");
+        writer.WriteEmpty();
+        writer.Merge(2, 2);
+        writer.Write("wide");
+        writer.EndRow();
+        writer.BeginRow();
+        writer.Write("a3");
+        writer.EndRow();
+    }
 
-        Assert.Equal(["a3", "", "", ""], SheetLayoutTests.Rows(csv)[2].Select(c => c.Text ?? string.Empty));
+    [Theory]
+    [InlineData(TabularFormat.Csv)]
+    [InlineData(TabularFormat.Xlsx)]
+    [InlineData(TabularFormat.Ods)]
+    public async Task ARowThatEndsEarlyStillCoversItsMergedColumns(TabularFormat format)
+    {
+        byte[] file = await SheetLayoutTests.Write(format, EndsEarly);
+        List<RawCell[]> rows = SheetLayoutTests.Rows(file);
+
+        Assert.Equal(RawCell.FromText("wide"), rows[1][2]);
+        Assert.Equal(RawCell.FromText("a3"), rows[2][0]);
+
+        // A reader may drop a row's trailing empties; whatever it keeps after a3 is empty.
+        Assert.All(rows[2].Skip(1), cell => Assert.True(cell.IsEmpty));
+
+        if (format == TabularFormat.Xlsx)
+        {
+            Assert.Empty(OoxmlValidation.Errors(file));
+        }
+
+        if (format == TabularFormat.Ods)
+        {
+            string content = SheetLayoutTests.Entry(file, "content.xml");
+            Assert.Contains("<text:p>a2</text:p></table:table-cell><table:table-cell/><table:table-cell table:number-columns-spanned=\"2\" table:number-rows-spanned=\"2\" office:value-type=\"string\"><text:p>wide</text:p></table:table-cell><table:covered-table-cell/>", content, StringComparison.Ordinal);
+            Assert.Contains("<text:p>a3</text:p></table:table-cell><table:table-cell/><table:covered-table-cell/><table:covered-table-cell/></table:table-row>", content, StringComparison.Ordinal);
+        }
     }
 
     [Theory]
@@ -224,6 +253,67 @@ public sealed class MergeTests
         Assert.True(rows[3][1].IsEmpty);
         Assert.True(rows[3][2].IsEmpty);
         Assert.Equal(RawCell.FromText("d4"), rows[3][3]);
+    }
+
+    [Fact]
+    public async Task XlsxWritesTheCoveredPositionsOfABorderedRangeInTheTopLeftStyle()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            StyleId boxed = writer.Style(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
+            writer.BeginSheet("data", Four);
+            writer.BeginRow();
+            writer.Write("a2");
+            writer.Merge(2, 2);
+            writer.Write("box", boxed);
+            writer.Write("d2");
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Write("a3");
+            writer.EndRow();
+        });
+
+        string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
+        Match top = Regex.Match(sheet, "<c r=\"B2\" s=\"(\\d+)\" t=\"inlineStr\">");
+
+        Assert.True(top.Success);
+        string s = top.Groups[1].Value;
+        Assert.Contains($"<c r=\"C2\" s=\"{s}\"/>", sheet, StringComparison.Ordinal);
+        Assert.Contains($"<c r=\"B3\" s=\"{s}\"/><c r=\"C3\" s=\"{s}\"/>", sheet, StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+
+        List<RawCell[]> rows = SheetLayoutTests.Rows(xlsx);
+        Assert.Equal(RawCell.FromText("box"), rows[1][1]);
+        Assert.True(rows[1][2].IsEmpty);
+        Assert.True(rows[2][1].IsEmpty);
+        Assert.True(rows[2][2].IsEmpty);
+    }
+
+    [Fact]
+    public async Task XlsxLeavesTheCoveredPositionsOfAnUnstyledRangeOut()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            StyleId boxed = writer.Style(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
+            writer.BeginSheet("data", Four);
+            writer.BeginRow();
+            writer.Merge(2, 2);
+            writer.Write("box", boxed);         // a2–b3
+            writer.EndRow();
+            writer.BeginRow();
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Merge(2, 2);                 // a4–b5, unstyled: the boxed range's style must not leak into it
+            writer.Write("plain");
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Write("c5");
+            writer.EndRow();
+        });
+
+        string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
+        Assert.Contains("<row r=\"5\"><c r=\"C5\" t=\"inlineStr\"><is><t>c5</t></is></c></row>", sheet, StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
     }
 
     [Fact]

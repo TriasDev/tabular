@@ -54,6 +54,13 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private bool _filter;
     private int _column;
 
+    // A merged range's covered positions are written empty in the top-left cell's style, so Excel
+    // finds a bordered range's right and bottom edges on the cells that sit there. Per column, the
+    // style of the latest range over it; allocated on the first styled range, so a sheet without
+    // styled merges pays nothing.
+    private int[]? _coverXf;
+    private int _pendingColumns;
+
     public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options, StyleTable styles)
     {
         _styles = new XlsxStyles(styles);
@@ -90,6 +97,8 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
         _rowNumber = 0;
         _merges.Clear();
+        _coverXf = null;
+        _pendingColumns = 0;
         _filter = options.AutoFilter;
         _row.Clear();
         _row.Append(XlsxParts.WorksheetStart);
@@ -171,15 +180,33 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public int MaxMerges => 65_536;
 
-    public void Merge(int rows, int columns) =>
+    public void Merge(int rows, int columns)
+    {
         _merges.Add(string.Create(CultureInfo.InvariantCulture, $"{_columnNames[_column]}{_rowNumber}:{_columnNames[_column + columns - 1]}{_rowNumber + rows - 1}"));
+        _pendingColumns = columns;
+    }
 
-    public void WriteCovered() => _column++;
+    public void WriteCovered()
+    {
+        if (_coverXf is { } cover && cover[_column] != 0)
+        {
+            StartCell(cover[_column]);
+            _row.Append("/>");
+            return;
+        }
+
+        _column++;
+    }
 
     public void WriteEmpty(int style)
     {
         if (style == 0)
         {
+            if (_pendingColumns != 0)
+            {
+                TakeRange(0);
+            }
+
             _column++;
             return;
         }
@@ -256,6 +283,11 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     /// <summary>Opens a cell at the current column, with its reference; the caller writes the rest.</summary>
     private void StartCell(int xf)
     {
+        if (_pendingColumns != 0)
+        {
+            TakeRange(xf);
+        }
+
         _row.Append("<c r=\"");
         _row.Append(_columnNames[_column]);
         _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
@@ -269,6 +301,21 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
 
         _column++;
+    }
+
+    /// <summary>The waiting merge's top-left cell is at the current column: its style is the range's.</summary>
+    private void TakeRange(int xf)
+    {
+        int columns = _pendingColumns;
+        _pendingColumns = 0;
+
+        if (xf == 0 && _coverXf is null)
+        {
+            return;
+        }
+
+        _coverXf ??= new int[_columnNames.Length];
+        Array.Fill(_coverXf, xf, _column, columns);
     }
 
     private void AppendEscaped(ReadOnlySpan<char> text)
