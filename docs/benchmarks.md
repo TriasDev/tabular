@@ -154,15 +154,21 @@ it reports, is in the [performance page](performance.md#if-analysis-ever-needs-t
 The same comparison for the other direction: writing the same data with TriasDev.Tabular and with
 the libraries a .NET developer would otherwise reach for.
 
-**In short:** on csv TriasDev.Tabular is faster than CsvHelper and allocates a tenth of what it does,
-but slower than Sylvan.Data.Csv in both scenarios and than Sep on the wide file (on the narrow one it
-is level with Sep). On xlsx it is faster than LargeXlsx on the unstyled narrow file and on the wide
-one, and slower on the styled narrow one; SpreadCheetah is the fastest xlsx writer in every scenario
-here, by about 3% on the unstyled narrow file and by 17 to 28% elsewhere. MiniExcel is the slowest and
-allocates the most. TriasDev.Tabular holds the least memory on the narrow files and more than the
-others on the wide ones, where it batches 500 rows by column. It is the only library here that writes
-ods and zip, so those have nothing to be compared with. The figures are provisional: they were taken on
-a machine that other work was using.
+**In short:** on csv TriasDev.Tabular is faster than CsvHelper, which takes 49% longer on the narrow
+file and 24% longer on the wide one, and allocates a tenth of what CsvHelper does. It is slower than
+Sylvan.Data.Csv (Sylvan takes 25% less time on the narrow file, 42% less on the wide one; in the
+ratios below, X takes N% longer than Y means X's time divided by Y's) and than Sep on the wide file,
+while on the narrow one it is level with Sep (2% longer). On xlsx it is faster than LargeXlsx on the
+unstyled narrow file (LargeXlsx takes 16% longer) and on the wide one (15% longer), and slower in this
+pass on the styled narrow one (14% longer than LargeXlsx; an earlier run measured the opposite, see
+below). SpreadCheetah is the fastest xlsx writer in every scenario of this pass: TriasDev.Tabular takes
+3% longer on the unstyled narrow file, 39% longer on the styled one and 20% longer on the wide one.
+MiniExcel is the slowest and allocates the most. On the narrow xlsx files TriasDev.Tabular holds the
+least memory (55 MB against 60 to 67 MB); on csv Sep and CsvHelper hold a little less (53 and 55
+MB against 57 MB), and on the wide files TriasDev.Tabular holds more than the others, because it
+batches 500 rows by column. It is the only library here that writes ods and zip, so those have
+nothing to be compared with. The figures are provisional: they come from a single pass on a machine
+that other work was using.
 
 ### What was measured
 
@@ -192,8 +198,8 @@ a machine that other work was using.
   which makes its files smaller and the writing faster; TriasDev.Tabular leaves it out where a cell
   follows the one before it, and LargeXlsx always writes it. TriasDev.Tabular also checks that every
   double survives the round trip (15 significant digits) and fails the write if one would not; the
-  others do not, and that check is most of what remains of its gap to SpreadCheetah on the wide
-  workbook.
+  others do not. In a profile of the wide xlsx write that check was 13.6% of the time, 0.3 to 0.5 s,
+  a large part of the roughly 0.9 s gap to SpreadCheetah in this pass.
 
 | Library | Version | Licence |
 |---|---|---|
@@ -215,6 +221,8 @@ Machine: Apple M1 Max, 10 cores, 64 GB, macOS 26.7.1, .NET 10.0.9, workstation G
 #### 5M rows x 30 columns — 1.6 GB
 
 <!-- provisional: re-run on a quiet machine -->
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
 | Sylvan.Data.Csv | 7.43 s | 59 MB | 959 MB | 1,604.5 MB |
@@ -222,13 +230,15 @@ Machine: Apple M1 Max, 10 cores, 64 GB, macOS 26.7.1, .NET 10.0.9, workstation G
 | **TriasDev.Tabular** | 9.90 s | 57 MB | 957 MB | 1,642.7 MB |
 | CsvHelper | 14.76 s | 55 MB | 11,316 MB | 1,604.5 MB |
 
-Generating the data alone, one cell struct per value, takes about 1 s of each figure. TriasDev.Tabular's
+Generating the data alone, one cell struct per value, costs about 0.4 s per million rows, so about 2 s of each figure here (measured separately, in a process of its own); on the wide file it costs 0.27 s by row and 0.11 s by typed column, which is how TriasDev.Tabular takes it. TriasDev.Tabular's
 file is 2% larger because it writes a byte order mark and its date-times with milliseconds and a `T`
 (`2026-01-01T00:00:00.000`), where the others write `yyyy-MM-dd HH:mm:ss`.
 
 #### 10,000 rows x 5,003 columns — 208 MB
 
 <!-- provisional: re-run on a quiet machine -->
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
 | Sylvan.Data.Csv | 2.34 s | 54 MB | 5 MB | 207.8 MB |
@@ -241,6 +251,8 @@ file is 2% larger because it writes a byte order mark and its date-times with mi
 #### 1,048,575 rows x 30 columns, unstyled
 
 <!-- provisional: re-run on a quiet machine -->
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
 | SpreadCheetah | 4.63 s | 60 MB | 195 MB | 224.5 MB |
@@ -251,20 +263,26 @@ file is 2% larger because it writes a byte order mark and its date-times with mi
 #### 1,048,575 rows x 30 columns, styled
 
 <!-- provisional: re-run on a quiet machine -->
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
 | SpreadCheetah | 4.91 s | 60 MB | 195 MB | 237.8 MB |
 | LargeXlsx | 6.00 s | 67 MB | 195 MB | 348.6 MB |
 | **TriasDev.Tabular** | 6.82 s | 55 MB | 196 MB | 238.7 MB |
 
-MiniExcel cannot apply these styles and is not in the table. TriasDev.Tabular is 14% behind LargeXlsx
-here and the cause is not established: styling costs it 2 s over the unstyled file, against about
-0.5 s for the other two. The run was on a loaded machine, so the re-measurement decides whether the
-gap stays.
+MiniExcel cannot apply these styles and is not in the table. TriasDev.Tabular takes 14% longer than
+LargeXlsx here, and the sign of this result is unsettled: an earlier run of the same library code
+(during the xlsx optimisation, the same day on the same loaded machine, the minimum of 5 interleaved
+rounds) measured TriasDev.Tabular 4.80 s, LargeXlsx 5.90 s and SpreadCheetah 4.69 s. The cause of the
+difference is not established — styling costs TriasDev.Tabular 2 s over the unstyled file in this pass,
+against about 0.5 s for the other two — and the quiet-machine run decides it.
 
 #### 10,000 rows x 5,003 columns, styled
 
 <!-- provisional: re-run on a quiet machine -->
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+
 | Library | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
 | SpreadCheetah | 4.51 s | 55 MB | 2 MB | 101.3 MB |
@@ -280,6 +298,8 @@ peak is higher because a `ColumnBatch` of 500 rows holds 2.5 million values.
 No other library in the comparison writes either.
 
 <!-- provisional: re-run on a quiet machine -->
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+
 | TriasDev.Tabular | Time | Peak memory | Allocated | Size |
 |---|--:|--:|--:|--:|
 | ods, 1,048,575 x 30 | 5.21 s | 57 MB | 197 MB | 234.7 MB |
@@ -295,6 +315,8 @@ The xlsx, ods and zip writers compress with `CompressionLevel.Fastest` by defaul
 `Optimal` (TriasDev.Tabular alone, `TABULAR_COMPRESSION=Optimal`):
 
 <!-- provisional: re-run on a quiet machine -->
+*Provisional: a single pass on a loaded machine; to be re-run on a quiet one.*
+
 | Scenario | Fastest | Optimal | Time | Size |
 |---|--:|--:|--:|--:|
 | xlsx, 1M x 30 | 4.78 s, 236.7 MB | 9.23 s, 144.5 MB | +93% | -39% |
@@ -305,7 +327,7 @@ The xlsx, ods and zip writers compress with `CompressionLevel.Fastest` by defaul
 | ods, 10,000 x 5,003 | 5.74 s, 176.1 MB | 11.46 s, 107.1 MB | +100% | -39% |
 | zip of csv, 5M x 30 | 17.65 s, 814.4 MB | 27.35 s, 533.4 MB | +55% | -35% |
 
-`Optimal` makes the files 35 to 58% smaller and the writing 46 to 100% slower. The default stays
+These figures are from a single pass. `Optimal` makes the files 35 to 58% smaller and the writing 46 to 100% slower (its time is that much more than `Fastest`'s). The default stays
 `Fastest`: it would change only if `Optimal` cost under 15% in time for a file over 20% smaller, and
 nowhere does. Peak memory and allocation are the same at both levels. Choose `Optimal` when the file
 is stored or sent over a slow link and the writing is not the bottleneck.
