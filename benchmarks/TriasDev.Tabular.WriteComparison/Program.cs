@@ -15,7 +15,9 @@ namespace TriasDev.Tabular.WriteComparison;
 /// <remarks>
 /// <para>
 /// Every measurement runs in a process of its own, because peak memory only ever rises within a
-/// process, and each is repeated and the median reported.
+/// process, and each is repeated. The time reported is the fastest run: what other work on the machine
+/// adds to a run only ever makes it slower, so the minimum is the figure least disturbed by it. Peak
+/// memory, allocation and size are the median of the runs.
 /// </para>
 /// <para>
 /// The timed write goes into a <see cref="CountingStream"/>, which discards the bytes and counts them (the
@@ -251,10 +253,13 @@ public static class Program
             ok.Add(parts);
         }
 
+        long Minimum(int field) =>
+            ok.Min(p => long.Parse(p[field], CultureInfo.InvariantCulture));
+
         long Median(int field) =>
             ok.Select(p => long.Parse(p[field], CultureInfo.InvariantCulture)).Order().ElementAt(ok.Count / 2);
 
-        return new Result(writer, null, Median(1), Median(2), Median(3), Median(4), Median(5));
+        return new Result(writer, null, Minimum(1), Median(2), Median(3), Median(4), Median(5));
     }
 
     private static string[] RunChild(string[] arguments, int timeoutSeconds)
@@ -348,7 +353,7 @@ public static class Program
         Console.WriteLine($"- OS: {RuntimeInformation.OSDescription} ({RuntimeInformation.ProcessArchitecture})");
         Console.WriteLine($"- Runtime: {RuntimeInformation.FrameworkDescription}, "
             + $"{(System.Runtime.GCSettings.IsServerGC ? "server" : "workstation")} GC");
-        Console.WriteLine($"- Each figure is the median of {runs} runs, each in a fresh process. Time covers creating the "
+        Console.WriteLine($"- Each library ran {runs} times, each in a fresh process. Time is the fastest run (other work on the machine only ever slows a run down); peak memory, allocated and size are the median. Time covers creating the "
             + "file, writing every row and closing it; the data is generated inside the timed part, from the same generators for every library, so each scenario also reports what generating it alone costs, in the form a row-oriented writer consumes it (one cell struct per value) and, for wide data, as typed column arrays; a library's time includes the share that matches how it takes its data. "
             + "Peak memory is the process's peak resident set; allocated is everything the garbage collector handed out over the run. "
             + "The timed write goes into a stream that counts the bytes and discards them, so no time includes the file system's; "
