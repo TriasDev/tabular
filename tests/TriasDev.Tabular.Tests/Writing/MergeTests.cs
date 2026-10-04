@@ -274,12 +274,13 @@ public sealed class MergeTests
         });
 
         string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
-        Match top = Regex.Match(sheet, "<c r=\"B2\" s=\"(\\d+)\" t=\"inlineStr\">");
+        Match top = Regex.Match(sheet, "<is><t>a2</t></is></c><c s=\"(\\d+)\" t=\"inlineStr\">");
 
+        // The covered cells follow the cells before them, so they carry no reference.
         Assert.True(top.Success);
         string s = top.Groups[1].Value;
-        Assert.Contains($"<c r=\"C2\" s=\"{s}\"/>", sheet, StringComparison.Ordinal);
-        Assert.Contains($"<c r=\"B3\" s=\"{s}\"/><c r=\"C3\" s=\"{s}\"/>", sheet, StringComparison.Ordinal);
+        Assert.Contains($"<is><t>box</t></is></c><c s=\"{s}\"/><c t=\"inlineStr\"><is><t>d2</t>", sheet, StringComparison.Ordinal);
+        Assert.Contains($"<is><t>a3</t></is></c><c s=\"{s}\"/><c s=\"{s}\"/></row>", sheet, StringComparison.Ordinal);
         Assert.Empty(OoxmlValidation.Errors(xlsx));
 
         List<RawCell[]> rows = SheetLayoutTests.Rows(xlsx);

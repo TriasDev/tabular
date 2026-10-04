@@ -128,7 +128,7 @@ public sealed class SheetLayoutTests
     {
         byte[] xlsx = await Write(TabularFormat.Xlsx, writer => writer.BeginSheet("data", [new("Name")], new SheetOptions { HeaderStyle = Header }));
 
-        Assert.Contains("<c r=\"A1\" s=\"4\" t=\"inlineStr\">", Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+        Assert.Contains("<row r=\"1\"><c s=\"4\" t=\"inlineStr\">", Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
         Assert.Contains("<fgColor rgb=\"FF1F4E78\"/>", Entry(xlsx, "xl/styles.xml"), StringComparison.Ordinal);
     }
 

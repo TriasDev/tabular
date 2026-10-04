@@ -152,9 +152,8 @@ public sealed class XlsxWriterTests
 
         string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
 
-        Assert.Contains("<c r=\"A2\" s=\"3\"", sheet, StringComparison.Ordinal);
-        Assert.Contains("<c r=\"B2\" s=\"1\"", sheet, StringComparison.Ordinal);
-        Assert.Contains("<c r=\"C2\" s=\"2\"", sheet, StringComparison.Ordinal);
+        // Consecutive cells carry no reference: each is the column after the one before it.
+        Assert.Matches("<row r=\"2\"><c s=\"3\"><v>42</v></c><c s=\"1\"><v>[^<]+</v></c><c s=\"2\"><v>[^<]+</v></c></row>", sheet);
     }
 
     [Fact]

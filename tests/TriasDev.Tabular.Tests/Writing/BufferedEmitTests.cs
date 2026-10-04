@@ -10,7 +10,9 @@ namespace TriasDev.Tabular.Tests.Writing;
 /// The sheet writers collect rows in one buffer and hand it to the deflate stream in large writes. The
 /// bytes of every part, once inflated, must be those the per-row writes produced: the expected digests
 /// below were taken from the writers before the buffering, on the same data. (Deflate block boundaries
-/// may differ between the two, so the compressed bytes are not compared.)
+/// may differ between the two, so the compressed bytes are not compared.) The xlsx sheets' digest was
+/// taken again when cells stopped carrying a reference where they follow the cell before them: checked
+/// to be the earlier sheet with exactly those references taken out.
 /// </summary>
 public sealed class BufferedEmitTests
 {
@@ -20,8 +22,8 @@ public sealed class BufferedEmitTests
         "xl/_rels/workbook.xml.rels=2372344717CC04FDF4983D6B5A2A815515CB851C5FCCA40DE351FF35DFDD63A2;" +
         "xl/styles.xml=27B976567DC15ACC3E267A2CE54F27D1F9763687CA3DDEF0A90318D84017D54B;" +
         "xl/workbook.xml=74D6691709AE82EF5F75AA69395F7491DC706F0E33483741705445ACF49FBF9E;" +
-        "xl/worksheets/sheet1.xml=A6B185F0AE7FADCC00878A5EDBF466080EBAA19DCA198E1102B4ED65A9624389;" +
-        "xl/worksheets/sheet2.xml=A6B185F0AE7FADCC00878A5EDBF466080EBAA19DCA198E1102B4ED65A9624389;";
+        "xl/worksheets/sheet1.xml=AB50537F9252708F5208ED6C2E7C0C0D16091E57DC4AA376D1E0D2C8A14293D6;" +
+        "xl/worksheets/sheet2.xml=AB50537F9252708F5208ED6C2E7C0C0D16091E57DC4AA376D1E0D2C8A14293D6;";
 
     private const string OdsDigests =
         "META-INF/manifest.xml=ACAD1AC2F8F631AD9AB0434C935A9797F0836422569EA36CABFEA7810AC731BD;" +

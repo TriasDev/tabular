@@ -81,8 +81,7 @@ public sealed class CellValueTests
         });
 
         string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
-        Assert.Contains("<c r=\"A2\" s=\"4\"/>", sheet, StringComparison.Ordinal);
-        Assert.Contains("<c r=\"B2\" s=\"4\"/>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<row r=\"2\"><c s=\"4\"/><c s=\"4\"/></row>", sheet, StringComparison.Ordinal);
     }
 
     [Fact]

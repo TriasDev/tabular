@@ -85,6 +85,17 @@ public sealed class XlsxCursorEdgeCaseTests
     }
 
     [Fact]
+    public void PlacesACellWithoutAReferenceAfterTheCellBeforeIt()
+    {
+        // What the writer does: a reference only where a cell does not follow the one before it.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="B1" t="inlineStr"><is><t>b</t></is></c><c t="inlineStr"><is><t>c</t></is></c><c r="F1" t="inlineStr"><is><t>f</t></is></c><c t="inlineStr"><is><t>g</t></is></c></row>""")
+            .Build();
+
+        Assert.Equal(new string?[] { null, "b", "c", null, null, "f", "g" }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
     public void PlacesCellsByReferenceEvenWhenTheyAreOutOfOrder()
     {
         byte[] content = new XlsxPackage()
