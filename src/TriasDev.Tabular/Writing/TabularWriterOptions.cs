@@ -1,3 +1,4 @@
+using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
@@ -12,6 +13,9 @@ public sealed record TabularWriterOptions
 
     /// <summary>How a csv file is written.</summary>
     public CsvWriterOptions Csv { get; init; } = CsvWriterOptions.Default;
+
+    /// <summary>How a zip of csv sheets is written: its compression; each sheet's csv follows <see cref="Csv"/>.</summary>
+    public ZipWriterOptions Zip { get; init; } = ZipWriterOptions.Default;
 
     /// <summary>How an xlsx workbook is written.</summary>
     public XlsxWriterOptions Xlsx { get; init; } = XlsxWriterOptions.Default;

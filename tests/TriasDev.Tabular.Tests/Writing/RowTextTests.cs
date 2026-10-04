@@ -68,4 +68,29 @@ public sealed class RowTextTests
         Assert.Equal(0, row.Length);
         Assert.True(row.Capacity <= 4 * 1024);
     }
+
+    [Fact]
+    public void ALongRowIsEncodedInPiecesWithoutSplittingACharacter()
+    {
+        string text = string.Concat(Enumerable.Repeat("a\u00e4\u20ac\U0001F600", 20_000));
+        RowText row = new();
+        row.Append(text);
+        ArrayBufferWriter<byte> output = new();
+
+        row.WriteUtf8To(output);
+
+        Assert.Equal(Encoding.UTF8.GetBytes(text), output.WrittenSpan.ToArray());
+    }
+
+    [Fact]
+    public void ALoneSurrogateIsReplacedAsTheEncodingDoes()
+    {
+        RowText row = new();
+        row.Append("a\uD800b");
+        ArrayBufferWriter<byte> output = new();
+
+        row.WriteUtf8To(output);
+
+        Assert.Equal(Encoding.UTF8.GetBytes("a\uD800b"), output.WrittenSpan.ToArray());
+    }
 }

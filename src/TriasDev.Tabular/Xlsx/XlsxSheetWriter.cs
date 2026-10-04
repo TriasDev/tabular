@@ -83,6 +83,8 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public bool NamesSheets => true;
 
+    public string? NameProblem(string name) => null;
+
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options)
     {
         CloseSheet();

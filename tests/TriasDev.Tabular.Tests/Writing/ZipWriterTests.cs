@@ -171,4 +171,39 @@ public sealed class ZipWriterTests
         Assert.Throws<InvalidOperationException>(() => zip.BeginDeflated("other"));
         Assert.Throws<InvalidOperationException>(() => zip.Complete());
     }
+
+    [Theory]
+    [InlineData("Grüße.csv")]
+    [InlineData("Данные.csv")]
+    [InlineData("数据.csv")]
+    public async Task AnyZipReaderReadsANonAsciiEntryName(string name)
+    {
+        byte[] zip = await Build(writer =>
+        {
+            using (Stream entry = writer.BeginDeflated(name))
+            {
+                entry.Write("a,b\r\n"u8);
+            }
+
+            writer.EndEntry();
+            writer.AddStored("stored-" + name, "x"u8);
+            writer.Complete();
+        });
+
+        using ZipArchive archive = new(new MemoryStream(zip, writable: false), ZipArchiveMode.Read);
+        Assert.Equal([name, "stored-" + name], archive.Entries.Select(e => e.FullName));
+        Assert.Equal(0x0800, BitConverter.ToUInt16(zip, 6) & 0x0800);       // the first local header's flags
+    }
+
+    [Fact]
+    public async Task AnAsciiNameLeavesTheFlagsAsTheyWere()
+    {
+        byte[] zip = await Build(writer =>
+        {
+            writer.AddStored("mimetype", "x"u8);
+            writer.Complete();
+        });
+
+        Assert.Equal(0, BitConverter.ToUInt16(zip, 6));
+    }
 }

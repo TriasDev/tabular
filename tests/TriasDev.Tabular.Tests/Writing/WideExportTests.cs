@@ -84,6 +84,7 @@ public sealed class WideExportTests
     [InlineData(TabularFormat.Csv)]
     [InlineData(TabularFormat.Xlsx)]
     [InlineData(TabularFormat.Ods)]
+    [InlineData(TabularFormat.Zip)]
     public async Task AThousandRowsOfFiveThousandColumnsReadBack(TabularFormat format)
     {
         byte[] file = await Write(format, rows: 1_000, chunk: 250);
@@ -102,7 +103,7 @@ public sealed class WideExportTests
     private static void AssertRow(TabularFormat format, RawCell[] row, int r)
     {
         Assert.InRange(row.Length, 3, Measured + 3);          // a reader drops trailing empty cells
-        Assert.Equal(format == TabularFormat.Csv ? RawCell.FromText(r.ToString(System.Globalization.CultureInfo.InvariantCulture)) : RawCell.FromNumber(r), row[0]);
+        Assert.Equal(format is TabularFormat.Csv or TabularFormat.Zip ? RawCell.FromText(r.ToString(System.Globalization.CultureInfo.InvariantCulture)) : RawCell.FromNumber(r), row[0]);
         Assert.Equal(RawCell.FromText($"Location {r}"), row[1]);
         Assert.False(row[2].IsEmpty, $"row {r}: Start");
 
@@ -112,7 +113,7 @@ public sealed class WideExportTests
 
             if (Value(r, c) is { } expected)
             {
-                Assert.Equal(format == TabularFormat.Csv ? RawCell.FromText(expected.ToString(System.Globalization.CultureInfo.InvariantCulture)) : RawCell.FromNumber(expected), cell);
+                Assert.Equal(format is TabularFormat.Csv or TabularFormat.Zip ? RawCell.FromText(expected.ToString(System.Globalization.CultureInfo.InvariantCulture)) : RawCell.FromNumber(expected), cell);
             }
             else
             {
@@ -125,6 +126,7 @@ public sealed class WideExportTests
     [InlineData(TabularFormat.Csv)]
     [InlineData(TabularFormat.Xlsx)]
     [InlineData(TabularFormat.Ods)]
+    [InlineData(TabularFormat.Zip)]
     public async Task ABatchAllocatesNothingPerCell(TabularFormat format)
     {
         const int Chunk = 100;
@@ -157,9 +159,24 @@ public sealed class WideExportTests
             return allocated;
         }
 
+        // A pooled buffer that the runtime has trimmed is rented anew inside the window — a one-off jump of up to
+        // 66 KB, seen on net8 in a full run and never alone, with no collection inside the window — so the noise
+        // only ever adds. Growth per row shows in every repetition; the smallest of five is the writer's own.
+        async ValueTask<long> Measure(int batches)
+        {
+            long smallest = long.MaxValue;
+
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                smallest = Math.Min(smallest, await Allocated(batches));
+            }
+
+            return smallest;
+        }
+
         await Allocated(4);                       // warm-up: JIT, the style cache, and the pooled segments (the third batch is the first to need one more)
-        long few = await Allocated(2);
-        long many = await Allocated(12);
+        long few = await Measure(2);
+        long many = await Measure(12);
 
         // Ten more batches of 100 rows × 5,003 cells: what grows with them is under a byte per row.
         Assert.True(many - few < 1_000, $"{format}: {few:N0} bytes for 2 batches, {many:N0} for 12");

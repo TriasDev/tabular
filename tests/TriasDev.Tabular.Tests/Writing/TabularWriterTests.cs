@@ -211,7 +211,7 @@ public sealed class TabularWriterTests
     }
 
     [Theory]
-    [InlineData(TabularFormat.Zip)]
+    [InlineData(TabularFormat.Gzip)]
     public void RefusesAFormatItCannotWriteYet(TabularFormat format)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => TabularWriter.Create(new MemoryStream(), format));

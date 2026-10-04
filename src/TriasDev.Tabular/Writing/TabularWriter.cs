@@ -1,3 +1,4 @@
+using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Xlsx;
@@ -5,7 +6,7 @@ using TriasDev.Tabular.Xlsx;
 namespace TriasDev.Tabular;
 
 /// <summary>
-/// Writes a table into a stream, row by row: typed values in, a csv, xlsx or ods file out.
+/// Writes a table into a stream, row by row: typed values in, a csv, xlsx or ods file (or a zip of csv sheets) out.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -85,9 +86,12 @@ public sealed class TabularWriter : IAsyncDisposable
     /// </summary>
     public bool FlushRecommended => _buffer.Pending >= FlushThreshold;
 
+    /// <summary>Bytes held in memory and not yet handed to the stream; a test hook for the memory bound.</summary>
+    internal int PendingBytes => (int)Math.Min(int.MaxValue, _buffer.Pending);
+
     /// <summary>Creates a writer for a format, into a stream.</summary>
     /// <param name="stream">Where the file goes: a file, a blob, a response body. It need not seek.</param>
-    /// <param name="format">The format to write: csv, xlsx or ods.</param>
+    /// <param name="format">The format to write: csv, a zip of csv sheets, xlsx or ods.</param>
     /// <param name="options">The format's knobs; checked here, before anything is written.</param>
     /// <exception cref="ArgumentException">The stream cannot be written, or an option cannot work.</exception>
     /// <exception cref="ArgumentOutOfRangeException">A format this version does not write.</exception>
@@ -128,6 +132,13 @@ public sealed class TabularWriter : IAsyncDisposable
 #pragma warning restore S3928
             }
 
+            if (effective.Zip is null)
+            {
+#pragma warning disable S3928 // Justification: the parameter name identifies the option being validated, not a method parameter
+                throw new ArgumentNullException(nameof(TabularWriterOptions.Zip), $"{nameof(TabularWriterOptions)}.{nameof(TabularWriterOptions.Zip)} is null.");
+#pragma warning restore S3928
+            }
+
             StyleTable styles = new();
 
             switch (format)
@@ -136,6 +147,10 @@ public sealed class TabularWriter : IAsyncDisposable
                     CsvFormat csv = effective.Csv.Resolve();
                     SpillBuffer buffer = new();
                     return new TabularWriter(stream, format, buffer, new CsvSheetWriter(buffer, csv), styles, effective.LeaveOpen);
+                case TabularFormat.Zip:
+                    ZipWriterOptions zip = effective.Zip.Checked();
+                    SpillBuffer archive = new();
+                    return new TabularWriter(stream, format, archive, new ZipCsvSheetWriter(archive, zip, effective.Csv.Resolve()), styles, effective.LeaveOpen);
                 case TabularFormat.Xlsx:
                     XlsxWriterOptions xlsx = effective.Xlsx.Checked();
                     SpillBuffer workbook = new();
@@ -206,7 +221,7 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Faulting(new ArgumentNullException(nameof(name)));
         }
 
-        if (_sheet.NamesSheets && SheetNames.Problem(name, _sheetNames) is { } problem)
+        if (NameProblem(name) is { } problem)
         {
             throw Faulting(new ArgumentException(problem, nameof(name)));
         }
@@ -256,6 +271,10 @@ public sealed class TabularWriter : IAsyncDisposable
 
         FinishRow();
     }
+
+    /// <summary>Why the format refuses a sheet's name: the workbook rules first, then its own; null when it is fine.</summary>
+    private string? NameProblem(string name) =>
+        _sheet.NamesSheets ? SheetNames.Problem(name, _sheetNames) ?? _sheet.NameProblem(name) : null;
 
     /// <summary>Begins a row; its values follow, one per column, then <see cref="EndRow"/>.</summary>
     /// <exception cref="TabularLimitException">The sheet already holds as many rows as its format allows.</exception>

@@ -290,3 +290,17 @@ TriasDev.Tabular.ColumnBatch.Reset(int rowCount) -> void
 TriasDev.Tabular.ColumnBatch.RowCount.get -> int
 TriasDev.Tabular.TabularWriter.WriteBatch(TriasDev.Tabular.ColumnBatch! batch) -> void
 TriasDev.Tabular.TabularWriter.WriteBatchAsync(TriasDev.Tabular.ColumnBatch! batch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override TriasDev.Tabular.Archive.ZipWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.Archive.ZipWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.Archive.ZipWriterOptions.ToString() -> string!
+static TriasDev.Tabular.Archive.ZipWriterOptions.Default.get -> TriasDev.Tabular.Archive.ZipWriterOptions!
+static TriasDev.Tabular.Archive.ZipWriterOptions.operator !=(TriasDev.Tabular.Archive.ZipWriterOptions? left, TriasDev.Tabular.Archive.ZipWriterOptions? right) -> bool
+static TriasDev.Tabular.Archive.ZipWriterOptions.operator ==(TriasDev.Tabular.Archive.ZipWriterOptions? left, TriasDev.Tabular.Archive.ZipWriterOptions? right) -> bool
+TriasDev.Tabular.Archive.ZipWriterOptions
+TriasDev.Tabular.Archive.ZipWriterOptions.<Clone>$() -> TriasDev.Tabular.Archive.ZipWriterOptions!
+TriasDev.Tabular.Archive.ZipWriterOptions.CompressionLevel.get -> System.IO.Compression.CompressionLevel
+TriasDev.Tabular.Archive.ZipWriterOptions.CompressionLevel.init -> void
+TriasDev.Tabular.Archive.ZipWriterOptions.Equals(TriasDev.Tabular.Archive.ZipWriterOptions? other) -> bool
+TriasDev.Tabular.Archive.ZipWriterOptions.ZipWriterOptions() -> void
+TriasDev.Tabular.TabularWriterOptions.Zip.get -> TriasDev.Tabular.Archive.ZipWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Zip.init -> void

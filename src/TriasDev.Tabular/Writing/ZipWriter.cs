@@ -34,6 +34,9 @@ internal sealed class ZipWriter
     private const ushort Stored = 0;
     private const ushort Deflated = 8;
     private const ushort DescriptorFlag = 0x0008;
+
+    /// <summary>The "language encoding" flag: the entry's name is UTF-8.</summary>
+    private const ushort Utf8NameFlag = 0x0800;
     private const ushort Version20 = 20;
     private const ushort Version45 = 45;
     private const ushort DosTime = 0;
@@ -57,24 +60,25 @@ internal sealed class ZipWriter
     public void AddStored(string name, ReadOnlySpan<byte> content)
     {
         ExpectNoOpenEntry();
-        byte[] encodedName = Encoding.ASCII.GetBytes(name);
+        (byte[] encodedName, ushort nameFlag) = EncodeName(name);
         uint crc = Crc32.Append(0, content);
         long offset = _out.TotalWritten;
 
-        WriteLocalHeader(encodedName, Stored, flags: 0, crc, content.Length);
+        WriteLocalHeader(encodedName, Stored, nameFlag, crc, content.Length);
         _out.Write(content);
-        _entries.Add(new Entry(encodedName, Stored, 0, crc, content.Length, content.Length, offset));
+        _entries.Add(new Entry(encodedName, Stored, nameFlag, crc, content.Length, content.Length, offset));
     }
 
     /// <summary>Begins a large part: write its bytes into the stream returned, then call <see cref="EndEntry"/>.</summary>
     public Stream BeginDeflated(string name)
     {
         ExpectNoOpenEntry();
-        byte[] encodedName = Encoding.ASCII.GetBytes(name);
+        (byte[] encodedName, ushort nameFlag) = EncodeName(name);
+        ushort flags = (ushort)(DescriptorFlag | nameFlag);
         long offset = _out.TotalWritten;
 
-        WriteLocalHeader(encodedName, Deflated, DescriptorFlag, crc: 0, size: 0);
-        _open = new EntryStream(encodedName, offset, _out, _level);
+        WriteLocalHeader(encodedName, Deflated, flags, crc: 0, size: 0);
+        _open = new EntryStream(encodedName, flags, offset, _out, _level);
         return _open;
     }
 
@@ -103,7 +107,7 @@ internal sealed class ZipWriter
             _out.Write(descriptor[..16]);
         }
 
-        _entries.Add(new Entry(entry.Name, Deflated, DescriptorFlag, entry.Crc, compressed, entry.Size, entry.Offset));
+        _entries.Add(new Entry(entry.Name, Deflated, entry.Flags, entry.Crc, compressed, entry.Size, entry.Offset));
         _open = null;
     }
 
@@ -139,6 +143,12 @@ internal sealed class ZipWriter
         BinaryPrimitives.WriteUInt32LittleEndian(end[16..], zip64 ? uint.MaxValue : (uint)directoryStart);
         BinaryPrimitives.WriteUInt16LittleEndian(end[20..], 0);                                   // comment length
         _out.Write(end);
+    }
+
+    private static (byte[] Name, ushort Flag) EncodeName(string name)
+    {
+        byte[] encoded = Encoding.UTF8.GetBytes(name);
+        return (encoded, encoded.AsSpan().IndexOfAnyInRange((byte)0x80, (byte)0xFF) >= 0 ? Utf8NameFlag : (ushort)0);
     }
 
     private bool NeedsZip64(Entry entry) =>
@@ -237,15 +247,18 @@ internal sealed class ZipWriter
     {
         private readonly DeflateStream _deflate;
 
-        public EntryStream(byte[] name, long offset, SpillBuffer output, CompressionLevel level)
+        public EntryStream(byte[] name, ushort flags, long offset, SpillBuffer output, CompressionLevel level)
         {
             Name = name;
+            Flags = flags;
             Offset = offset;
             DataStart = output.TotalWritten;
             _deflate = new DeflateStream(output, level, leaveOpen: true);
         }
 
         public byte[] Name { get; }
+
+        public ushort Flags { get; }
 
         public long Offset { get; }
 
