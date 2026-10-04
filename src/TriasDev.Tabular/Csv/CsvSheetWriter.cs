@@ -60,7 +60,7 @@ internal sealed class CsvSheetWriter : ISheetWriter
     /// <summary>The row buffer's current size, for the test that a huge row does not keep it.</summary>
     internal int RowBufferLength => _row.Capacity;
 
-    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options)
     {
         _columnCount = columns.Length;
 
@@ -76,7 +76,7 @@ internal sealed class CsvSheetWriter : ISheetWriter
         _firstCell = true;
     }
 
-    public string? WriteHeader(string value) => WriteField(value, guard: false, column: -1);
+    public string? WriteHeader(string value, int style) => WriteField(value, guard: false, column: -1);
 
     public string? WriteText(string value, int column, int style)
     {

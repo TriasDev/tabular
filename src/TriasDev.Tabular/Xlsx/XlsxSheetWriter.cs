@@ -73,7 +73,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public bool NamesSheets => true;
 
-    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options)
     {
         CloseSheet();
         _sheetNames.Add(name);
@@ -88,6 +88,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _rowNumber = 0;
         _row.Clear();
         _row.Append(XlsxParts.WorksheetStart);
+        AppendFreeze(options.FreezeRows, options.FreezeColumns);
         AppendWidths(columns);
         _row.Append("<sheetData>");
         Emit();
@@ -103,7 +104,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Append("\">");
     }
 
-    public string? WriteHeader(string value) => WriteInline(value, 0);
+    public string? WriteHeader(string value, int style) => WriteInline(value, style == 0 ? 0 : _styles.Xf(style, ValueKind.Text));
 
     public string? WriteText(string value, int column, int style) => WriteInline(value, style == 0 ? 0 : _styles.Xf(style, ValueKind.Text));
 
@@ -294,6 +295,47 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
             text = text[(at + 1)..];
         }
+    }
+
+    /// <summary>Freezes the top rows and left columns: a split pane, in the state Excel writes for "Freeze Panes".</summary>
+    private void AppendFreeze(int rows, int columns)
+    {
+        if (rows == 0 && columns == 0)
+        {
+            return;
+        }
+
+        string pane = (rows, columns) switch
+        {
+            ( > 0, > 0) => "bottomRight",
+            ( > 0, _) => "bottomLeft",
+            _ => "topRight",
+        };
+
+        _row.Append("<sheetViews><sheetView workbookViewId=\"0\"><pane");
+
+        if (columns > 0)
+        {
+            _row.Append(" xSplit=\"");
+            _row.AppendFormatted(columns, default, CultureInfo.InvariantCulture);
+            _row.Append('"');
+        }
+
+        if (rows > 0)
+        {
+            _row.Append(" ySplit=\"");
+            _row.AppendFormatted(rows, default, CultureInfo.InvariantCulture);
+            _row.Append('"');
+        }
+
+        _row.Append(" topLeftCell=\"");
+        _row.Append(XlsxParts.ColumnName(Math.Min(columns, 16_383)));
+        _row.AppendFormatted(rows + 1, default, CultureInfo.InvariantCulture);
+        _row.Append("\" activePane=\"");
+        _row.Append(pane);
+        _row.Append("\" state=\"frozen\"/><selection pane=\"");
+        _row.Append(pane);
+        _row.Append("\"/></sheetView></sheetViews>");
     }
 
     private void AppendWidths(ReadOnlySpan<WriteColumn> columns)

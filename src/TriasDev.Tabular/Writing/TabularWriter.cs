@@ -166,7 +166,14 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <summary>Begins a sheet and writes its header row.</summary>
     /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
     /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
-    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns) => BeginSheet(name, columns, null);
+
+    /// <summary>Begins a sheet laid out by <paramref name="options"/> and writes its header row.</summary>
+    /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
+    /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
+    /// <param name="options">The header style, frozen rows and columns, and filter; null for none.</param>
+    /// <exception cref="ArgumentOutOfRangeException">A freeze outside the sheet: rows from 0 to the format's row limit less one, columns from 0 to the column count.</exception>
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions? options)
     {
         ExpectWritable();
 
@@ -192,20 +199,34 @@ public sealed class TabularWriter : IAsyncDisposable
 
         CheckColumns(columns);
 
+        SheetOptions layout = options ?? SheetOptions.Default;
+
+        if (layout.FreezeRows < 0 || layout.FreezeRows >= _sheet.MaxRows)
+        {
+            throw Faulting(new ArgumentOutOfRangeException(nameof(options), layout.FreezeRows, $"A sheet freezes 0 to {_sheet.MaxRows - 1} rows."));
+        }
+
+        if (layout.FreezeColumns < 0 || layout.FreezeColumns > columns.Length)
+        {
+            throw Faulting(new ArgumentOutOfRangeException(nameof(options), layout.FreezeColumns, $"A sheet of {columns.Length} columns freezes 0 to {columns.Length} of them."));
+        }
+
+        int headerStyle = layout.HeaderStyle is { } header ? RegisterStyle(header) : 0;
+
         _columns = columns.ToArray();
         _sheetName = name;
         _sheetNames.Add(name);
         _sheets++;
         _rowNumber = 0;
-        _sheet.BeginSheet(name, _columns);
+        _sheet.BeginSheet(name, _columns, layout);
 
         StartRow();
 
-        foreach (string header in _columns.Select(column => column.Header))
+        foreach (string headerText in _columns.Select(column => column.Header))
         {
-            if (_sheet.WriteHeader(header) is { } code)
+            if (_sheet.WriteHeader(headerText, headerStyle) is { } code)
             {
-                throw Faulting(new ArgumentException($"The header \"{header}\" cannot be written: {code}.", nameof(columns)));
+                throw Faulting(new ArgumentException($"The header \"{headerText}\" cannot be written: {code}.", nameof(columns)));
             }
 
             _column++;
@@ -239,10 +260,14 @@ public sealed class TabularWriter : IAsyncDisposable
     public StyleId Style(CellStyle style)
     {
         ExpectWritable();
+        return new StyleId(_stamp, RegisterStyle(style));
+    }
 
+    private int RegisterStyle(CellStyle style)
+    {
         try
         {
-            return new StyleId(_stamp, _styles.Add(style));
+            return _styles.Add(style);
         }
         catch (Exception refused) when (refused is ArgumentException or TabularLimitException)
         {

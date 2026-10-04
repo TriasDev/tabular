@@ -41,6 +41,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
     private readonly ZipWriter _zip;
     private readonly OdsStyles _styles;
     private readonly RowText _row = new();
+    private readonly List<(string Name, int Rows, int Columns)> _frozen = [];
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
     private Stream? _content;
 
@@ -60,8 +61,13 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     public bool NamesSheets => true;
 
-    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns)
+    public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options)
     {
+        if (options.FreezeRows > 0 || options.FreezeColumns > 0)
+        {
+            _frozen.Add((name, options.FreezeRows, options.FreezeColumns));
+        }
+
         _row.Clear();
 
         if (_content is null)
@@ -87,7 +93,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _row.Append("<table:table-row>");
     }
 
-    public string? WriteHeader(string value) => WriteString(value, 0);
+    public string? WriteHeader(string value, int style) => WriteString(value, style);
 
     public string? WriteText(string value, int column, int style) => WriteString(value, style);
 
@@ -177,8 +183,14 @@ internal sealed class OdsSheetWriter : ISheetWriter
             _content = null;
         }
 
-        _zip.AddStored("META-INF/manifest.xml", OdsParts.Manifest);
+        _zip.AddStored("META-INF/manifest.xml", OdsParts.Manifest(settings: _frozen.Count > 0));
         _zip.AddStored("styles.xml", _styles.Build());
+
+        if (_frozen.Count > 0)
+        {
+            _zip.AddStored("settings.xml", OdsParts.Settings(_frozen));
+        }
+
         _zip.Complete();
     }
 

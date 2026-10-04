@@ -256,3 +256,21 @@ TriasDev.Tabular.TabularWriter.Write(System.DateTime value, TriasDev.Tabular.Sty
 TriasDev.Tabular.TabularWriter.Write(System.DateOnly value, TriasDev.Tabular.StyleId style) -> void
 TriasDev.Tabular.TabularWriter.Write(bool value, TriasDev.Tabular.StyleId style) -> void
 TriasDev.Tabular.TabularWriter.WriteEmpty(TriasDev.Tabular.StyleId style) -> void
+override TriasDev.Tabular.SheetOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.SheetOptions.GetHashCode() -> int
+override TriasDev.Tabular.SheetOptions.ToString() -> string!
+static TriasDev.Tabular.SheetOptions.operator !=(TriasDev.Tabular.SheetOptions? left, TriasDev.Tabular.SheetOptions? right) -> bool
+static TriasDev.Tabular.SheetOptions.operator ==(TriasDev.Tabular.SheetOptions? left, TriasDev.Tabular.SheetOptions? right) -> bool
+TriasDev.Tabular.SheetOptions
+TriasDev.Tabular.SheetOptions.<Clone>$() -> TriasDev.Tabular.SheetOptions!
+TriasDev.Tabular.SheetOptions.AutoFilter.get -> bool
+TriasDev.Tabular.SheetOptions.AutoFilter.init -> void
+TriasDev.Tabular.SheetOptions.Equals(TriasDev.Tabular.SheetOptions? other) -> bool
+TriasDev.Tabular.SheetOptions.FreezeColumns.get -> int
+TriasDev.Tabular.SheetOptions.FreezeColumns.init -> void
+TriasDev.Tabular.SheetOptions.FreezeRows.get -> int
+TriasDev.Tabular.SheetOptions.FreezeRows.init -> void
+TriasDev.Tabular.SheetOptions.HeaderStyle.get -> TriasDev.Tabular.CellStyle?
+TriasDev.Tabular.SheetOptions.HeaderStyle.init -> void
+TriasDev.Tabular.SheetOptions.SheetOptions() -> void
+TriasDev.Tabular.TabularWriter.BeginSheet(string! name, System.ReadOnlySpan<TriasDev.Tabular.WriteColumn> columns, TriasDev.Tabular.SheetOptions? options) -> void

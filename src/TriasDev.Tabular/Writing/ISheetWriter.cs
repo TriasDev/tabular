@@ -21,7 +21,8 @@ internal interface ISheetWriter : IDisposable
     /// <summary>Whether the format stores sheet names, which must then meet <see cref="SheetNames"/>' rules.</summary>
     bool NamesSheets { get; }
 
-    void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns);
+    /// <summary>Begins a sheet. <paramref name="options"/> is never null; csv ignores it.</summary>
+    void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options);
 
     void BeginRow();
 
@@ -30,7 +31,8 @@ internal interface ISheetWriter : IDisposable
     /// import compares headers as written — and never judged against a record's width, which the
     /// reader learns from the header. Returns a code if the format cannot hold it.
     /// </summary>
-    string? WriteHeader(string value);
+    /// <remarks><paramref name="style"/> is the header row's style index, 0 for none.</remarks>
+    string? WriteHeader(string value, int style);
 
     // Every Write* method below takes `style`: the cell's index in the writer's StyleTable; 0 is unstyled.
 
