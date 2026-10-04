@@ -54,6 +54,7 @@ public sealed class TabularExport<T>
     /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A chunk is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public ValueTask<long> WriteAsync(Stream stream, TabularFormat format, string sheetName, IAsyncEnumerable<IReadOnlyList<T>> chunks, TabularWriterOptions? options = null, CancellationToken cancellationToken = default) =>
         WriteFileAsync(stream, format, options, writer => WriteSheetAsync(writer, sheetName, chunks, cancellationToken), cancellationToken);
@@ -147,6 +148,7 @@ public sealed class TabularExport<T>
     /// <exception cref="TabularLimitException">An xlsx or ods sheet outgrew its row limit.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A chunk is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">The writer is not in a state to begin a sheet.</exception>
     public async ValueTask<long> WriteSheetAsync(TabularWriter writer, string sheetName, IAsyncEnumerable<IReadOnlyList<T>> chunks, CancellationToken cancellationToken = default)
     {

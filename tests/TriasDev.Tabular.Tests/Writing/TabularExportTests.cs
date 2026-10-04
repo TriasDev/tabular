@@ -312,7 +312,9 @@ public sealed class TabularExportTests
         InvalidOperationException first = await Assert.ThrowsAsync<InvalidOperationException>(async () => await Export.WriteSheetAsync(writer, "more", Items(1), Token));
         InvalidOperationException later = await Assert.ThrowsAsync<InvalidOperationException>(async () => await Export.WriteSheetAsync(writer, "more", Items(1), Token));
 
-        Assert.Contains("complete", first.Message, StringComparison.Ordinal);
-        Assert.Contains("complete", later.Message, StringComparison.Ordinal);
+        // "incomplete" also contains "complete": the faulted message must be ruled out by name.
+        Assert.StartsWith("The file is complete", first.Message, StringComparison.Ordinal);
+        Assert.StartsWith("The file is complete", later.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("failed earlier", later.Message, StringComparison.Ordinal);
     }
 }

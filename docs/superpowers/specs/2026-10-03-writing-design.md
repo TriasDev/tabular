@@ -213,8 +213,9 @@ static readonly TabularExport<Portfolio> Export = TabularExport.For<Portfolio>()
 - Sources may also be a stream of messages that each carry a chunk, with a selector
   (`IAsyncEnumerable<TChunk>` and `Func<TChunk, IReadOnlyList<T>>`) — a gRPC server stream whose
   messages hold a repeated field, passed as it comes.
-- Each column is an `ExportColumn<T, TValue>` holding a typed delegate: one delegate call and one
-  typed `Write` per cell.
+- Each column is an `ExportColumn<T, TValue>` holding a typed delegate: per cell, one virtual call
+  and two delegate calls (the accessor and the typed `Write`), no allocation; measured at 1–6% over
+  a hand-written loop.
 - Width: set per column, or defaulted by type (wider for date-time).
 - The built export is immutable and thread-safe.
 
