@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!-- The third-party writers are referenced here and nowhere else: the library takes no dependency,
+       and TabularIndependenceTests checks that against its resolved graph. -->
+
+  <ItemGroup>
+    <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TriasDev.Tabular\TriasDev.Tabular.csproj" />
+  </ItemGroup>
+
+</Project>
