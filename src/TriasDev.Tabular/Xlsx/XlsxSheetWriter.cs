@@ -45,9 +45,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private static readonly SearchValues<char> NeedsEscape = SearchValues.Create("&<>\r_");
 
     private readonly ZipWriter _zip;
-#pragma warning disable S4487 // Justification: read once the styled cells are written, in the part that follows
-    private readonly StyleTable _styles;
-#pragma warning restore S4487
+    private readonly XlsxStyles _styles;
     private readonly List<string> _sheetNames = [];
     private readonly RowText _row = new();
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
@@ -58,7 +56,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options, StyleTable styles)
     {
-        _styles = styles;
+        _styles = new XlsxStyles(styles);
         _zip = new ZipWriter(output, options.CompressionLevel);
     }
 
@@ -108,9 +106,9 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Append("\">");
     }
 
-    public string? WriteHeader(string value) => WriteInline(value);
+    public string? WriteHeader(string value) => WriteInline(value, 0);
 
-    public string? WriteText(string value, int column, int style) => WriteInline(value);
+    public string? WriteText(string value, int column, int style) => WriteInline(value, style == 0 ? 0 : _styles.Xf(style, ValueKind.Text));
 
     public string? WriteLong(long value, int style)
     {
@@ -119,7 +117,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
             return code;
         }
 
-        WriteNumber(IntegerStyle);
+        WriteNumber(style == 0 ? IntegerStyle : _styles.Xf(style, ValueKind.Integer));
         _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
         _row.Append(ValueEnd);
         return null;
@@ -132,7 +130,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
             return code;
         }
 
-        WriteNumber(style: 0);
+        WriteNumber(style == 0 ? 0 : _styles.Xf(style, ValueKind.Number));
         _row.AppendFormatted(value, default, CultureInfo.InvariantCulture);
         _row.Append(ValueEnd);
         return null;
@@ -140,7 +138,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public string? WriteDouble(double value, int style)
     {
-        WriteNumber(style: 0);
+        WriteNumber(style == 0 ? 0 : _styles.Xf(style, ValueKind.Number));
         _row.AppendFormatted(value, "R", CultureInfo.InvariantCulture);
         _row.Append(ValueEnd);
         return null;
@@ -153,7 +151,8 @@ internal sealed class XlsxSheetWriter : ISheetWriter
             return ErrorCodes.Write.DateOutOfRange;
         }
 
-        WriteNumber(hasTime ? DateTimeStyle : DateStyle);
+        int xf = style == 0 ? DefaultDateXf(hasTime) : _styles.Xf(style, DateKind(hasTime));
+        WriteNumber(xf);
         _row.AppendFormatted(Serial(value), "R", CultureInfo.InvariantCulture);
         _row.Append(ValueEnd);
         return null;
@@ -161,13 +160,23 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public void WriteBoolean(bool value, int style)
     {
-        StartCell();
+        StartCell(style == 0 ? 0 : _styles.Xf(style, ValueKind.Boolean));
         _row.Append(" t=\"b\"><v>");
         _row.Append(value ? '1' : '0');
         _row.Append(ValueEnd);
     }
 
-    public void WriteEmpty(int style) => _column++;
+    public void WriteEmpty(int style)
+    {
+        if (style == 0)
+        {
+            _column++;
+            return;
+        }
+
+        StartCell(_styles.Xf(style, ValueKind.Empty));
+        _row.Append("/>");
+    }
 
     public void EndRow()
     {
@@ -182,18 +191,18 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _zip.AddStored("_rels/.rels", XlsxParts.PackageRelationships);
         _zip.AddStored("xl/workbook.xml", XlsxParts.Workbook(_sheetNames));
         _zip.AddStored("xl/_rels/workbook.xml.rels", XlsxParts.WorkbookRelationships(_sheetNames.Count));
-        _zip.AddStored("xl/styles.xml", XlsxParts.Styles);
+        _zip.AddStored("xl/styles.xml", _styles.Build());
         _zip.Complete();
     }
 
-    private string? WriteInline(string value)
+    private string? WriteInline(string value, int xf)
     {
         if (value.Length > MaxTextChars)
         {
             return ErrorCodes.Write.TextTooLong;
         }
 
-        StartCell();
+        StartCell(xf);
         _row.Append(" t=\"inlineStr\"><is><t");
 
         if (value.Length > 0 && (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1])))
@@ -207,18 +216,14 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         return null;
     }
 
-    /// <summary>Opens a number cell in a style, up to its value.</summary>
-    private void WriteNumber(int style)
+    private static int DefaultDateXf(bool hasTime) => hasTime ? DateTimeStyle : DateStyle;
+
+    private static ValueKind DateKind(bool hasTime) => hasTime ? ValueKind.DateTime : ValueKind.Date;
+
+    /// <summary>Opens a number cell in a cell format, up to its value.</summary>
+    private void WriteNumber(int xf)
     {
-        StartCell();
-
-        if (style != 0)
-        {
-            _row.Append(" s=\"");
-            _row.Append((char)('0' + style));
-            _row.Append('"');
-        }
-
+        StartCell(xf);
         _row.Append("><v>");
     }
 
@@ -239,12 +244,20 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     }
 
     /// <summary>Opens a cell at the current column, with its reference; the caller writes the rest.</summary>
-    private void StartCell()
+    private void StartCell(int xf)
     {
         _row.Append("<c r=\"");
         _row.Append(_columnNames[_column]);
         _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
         _row.Append('"');
+
+        if (xf != 0)
+        {
+            _row.Append(" s=\"");
+            _row.AppendFormatted(xf, default, CultureInfo.InvariantCulture);
+            _row.Append('"');
+        }
+
         _column++;
     }
 
