@@ -121,11 +121,66 @@ public sealed class ZipCsvWriterTests
     [InlineData("a|b")]
     [InlineData("trailing.")]
     [InlineData("trailing ")]
+    [InlineData("CON")]
+    [InlineData("prn")]
+    [InlineData("Aux")]
+    [InlineData("NUL")]
+    [InlineData("COM1")]
+    [InlineData("com9")]
+    [InlineData("LPT1")]
+    [InlineData("lpt9")]
     public async Task ANameAFileSystemRefusesIsRefused(string name)
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Zip);
 
         Assert.Throws<ArgumentException>(() => writer.BeginSheet(name, [new("a")]));
+    }
+
+    [Theory]
+    [InlineData("COM0")]
+    [InlineData("COM10")]
+    [InlineData("CONSOLE")]
+    [InlineData("LPT")]
+    public async Task NamesLikeDeviceNamesButNotOnesAreAccepted(string name)
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Zip);
+
+        Assert.Null(Record.Exception(() => writer.BeginSheet(name, [new("a")])));
+    }
+
+    [Fact]
+    public async Task AWindowsDeviceNameIsAcceptedByXlsx()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer => writer.BeginSheet("CON", [new("a")]));
+
+        Assert.NotEmpty(xlsx);
+    }
+
+    [Fact]
+    public async Task ASheetNameOfMoreThan31CharactersIsRefused()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Zip);
+
+        Assert.Throws<ArgumentException>(() => writer.BeginSheet(new string('n', 32), [new("a")]));
+    }
+
+    [Fact]
+    public async Task AHugeCellDoesNotKeepItsBufferForTheRestOfTheEntry()
+    {
+        using SpillBuffer buffer = new();
+        ZipCsvSheetWriter sheet = new(buffer, ZipWriterOptions.Default, CsvWriterOptions.Default.Resolve());
+        sheet.BeginSheet("data", [new("v")], SheetOptions.Default);
+
+        sheet.BeginRow();
+        Assert.Null(sheet.WriteText(new string('x', 10_000_000), 0, 0));
+        sheet.EndRow();
+        sheet.BeginRow();
+        Assert.Null(sheet.WriteText("small", 0, 0));
+        sheet.EndRow();
+
+        Assert.True(sheet.EntryBufferLength <= 64 * 1024);
+        sheet.Complete();
+        await buffer.DrainToAsync(Stream.Null, Token);
     }
 
     [Fact]

@@ -217,7 +217,7 @@ Batches, the full rule set, translated fields and every error code are in the [d
 
 Stated here so they are found before they are hit:
 
-- **Read-only.** It reads xlsx, ods and csv; it does not write any of them.
+- **Writing.** It writes csv, xlsx, ods and a zip of csv sheets, streaming and asynchronous towards the target, with styles and layout for xlsx and ods; [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) lists what does not come back exactly as written.
 - **xlsx, ods and csv only, alone, zipped, tarred or gzipped.** Legacy `.xls`, binary `.xlsb` and flat OpenDocument
   `.fods` are refused as `format.unsupported` rather than misread; inside an archive they are skipped
   and listed. Archives inside archives are not opened.

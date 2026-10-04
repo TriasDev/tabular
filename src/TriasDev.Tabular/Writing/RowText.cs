@@ -1,5 +1,5 @@
 using System.Buffers;
-using System.Text;
+using System.Text.Unicode;
 
 namespace TriasDev.Tabular;
 
@@ -17,6 +17,9 @@ internal sealed class RowText
     private const int InitialChars = 4 * 1024;
 
     internal const int RetainedChars = 1024 * 1024;
+
+    /// <summary>The bytes asked of the output at a time when the row is encoded.</summary>
+    private const int EncodePiece = 8 * 1024;
 
     private char[] _chars = new char[InitialChars];
 
@@ -78,11 +81,26 @@ internal sealed class RowText
         Length = length;
     }
 
-    /// <summary>Encodes the row as UTF-8 into the output.</summary>
+    /// <summary>
+    /// Encodes the row as UTF-8 into the output, in pieces: never asks the output for more than
+    /// <see cref="EncodePiece"/> bytes at once, however long the row is (the worst case for the
+    /// whole row is three bytes a character).
+    /// </summary>
     public void WriteUtf8To(IBufferWriter<byte> output)
     {
-        Span<byte> target = output.GetSpan(Encoding.UTF8.GetMaxByteCount(Length));
-        output.Advance(Encoding.UTF8.GetBytes(Written, target));
+        ReadOnlySpan<char> rest = Written;
+
+        while (true)
+        {
+            OperationStatus status = Utf8.FromUtf16(rest, output.GetSpan(EncodePiece), out int read, out int written, replaceInvalidSequences: true, isFinalBlock: true);
+            output.Advance(written);
+            rest = rest[read..];
+
+            if (status != OperationStatus.DestinationTooSmall)
+            {
+                return;
+            }
+        }
     }
 
     private void Reserve(int extra)

@@ -6,7 +6,7 @@ using TriasDev.Tabular.Xlsx;
 namespace TriasDev.Tabular;
 
 /// <summary>
-/// Writes a table into a stream, row by row: typed values in, a csv, xlsx or ods file out.
+/// Writes a table into a stream, row by row: typed values in, a csv, xlsx or ods file (or a zip of csv sheets) out.
 /// </summary>
 /// <remarks>
 /// <para>

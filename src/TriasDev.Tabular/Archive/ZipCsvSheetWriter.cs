@@ -9,8 +9,9 @@ namespace TriasDev.Tabular.Archive;
 /// exactly the csv file a single-sheet export of it would be.
 /// </summary>
 /// <remarks>
-/// The csv writer formats into a buffer writer whose committed bytes go straight into the open
-/// entry's deflate stream, so nothing is buffered per sheet. The archive reader reads such a zip back
+/// The csv writer formats into a buffer writer whose committed bytes collect in one working buffer
+/// and are written into the open entry's deflate stream when it fills and when the entry ends, so
+/// nothing is buffered per sheet. The archive reader reads such a zip back
 /// as a workbook, a sheet per entry, named after the entry without <c>.csv</c>.
 /// </remarks>
 internal sealed class ZipCsvSheetWriter : ISheetWriter
@@ -28,6 +29,9 @@ internal sealed class ZipCsvSheetWriter : ISheetWriter
         _csv = new CsvSheetWriter(_entryBuffer, format);
     }
 
+    /// <summary>The entry buffer's current size, for the test that a huge row does not keep it.</summary>
+    internal int EntryBufferLength => _entryBuffer.BufferLength;
+
     public long MaxRows => long.MaxValue;
 
     public bool AllowsSeveralSheets => true;
@@ -43,9 +47,32 @@ internal sealed class ZipCsvSheetWriter : ISheetWriter
             return $"The sheet name \"{name}\" holds one of < > \" |, which a file system refuses in the entry's file name.";
         }
 
-        return name[^1] is '.' or ' '
-            ? $"The sheet name \"{name}\" ends with a dot or a space, which a file system drops from the entry's file name."
+        if (name[^1] is '.' or ' ')
+        {
+            return $"The sheet name \"{name}\" ends with a dot or a space, which a file system drops from the entry's file name.";
+        }
+
+        return IsWindowsDeviceName(name)
+            ? $"The sheet name \"{name}\" is a reserved device name on Windows, where \"{name}.csv\" cannot be unpacked."
             : null;
+    }
+
+    /// <summary>CON, PRN, AUX, NUL, COM1-COM9 and LPT1-LPT9, in any case: Windows refuses them as file names.</summary>
+    private static bool IsWindowsDeviceName(string name)
+    {
+        ReadOnlySpan<char> span = name;
+
+        if (span.Length == 3)
+        {
+            return span.Equals("CON", StringComparison.OrdinalIgnoreCase)
+                || span.Equals("PRN", StringComparison.OrdinalIgnoreCase)
+                || span.Equals("AUX", StringComparison.OrdinalIgnoreCase)
+                || span.Equals("NUL", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return span.Length == 4
+            && span[3] is >= '1' and <= '9'
+            && (span[..3].Equals("COM", StringComparison.OrdinalIgnoreCase) || span[..3].Equals("LPT", StringComparison.OrdinalIgnoreCase));
     }
 
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options)
@@ -86,7 +113,10 @@ internal sealed class ZipCsvSheetWriter : ISheetWriter
         _zip.Complete();
     }
 
-    /// <summary>Releases the open entry's deflate state, writing nothing more: the file is abandoned.</summary>
+    /// <summary>
+    /// Releases the open entry's deflate state: the file is abandoned, so whatever disposing the
+    /// stream writes (its final block) stays in the abandoned spill buffer, which is never drained.
+    /// </summary>
     public void Dispose()
     {
         _entry?.Dispose();
@@ -101,6 +131,7 @@ internal sealed class ZipCsvSheetWriter : ISheetWriter
             return;
         }
 
+        _entryBuffer.Flush();
         _zip.EndEntry();
         _entry = null;
         _entryBuffer.Target = null;
