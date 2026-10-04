@@ -41,6 +41,74 @@ static TriasDev.Tabular.TabularWriterOptions.operator ==(TriasDev.Tabular.Tabula
 override TriasDev.Tabular.TabularWriterOptions.Equals(object? obj) -> bool
 override TriasDev.Tabular.TabularWriterOptions.GetHashCode() -> int
 override TriasDev.Tabular.TabularWriterOptions.ToString() -> string!
+TriasDev.Tabular.CellBorder
+TriasDev.Tabular.CellBorder.<Clone>$() -> TriasDev.Tabular.CellBorder!
+TriasDev.Tabular.CellBorder.Color.get -> TriasDev.Tabular.CellColor
+TriasDev.Tabular.CellBorder.Equals(TriasDev.Tabular.CellBorder? other) -> bool
+TriasDev.Tabular.CellColor
+TriasDev.Tabular.CellColor.CellColor() -> void
+TriasDev.Tabular.CellColor.Equals(TriasDev.Tabular.CellColor other) -> bool
+TriasDev.Tabular.CellColor.Rgb.get -> int
+TriasDev.Tabular.CellFont
+TriasDev.Tabular.CellFont.<Clone>$() -> TriasDev.Tabular.CellFont!
+TriasDev.Tabular.CellFont.Bold.get -> bool
+TriasDev.Tabular.CellFont.Bold.init -> void
+TriasDev.Tabular.CellFont.CellFont() -> void
+TriasDev.Tabular.CellFont.Color.get -> TriasDev.Tabular.CellColor?
+TriasDev.Tabular.CellFont.Color.init -> void
+TriasDev.Tabular.CellFont.Equals(TriasDev.Tabular.CellFont? other) -> bool
+TriasDev.Tabular.CellFont.Italic.get -> bool
+TriasDev.Tabular.CellFont.Italic.init -> void
+TriasDev.Tabular.CellStyle
+TriasDev.Tabular.CellStyle.<Clone>$() -> TriasDev.Tabular.CellStyle!
+TriasDev.Tabular.CellStyle.Border.get -> TriasDev.Tabular.CellBorder?
+TriasDev.Tabular.CellStyle.Border.init -> void
+TriasDev.Tabular.CellStyle.CellStyle() -> void
+TriasDev.Tabular.CellStyle.Equals(TriasDev.Tabular.CellStyle? other) -> bool
+TriasDev.Tabular.CellStyle.Fill.get -> TriasDev.Tabular.CellColor?
+TriasDev.Tabular.CellStyle.Fill.init -> void
+TriasDev.Tabular.CellStyle.Font.get -> TriasDev.Tabular.CellFont?
+TriasDev.Tabular.CellStyle.Font.init -> void
+TriasDev.Tabular.CellStyle.Horizontal.get -> TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.CellStyle.Horizontal.init -> void
+TriasDev.Tabular.CellStyle.Wrap.get -> bool
+TriasDev.Tabular.CellStyle.Wrap.init -> void
+TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.HorizontalAlignment.Center = 2 -> TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.HorizontalAlignment.General = 0 -> TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.HorizontalAlignment.Left = 1 -> TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.HorizontalAlignment.Right = 3 -> TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.StyleId
+TriasDev.Tabular.StyleId.Equals(TriasDev.Tabular.StyleId other) -> bool
+TriasDev.Tabular.StyleId.StyleId() -> void
+override TriasDev.Tabular.CellBorder.Equals(object? obj) -> bool
+override TriasDev.Tabular.CellBorder.GetHashCode() -> int
+override TriasDev.Tabular.CellBorder.ToString() -> string!
+override TriasDev.Tabular.CellColor.GetHashCode() -> int
+override TriasDev.Tabular.CellColor.ToString() -> string!
+override TriasDev.Tabular.CellFont.Equals(object? obj) -> bool
+override TriasDev.Tabular.CellFont.GetHashCode() -> int
+override TriasDev.Tabular.CellFont.ToString() -> string!
+override TriasDev.Tabular.CellStyle.Equals(object? obj) -> bool
+override TriasDev.Tabular.CellStyle.GetHashCode() -> int
+override TriasDev.Tabular.CellStyle.ToString() -> string!
+override TriasDev.Tabular.StyleId.GetHashCode() -> int
+override TriasDev.Tabular.StyleId.ToString() -> string!
+~override TriasDev.Tabular.CellColor.Equals(object obj) -> bool
+~override TriasDev.Tabular.StyleId.Equals(object obj) -> bool
+static TriasDev.Tabular.CellBorder.Thin(TriasDev.Tabular.CellColor color) -> TriasDev.Tabular.CellBorder!
+static TriasDev.Tabular.CellBorder.operator !=(TriasDev.Tabular.CellBorder? left, TriasDev.Tabular.CellBorder? right) -> bool
+static TriasDev.Tabular.CellBorder.operator ==(TriasDev.Tabular.CellBorder? left, TriasDev.Tabular.CellBorder? right) -> bool
+static TriasDev.Tabular.CellColor.FromRgb(int rgb) -> TriasDev.Tabular.CellColor
+static TriasDev.Tabular.CellColor.Parse(string! text) -> TriasDev.Tabular.CellColor
+static TriasDev.Tabular.CellColor.operator !=(TriasDev.Tabular.CellColor left, TriasDev.Tabular.CellColor right) -> bool
+static TriasDev.Tabular.CellColor.operator ==(TriasDev.Tabular.CellColor left, TriasDev.Tabular.CellColor right) -> bool
+static TriasDev.Tabular.CellFont.operator !=(TriasDev.Tabular.CellFont? left, TriasDev.Tabular.CellFont? right) -> bool
+static TriasDev.Tabular.CellFont.operator ==(TriasDev.Tabular.CellFont? left, TriasDev.Tabular.CellFont? right) -> bool
+static TriasDev.Tabular.CellStyle.operator !=(TriasDev.Tabular.CellStyle? left, TriasDev.Tabular.CellStyle? right) -> bool
+static TriasDev.Tabular.CellStyle.operator ==(TriasDev.Tabular.CellStyle? left, TriasDev.Tabular.CellStyle? right) -> bool
+static TriasDev.Tabular.StyleId.operator !=(TriasDev.Tabular.StyleId left, TriasDev.Tabular.StyleId right) -> bool
+static TriasDev.Tabular.StyleId.operator ==(TriasDev.Tabular.StyleId left, TriasDev.Tabular.StyleId right) -> bool
 TriasDev.Tabular.Csv.CsvWriterOptions
 TriasDev.Tabular.Csv.CsvWriterOptions.ByteOrderMark.get -> bool
 TriasDev.Tabular.Csv.CsvWriterOptions.ByteOrderMark.init -> void
