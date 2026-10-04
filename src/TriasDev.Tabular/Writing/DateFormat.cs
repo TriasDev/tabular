@@ -83,12 +83,12 @@ public sealed record DateFormat
             }
 
             DatePart field = Field(code, letter, run);
-            Flush(parts, literal);
+            Flush(code, parts, literal);
             parts.Add(field);
             i += run;
         }
 
-        Flush(parts, literal);
+        Flush(code, parts, literal);
 
         if (parts.TrueForAll(p => p.Kind == DatePartKind.Literal))
         {
@@ -157,10 +157,15 @@ public sealed record DateFormat
         };
     }
 
-    private static void Flush(List<DatePart> parts, StringBuilder literal)
+    private static void Flush(string code, List<DatePart> parts, StringBuilder literal)
     {
         if (literal.Length > 0)
         {
+            if (TextRules.Check(literal.ToString()) is { } problem)
+            {
+                throw Refuse(code, $"its literal text cannot be written ({problem})");
+            }
+
             parts.Add(new DatePart(DatePartKind.Literal, false, literal.ToString()));
             literal.Clear();
         }

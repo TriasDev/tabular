@@ -111,6 +111,10 @@ public sealed class FormatCodeTests
         Assert.Throws<ArgumentException>(() => NumberFormat.Parse("0\"\u0007\""));
 
     [Fact]
+    public void AnEscapedCharacterThatIsForbiddenIsRefused() =>
+        Assert.Throws<ArgumentException>(() => DateFormat.Parse("dd\\" + "\u0007"));
+
+    [Fact]
     public void AStyleCarriesBothFormats()
     {
         CellStyle style = new() { Number = NumberFormat.Parse("0.00"), Date = DateFormat.Parse("dd/mm/yyyy") };
