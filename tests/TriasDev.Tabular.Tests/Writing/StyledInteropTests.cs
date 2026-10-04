@@ -131,4 +131,61 @@ public sealed class StyledInteropTests
         Assert.Contains("<mergeCell ref=\"A2:B2\"/>", sheet, StringComparison.Ordinal);
         Assert.Contains("<mergeCell ref=\"B3:C4\"/>", sheet, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData(TabularFormat.Xlsx, "xlsx")]
+    [InlineData(TabularFormat.Ods, "ods")]
+    public async Task ALaidOutWorkbookOpensAndReadsBack(TabularFormat format, string extension)
+    {
+        CellStyle header = new() { Fill = CellColor.FromRgb(0x1F4E78), Font = new CellFont { Color = CellColor.FromRgb(0xFFFFFF), Bold = true } };
+        CellStyle[] legend = [new() { Fill = CellColor.FromRgb(0x63BE7B) }, new() { Fill = CellColor.FromRgb(0xFFEB84) }, new() { Fill = CellColor.FromRgb(0xF8696B) }];
+
+        byte[] file = await SheetLayoutTests.Write(format, writer =>
+        {
+            StyleId[] colours = [.. legend.Select(writer.Style)];
+            StyleId title = writer.Style(new CellStyle { Font = new CellFont { Bold = true }, Horizontal = HorizontalAlignment.Center });
+
+            writer.BeginSheet("Data", [new("Id"), new("Score"), new("Date", 12)], new SheetOptions { HeaderStyle = header, FreezeRows = 1, AutoFilter = true });
+
+            for (int i = 1; i <= 100; i++)
+            {
+                writer.BeginRow();
+                writer.Write((long)i);
+                writer.Write(i / 10.0, colours[i % 3]);
+                writer.Write(new DateOnly(2026, 1, 1).AddDays(i));
+                writer.EndRow();
+            }
+
+            writer.BeginSheet("Legend", [new("Range"), new("Colour"), new("Meaning")], new SheetOptions { HeaderStyle = header });
+            writer.BeginRow();
+            writer.Merge(1, 3);
+            writer.Write("Score legend", title);
+            writer.EndRow();
+
+            for (int i = 0; i < legend.Length; i++)
+            {
+                writer.BeginRow();
+                writer.Write($"{i * 3}–{(i * 3) + 3}");
+                writer.WriteEmpty(colours[i]);
+                writer.Write(i switch { 0 => "low", 1 => "medium", _ => "high" });
+                writer.EndRow();
+            }
+        });
+
+        if (format == TabularFormat.Xlsx)
+        {
+            Assert.Empty(OoxmlValidation.Errors(file));
+        }
+
+        string[] lines = LibreOffice.ConvertToCsv(file, extension);
+        Assert.Equal(101, lines.Length);
+
+        List<RawCell[]> data = SheetLayoutTests.Rows(file, 0);
+        Assert.Equal(101, data.Count);
+        Assert.Equal(RawCell.FromNumber(5), data[50][1]);
+
+        List<RawCell[]> legendRows = SheetLayoutTests.Rows(file, 1);
+        Assert.Equal(RawCell.FromText("Score legend"), legendRows[1][0]);
+        Assert.Equal(RawCell.FromText("high"), legendRows[4][2]);
+    }
 }
