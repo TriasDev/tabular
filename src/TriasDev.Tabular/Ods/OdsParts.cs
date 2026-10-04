@@ -73,13 +73,14 @@ internal static class OdsParts
 
     /// <summary>
     /// The view settings that freeze panes, as LibreOffice stores them: per sheet, a split mode of 2
-    /// (frozen) and the split position in rows or columns, the bottom-right part active.
+    /// (frozen) and the split position in rows or columns, the bottom-right part active. The root declares
+    /// <c>ooo</c>: the view-settings set's name is a QName, and LibreOffice ignores the set without it.
     /// </summary>
     public static byte[] Settings(IReadOnlyList<(string Name, int Rows, int Columns)> frozen)
     {
         StringBuilder xml = new(
             XmlDeclaration
-            + "<office:document-settings xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" office:version=\"1.3\">"
+            + "<office:document-settings xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\" office:version=\"1.3\">"
             + "<office:settings><config:config-item-set config:name=\"ooo:view-settings\"><config:config-item-map-indexed config:name=\"Views\"><config:config-item-map-entry>"
             + "<config:config-item config:name=\"ViewId\" config:type=\"string\">view1</config:config-item><config:config-item-map-named config:name=\"Tables\">");
 

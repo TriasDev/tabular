@@ -172,6 +172,52 @@ public sealed class StyledInteropTests
         writer.EndRow();
     }
 
+    private static void ThreeFrozenSheets(TabularWriter writer)
+    {
+        writer.BeginSheet("rows", [new("a"), new("b")], new SheetOptions { FreezeRows = 1 });
+        writer.BeginRow();
+        writer.Write("x");
+        writer.Write(1L);
+        writer.EndRow();
+        writer.BeginSheet("columns", [new("a"), new("b"), new("c")], new SheetOptions { FreezeColumns = 2 });
+        writer.BeginSheet("both", [new("a"), new("b"), new("c")], new SheetOptions { FreezeRows = 1, FreezeColumns = 2 });
+    }
+
+    [Theory]
+    [InlineData(TabularFormat.Ods, "ods")]
+    [InlineData(TabularFormat.Xlsx, "xlsx")]
+    public async Task LibreOfficeKeepsTheFrozenPanes(TabularFormat format, string extension)
+    {
+        byte[] file = await SheetLayoutTests.Write(format, ThreeFrozenSheets);
+
+        string settings = Entry(LibreOffice.Resave(file, extension), "settings.xml");
+
+        // columns = horizontal split, rows = vertical split.
+        AssertPane(settings, "rows", horizontalMode: 0, verticalMode: 2, horizontal: 0, vertical: 1);
+        AssertPane(settings, "columns", horizontalMode: 2, verticalMode: 0, horizontal: 2, vertical: 0);
+        AssertPane(settings, "both", horizontalMode: 2, verticalMode: 2, horizontal: 2, vertical: 1);
+    }
+
+    private static void AssertPane(string settings, string sheet, int horizontalMode, int verticalMode, int horizontal, int vertical)
+    {
+        int start = settings.IndexOf($"config:name=\"{sheet}\"", StringComparison.Ordinal);
+        Assert.True(start >= 0, $"The resaved settings have no entry for sheet '{sheet}': {settings}");
+        string entry = settings[start..];
+
+        static string Value(string entry, string name)
+        {
+            int at = entry.IndexOf($"config:name=\"{name}\"", StringComparison.Ordinal);
+            Assert.True(at >= 0, $"The resaved entry has no {name}: {entry[..Math.Min(entry.Length, 400)]}");
+            int from = entry.IndexOf('>', at) + 1;
+            return entry[from..entry.IndexOf('<', from)];
+        }
+
+        Assert.Equal(horizontalMode.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "HorizontalSplitMode"));
+        Assert.Equal(verticalMode.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "VerticalSplitMode"));
+        Assert.Equal(horizontal.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "HorizontalSplitPosition"));
+        Assert.Equal(vertical.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "VerticalSplitPosition"));
+    }
+
     [Theory]
     [InlineData(TabularFormat.Xlsx, "xlsx")]
     [InlineData(TabularFormat.Ods, "ods")]

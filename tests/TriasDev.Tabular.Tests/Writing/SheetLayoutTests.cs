@@ -89,6 +89,9 @@ public sealed class SheetLayoutTests
         Assert.Contains("config:name=\"rows only\"><config:config-item config:name=\"HorizontalSplitMode\" config:type=\"short\">0</config:config-item><config:config-item config:name=\"VerticalSplitMode\" config:type=\"short\">2</config:config-item>", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("config:name=\"plain\"", settings, StringComparison.Ordinal);
         Assert.Contains("manifest:full-path=\"settings.xml\"", Entry(ods, "META-INF/manifest.xml"), StringComparison.Ordinal);
+
+        // The "ooo:" in the view-settings name is a QName; without its declaration LibreOffice ignores the set.
+        Assert.Contains("xmlns:ooo=\"http://openoffice.org/2004/office\"", settings, StringComparison.Ordinal);
     }
 
     [Fact]
