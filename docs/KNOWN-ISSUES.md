@@ -198,3 +198,5 @@ Read back through this library, xlsx and ods follow the same rules and add no ex
 - LibreOffice (and Excel) keep 15 significant digits when they re-save a number: a 16-digit integer such as 9007199254740992 comes back as 9007199254740990 after opening and saving the file there. Write identifiers longer than 15 digits as text.
 
 Reading ods back with this library, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
+
+TabularExport: a char property resolves to an integer column (its code point), ulong and p => null are ambiguous, an int with a DecimalImportField is ambiguous between decimal and double — convert explicitly; write enums and identifiers as text.
