@@ -209,6 +209,14 @@ internal sealed class CsvSheetWriter : ISheetWriter
         _row.Append(value ? "true" : "false");
     }
 
+    public int MaxMerges => int.MaxValue;
+
+    public void Merge(int rows, int columns)
+    {
+    }
+
+    public void WriteCovered() => Separate();
+
     public void WriteEmpty(int style) => Separate();
 
     public void EndRow()

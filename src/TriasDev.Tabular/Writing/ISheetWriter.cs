@@ -58,6 +58,15 @@ internal interface ISheetWriter : IDisposable
 
     void WriteEmpty(int style);
 
+    /// <summary>The most merged ranges a sheet holds.</summary>
+    int MaxMerges { get; }
+
+    /// <summary>The next cell written is the top-left of a range this many rows high and columns wide; checked by the writer.</summary>
+    void Merge(int rows, int columns);
+
+    /// <summary>Writes a position a merged range covers, other than its top-left cell.</summary>
+    void WriteCovered();
+
     void EndRow();
 
     /// <summary>Writes whatever ends the file. Called once, after the last row.</summary>

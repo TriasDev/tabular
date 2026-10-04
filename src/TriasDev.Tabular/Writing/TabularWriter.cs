@@ -48,6 +48,15 @@ public sealed class TabularWriter : IAsyncDisposable
     private long _rowNumber;
     private int _column;
 
+    // Merges: per column, the rows a range covers there (first..last, 0 when none). Allocated on a
+    // sheet's first merge, so a sheet without merges pays one null check per cell.
+    private long[]? _coveredFrom;
+    private long[]? _coveredThrough;
+    private long _lastCoveredRow;
+    private int _pendingRows;
+    private int _pendingColumns;
+    private int _merges;
+
     private TabularWriter(Stream target, TabularFormat format, SpillBuffer buffer, ISheetWriter sheet, StyleTable styles, bool leaveOpen)
     {
         _target = target;
@@ -182,6 +191,8 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Refuse("A sheet begins outside a row.");
         }
 
+        ExpectRangesClosed();
+
         if (_sheets > 0 && !_sheet.AllowsSeveralSheets)
         {
             throw Refuse($"A {Format} file holds one sheet.");
@@ -218,6 +229,12 @@ public sealed class TabularWriter : IAsyncDisposable
         _sheetNames.Add(name);
         _sheets++;
         _rowNumber = 0;
+        _coveredFrom = null;
+        _coveredThrough = null;
+        _lastCoveredRow = 0;
+        _merges = 0;
+        _pendingRows = 0;
+        _pendingColumns = 0;
         _sheet.BeginSheet(name, _columns, layout);
 
         StartRow();
@@ -401,6 +418,44 @@ public sealed class TabularWriter : IAsyncDisposable
         _sheet.WriteEmpty(Index(style));
     }
 
+    /// <summary>
+    /// Merges the next cell written with the cells right of and below it: it becomes the top-left of
+    /// a range <paramref name="rows"/> high and <paramref name="columns"/> wide, which shows its value.
+    /// The writer skips the covered positions — the row's next write lands after the range, and later
+    /// rows skip it too — and writes them itself. Csv writes the value in the top-left cell and empty
+    /// fields elsewhere.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Rows or columns below 1, or a single cell.</exception>
+    /// <exception cref="InvalidOperationException">Outside a row, or a merge already waits for its cell.</exception>
+    /// <exception cref="TabularLimitException">The sheet already holds as many merges as its format allows.</exception>
+    public void Merge(int rows, int columns)
+    {
+        ExpectWritable();
+
+        if (_state != State.InRow)
+        {
+            throw Refuse("A merge is declared inside a row, right before its top-left cell.");
+        }
+
+        if (_pendingColumns != 0)
+        {
+            throw Refuse("A merge already waits for its top-left cell.");
+        }
+
+        if (rows < 1 || columns < 1 || (rows == 1 && columns == 1))
+        {
+            throw Faulting(new ArgumentOutOfRangeException(rows < 1 ? nameof(rows) : nameof(columns), $"A merged range is at least 1 × 1 and more than one cell; {rows} × {columns} is not."));
+        }
+
+        if (_merges == _sheet.MaxMerges)
+        {
+            throw Faulting(new TabularLimitException("MaxMerges", _sheet.MaxMerges, $"A {Format} sheet holds at most {_sheet.MaxMerges} merged ranges."));
+        }
+
+        _pendingRows = rows;
+        _pendingColumns = columns;
+    }
+
     /// <summary>Ends the row; columns it did not reach are written empty.</summary>
     public void EndRow()
     {
@@ -409,6 +464,11 @@ public sealed class TabularWriter : IAsyncDisposable
         if (_state != State.InRow)
         {
             throw Refuse("A row ends after it began.");
+        }
+
+        if (_pendingColumns != 0)
+        {
+            throw Refuse("A merge was declared but no cell followed it in the row.");
         }
 
         FinishRow();
@@ -446,6 +506,8 @@ public sealed class TabularWriter : IAsyncDisposable
         {
             throw Refuse("A file has at least one sheet.");
         }
+
+        ExpectRangesClosed();
 
         try
         {
@@ -572,7 +634,14 @@ public sealed class TabularWriter : IAsyncDisposable
     {
         for (; _column < _columns.Length; _column++)
         {
-            _sheet.WriteEmpty(0);
+            if (_coveredFrom is not null && IsCovered(_column))
+            {
+                _sheet.WriteCovered();
+            }
+            else
+            {
+                _sheet.WriteEmpty(0);
+            }
         }
 
         _sheet.EndRow();
@@ -608,12 +677,80 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Refuse("A value is written between BeginRow and EndRow.");
         }
 
+        if (_coveredFrom is not null)
+        {
+            SkipCovered();
+        }
+
         if (_column == _columns.Length)
         {
             throw Refuse($"The row already has a value for each of the sheet's {_columns.Length} columns.");
         }
 
+        if (_pendingColumns != 0)
+        {
+            BeginMerge(_column);
+        }
+
         return _column++;
+    }
+
+    /// <summary>Writes the covered positions the row has reached.</summary>
+    private void SkipCovered()
+    {
+        while (_column < _columns.Length && IsCovered(_column))
+        {
+            _sheet.WriteCovered();
+            _column++;
+        }
+    }
+
+    private bool IsCovered(int column) =>
+        _coveredFrom![column] <= _rowNumber && _rowNumber <= _coveredThrough![column];
+
+    /// <summary>Checks the waiting merge against the sheet and earlier ranges, records it, and tells the format.</summary>
+    private void BeginMerge(int column)
+    {
+        int rows = _pendingRows;
+        int columns = _pendingColumns;
+        _pendingRows = 0;
+        _pendingColumns = 0;
+
+        if (columns > _columns.Length - column)
+        {
+            throw Refuse($"A merge of {columns} columns from column {column + 1} reaches past the sheet's {_columns.Length} columns.");
+        }
+
+        _coveredFrom ??= new long[_columns.Length];
+        _coveredThrough ??= new long[_columns.Length];
+        long last = _rowNumber + rows - 1;
+
+        for (int c = column; c < column + columns; c++)
+        {
+            if (_coveredThrough[c] >= _rowNumber && _coveredFrom[c] <= last)
+            {
+                throw Refuse($"The merge from row {_rowNumber}, column {column + 1} overlaps a range declared earlier.");
+            }
+        }
+
+        for (int c = column; c < column + columns; c++)
+        {
+            // The top-left cell holds the value; every other position in the range is covered.
+            _coveredFrom[c] = c == column ? _rowNumber + 1 : _rowNumber;
+            _coveredThrough[c] = c == column && rows == 1 ? 0 : last;
+        }
+
+        _lastCoveredRow = Math.Max(_lastCoveredRow, last);
+        _merges++;
+        _sheet.Merge(rows, columns);
+    }
+
+    private void ExpectRangesClosed()
+    {
+        if (_lastCoveredRow > _rowNumber)
+        {
+            throw Refuse($"A merged range reaches row {_lastCoveredRow}, but sheet \"{_sheetName}\" ends at row {_rowNumber}.");
+        }
     }
 
     private void Check(string? code, int column)

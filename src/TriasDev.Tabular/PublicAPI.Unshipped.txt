@@ -274,3 +274,4 @@ TriasDev.Tabular.SheetOptions.HeaderStyle.get -> TriasDev.Tabular.CellStyle?
 TriasDev.Tabular.SheetOptions.HeaderStyle.init -> void
 TriasDev.Tabular.SheetOptions.SheetOptions() -> void
 TriasDev.Tabular.TabularWriter.BeginSheet(string! name, System.ReadOnlySpan<TriasDev.Tabular.WriteColumn> columns, TriasDev.Tabular.SheetOptions? options) -> void
+TriasDev.Tabular.TabularWriter.Merge(int rows, int columns) -> void

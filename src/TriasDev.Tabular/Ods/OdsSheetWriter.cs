@@ -166,6 +166,14 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _row.Append("</text:p></table:table-cell>");
     }
 
+    public int MaxMerges => int.MaxValue;
+
+    public void Merge(int rows, int columns)
+    {
+    }
+
+    public void WriteCovered() => WriteEmpty(0);
+
     public void WriteEmpty(int style)
     {
         if (style == 0)

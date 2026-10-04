@@ -167,6 +167,14 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Append(ValueEnd);
     }
 
+    public int MaxMerges => 65_536;
+
+    public void Merge(int rows, int columns)
+    {
+    }
+
+    public void WriteCovered() => WriteEmpty(0);
+
     public void WriteEmpty(int style)
     {
         if (style == 0)
