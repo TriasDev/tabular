@@ -218,7 +218,7 @@ TabularExport picks a column type by overload resolution, and some lambdas do no
 
 ### Sheet layout
 
-- `SheetOptions` sets a header style, frozen rows and columns, and an auto-filter on the header row through the last row written; csv ignores it.
+- `SheetOptions` sets a header style, frozen rows and columns, and an auto-filter on the header row through the last row written; csv ignores it. A declared export takes its `SheetOptions` once on its builder (`.Sheet(...)`) and applies them to every sheet it writes.
 - `writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips the covered positions — the row's next write lands after the range, later rows skip it too — and writes them itself. The import reads a merged range as its value in the top-left cell and empty cells elsewhere; csv writes exactly that.
 - A merge must end inside the sheet: ending a sheet (or the file) while a range still has rows to cover is refused.
 - xlsx holds at most 65,536 merged ranges per sheet.

@@ -54,17 +54,17 @@ public sealed class TabularExportSheetOptionsTests
 
     [Fact]
     public void AFreezePastTheExportsColumnsFailsAtBuild() =>
-        Assert.Throws<ArgumentOutOfRangeException>(() => TabularExport.For<Item>()
+        Assert.Equal("Sheet", Assert.Throws<ArgumentOutOfRangeException>(() => TabularExport.For<Item>()
             .Column("Id", i => i.Id)
             .Sheet(new SheetOptions { FreezeColumns = 2 })
-            .Build());
+            .Build()).ParamName);
 
     [Fact]
     public void ANegativeFreezeFailsAtBuild() =>
-        Assert.Throws<ArgumentOutOfRangeException>(() => TabularExport.For<Item>()
+        Assert.Equal("Sheet", Assert.Throws<ArgumentOutOfRangeException>(() => TabularExport.For<Item>()
             .Column("Id", i => i.Id)
             .Sheet(new SheetOptions { FreezeRows = -1 })
-            .Build());
+            .Build()).ParamName);
 
     [Fact]
     public async Task OneExportWithALayoutServesConcurrentWriters()

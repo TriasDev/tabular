@@ -30,9 +30,6 @@ public sealed class TabularExportBuilder<T>
     /// <summary>The width a date column gets unless told otherwise: <c>yyyy-mm-dd</c>.</summary>
     private const double DateWidth = 10;
 
-    /// <summary>The rows of the workbook formats; a freeze must stay below it.</summary>
-    private const long WorkbookMaxRows = 1_048_576;
-
     private readonly List<ExportColumn<T>> _columns = [];
     private SheetOptions? _sheet;
 
@@ -135,7 +132,7 @@ public sealed class TabularExportBuilder<T>
             throw problem;
         }
 
-        if (_sheet?.FreezeProblem(nameof(Sheet), WorkbookMaxRows, declared.Length) is { } freezeProblem)
+        if (_sheet?.FreezeProblem(nameof(Sheet), SheetLimits.WorkbookMaxRows, declared.Length) is { } freezeProblem)
         {
             throw freezeProblem;
         }

@@ -61,7 +61,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _zip.AddStored("mimetype", "application/vnd.oasis.opendocument.spreadsheet"u8);
     }
 
-    public long MaxRows => 1_048_576;
+    public long MaxRows => SheetLimits.WorkbookMaxRows;
 
     public bool AllowsSeveralSheets => true;
 

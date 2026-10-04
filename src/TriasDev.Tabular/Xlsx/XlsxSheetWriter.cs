@@ -82,7 +82,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _sheet = null;
     }
 
-    public long MaxRows => 1_048_576;
+    public long MaxRows => SheetLimits.WorkbookMaxRows;
 
     public bool AllowsSeveralSheets => true;
 
