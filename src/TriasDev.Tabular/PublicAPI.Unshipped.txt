@@ -223,3 +223,27 @@ TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter
 TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
 TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
 TriasDev.Tabular.TabularExport<T>.WriteSheetAsync<TChunk>(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<TChunk>! chunks, System.Func<TChunk, System.Collections.Generic.IReadOnlyList<T>!>! itemsOf, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
+override TriasDev.Tabular.DateFormat.Equals(object? obj) -> bool
+override TriasDev.Tabular.DateFormat.GetHashCode() -> int
+override TriasDev.Tabular.DateFormat.ToString() -> string!
+override TriasDev.Tabular.NumberFormat.Equals(object? obj) -> bool
+override TriasDev.Tabular.NumberFormat.GetHashCode() -> int
+override TriasDev.Tabular.NumberFormat.ToString() -> string!
+static TriasDev.Tabular.DateFormat.operator !=(TriasDev.Tabular.DateFormat? left, TriasDev.Tabular.DateFormat? right) -> bool
+static TriasDev.Tabular.DateFormat.operator ==(TriasDev.Tabular.DateFormat? left, TriasDev.Tabular.DateFormat? right) -> bool
+static TriasDev.Tabular.DateFormat.Parse(string! code) -> TriasDev.Tabular.DateFormat!
+static TriasDev.Tabular.NumberFormat.operator !=(TriasDev.Tabular.NumberFormat? left, TriasDev.Tabular.NumberFormat? right) -> bool
+static TriasDev.Tabular.NumberFormat.operator ==(TriasDev.Tabular.NumberFormat? left, TriasDev.Tabular.NumberFormat? right) -> bool
+static TriasDev.Tabular.NumberFormat.Parse(string! code) -> TriasDev.Tabular.NumberFormat!
+TriasDev.Tabular.CellStyle.Date.get -> TriasDev.Tabular.DateFormat?
+TriasDev.Tabular.CellStyle.Date.init -> void
+TriasDev.Tabular.CellStyle.Number.get -> TriasDev.Tabular.NumberFormat?
+TriasDev.Tabular.CellStyle.Number.init -> void
+TriasDev.Tabular.DateFormat
+TriasDev.Tabular.DateFormat.<Clone>$() -> TriasDev.Tabular.DateFormat!
+TriasDev.Tabular.DateFormat.Code.get -> string!
+TriasDev.Tabular.DateFormat.Equals(TriasDev.Tabular.DateFormat? other) -> bool
+TriasDev.Tabular.NumberFormat
+TriasDev.Tabular.NumberFormat.<Clone>$() -> TriasDev.Tabular.NumberFormat!
+TriasDev.Tabular.NumberFormat.Code.get -> string!
+TriasDev.Tabular.NumberFormat.Equals(TriasDev.Tabular.NumberFormat? other) -> bool

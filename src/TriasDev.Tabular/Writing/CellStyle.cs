@@ -17,6 +17,12 @@ public sealed record CellStyle
     /// <summary>The text's colour, bold and italic; null keeps the default font.</summary>
     public CellFont? Font { get; init; }
 
+    /// <summary>How an integer, decimal or double cell shows its value; ignored for other cells. Null keeps the default.</summary>
+    public NumberFormat? Number { get; init; }
+
+    /// <summary>How a date or date-time cell shows its value; ignored for other cells. Null keeps the writer's default date format.</summary>
+    public DateFormat? Date { get; init; }
+
     /// <summary>Where the content sits across the cell.</summary>
     public HorizontalAlignment Horizontal { get; init; }
 
