@@ -283,6 +283,52 @@ public sealed class TabularWriter : IAsyncDisposable
         return new StyleId(_stamp, RegisterStyle(style));
     }
 
+    /// <summary>The most rule-returned styles remembered by reference before the cache starts over.</summary>
+    internal const int StyleCacheLimit = 16_384;
+
+    private readonly Dictionary<CellStyle, StyleId> _byReference = new(ReferenceEqualityComparer.Instance);
+    private CellStyle? _lastStyle;
+    private StyleId _lastStyleId;
+
+    internal int StyleCacheCount => _byReference.Count;
+
+    /// <summary>
+    /// The id of a style a rule returned: a reference compare when it is the previous one, a lookup by
+    /// reference otherwise, registering it (by value) the first time. Null is the unstyled cell.
+    /// </summary>
+    /// <remarks>
+    /// A rule that builds a new style per cell still writes correctly — registration dedupes by value —
+    /// but the reference cache would grow with every cell, so it starts over at <see cref="StyleCacheLimit"/>.
+    /// </remarks>
+    internal StyleId StyleFor(CellStyle? style)
+    {
+        if (style is null)
+        {
+            return default;
+        }
+
+        if (ReferenceEquals(style, _lastStyle))
+        {
+            return _lastStyleId;
+        }
+
+        if (!_byReference.TryGetValue(style, out StyleId id))
+        {
+            id = Style(style);
+
+            if (_byReference.Count == StyleCacheLimit)
+            {
+                _byReference.Clear();
+            }
+
+            _byReference.Add(style, id);
+        }
+
+        _lastStyle = style;
+        _lastStyleId = id;
+        return id;
+    }
+
     private int RegisterStyle(CellStyle style)
     {
         try
