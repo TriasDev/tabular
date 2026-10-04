@@ -24,12 +24,16 @@ public sealed class TabularExport<T>
     private readonly WriteColumn[] _declared;
     private readonly IReadOnlyList<WriteColumn> _columnsView;
 
-    internal TabularExport(ExportColumn<T>[] columns, WriteColumn[] declared)
+    internal TabularExport(ExportColumn<T>[] columns, WriteColumn[] declared, SheetOptions? sheet)
     {
+        Sheet = sheet;
         _columns = columns;
         _declared = declared;
         _columnsView = Array.AsReadOnly(declared);
     }
+
+    /// <summary>The layout every sheet the export writes gets; null when none was declared.</summary>
+    public SheetOptions? Sheet { get; }
 
     /// <summary>The columns, in order, as a sheet's header row writes them.</summary>
     public IReadOnlyList<WriteColumn> Columns => _columnsView;
@@ -157,7 +161,7 @@ public sealed class TabularExport<T>
 
         try
         {
-            writer.BeginSheet(sheetName, _declared);
+            writer.BeginSheet(sheetName, _declared, Sheet);
             long rows = 0;
 
             await foreach (IReadOnlyList<T> chunk in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
@@ -202,7 +206,7 @@ public sealed class TabularExport<T>
 
         try
         {
-            writer.BeginSheet(sheetName, _declared);
+            writer.BeginSheet(sheetName, _declared, Sheet);
             long written = 0;
 
             await foreach (TChunk message in chunks.WithCancellation(cancellationToken).ConfigureAwait(false))
@@ -244,7 +248,7 @@ public sealed class TabularExport<T>
 
         try
         {
-            writer.BeginSheet(sheetName, _declared);
+            writer.BeginSheet(sheetName, _declared, Sheet);
             long rows = 0;
 
             await foreach (T item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
@@ -291,7 +295,7 @@ public sealed class TabularExport<T>
 
         try
         {
-            writer.BeginSheet(sheetName, _declared);
+            writer.BeginSheet(sheetName, _declared, Sheet);
             long rows = 0;
 
             foreach (T item in items)

@@ -5,6 +5,8 @@ internal static class Declared
     // --8<-- [start:declare]
     private static readonly CellStyle Late = new() { Fill = CellColor.Parse("#FFC7CE") };
 
+    private static readonly CellStyle Header = new() { Fill = CellColor.Parse("#1F4E78"), Font = new CellFont { Bold = true, Color = CellColor.Parse("#FFFFFF") } };
+
     // Declared once, kept in a static field, shared by any number of concurrent writes.
     public static readonly TabularExport<Order> Export = TabularExport.For<Order>()
         .Column("Id", o => o.Id, width: 8)
@@ -13,6 +15,7 @@ internal static class Declared
         .Column("Amount", o => o.Amount, width: 12)
         .Column("Status", o => o.Status, width: 10, style: status => status == "late" ? Late : null)
         .Column("Paid", o => o.Paid)
+        .Sheet(new SheetOptions { HeaderStyle = Header, FreezeRows = 1, AutoFilter = true })
         .Build();
     // --8<-- [end:declare]
 

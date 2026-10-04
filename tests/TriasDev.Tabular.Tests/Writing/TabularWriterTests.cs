@@ -367,4 +367,46 @@ public sealed class TabularWriterTests
             throw new IOException("closing failed");
         }
     }
+
+    [Fact]
+    public async Task AFailedWriteKeepsItsExceptionWhenTheStreamAlsoFailsToClose()
+    {
+        WriteTarget target = new() { FailWith = new IOException("client went away"), FailOnDispose = new IOException("close failed") };
+
+        IOException surfaced = await Assert.ThrowsAsync<IOException>(async () =>
+        {
+            await using TabularWriter writer = TabularWriter.Create(target, TabularFormat.Csv);
+            writer.BeginSheet("data", [new("a")]);
+            writer.BeginRow();
+            writer.Write("x");
+            writer.EndRow();
+            await writer.FlushAsync(Token);
+        });
+
+        Assert.Equal("client went away", surfaced.Message);
+    }
+
+    [Fact]
+    public async Task AnAbandonedFileDropsTheCloseFailure()
+    {
+        WriteTarget target = new() { FailOnDispose = new IOException("close failed") };
+        TabularWriter writer = TabularWriter.Create(target, TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("a")]);
+
+        await writer.DisposeAsync();
+
+        Assert.True(target.IsDisposed);
+    }
+
+    [Fact]
+    public async Task ACompletedFileStillReportsAFailedClose()
+    {
+        WriteTarget target = new() { FailOnDispose = new IOException("close failed") };
+        TabularWriter writer = TabularWriter.Create(target, TabularFormat.Csv);
+        writer.BeginSheet("data", [new("a")]);
+        await writer.CompleteAsync(Token);
+
+        IOException surfaced = await Assert.ThrowsAsync<IOException>(async () => await writer.DisposeAsync());
+        Assert.Equal("close failed", surfaced.Message);
+    }
 }

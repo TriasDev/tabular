@@ -31,7 +31,9 @@ then `BeginRow`, one `Write` per column, `EndRow`, and `CompleteAsync` at the en
   cannot tell a short csv from a finished one afterwards; you can, because you know whether
   `CompleteAsync` returned.
 - `DisposeAsync` closes the stream unless `TabularWriterOptions.LeaveOpen` is set. It drops what is
-  pending and never completes the file.
+  pending and never completes the file. If the file is not complete, a stream that also fails to
+  close is not reported, so it never hides the exception that failed the write; after `CompleteAsync`,
+  a failed close is thrown.
 - A writer that failed (a value it refused, a cancelled flush, a stream that threw) is faulted: the
   file is incomplete and every further call throws. Start over with a new writer.
 - Not thread-safe: one writer, one sequence of calls.
@@ -136,8 +138,9 @@ format's decimal point and thousands separator follow the reader's locale.
 
 `SheetOptions` goes with `BeginSheet`: a `HeaderStyle`, `FreezeRows` and `FreezeColumns` (how many
 stay in view), and `AutoFilter` on the header row through the last row written. Csv ignores it. A
-declared export's methods take no `SheetOptions`; its header row is unstyled. For a styled, frozen
-or filtered header, write with `TabularWriter` as in the first example.
+declared export takes it once, on the builder — `.Sheet(new SheetOptions { … })`, as in the example
+above — and applies it to every sheet it writes; the freeze is checked against the export's columns
+when it is built.
 
 `writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips
 the covered positions — the next write in the row lands after the range, and later rows skip it

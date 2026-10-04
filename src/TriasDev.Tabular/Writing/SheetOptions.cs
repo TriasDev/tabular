@@ -20,4 +20,23 @@ public sealed record SheetOptions
 
     /// <summary>An auto-filter on the header row, covering every row written.</summary>
     public bool AutoFilter { get; init; }
+
+    /// <summary>
+    /// What is wrong with the freeze for a sheet of <paramref name="columns"/> columns whose format holds
+    /// <paramref name="maxRows"/> rows, named <paramref name="paramName"/>, or null. Shared by the writer and an export's builder, so the rules cannot drift.
+    /// </summary>
+    internal ArgumentOutOfRangeException? FreezeProblem(string paramName, long maxRows, int columns)
+    {
+        if (FreezeRows < 0 || FreezeRows >= maxRows)
+        {
+            return new ArgumentOutOfRangeException(paramName, FreezeRows, $"A sheet freezes 0 to {maxRows - 1} rows.");
+        }
+
+        if (FreezeColumns < 0 || FreezeColumns > columns)
+        {
+            return new ArgumentOutOfRangeException(paramName, FreezeColumns, $"A sheet of {columns} columns freezes 0 to {columns} of them.");
+        }
+
+        return null;
+    }
 }

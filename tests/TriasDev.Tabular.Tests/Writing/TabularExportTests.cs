@@ -317,4 +317,16 @@ public sealed class TabularExportTests
         Assert.StartsWith("The file is complete", later.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("failed earlier", later.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task AnExportThatFailsKeepsItsException()
+    {
+        WriteTarget target = new() { FailWith = new IOException("client went away"), FailOnDispose = new IOException("close failed") };
+        TabularExport<long> export = TabularExport.For<long>().Column("n", n => n).Build();
+
+        IOException surfaced = await Assert.ThrowsAsync<IOException>(async () =>
+            await export.WriteAsync(target, TabularFormat.Csv, "data", Enumerable.Range(0, 100_000).Select(i => (long)i), cancellationToken: Token));
+
+        Assert.Equal("client went away", surfaced.Message);
+    }
 }
