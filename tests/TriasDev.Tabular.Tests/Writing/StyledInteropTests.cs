@@ -111,4 +111,14 @@ public sealed class StyledInteropTests
 
         Assert.Contains("table:display-filter-buttons=\"true\"", Entry(LibreOffice.Convert(xlsx, "xlsx", "ods", "ods"), "content.xml"), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task LibreOfficeKeepsTheMergesOfAnXlsx()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, MergeTests.Legend);
+        string content = Entry(LibreOffice.Convert(xlsx, "xlsx", "ods", "ods"), "content.xml");
+
+        Assert.Contains("table:number-columns-spanned=\"2\"", content, StringComparison.Ordinal);
+        Assert.Contains("table:number-rows-spanned=\"2\"", content, StringComparison.Ordinal);
+    }
 }

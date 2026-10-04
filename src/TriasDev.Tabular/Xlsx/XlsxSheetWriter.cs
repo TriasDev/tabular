@@ -45,6 +45,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private readonly XlsxStyles _styles;
     private readonly List<string> _sheetNames = [];
     private readonly List<(int Sheet, string Range)> _filters = [];
+    private readonly List<string> _merges = [];
     private readonly RowText _row = new();
     private ArrayBufferWriter<byte> _bytes = new(16 * 1024);
     private Stream? _sheet;
@@ -88,6 +89,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         }
 
         _rowNumber = 0;
+        _merges.Clear();
         _filter = options.AutoFilter;
         _row.Clear();
         _row.Append(XlsxParts.WorksheetStart);
@@ -169,11 +171,10 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     public int MaxMerges => 65_536;
 
-    public void Merge(int rows, int columns)
-    {
-    }
+    public void Merge(int rows, int columns) =>
+        _merges.Add(string.Create(CultureInfo.InvariantCulture, $"{_columnNames[_column]}{_rowNumber}:{_columnNames[_column + columns - 1]}{_rowNumber + rows - 1}"));
 
-    public void WriteCovered() => WriteEmpty(0);
+    public void WriteCovered() => _column++;
 
     public void WriteEmpty(int style)
     {
@@ -411,6 +412,27 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _filters.Add((_sheetNames.Count - 1, string.Create(CultureInfo.InvariantCulture, $"$A$1:${last}${_rowNumber}")));
     }
 
+    private void AppendMerges()
+    {
+        if (_merges.Count == 0)
+        {
+            return;
+        }
+
+        _row.Append("<mergeCells count=\"");
+        _row.AppendFormatted(_merges.Count, default, CultureInfo.InvariantCulture);
+        _row.Append("\">");
+
+        foreach (string range in _merges)
+        {
+            _row.Append("<mergeCell ref=\"");
+            _row.Append(range);
+            _row.Append("\"/>");
+        }
+
+        _row.Append("</mergeCells>");
+    }
+
     private void CloseSheet()
     {
         if (_sheet is null)
@@ -421,6 +443,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Clear();
         _row.Append(XlsxParts.SheetDataEnd);
         AppendAutoFilter();
+        AppendMerges();
         _row.Append(XlsxParts.WorksheetClose);
         Emit();
         _zip.EndEntry();

@@ -179,4 +179,68 @@ public sealed class MergeTests
 
         Assert.Throws<InvalidOperationException>(() => writer.Write("x"));
     }
+
+    [Fact]
+    public async Task XlsxListsTheRangesAfterTheData()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, Legend);
+        string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
+
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+        Assert.Contains("</sheetData><mergeCells count=\"2\"><mergeCell ref=\"A2:B2\"/><mergeCell ref=\"B3:C4\"/></mergeCells></worksheet>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<c r=\"C2\" t=\"inlineStr\"><is><t>c2</t></is></c>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<c r=\"D4\" t=\"inlineStr\"><is><t>d4</t></is></c>", sheet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task XlsxPutsTheRangesAfterTheFilter()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            writer.BeginSheet("data", Four, new SheetOptions { AutoFilter = true });
+            writer.BeginRow();
+            writer.Merge(1, 2);
+            writer.Write("x");
+            writer.EndRow();
+        });
+
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+        Assert.Contains("<autoFilter ref=\"A1:D2\"/><mergeCells count=\"1\"><mergeCell ref=\"A2:B2\"/></mergeCells>", SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(TabularFormat.Xlsx)]
+    [InlineData(TabularFormat.Ods)]
+    [InlineData(TabularFormat.Csv)]
+    public async Task TheImportReadsAMergeAsItsValueAndEmpties(TabularFormat format)
+    {
+        byte[] file = await SheetLayoutTests.Write(format, Legend);
+        List<RawCell[]> rows = SheetLayoutTests.Rows(file);
+
+        Assert.Equal(RawCell.FromText("title"), rows[1][0]);
+        Assert.True(rows[1][1].IsEmpty);
+        Assert.Equal(RawCell.FromText("c2"), rows[1][2]);
+        Assert.Equal(RawCell.FromText("block"), rows[2][1]);
+        Assert.True(rows[3][1].IsEmpty);
+        Assert.True(rows[3][2].IsEmpty);
+        Assert.Equal(RawCell.FromText("d4"), rows[3][3]);
+    }
+
+    [Fact]
+    public async Task TheMergeLimitIsTheFormats()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("a"), new("b")]);
+
+        for (int i = 0; i < 65_536; i++)
+        {
+            writer.BeginRow();
+            writer.Merge(1, 2);
+            writer.Write(i);
+            writer.EndRow();
+        }
+
+        writer.BeginRow();
+        Assert.Throws<TabularLimitException>(() => writer.Merge(1, 2));
+    }
 }
