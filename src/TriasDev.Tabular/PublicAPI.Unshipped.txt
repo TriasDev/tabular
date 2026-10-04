@@ -275,3 +275,18 @@ TriasDev.Tabular.SheetOptions.HeaderStyle.init -> void
 TriasDev.Tabular.SheetOptions.SheetOptions() -> void
 TriasDev.Tabular.TabularWriter.BeginSheet(string! name, System.ReadOnlySpan<TriasDev.Tabular.WriteColumn> columns, TriasDev.Tabular.SheetOptions? options) -> void
 TriasDev.Tabular.TabularWriter.Merge(int rows, int columns) -> void
+TriasDev.Tabular.ColumnBatch
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.StyleId>! styles) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, System.Func<T, TriasDev.Tabular.CellStyle?>! style) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.StyleId>! styles) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, System.Func<T, TriasDev.Tabular.CellStyle?>! style) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value) -> void
+TriasDev.Tabular.ColumnBatch.ColumnBatch() -> void
+TriasDev.Tabular.ColumnBatch.ColumnCount.get -> int
+TriasDev.Tabular.ColumnBatch.Reset(int rowCount) -> void
+TriasDev.Tabular.ColumnBatch.RowCount.get -> int
+TriasDev.Tabular.TabularWriter.WriteBatch(TriasDev.Tabular.ColumnBatch! batch) -> void
+TriasDev.Tabular.TabularWriter.WriteBatchAsync(TriasDev.Tabular.ColumnBatch! batch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask

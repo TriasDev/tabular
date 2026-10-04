@@ -543,6 +543,89 @@ public sealed class TabularWriter : IAsyncDisposable
         FinishRow();
     }
 
+    /// <summary>
+    /// Writes a batch given by column as its rows, at the sheet's next row: each column's value for the
+    /// row in turn, typed, through the same checks as <c>Write</c>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The batch's columns are not the sheet's.</exception>
+    /// <exception cref="InvalidOperationException">Outside a sheet, or inside a row.</exception>
+    /// <exception cref="TabularWriteException">A value the format cannot hold, located by sheet, row, column and header.</exception>
+    /// <exception cref="TabularLimitException">The sheet outgrew its format's row limit.</exception>
+    public void WriteBatch(ColumnBatch batch)
+    {
+        ExpectBatch(batch);
+
+        for (int row = 0; row < batch.RowCount; row++)
+        {
+            WriteBatchRow(batch, row);
+        }
+    }
+
+    /// <summary>
+    /// Writes a batch as <see cref="WriteBatch"/> does, flushing to the stream whenever
+    /// <see cref="FlushRecommended"/> after a row — memory stays flat however large the batch.
+    /// </summary>
+    /// <exception cref="ArgumentException">The batch's columns are not the sheet's.</exception>
+    /// <exception cref="InvalidOperationException">Outside a sheet, or inside a row.</exception>
+    /// <exception cref="TabularWriteException">A value the format cannot hold, located by sheet, row, column and header.</exception>
+    /// <exception cref="TabularLimitException">The sheet outgrew its format's row limit.</exception>
+    /// <exception cref="OperationCanceledException">Cancelled; the writer is faulted and the file incomplete.</exception>
+    public async ValueTask WriteBatchAsync(ColumnBatch batch, CancellationToken cancellationToken = default)
+    {
+        ExpectBatch(batch);
+
+        try
+        {
+            for (int row = 0; row < batch.RowCount; row++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBatchRow(batch, row);
+
+                if (FlushRecommended)
+                {
+                    await FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            MarkFaulted();
+            throw;
+        }
+    }
+
+    private void ExpectBatch(ColumnBatch batch)
+    {
+        ExpectWritable();
+
+        if (batch is null)
+        {
+            throw Faulting(new ArgumentNullException(nameof(batch)));
+        }
+
+        if (_state != State.InSheet)
+        {
+            throw Refuse("A batch is written inside a sheet, between rows.");
+        }
+
+        if (batch.ColumnCount != _columns.Length)
+        {
+            throw Faulting(new ArgumentException($"The batch has {batch.ColumnCount} columns; sheet \"{_sheetName}\" has {_columns.Length}.", nameof(batch)));
+        }
+    }
+
+    private void WriteBatchRow(ColumnBatch batch, int row)
+    {
+        BeginRow();
+
+        for (int column = 0; column < _columns.Length; column++)
+        {
+            batch.Column(column).Write(this, row);
+        }
+
+        EndRow();
+    }
+
     /// <summary>Moves everything pending in memory into the stream.</summary>
     /// <remarks>Cancelling, or a stream that fails, leaves the writer faulted and the file incomplete.</remarks>
     public async ValueTask FlushAsync(CancellationToken cancellationToken = default)
