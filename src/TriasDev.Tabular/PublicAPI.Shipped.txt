@@ -55,12 +55,6 @@ override TriasDev.Tabular.ColumnFacts.ToString() -> string!
 override TriasDev.Tabular.ColumnProfile.Equals(object? obj) -> bool
 override TriasDev.Tabular.ColumnProfile.GetHashCode() -> int
 override TriasDev.Tabular.ColumnProfile.ToString() -> string!
-override TriasDev.Tabular.Csv.CsvCursorOptions.Equals(object? obj) -> bool
-override TriasDev.Tabular.Csv.CsvCursorOptions.GetHashCode() -> int
-override TriasDev.Tabular.Csv.CsvCursorOptions.ToString() -> string!
-override TriasDev.Tabular.Csv.CsvDialect.Equals(object? obj) -> bool
-override TriasDev.Tabular.Csv.CsvDialect.GetHashCode() -> int
-override TriasDev.Tabular.Csv.CsvDialect.ToString() -> string!
 override TriasDev.Tabular.CultureParseCounts.Equals(object? obj) -> bool
 override TriasDev.Tabular.CultureParseCounts.GetHashCode() -> int
 override TriasDev.Tabular.CultureParseCounts.ToString() -> string!
@@ -140,9 +134,6 @@ override TriasDev.Tabular.TypeHypothesis.GetHashCode() -> int
 override TriasDev.Tabular.TypeHypothesis.ToString() -> string!
 override TriasDev.Tabular.ValueFrequency.GetHashCode() -> int
 override TriasDev.Tabular.ValueLocation.GetHashCode() -> int
-override TriasDev.Tabular.Xlsx.XlsxCursorOptions.Equals(object? obj) -> bool
-override TriasDev.Tabular.Xlsx.XlsxCursorOptions.GetHashCode() -> int
-override TriasDev.Tabular.Xlsx.XlsxCursorOptions.ToString() -> string!
 static TriasDev.Tabular.AnalysisOptions.Default.get -> TriasDev.Tabular.AnalysisOptions!
 static TriasDev.Tabular.AnalysisOptions.operator !=(TriasDev.Tabular.AnalysisOptions? left, TriasDev.Tabular.AnalysisOptions? right) -> bool
 static TriasDev.Tabular.AnalysisOptions.operator ==(TriasDev.Tabular.AnalysisOptions? left, TriasDev.Tabular.AnalysisOptions? right) -> bool
@@ -156,12 +147,6 @@ static TriasDev.Tabular.ColumnFacts.operator !=(TriasDev.Tabular.ColumnFacts? le
 static TriasDev.Tabular.ColumnFacts.operator ==(TriasDev.Tabular.ColumnFacts? left, TriasDev.Tabular.ColumnFacts? right) -> bool
 static TriasDev.Tabular.ColumnProfile.operator !=(TriasDev.Tabular.ColumnProfile? left, TriasDev.Tabular.ColumnProfile? right) -> bool
 static TriasDev.Tabular.ColumnProfile.operator ==(TriasDev.Tabular.ColumnProfile? left, TriasDev.Tabular.ColumnProfile? right) -> bool
-static TriasDev.Tabular.Csv.CsvCursorOptions.Default.get -> TriasDev.Tabular.Csv.CsvCursorOptions!
-static TriasDev.Tabular.Csv.CsvCursorOptions.operator !=(TriasDev.Tabular.Csv.CsvCursorOptions? left, TriasDev.Tabular.Csv.CsvCursorOptions? right) -> bool
-static TriasDev.Tabular.Csv.CsvCursorOptions.operator ==(TriasDev.Tabular.Csv.CsvCursorOptions? left, TriasDev.Tabular.Csv.CsvCursorOptions? right) -> bool
-static TriasDev.Tabular.Csv.CsvDialect.operator !=(TriasDev.Tabular.Csv.CsvDialect? left, TriasDev.Tabular.Csv.CsvDialect? right) -> bool
-static TriasDev.Tabular.Csv.CsvDialect.operator ==(TriasDev.Tabular.Csv.CsvDialect? left, TriasDev.Tabular.Csv.CsvDialect? right) -> bool
-static TriasDev.Tabular.Csv.CsvDialectDetector.Detect(System.IO.Stream! stream, TriasDev.Tabular.Csv.CsvCursorOptions? options = null) -> TriasDev.Tabular.Csv.CsvDialect!
 static TriasDev.Tabular.CultureParseCounts.operator !=(TriasDev.Tabular.CultureParseCounts? left, TriasDev.Tabular.CultureParseCounts? right) -> bool
 static TriasDev.Tabular.CultureParseCounts.operator ==(TriasDev.Tabular.CultureParseCounts? left, TriasDev.Tabular.CultureParseCounts? right) -> bool
 static TriasDev.Tabular.ErrorCodes.IsReserved(string! code) -> bool
@@ -222,9 +207,6 @@ static TriasDev.Tabular.ValueFrequency.operator !=(TriasDev.Tabular.ValueFrequen
 static TriasDev.Tabular.ValueFrequency.operator ==(TriasDev.Tabular.ValueFrequency left, TriasDev.Tabular.ValueFrequency right) -> bool
 static TriasDev.Tabular.ValueLocation.operator !=(TriasDev.Tabular.ValueLocation left, TriasDev.Tabular.ValueLocation right) -> bool
 static TriasDev.Tabular.ValueLocation.operator ==(TriasDev.Tabular.ValueLocation left, TriasDev.Tabular.ValueLocation right) -> bool
-static TriasDev.Tabular.Xlsx.XlsxCursorOptions.Default.get -> TriasDev.Tabular.Xlsx.XlsxCursorOptions!
-static TriasDev.Tabular.Xlsx.XlsxCursorOptions.operator !=(TriasDev.Tabular.Xlsx.XlsxCursorOptions? left, TriasDev.Tabular.Xlsx.XlsxCursorOptions? right) -> bool
-static TriasDev.Tabular.Xlsx.XlsxCursorOptions.operator ==(TriasDev.Tabular.Xlsx.XlsxCursorOptions? left, TriasDev.Tabular.Xlsx.XlsxCursorOptions? right) -> bool
 TriasDev.Tabular.AnalysisOptions
 TriasDev.Tabular.AnalysisOptions.<Clone>$() -> TriasDev.Tabular.AnalysisOptions!
 TriasDev.Tabular.AnalysisOptions.AnalysisOptions() -> void
@@ -259,7 +241,6 @@ TriasDev.Tabular.AnalysisProgress.Fraction.get -> double?
 TriasDev.Tabular.AnalysisProgress.Fraction.init -> void
 TriasDev.Tabular.AnalysisProgress.IsComplete.get -> bool
 TriasDev.Tabular.AnalysisProgress.IsComplete.init -> void
-TriasDev.Tabular.AnalysisProgress.RowsRead.get -> long
 TriasDev.Tabular.AnalysisProgress.RowsRead.init -> void
 TriasDev.Tabular.AnalysisProgress.SheetCount.get -> int
 TriasDev.Tabular.AnalysisProgress.SheetCount.init -> void
@@ -332,52 +313,6 @@ TriasDev.Tabular.ColumnType.Date = 3 -> TriasDev.Tabular.ColumnType
 TriasDev.Tabular.ColumnType.Decimal = 2 -> TriasDev.Tabular.ColumnType
 TriasDev.Tabular.ColumnType.Integer = 1 -> TriasDev.Tabular.ColumnType
 TriasDev.Tabular.ColumnType.Text = 0 -> TriasDev.Tabular.ColumnType
-TriasDev.Tabular.Csv.CsvCursor
-TriasDev.Tabular.Csv.CsvCursor.CsvCursor(System.IO.Stream! stream, string! sheetName, TriasDev.Tabular.Csv.CsvCursorOptions? options = null, bool leaveOpen = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
-TriasDev.Tabular.Csv.CsvCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
-TriasDev.Tabular.Csv.CsvCursor.CurrentRowNumber.get -> int
-TriasDev.Tabular.Csv.CsvCursor.CurrentSheetIndex.get -> int
-TriasDev.Tabular.Csv.CsvCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
-TriasDev.Tabular.Csv.CsvCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect!
-TriasDev.Tabular.Csv.CsvCursor.Dispose() -> void
-TriasDev.Tabular.Csv.CsvCursor.Format.get -> TriasDev.Tabular.TabularFormat
-TriasDev.Tabular.Csv.CsvCursor.ReadFraction.get -> double?
-TriasDev.Tabular.Csv.CsvCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
-TriasDev.Tabular.Csv.CsvCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
-TriasDev.Tabular.Csv.CsvCursorOptions
-TriasDev.Tabular.Csv.CsvCursorOptions.<Clone>$() -> TriasDev.Tabular.Csv.CsvCursorOptions!
-TriasDev.Tabular.Csv.CsvCursorOptions.CsvCursorOptions() -> void
-TriasDev.Tabular.Csv.CsvCursorOptions.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
-TriasDev.Tabular.Csv.CsvCursorOptions.Dialect.init -> void
-TriasDev.Tabular.Csv.CsvCursorOptions.DialectProbeBytes.get -> int
-TriasDev.Tabular.Csv.CsvCursorOptions.DialectProbeBytes.init -> void
-TriasDev.Tabular.Csv.CsvCursorOptions.Equals(TriasDev.Tabular.Csv.CsvCursorOptions? other) -> bool
-TriasDev.Tabular.Csv.CsvCursorOptions.MaxColumns.get -> int
-TriasDev.Tabular.Csv.CsvCursorOptions.MaxColumns.init -> void
-TriasDev.Tabular.Csv.CsvCursorOptions.MaxFieldChars.get -> int
-TriasDev.Tabular.Csv.CsvCursorOptions.MaxFieldChars.init -> void
-TriasDev.Tabular.Csv.CsvCursorOptions.MaxQuotedFieldLines.get -> int
-TriasDev.Tabular.Csv.CsvCursorOptions.MaxQuotedFieldLines.init -> void
-TriasDev.Tabular.Csv.CsvDialect
-TriasDev.Tabular.Csv.CsvDialect.<Clone>$() -> TriasDev.Tabular.Csv.CsvDialect!
-TriasDev.Tabular.Csv.CsvDialect.CsvDialect() -> void
-TriasDev.Tabular.Csv.CsvDialect.Delimiter.get -> char
-TriasDev.Tabular.Csv.CsvDialect.Delimiter.init -> void
-TriasDev.Tabular.Csv.CsvDialect.DelimiterSource.get -> TriasDev.Tabular.Csv.DialectSource
-TriasDev.Tabular.Csv.CsvDialect.DelimiterSource.init -> void
-TriasDev.Tabular.Csv.CsvDialect.Encoding.get -> System.Text.Encoding!
-TriasDev.Tabular.Csv.CsvDialect.Encoding.init -> void
-TriasDev.Tabular.Csv.CsvDialect.EncodingSource.get -> TriasDev.Tabular.Csv.DialectSource
-TriasDev.Tabular.Csv.CsvDialect.EncodingSource.init -> void
-TriasDev.Tabular.Csv.CsvDialect.Equals(TriasDev.Tabular.Csv.CsvDialect? other) -> bool
-TriasDev.Tabular.Csv.CsvDialect.Quote.get -> char
-TriasDev.Tabular.Csv.CsvDialect.Quote.init -> void
-TriasDev.Tabular.Csv.CsvDialectDetector
-TriasDev.Tabular.Csv.DialectSource
-TriasDev.Tabular.Csv.DialectSource.ByteOrderMark = 1 -> TriasDev.Tabular.Csv.DialectSource
-TriasDev.Tabular.Csv.DialectSource.Detected = 2 -> TriasDev.Tabular.Csv.DialectSource
-TriasDev.Tabular.Csv.DialectSource.Fallback = 3 -> TriasDev.Tabular.Csv.DialectSource
-TriasDev.Tabular.Csv.DialectSource.Specified = 0 -> TriasDev.Tabular.Csv.DialectSource
 TriasDev.Tabular.CultureParseCounts
 TriasDev.Tabular.CultureParseCounts.<Clone>$() -> TriasDev.Tabular.CultureParseCounts!
 TriasDev.Tabular.CultureParseCounts.Culture.get -> string!
@@ -395,7 +330,6 @@ TriasDev.Tabular.CultureParseCounts.Integer.init -> void
 TriasDev.Tabular.CultureParseCounts.NumericOutliers.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.ValueLocation>!
 TriasDev.Tabular.CultureParseCounts.NumericOutliers.init -> void
 TriasDev.Tabular.CursorDiagnostics
-TriasDev.Tabular.CursorDiagnostics.CursorDiagnostics() -> void
 TriasDev.Tabular.CursorDiagnostics.IsClean.get -> bool
 TriasDev.Tabular.CursorDiagnostics.RecoveredStrayQuotes.get -> int
 TriasDev.Tabular.CursorDiagnostics.RecoveredUnterminatedQuotes.get -> int
@@ -525,7 +459,6 @@ TriasDev.Tabular.ITabularCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.T
 TriasDev.Tabular.ITabularCursor.CurrentRowNumber.get -> int
 TriasDev.Tabular.ITabularCursor.CurrentSheetIndex.get -> int
 TriasDev.Tabular.ITabularCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
-TriasDev.Tabular.ITabularCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
 TriasDev.Tabular.ITabularCursor.Format.get -> TriasDev.Tabular.TabularFormat
 TriasDev.Tabular.ITabularCursor.ReadFraction.get -> double?
 TriasDev.Tabular.ITabularCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
@@ -635,7 +568,6 @@ TriasDev.Tabular.SheetProfile.Columns.get -> System.Collections.Generic.IReadOnl
 TriasDev.Tabular.SheetProfile.Columns.init -> void
 TriasDev.Tabular.SheetProfile.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
 TriasDev.Tabular.SheetProfile.Diagnostics.init -> void
-TriasDev.Tabular.SheetProfile.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
 TriasDev.Tabular.SheetProfile.Dialect.init -> void
 TriasDev.Tabular.SheetProfile.Equals(TriasDev.Tabular.SheetProfile? other) -> bool
 TriasDev.Tabular.SheetProfile.Format.get -> TriasDev.Tabular.TabularFormat
@@ -669,13 +601,11 @@ TriasDev.Tabular.TabularLimitException.Maximum.get -> long
 TriasDev.Tabular.TabularLimitException.TabularLimitException(string! limit, long maximum, string! message) -> void
 TriasDev.Tabular.TabularOpenOptions
 TriasDev.Tabular.TabularOpenOptions.<Clone>$() -> TriasDev.Tabular.TabularOpenOptions!
-TriasDev.Tabular.TabularOpenOptions.Csv.get -> TriasDev.Tabular.Csv.CsvCursorOptions!
 TriasDev.Tabular.TabularOpenOptions.Csv.init -> void
 TriasDev.Tabular.TabularOpenOptions.Equals(TriasDev.Tabular.TabularOpenOptions? other) -> bool
 TriasDev.Tabular.TabularOpenOptions.LeaveOpen.get -> bool
 TriasDev.Tabular.TabularOpenOptions.LeaveOpen.init -> void
 TriasDev.Tabular.TabularOpenOptions.TabularOpenOptions() -> void
-TriasDev.Tabular.TabularOpenOptions.Xlsx.get -> TriasDev.Tabular.Xlsx.XlsxCursorOptions!
 TriasDev.Tabular.TabularOpenOptions.Xlsx.init -> void
 TriasDev.Tabular.TabularRowMapper<T>
 TriasDev.Tabular.TabularStructureException
@@ -716,116 +646,19 @@ TriasDev.Tabular.ValueLocation.RawValue.init -> void
 TriasDev.Tabular.ValueLocation.RowNumber.get -> int
 TriasDev.Tabular.ValueLocation.RowNumber.init -> void
 TriasDev.Tabular.ValueLocation.ValueLocation() -> void
-TriasDev.Tabular.Xlsx.XlsxCursor
-TriasDev.Tabular.Xlsx.XlsxCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
-TriasDev.Tabular.Xlsx.XlsxCursor.CurrentRowNumber.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursor.CurrentSheetIndex.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
-TriasDev.Tabular.Xlsx.XlsxCursor.Dispose() -> void
-TriasDev.Tabular.Xlsx.XlsxCursor.Format.get -> TriasDev.Tabular.TabularFormat
-TriasDev.Tabular.Xlsx.XlsxCursor.ReadFraction.get -> double?
-TriasDev.Tabular.Xlsx.XlsxCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
-TriasDev.Tabular.Xlsx.XlsxCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
-TriasDev.Tabular.Xlsx.XlsxCursor.XlsxCursor(System.IO.Stream! stream, TriasDev.Tabular.Xlsx.XlsxCursorOptions? options = null, bool leaveOpen = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.<Clone>$() -> TriasDev.Tabular.Xlsx.XlsxCursorOptions!
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.Equals(TriasDev.Tabular.Xlsx.XlsxCursorOptions? other) -> bool
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxCellFormats.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxCellFormats.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxMetadataChars.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxMetadataChars.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxPackageEntries.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxPackageEntries.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxRelationships.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxRelationships.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxSharedStringChars.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxSharedStringChars.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxSharedStrings.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxSharedStrings.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxSheets.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxSheets.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxUncompressedBytes.get -> long
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxUncompressedBytes.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxValueChars.get -> int
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.MaxValueChars.init -> void
-TriasDev.Tabular.Xlsx.XlsxCursorOptions.XlsxCursorOptions() -> void
 virtual TriasDev.Tabular.TabularRowMapper<T>.Invoke(TriasDev.Tabular.ImportRow row) -> T
 ~override TriasDev.Tabular.ValueFrequency.Equals(object obj) -> bool
 ~override TriasDev.Tabular.ValueFrequency.ToString() -> string
 ~override TriasDev.Tabular.ValueLocation.Equals(object obj) -> bool
 ~override TriasDev.Tabular.ValueLocation.ToString() -> string
-override TriasDev.Tabular.Archive.ArchiveCursorOptions.Equals(object? obj) -> bool
-override TriasDev.Tabular.Archive.ArchiveCursorOptions.GetHashCode() -> int
-override TriasDev.Tabular.Archive.ArchiveCursorOptions.ToString() -> string!
-override TriasDev.Tabular.Ods.OdsCursorOptions.Equals(object? obj) -> bool
-override TriasDev.Tabular.Ods.OdsCursorOptions.GetHashCode() -> int
-override TriasDev.Tabular.Ods.OdsCursorOptions.ToString() -> string!
 override TriasDev.Tabular.SkippedEntry.Equals(object? obj) -> bool
 override TriasDev.Tabular.SkippedEntry.GetHashCode() -> int
 override TriasDev.Tabular.SkippedEntry.ToString() -> string!
-static TriasDev.Tabular.Archive.ArchiveCursorOptions.Default.get -> TriasDev.Tabular.Archive.ArchiveCursorOptions!
-static TriasDev.Tabular.Archive.ArchiveCursorOptions.operator !=(TriasDev.Tabular.Archive.ArchiveCursorOptions? left, TriasDev.Tabular.Archive.ArchiveCursorOptions? right) -> bool
-static TriasDev.Tabular.Archive.ArchiveCursorOptions.operator ==(TriasDev.Tabular.Archive.ArchiveCursorOptions? left, TriasDev.Tabular.Archive.ArchiveCursorOptions? right) -> bool
-static TriasDev.Tabular.Ods.OdsCursorOptions.Default.get -> TriasDev.Tabular.Ods.OdsCursorOptions!
-static TriasDev.Tabular.Ods.OdsCursorOptions.operator !=(TriasDev.Tabular.Ods.OdsCursorOptions? left, TriasDev.Tabular.Ods.OdsCursorOptions? right) -> bool
-static TriasDev.Tabular.Ods.OdsCursorOptions.operator ==(TriasDev.Tabular.Ods.OdsCursorOptions? left, TriasDev.Tabular.Ods.OdsCursorOptions? right) -> bool
 static TriasDev.Tabular.SkippedEntry.operator !=(TriasDev.Tabular.SkippedEntry? left, TriasDev.Tabular.SkippedEntry? right) -> bool
 static TriasDev.Tabular.SkippedEntry.operator ==(TriasDev.Tabular.SkippedEntry? left, TriasDev.Tabular.SkippedEntry? right) -> bool
-TriasDev.Tabular.Archive.ArchiveCursor
-TriasDev.Tabular.Archive.ArchiveCursor.ArchiveCursor(System.IO.Stream! stream, TriasDev.Tabular.TabularOpenOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
-TriasDev.Tabular.Archive.ArchiveCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
-TriasDev.Tabular.Archive.ArchiveCursor.CurrentRowNumber.get -> int
-TriasDev.Tabular.Archive.ArchiveCursor.CurrentSheetIndex.get -> int
-TriasDev.Tabular.Archive.ArchiveCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
-TriasDev.Tabular.Archive.ArchiveCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
-TriasDev.Tabular.Archive.ArchiveCursor.Dispose() -> void
-TriasDev.Tabular.Archive.ArchiveCursor.Format.get -> TriasDev.Tabular.TabularFormat
-TriasDev.Tabular.Archive.ArchiveCursor.ReadFraction.get -> double?
-TriasDev.Tabular.Archive.ArchiveCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
-TriasDev.Tabular.Archive.ArchiveCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
-TriasDev.Tabular.Archive.ArchiveCursor.SkippedEntries.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SkippedEntry!>!
-TriasDev.Tabular.Archive.ArchiveCursorOptions
-TriasDev.Tabular.Archive.ArchiveCursorOptions.<Clone>$() -> TriasDev.Tabular.Archive.ArchiveCursorOptions!
-TriasDev.Tabular.Archive.ArchiveCursorOptions.ArchiveCursorOptions() -> void
-TriasDev.Tabular.Archive.ArchiveCursorOptions.Equals(TriasDev.Tabular.Archive.ArchiveCursorOptions? other) -> bool
-TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEmbeddedWorkbookBytes.get -> long
-TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEmbeddedWorkbookBytes.init -> void
-TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEntries.get -> int
-TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxEntries.init -> void
-TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxUncompressedBytes.get -> long
-TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxUncompressedBytes.init -> void
 TriasDev.Tabular.FileProfile.SkippedEntries.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SkippedEntry!>!
 TriasDev.Tabular.FileProfile.SkippedEntries.init -> void
 TriasDev.Tabular.ITabularCursor.SkippedEntries.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SkippedEntry!>!
-TriasDev.Tabular.Ods.OdsCursor
-TriasDev.Tabular.Ods.OdsCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
-TriasDev.Tabular.Ods.OdsCursor.CurrentRowNumber.get -> int
-TriasDev.Tabular.Ods.OdsCursor.CurrentSheetIndex.get -> int
-TriasDev.Tabular.Ods.OdsCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
-TriasDev.Tabular.Ods.OdsCursor.Dispose() -> void
-TriasDev.Tabular.Ods.OdsCursor.Format.get -> TriasDev.Tabular.TabularFormat
-TriasDev.Tabular.Ods.OdsCursor.OdsCursor(System.IO.Stream! stream, TriasDev.Tabular.Ods.OdsCursorOptions? options = null, bool leaveOpen = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
-TriasDev.Tabular.Ods.OdsCursor.ReadFraction.get -> double?
-TriasDev.Tabular.Ods.OdsCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
-TriasDev.Tabular.Ods.OdsCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
-TriasDev.Tabular.Ods.OdsCursorOptions
-TriasDev.Tabular.Ods.OdsCursorOptions.<Clone>$() -> TriasDev.Tabular.Ods.OdsCursorOptions!
-TriasDev.Tabular.Ods.OdsCursorOptions.Equals(TriasDev.Tabular.Ods.OdsCursorOptions? other) -> bool
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxColumns.get -> int
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxColumns.init -> void
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxPackageEntries.get -> int
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxPackageEntries.init -> void
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxRepeatedCells.get -> long
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxRepeatedCells.init -> void
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxRows.get -> int
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxRows.init -> void
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxSheets.get -> int
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxSheets.init -> void
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxUncompressedBytes.get -> long
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxUncompressedBytes.init -> void
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxValueChars.get -> int
-TriasDev.Tabular.Ods.OdsCursorOptions.MaxValueChars.init -> void
-TriasDev.Tabular.Ods.OdsCursorOptions.OdsCursorOptions() -> void
 TriasDev.Tabular.SkippedEntry
 TriasDev.Tabular.SkippedEntry.<Clone>$() -> TriasDev.Tabular.SkippedEntry!
 TriasDev.Tabular.SkippedEntry.Equals(TriasDev.Tabular.SkippedEntry? other) -> bool
@@ -845,13 +678,9 @@ TriasDev.Tabular.SkippedEntryReason.Unsupported = 6 -> TriasDev.Tabular.SkippedE
 TriasDev.Tabular.SkippedEntryReason.XmlDocument = 3 -> TriasDev.Tabular.SkippedEntryReason
 TriasDev.Tabular.TabularFormat.Ods = 2 -> TriasDev.Tabular.TabularFormat
 TriasDev.Tabular.TabularFormat.Zip = 3 -> TriasDev.Tabular.TabularFormat
-TriasDev.Tabular.TabularOpenOptions.Archive.get -> TriasDev.Tabular.Archive.ArchiveCursorOptions!
 TriasDev.Tabular.TabularOpenOptions.Archive.init -> void
-TriasDev.Tabular.TabularOpenOptions.Ods.get -> TriasDev.Tabular.Ods.OdsCursorOptions!
 TriasDev.Tabular.TabularOpenOptions.Ods.init -> void
-TriasDev.Tabular.Archive.ArchiveCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.BooleanImportField
-TriasDev.Tabular.BooleanImportField.BooleanImportField() -> void
 TriasDev.Tabular.BooleanImportField.Require() -> TriasDev.Tabular.BooleanImportField!
 TriasDev.Tabular.ColumnBinding.ColumnIndex.get -> int
 TriasDev.Tabular.ColumnBinding.ColumnIndex.init -> void
@@ -859,18 +688,15 @@ TriasDev.Tabular.ColumnBinding.FieldName.get -> string!
 TriasDev.Tabular.ColumnBinding.FieldName.init -> void
 TriasDev.Tabular.ColumnBinding.Header.get -> string!
 TriasDev.Tabular.ColumnBinding.Header.init -> void
-TriasDev.Tabular.Csv.CsvCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.CursorDiagnostics.<Clone>$() -> TriasDev.Tabular.CursorDiagnostics!
 TriasDev.Tabular.CursorDiagnostics.Equals(TriasDev.Tabular.CursorDiagnostics? other) -> bool
 TriasDev.Tabular.DateImportField
-TriasDev.Tabular.DateImportField.DateImportField() -> void
 TriasDev.Tabular.DateImportField.Must(string! code, System.Func<System.DateTime, bool>! rule) -> TriasDev.Tabular.DateImportField!
 TriasDev.Tabular.DateImportField.Require() -> TriasDev.Tabular.DateImportField!
 TriasDev.Tabular.DateImportField.Unique() -> TriasDev.Tabular.DateImportField!
 TriasDev.Tabular.DecimalImportField
 TriasDev.Tabular.DecimalImportField.AtLeast(decimal value) -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.AtMost(decimal value) -> TriasDev.Tabular.DecimalImportField!
-TriasDev.Tabular.DecimalImportField.DecimalImportField() -> void
 TriasDev.Tabular.DecimalImportField.Must(string! code, System.Func<decimal, bool>! rule) -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Require() -> TriasDev.Tabular.DecimalImportField!
 TriasDev.Tabular.DecimalImportField.Unique() -> TriasDev.Tabular.DecimalImportField!
@@ -936,7 +762,6 @@ TriasDev.Tabular.ImportSchema.Policy.init -> void
 TriasDev.Tabular.IntegerImportField
 TriasDev.Tabular.IntegerImportField.AtLeast(long value) -> TriasDev.Tabular.IntegerImportField!
 TriasDev.Tabular.IntegerImportField.AtMost(long value) -> TriasDev.Tabular.IntegerImportField!
-TriasDev.Tabular.IntegerImportField.IntegerImportField() -> void
 TriasDev.Tabular.IntegerImportField.Must(string! code, System.Func<long, bool>! rule) -> TriasDev.Tabular.IntegerImportField!
 TriasDev.Tabular.IntegerImportField.Require() -> TriasDev.Tabular.IntegerImportField!
 TriasDev.Tabular.IntegerImportField.Unique() -> TriasDev.Tabular.IntegerImportField!
@@ -944,7 +769,6 @@ TriasDev.Tabular.MappingFault.ColumnIndex.get -> int?
 TriasDev.Tabular.MappingFault.ColumnIndex.init -> void
 TriasDev.Tabular.MappingFault.FieldName.get -> string?
 TriasDev.Tabular.MappingFault.FieldName.init -> void
-TriasDev.Tabular.Ods.OdsCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.PrecheckArguments
 TriasDev.Tabular.PrecheckFinding.AffectedRowsBound.get -> TriasDev.Tabular.RowCountBound
 TriasDev.Tabular.PrecheckFinding.AffectedRowsBound.init -> void
@@ -976,7 +800,6 @@ TriasDev.Tabular.TextImportField.MaxLength(int length) -> TriasDev.Tabular.TextI
 TriasDev.Tabular.TextImportField.MinLength(int length) -> TriasDev.Tabular.TextImportField!
 TriasDev.Tabular.TextImportField.Must(string! code, System.Func<string!, bool>! rule) -> TriasDev.Tabular.TextImportField!
 TriasDev.Tabular.TextImportField.Require() -> TriasDev.Tabular.TextImportField!
-TriasDev.Tabular.TextImportField.TextImportField() -> void
 TriasDev.Tabular.TextImportField.Unique() -> TriasDev.Tabular.TextImportField!
 TriasDev.Tabular.TranslatedImportField
 TriasDev.Tabular.TranslatedImportField.Fields.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.TextImportField!>!
@@ -984,7 +807,6 @@ TriasDev.Tabular.TranslatedImportField.GetEnumerator() -> System.Collections.Gen
 TriasDev.Tabular.TranslatedImportField.Name.get -> string!
 TriasDev.Tabular.TranslatedImportField.Require() -> TriasDev.Tabular.TranslatedImportField!
 TriasDev.Tabular.TranslatedImportField.this[string! variant].get -> TriasDev.Tabular.TextImportField!
-TriasDev.Tabular.Xlsx.XlsxCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 const TriasDev.Tabular.PrecheckArguments.ActualHeader = "actualHeader" -> string!
 const TriasDev.Tabular.PrecheckArguments.BoundColumnCount = "boundColumnCount" -> string!
 const TriasDev.Tabular.PrecheckArguments.Culture = "culture" -> string!
@@ -1052,3 +874,550 @@ TriasDev.Tabular.ColumnFacts.NumberReadingsDisagree.get -> bool
 TriasDev.Tabular.ColumnFacts.NumberReadingsDisagree.init -> void
 TriasDev.Tabular.ColumnFacts.DistinctValueCounts.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.ValueFrequency>!
 TriasDev.Tabular.ColumnFacts.DistinctValueCounts.init -> void
+TriasDev.Tabular.CsvCursorOptions.Delimiter.get -> char?
+TriasDev.Tabular.CsvCursorOptions.Delimiter.init -> void
+TriasDev.Tabular.CsvCursorOptions.Encoding.get -> System.Text.Encoding?
+TriasDev.Tabular.CsvCursorOptions.Encoding.init -> void
+TriasDev.Tabular.CsvCursorOptions.Quote.get -> char?
+TriasDev.Tabular.CsvCursorOptions.Quote.init -> void
+TriasDev.Tabular.AnalysisProgress.RowsRead.get -> int
+const TriasDev.Tabular.ErrorCodes.Write.TooManyMerges = "write.too-many-merges" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TooManyRows = "write.too-many-rows" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TooManyStyles = "write.too-many-styles" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.AmbiguousLineBreaks = "write.ambiguous-line-breaks" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.DateOutOfRange = "write.date-out-of-range" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.InvalidCharacter = "write.invalid-character" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.NotFinite = "write.not-finite" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.PrecisionLoss = "write.precision-loss" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TextTooLong = "write.text-too-long" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TooManyLines = "write.too-many-lines" -> string!
+TriasDev.Tabular.ErrorCodes.Write
+TriasDev.Tabular.TabularWriteException
+TriasDev.Tabular.TabularWriteException.ColumnIndex.get -> int
+TriasDev.Tabular.TabularWriteException.Header.get -> string!
+TriasDev.Tabular.TabularWriteException.RowNumber.get -> int
+TriasDev.Tabular.TabularWriteException.SheetName.get -> string!
+TriasDev.Tabular.TabularWriteException.TabularWriteException(string! code, string! sheetName, int rowNumber, int columnIndex, string! header, string! message) -> void
+TriasDev.Tabular.WriteColumn
+TriasDev.Tabular.WriteColumn.Deconstruct(out string! Header, out double? Width) -> void
+TriasDev.Tabular.WriteColumn.Equals(TriasDev.Tabular.WriteColumn other) -> bool
+TriasDev.Tabular.WriteColumn.Header.get -> string!
+TriasDev.Tabular.WriteColumn.Header.init -> void
+TriasDev.Tabular.WriteColumn.Width.get -> double?
+TriasDev.Tabular.WriteColumn.Width.init -> void
+TriasDev.Tabular.WriteColumn.WriteColumn() -> void
+TriasDev.Tabular.WriteColumn.WriteColumn(string! Header, double? Width = null) -> void
+static TriasDev.Tabular.WriteColumn.operator !=(TriasDev.Tabular.WriteColumn left, TriasDev.Tabular.WriteColumn right) -> bool
+static TriasDev.Tabular.WriteColumn.operator ==(TriasDev.Tabular.WriteColumn left, TriasDev.Tabular.WriteColumn right) -> bool
+~override TriasDev.Tabular.WriteColumn.Equals(object obj) -> bool
+override TriasDev.Tabular.WriteColumn.GetHashCode() -> int
+~override TriasDev.Tabular.WriteColumn.ToString() -> string
+TriasDev.Tabular.TabularWriterOptions
+TriasDev.Tabular.TabularWriterOptions.Csv.get -> TriasDev.Tabular.CsvWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Csv.init -> void
+TriasDev.Tabular.TabularWriterOptions.Equals(TriasDev.Tabular.TabularWriterOptions? other) -> bool
+TriasDev.Tabular.TabularWriterOptions.LeaveOpen.get -> bool
+TriasDev.Tabular.TabularWriterOptions.LeaveOpen.init -> void
+TriasDev.Tabular.TabularWriterOptions.TabularWriterOptions() -> void
+TriasDev.Tabular.TabularWriterOptions.<Clone>$() -> TriasDev.Tabular.TabularWriterOptions!
+static TriasDev.Tabular.TabularWriterOptions.Default.get -> TriasDev.Tabular.TabularWriterOptions!
+static TriasDev.Tabular.TabularWriterOptions.operator !=(TriasDev.Tabular.TabularWriterOptions? left, TriasDev.Tabular.TabularWriterOptions? right) -> bool
+static TriasDev.Tabular.TabularWriterOptions.operator ==(TriasDev.Tabular.TabularWriterOptions? left, TriasDev.Tabular.TabularWriterOptions? right) -> bool
+override TriasDev.Tabular.TabularWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.TabularWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.TabularWriterOptions.ToString() -> string!
+TriasDev.Tabular.CellBorder
+TriasDev.Tabular.CellBorder.<Clone>$() -> TriasDev.Tabular.CellBorder!
+TriasDev.Tabular.CellBorder.Color.get -> TriasDev.Tabular.CellColor
+TriasDev.Tabular.CellBorder.Equals(TriasDev.Tabular.CellBorder? other) -> bool
+TriasDev.Tabular.CellColor
+TriasDev.Tabular.CellColor.CellColor() -> void
+TriasDev.Tabular.CellColor.Equals(TriasDev.Tabular.CellColor other) -> bool
+TriasDev.Tabular.CellColor.Rgb.get -> int
+TriasDev.Tabular.CellFont
+TriasDev.Tabular.CellFont.<Clone>$() -> TriasDev.Tabular.CellFont!
+TriasDev.Tabular.CellFont.Bold.get -> bool
+TriasDev.Tabular.CellFont.Bold.init -> void
+TriasDev.Tabular.CellFont.CellFont() -> void
+TriasDev.Tabular.CellFont.Color.get -> TriasDev.Tabular.CellColor?
+TriasDev.Tabular.CellFont.Color.init -> void
+TriasDev.Tabular.CellFont.Equals(TriasDev.Tabular.CellFont? other) -> bool
+TriasDev.Tabular.CellFont.Italic.get -> bool
+TriasDev.Tabular.CellFont.Italic.init -> void
+TriasDev.Tabular.CellStyle
+TriasDev.Tabular.CellStyle.<Clone>$() -> TriasDev.Tabular.CellStyle!
+TriasDev.Tabular.CellStyle.Border.get -> TriasDev.Tabular.CellBorder?
+TriasDev.Tabular.CellStyle.Border.init -> void
+TriasDev.Tabular.CellStyle.CellStyle() -> void
+TriasDev.Tabular.CellStyle.Equals(TriasDev.Tabular.CellStyle? other) -> bool
+TriasDev.Tabular.CellStyle.Fill.get -> TriasDev.Tabular.CellColor?
+TriasDev.Tabular.CellStyle.Fill.init -> void
+TriasDev.Tabular.CellStyle.Font.get -> TriasDev.Tabular.CellFont?
+TriasDev.Tabular.CellStyle.Font.init -> void
+TriasDev.Tabular.CellStyle.Horizontal.get -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellStyle.Horizontal.init -> void
+TriasDev.Tabular.CellStyle.Wrap.get -> bool
+TriasDev.Tabular.CellStyle.Wrap.init -> void
+TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.Center = 2 -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.General = 0 -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.Left = 1 -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.Right = 3 -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.StyleId
+TriasDev.Tabular.StyleId.Equals(TriasDev.Tabular.StyleId other) -> bool
+TriasDev.Tabular.StyleId.StyleId() -> void
+override TriasDev.Tabular.CellBorder.Equals(object? obj) -> bool
+override TriasDev.Tabular.CellBorder.GetHashCode() -> int
+override TriasDev.Tabular.CellBorder.ToString() -> string!
+override TriasDev.Tabular.CellColor.GetHashCode() -> int
+override TriasDev.Tabular.CellColor.ToString() -> string!
+override TriasDev.Tabular.CellFont.Equals(object? obj) -> bool
+override TriasDev.Tabular.CellFont.GetHashCode() -> int
+override TriasDev.Tabular.CellFont.ToString() -> string!
+override TriasDev.Tabular.CellStyle.Equals(object? obj) -> bool
+override TriasDev.Tabular.CellStyle.GetHashCode() -> int
+override TriasDev.Tabular.CellStyle.ToString() -> string!
+override TriasDev.Tabular.StyleId.GetHashCode() -> int
+override TriasDev.Tabular.StyleId.ToString() -> string!
+~override TriasDev.Tabular.CellColor.Equals(object obj) -> bool
+~override TriasDev.Tabular.StyleId.Equals(object obj) -> bool
+static TriasDev.Tabular.CellBorder.Thin(TriasDev.Tabular.CellColor color) -> TriasDev.Tabular.CellBorder!
+static TriasDev.Tabular.CellBorder.operator !=(TriasDev.Tabular.CellBorder? left, TriasDev.Tabular.CellBorder? right) -> bool
+static TriasDev.Tabular.CellBorder.operator ==(TriasDev.Tabular.CellBorder? left, TriasDev.Tabular.CellBorder? right) -> bool
+static TriasDev.Tabular.CellColor.FromRgb(int rgb) -> TriasDev.Tabular.CellColor
+static TriasDev.Tabular.CellColor.Parse(string! text) -> TriasDev.Tabular.CellColor
+static TriasDev.Tabular.CellColor.operator !=(TriasDev.Tabular.CellColor left, TriasDev.Tabular.CellColor right) -> bool
+static TriasDev.Tabular.CellColor.operator ==(TriasDev.Tabular.CellColor left, TriasDev.Tabular.CellColor right) -> bool
+static TriasDev.Tabular.CellFont.operator !=(TriasDev.Tabular.CellFont? left, TriasDev.Tabular.CellFont? right) -> bool
+static TriasDev.Tabular.CellFont.operator ==(TriasDev.Tabular.CellFont? left, TriasDev.Tabular.CellFont? right) -> bool
+static TriasDev.Tabular.CellStyle.operator !=(TriasDev.Tabular.CellStyle? left, TriasDev.Tabular.CellStyle? right) -> bool
+static TriasDev.Tabular.CellStyle.operator ==(TriasDev.Tabular.CellStyle? left, TriasDev.Tabular.CellStyle? right) -> bool
+static TriasDev.Tabular.StyleId.operator !=(TriasDev.Tabular.StyleId left, TriasDev.Tabular.StyleId right) -> bool
+static TriasDev.Tabular.StyleId.operator ==(TriasDev.Tabular.StyleId left, TriasDev.Tabular.StyleId right) -> bool
+TriasDev.Tabular.CsvWriterOptions
+TriasDev.Tabular.CsvWriterOptions.ByteOrderMark.get -> bool
+TriasDev.Tabular.CsvWriterOptions.ByteOrderMark.init -> void
+TriasDev.Tabular.CsvWriterOptions.Culture.get -> string?
+TriasDev.Tabular.CsvWriterOptions.Culture.init -> void
+TriasDev.Tabular.CsvWriterOptions.CsvWriterOptions() -> void
+TriasDev.Tabular.CsvWriterOptions.Delimiter.get -> char?
+TriasDev.Tabular.CsvWriterOptions.Delimiter.init -> void
+TriasDev.Tabular.CsvWriterOptions.Equals(TriasDev.Tabular.CsvWriterOptions? other) -> bool
+TriasDev.Tabular.CsvWriterOptions.FormulaGuard.get -> bool
+TriasDev.Tabular.CsvWriterOptions.FormulaGuard.init -> void
+TriasDev.Tabular.CsvWriterOptions.<Clone>$() -> TriasDev.Tabular.CsvWriterOptions!
+static TriasDev.Tabular.CsvWriterOptions.Default.get -> TriasDev.Tabular.CsvWriterOptions!
+static TriasDev.Tabular.CsvWriterOptions.operator !=(TriasDev.Tabular.CsvWriterOptions? left, TriasDev.Tabular.CsvWriterOptions? right) -> bool
+static TriasDev.Tabular.CsvWriterOptions.operator ==(TriasDev.Tabular.CsvWriterOptions? left, TriasDev.Tabular.CsvWriterOptions? right) -> bool
+override TriasDev.Tabular.CsvWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.CsvWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.CsvWriterOptions.ToString() -> string!
+TriasDev.Tabular.TabularWriter
+TriasDev.Tabular.TabularWriter.BeginRow() -> void
+TriasDev.Tabular.TabularWriter.BeginSheet(string! name, System.ReadOnlySpan<TriasDev.Tabular.WriteColumn> columns) -> void
+TriasDev.Tabular.TabularWriter.CompleteAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+TriasDev.Tabular.TabularWriter.DisposeAsync() -> System.Threading.Tasks.ValueTask
+TriasDev.Tabular.TabularWriter.EndRow() -> void
+TriasDev.Tabular.TabularWriter.FlushAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+TriasDev.Tabular.TabularWriter.FlushRecommended.get -> bool
+TriasDev.Tabular.TabularWriter.Format.get -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.TabularWriter.Write(bool value) -> void
+TriasDev.Tabular.TabularWriter.Write(string? value) -> void
+TriasDev.Tabular.TabularWriter.Write(long value) -> void
+TriasDev.Tabular.TabularWriter.Write(decimal value) -> void
+TriasDev.Tabular.TabularWriter.Write(double value) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateTime value) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateOnly value) -> void
+TriasDev.Tabular.TabularWriter.WriteEmpty() -> void
+static TriasDev.Tabular.TabularWriter.Create(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, TriasDev.Tabular.TabularWriterOptions? options = null) -> TriasDev.Tabular.TabularWriter!
+TriasDev.Tabular.TabularWriterOptions.Xlsx.get -> TriasDev.Tabular.XlsxWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Xlsx.init -> void
+TriasDev.Tabular.XlsxWriterOptions
+TriasDev.Tabular.XlsxWriterOptions.<Clone>$() -> TriasDev.Tabular.XlsxWriterOptions!
+TriasDev.Tabular.XlsxWriterOptions.CompressionLevel.get -> System.IO.Compression.CompressionLevel
+TriasDev.Tabular.XlsxWriterOptions.CompressionLevel.init -> void
+TriasDev.Tabular.XlsxWriterOptions.Equals(TriasDev.Tabular.XlsxWriterOptions? other) -> bool
+TriasDev.Tabular.XlsxWriterOptions.XlsxWriterOptions() -> void
+override TriasDev.Tabular.XlsxWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.XlsxWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.XlsxWriterOptions.ToString() -> string!
+static TriasDev.Tabular.XlsxWriterOptions.Default.get -> TriasDev.Tabular.XlsxWriterOptions!
+static TriasDev.Tabular.XlsxWriterOptions.operator !=(TriasDev.Tabular.XlsxWriterOptions? left, TriasDev.Tabular.XlsxWriterOptions? right) -> bool
+static TriasDev.Tabular.XlsxWriterOptions.operator ==(TriasDev.Tabular.XlsxWriterOptions? left, TriasDev.Tabular.XlsxWriterOptions? right) -> bool
+TriasDev.Tabular.SkippedEntryReason.Compressed = 8 -> TriasDev.Tabular.SkippedEntryReason
+TriasDev.Tabular.TabularFormat.Gzip = 4 -> TriasDev.Tabular.TabularFormat
+TriasDev.Tabular.TabularWriterOptions.Ods.get -> TriasDev.Tabular.OdsWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Ods.init -> void
+TriasDev.Tabular.OdsWriterOptions
+TriasDev.Tabular.OdsWriterOptions.<Clone>$() -> TriasDev.Tabular.OdsWriterOptions!
+TriasDev.Tabular.OdsWriterOptions.CompressionLevel.get -> System.IO.Compression.CompressionLevel
+TriasDev.Tabular.OdsWriterOptions.CompressionLevel.init -> void
+TriasDev.Tabular.OdsWriterOptions.Equals(TriasDev.Tabular.OdsWriterOptions? other) -> bool
+TriasDev.Tabular.OdsWriterOptions.OdsWriterOptions() -> void
+override TriasDev.Tabular.OdsWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.OdsWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.OdsWriterOptions.ToString() -> string!
+static TriasDev.Tabular.OdsWriterOptions.Default.get -> TriasDev.Tabular.OdsWriterOptions!
+static TriasDev.Tabular.OdsWriterOptions.operator !=(TriasDev.Tabular.OdsWriterOptions? left, TriasDev.Tabular.OdsWriterOptions? right) -> bool
+static TriasDev.Tabular.OdsWriterOptions.operator ==(TriasDev.Tabular.OdsWriterOptions? left, TriasDev.Tabular.OdsWriterOptions? right) -> bool
+TriasDev.Tabular.TabularFormat.Tar = 5 -> TriasDev.Tabular.TabularFormat
+static TriasDev.Tabular.TabularExport.For<T>() -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExport
+TriasDev.Tabular.TabularExport<T>
+TriasDev.Tabular.TabularExport<T>.Columns.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.WriteColumn>!
+TriasDev.Tabular.TabularExport<T>.Sheet.get -> TriasDev.Tabular.SheetOptions?
+TriasDev.Tabular.TabularExportBuilder<T>
+TriasDev.Tabular.TabularExportBuilder<T>.Build() -> TriasDev.Tabular.TabularExport<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool?>! value, double? width = null, System.Func<bool?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, bool>! value, double? width = null, System.Func<bool, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, decimal?>! value, double? width = null, System.Func<decimal?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, decimal>! value, double? width = null, System.Func<decimal, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, double?>! value, double? width = null, System.Func<double?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, double>! value, double? width = null, System.Func<double, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, long?>! value, double? width = null, System.Func<long?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, long>! value, double? width = null, System.Func<long, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, string?>! value, double? width = null, System.Func<string?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateOnly?>! value, double? width = null, System.Func<System.DateOnly?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateOnly>! value, double? width = null, System.Func<System.DateOnly, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateTime?>! value, double? width = null, System.Func<System.DateTime?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(string! header, System.Func<T, System.DateTime>! value, double? width = null, System.Func<System.DateTime, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.BooleanImportField! field, System.Func<T, bool?>! value, double? width = null, System.Func<bool?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DateImportField! field, System.Func<T, System.DateOnly?>! value, double? width = null, System.Func<System.DateOnly?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DateImportField! field, System.Func<T, System.DateTime?>! value, double? width = null, System.Func<System.DateTime?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DecimalImportField! field, System.Func<T, decimal?>! value, double? width = null, System.Func<decimal?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DecimalImportField! field, System.Func<T, double?>! value, double? width = null, System.Func<double?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.IntegerImportField! field, System.Func<T, long?>! value, double? width = null, System.Func<long?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.TextImportField! field, System.Func<T, string?>! value, double? width = null, System.Func<string?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExportBuilder<T>.Sheet(TriasDev.Tabular.SheetOptions! options) -> TriasDev.Tabular.TabularExportBuilder<T>!
+TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.IReadOnlyList<T>!>! chunks, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteAsync<TChunk>(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<TChunk>! chunks, System.Func<TChunk, System.Collections.Generic.IReadOnlyList<T>!>! itemsOf, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.IReadOnlyList<T>!>! chunks, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync<TChunk>(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<TChunk>! chunks, System.Func<TChunk, System.Collections.Generic.IReadOnlyList<T>!>! itemsOf, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+override TriasDev.Tabular.DateFormat.Equals(object? obj) -> bool
+override TriasDev.Tabular.DateFormat.GetHashCode() -> int
+override TriasDev.Tabular.DateFormat.ToString() -> string!
+override TriasDev.Tabular.NumberFormat.Equals(object? obj) -> bool
+override TriasDev.Tabular.NumberFormat.GetHashCode() -> int
+override TriasDev.Tabular.NumberFormat.ToString() -> string!
+static TriasDev.Tabular.DateFormat.operator !=(TriasDev.Tabular.DateFormat? left, TriasDev.Tabular.DateFormat? right) -> bool
+static TriasDev.Tabular.DateFormat.operator ==(TriasDev.Tabular.DateFormat? left, TriasDev.Tabular.DateFormat? right) -> bool
+static TriasDev.Tabular.DateFormat.Parse(string! code) -> TriasDev.Tabular.DateFormat!
+static TriasDev.Tabular.NumberFormat.operator !=(TriasDev.Tabular.NumberFormat? left, TriasDev.Tabular.NumberFormat? right) -> bool
+static TriasDev.Tabular.NumberFormat.operator ==(TriasDev.Tabular.NumberFormat? left, TriasDev.Tabular.NumberFormat? right) -> bool
+static TriasDev.Tabular.NumberFormat.Parse(string! code) -> TriasDev.Tabular.NumberFormat!
+TriasDev.Tabular.CellStyle.DateFormat.get -> TriasDev.Tabular.DateFormat?
+TriasDev.Tabular.CellStyle.DateFormat.init -> void
+TriasDev.Tabular.CellStyle.NumberFormat.get -> TriasDev.Tabular.NumberFormat?
+TriasDev.Tabular.CellStyle.NumberFormat.init -> void
+TriasDev.Tabular.DateFormat
+TriasDev.Tabular.DateFormat.<Clone>$() -> TriasDev.Tabular.DateFormat!
+TriasDev.Tabular.DateFormat.Code.get -> string!
+TriasDev.Tabular.DateFormat.Equals(TriasDev.Tabular.DateFormat? other) -> bool
+TriasDev.Tabular.NumberFormat
+TriasDev.Tabular.NumberFormat.<Clone>$() -> TriasDev.Tabular.NumberFormat!
+TriasDev.Tabular.NumberFormat.Code.get -> string!
+TriasDev.Tabular.NumberFormat.Equals(TriasDev.Tabular.NumberFormat? other) -> bool
+TriasDev.Tabular.TabularWriter.RegisterStyle(TriasDev.Tabular.CellStyle! style) -> TriasDev.Tabular.StyleId
+TriasDev.Tabular.TabularWriter.Write(string? value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(long value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(decimal value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(double value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateTime value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(System.DateOnly value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.Write(bool value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.TabularWriter.WriteEmpty(TriasDev.Tabular.StyleId style) -> void
+override TriasDev.Tabular.SheetOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.SheetOptions.GetHashCode() -> int
+override TriasDev.Tabular.SheetOptions.ToString() -> string!
+static TriasDev.Tabular.SheetOptions.operator !=(TriasDev.Tabular.SheetOptions? left, TriasDev.Tabular.SheetOptions? right) -> bool
+static TriasDev.Tabular.SheetOptions.operator ==(TriasDev.Tabular.SheetOptions? left, TriasDev.Tabular.SheetOptions? right) -> bool
+TriasDev.Tabular.SheetOptions
+TriasDev.Tabular.SheetOptions.<Clone>$() -> TriasDev.Tabular.SheetOptions!
+TriasDev.Tabular.SheetOptions.AutoFilter.get -> bool
+TriasDev.Tabular.SheetOptions.AutoFilter.init -> void
+TriasDev.Tabular.SheetOptions.Equals(TriasDev.Tabular.SheetOptions? other) -> bool
+TriasDev.Tabular.SheetOptions.FreezeColumns.get -> int
+TriasDev.Tabular.SheetOptions.FreezeColumns.init -> void
+TriasDev.Tabular.SheetOptions.FreezeRows.get -> int
+TriasDev.Tabular.SheetOptions.FreezeRows.init -> void
+TriasDev.Tabular.SheetOptions.HeaderStyle.get -> TriasDev.Tabular.CellStyle?
+TriasDev.Tabular.SheetOptions.HeaderStyle.init -> void
+TriasDev.Tabular.SheetOptions.SheetOptions() -> void
+TriasDev.Tabular.TabularWriter.BeginSheet(string! name, System.ReadOnlySpan<TriasDev.Tabular.WriteColumn> columns, TriasDev.Tabular.SheetOptions? options) -> void
+TriasDev.Tabular.TabularWriter.Merge(int rows, int columns) -> void
+TriasDev.Tabular.ColumnBatch
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.StyleId>! styles) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, System.Func<T, TriasDev.Tabular.CellStyle?>! style) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.ColumnBatch.Add<T>(System.Collections.Generic.IReadOnlyList<T>! values) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.StyleId>! styles) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, System.Func<T, TriasDev.Tabular.CellStyle?>! style) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value, TriasDev.Tabular.StyleId style) -> void
+TriasDev.Tabular.ColumnBatch.Add<TItem, T>(System.Collections.Generic.IReadOnlyList<TItem>! items, System.Func<TItem, T>! value) -> void
+TriasDev.Tabular.ColumnBatch.ColumnBatch() -> void
+TriasDev.Tabular.ColumnBatch.ColumnCount.get -> int
+TriasDev.Tabular.ColumnBatch.Reset(int rowCount) -> void
+TriasDev.Tabular.ColumnBatch.RowCount.get -> int
+TriasDev.Tabular.TabularWriter.WriteBatch(TriasDev.Tabular.ColumnBatch! batch) -> void
+TriasDev.Tabular.TabularWriter.WriteBatchAsync(TriasDev.Tabular.ColumnBatch! batch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override TriasDev.Tabular.ZipWriterOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.ZipWriterOptions.GetHashCode() -> int
+override TriasDev.Tabular.ZipWriterOptions.ToString() -> string!
+static TriasDev.Tabular.ZipWriterOptions.Default.get -> TriasDev.Tabular.ZipWriterOptions!
+static TriasDev.Tabular.ZipWriterOptions.operator !=(TriasDev.Tabular.ZipWriterOptions? left, TriasDev.Tabular.ZipWriterOptions? right) -> bool
+static TriasDev.Tabular.ZipWriterOptions.operator ==(TriasDev.Tabular.ZipWriterOptions? left, TriasDev.Tabular.ZipWriterOptions? right) -> bool
+TriasDev.Tabular.ZipWriterOptions
+TriasDev.Tabular.ZipWriterOptions.<Clone>$() -> TriasDev.Tabular.ZipWriterOptions!
+TriasDev.Tabular.ZipWriterOptions.CompressionLevel.get -> System.IO.Compression.CompressionLevel
+TriasDev.Tabular.ZipWriterOptions.CompressionLevel.init -> void
+TriasDev.Tabular.ZipWriterOptions.Equals(TriasDev.Tabular.ZipWriterOptions? other) -> bool
+TriasDev.Tabular.ZipWriterOptions.ZipWriterOptions() -> void
+TriasDev.Tabular.TabularWriterOptions.Zip.get -> TriasDev.Tabular.ZipWriterOptions!
+TriasDev.Tabular.TabularWriterOptions.Zip.init -> void
+TriasDev.Tabular.ArchiveCursorOptions.MaxSheets.get -> int
+TriasDev.Tabular.ArchiveCursorOptions.MaxSheets.init -> void
+TriasDev.Tabular.SkippedEntryReason.DuplicatePath = 9 -> TriasDev.Tabular.SkippedEntryReason
+override TriasDev.Tabular.CsvCursorOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.CsvCursorOptions.GetHashCode() -> int
+override TriasDev.Tabular.CsvCursorOptions.ToString() -> string!
+override TriasDev.Tabular.CsvDialect.Equals(object? obj) -> bool
+override TriasDev.Tabular.CsvDialect.GetHashCode() -> int
+override TriasDev.Tabular.CsvDialect.ToString() -> string!
+override TriasDev.Tabular.XlsxCursorOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.XlsxCursorOptions.GetHashCode() -> int
+override TriasDev.Tabular.XlsxCursorOptions.ToString() -> string!
+static TriasDev.Tabular.CsvCursorOptions.Default.get -> TriasDev.Tabular.CsvCursorOptions!
+static TriasDev.Tabular.CsvCursorOptions.operator !=(TriasDev.Tabular.CsvCursorOptions? left, TriasDev.Tabular.CsvCursorOptions? right) -> bool
+static TriasDev.Tabular.CsvCursorOptions.operator ==(TriasDev.Tabular.CsvCursorOptions? left, TriasDev.Tabular.CsvCursorOptions? right) -> bool
+static TriasDev.Tabular.CsvDialect.operator !=(TriasDev.Tabular.CsvDialect? left, TriasDev.Tabular.CsvDialect? right) -> bool
+static TriasDev.Tabular.CsvDialect.operator ==(TriasDev.Tabular.CsvDialect? left, TriasDev.Tabular.CsvDialect? right) -> bool
+static TriasDev.Tabular.XlsxCursorOptions.Default.get -> TriasDev.Tabular.XlsxCursorOptions!
+static TriasDev.Tabular.XlsxCursorOptions.operator !=(TriasDev.Tabular.XlsxCursorOptions? left, TriasDev.Tabular.XlsxCursorOptions? right) -> bool
+static TriasDev.Tabular.XlsxCursorOptions.operator ==(TriasDev.Tabular.XlsxCursorOptions? left, TriasDev.Tabular.XlsxCursorOptions? right) -> bool
+TriasDev.Tabular.CsvCursorOptions
+TriasDev.Tabular.CsvCursorOptions.<Clone>$() -> TriasDev.Tabular.CsvCursorOptions!
+TriasDev.Tabular.CsvCursorOptions.CsvCursorOptions() -> void
+TriasDev.Tabular.CsvCursorOptions.DialectProbeBytes.get -> int
+TriasDev.Tabular.CsvCursorOptions.DialectProbeBytes.init -> void
+TriasDev.Tabular.CsvCursorOptions.Equals(TriasDev.Tabular.CsvCursorOptions? other) -> bool
+TriasDev.Tabular.CsvCursorOptions.MaxColumns.get -> int
+TriasDev.Tabular.CsvCursorOptions.MaxColumns.init -> void
+TriasDev.Tabular.CsvCursorOptions.MaxFieldChars.get -> int
+TriasDev.Tabular.CsvCursorOptions.MaxFieldChars.init -> void
+TriasDev.Tabular.CsvCursorOptions.MaxQuotedFieldLines.get -> int
+TriasDev.Tabular.CsvCursorOptions.MaxQuotedFieldLines.init -> void
+TriasDev.Tabular.CsvDialect
+TriasDev.Tabular.CsvDialect.<Clone>$() -> TriasDev.Tabular.CsvDialect!
+TriasDev.Tabular.CsvDialect.Delimiter.get -> char
+TriasDev.Tabular.CsvDialect.DelimiterSource.get -> TriasDev.Tabular.DialectSource
+TriasDev.Tabular.CsvDialect.Encoding.get -> System.Text.Encoding!
+TriasDev.Tabular.CsvDialect.EncodingSource.get -> TriasDev.Tabular.DialectSource
+TriasDev.Tabular.CsvDialect.Equals(TriasDev.Tabular.CsvDialect? other) -> bool
+TriasDev.Tabular.CsvDialect.Quote.get -> char
+TriasDev.Tabular.DialectSource
+TriasDev.Tabular.DialectSource.ByteOrderMark = 1 -> TriasDev.Tabular.DialectSource
+TriasDev.Tabular.DialectSource.Detected = 2 -> TriasDev.Tabular.DialectSource
+TriasDev.Tabular.DialectSource.Fallback = 3 -> TriasDev.Tabular.DialectSource
+TriasDev.Tabular.DialectSource.Specified = 0 -> TriasDev.Tabular.DialectSource
+TriasDev.Tabular.ITabularCursor.Dialect.get -> TriasDev.Tabular.CsvDialect?
+TriasDev.Tabular.SheetProfile.Dialect.get -> TriasDev.Tabular.CsvDialect?
+TriasDev.Tabular.TabularOpenOptions.Csv.get -> TriasDev.Tabular.CsvCursorOptions!
+TriasDev.Tabular.TabularOpenOptions.Xlsx.get -> TriasDev.Tabular.XlsxCursorOptions!
+TriasDev.Tabular.XlsxCursorOptions
+TriasDev.Tabular.XlsxCursorOptions.<Clone>$() -> TriasDev.Tabular.XlsxCursorOptions!
+TriasDev.Tabular.XlsxCursorOptions.Equals(TriasDev.Tabular.XlsxCursorOptions? other) -> bool
+TriasDev.Tabular.XlsxCursorOptions.MaxCellFormats.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxCellFormats.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxMetadataChars.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxMetadataChars.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxPackageEntries.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxPackageEntries.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxRelationships.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxRelationships.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxSharedStringChars.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxSharedStringChars.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxSharedStrings.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxSharedStrings.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxSheets.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxSheets.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxUncompressedBytes.get -> long
+TriasDev.Tabular.XlsxCursorOptions.MaxUncompressedBytes.init -> void
+TriasDev.Tabular.XlsxCursorOptions.MaxValueChars.get -> int
+TriasDev.Tabular.XlsxCursorOptions.MaxValueChars.init -> void
+TriasDev.Tabular.XlsxCursorOptions.XlsxCursorOptions() -> void
+override TriasDev.Tabular.ArchiveCursorOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.ArchiveCursorOptions.GetHashCode() -> int
+override TriasDev.Tabular.ArchiveCursorOptions.ToString() -> string!
+override TriasDev.Tabular.OdsCursorOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.OdsCursorOptions.GetHashCode() -> int
+override TriasDev.Tabular.OdsCursorOptions.ToString() -> string!
+static TriasDev.Tabular.ArchiveCursorOptions.Default.get -> TriasDev.Tabular.ArchiveCursorOptions!
+static TriasDev.Tabular.ArchiveCursorOptions.operator !=(TriasDev.Tabular.ArchiveCursorOptions? left, TriasDev.Tabular.ArchiveCursorOptions? right) -> bool
+static TriasDev.Tabular.ArchiveCursorOptions.operator ==(TriasDev.Tabular.ArchiveCursorOptions? left, TriasDev.Tabular.ArchiveCursorOptions? right) -> bool
+static TriasDev.Tabular.OdsCursorOptions.Default.get -> TriasDev.Tabular.OdsCursorOptions!
+static TriasDev.Tabular.OdsCursorOptions.operator !=(TriasDev.Tabular.OdsCursorOptions? left, TriasDev.Tabular.OdsCursorOptions? right) -> bool
+static TriasDev.Tabular.OdsCursorOptions.operator ==(TriasDev.Tabular.OdsCursorOptions? left, TriasDev.Tabular.OdsCursorOptions? right) -> bool
+TriasDev.Tabular.ArchiveCursorOptions
+TriasDev.Tabular.ArchiveCursorOptions.<Clone>$() -> TriasDev.Tabular.ArchiveCursorOptions!
+TriasDev.Tabular.ArchiveCursorOptions.ArchiveCursorOptions() -> void
+TriasDev.Tabular.ArchiveCursorOptions.Equals(TriasDev.Tabular.ArchiveCursorOptions? other) -> bool
+TriasDev.Tabular.ArchiveCursorOptions.MaxEmbeddedWorkbookBytes.get -> long
+TriasDev.Tabular.ArchiveCursorOptions.MaxEmbeddedWorkbookBytes.init -> void
+TriasDev.Tabular.ArchiveCursorOptions.MaxEntries.get -> int
+TriasDev.Tabular.ArchiveCursorOptions.MaxEntries.init -> void
+TriasDev.Tabular.ArchiveCursorOptions.MaxUncompressedBytes.get -> long
+TriasDev.Tabular.ArchiveCursorOptions.MaxUncompressedBytes.init -> void
+TriasDev.Tabular.OdsCursorOptions
+TriasDev.Tabular.OdsCursorOptions.<Clone>$() -> TriasDev.Tabular.OdsCursorOptions!
+TriasDev.Tabular.OdsCursorOptions.Equals(TriasDev.Tabular.OdsCursorOptions? other) -> bool
+TriasDev.Tabular.OdsCursorOptions.MaxColumns.get -> int
+TriasDev.Tabular.OdsCursorOptions.MaxColumns.init -> void
+TriasDev.Tabular.OdsCursorOptions.MaxPackageEntries.get -> int
+TriasDev.Tabular.OdsCursorOptions.MaxPackageEntries.init -> void
+TriasDev.Tabular.OdsCursorOptions.MaxRepeatedCells.get -> long
+TriasDev.Tabular.OdsCursorOptions.MaxRepeatedCells.init -> void
+TriasDev.Tabular.OdsCursorOptions.MaxRows.get -> int
+TriasDev.Tabular.OdsCursorOptions.MaxRows.init -> void
+TriasDev.Tabular.OdsCursorOptions.MaxSheets.get -> int
+TriasDev.Tabular.OdsCursorOptions.MaxSheets.init -> void
+TriasDev.Tabular.OdsCursorOptions.MaxUncompressedBytes.get -> long
+TriasDev.Tabular.OdsCursorOptions.MaxUncompressedBytes.init -> void
+TriasDev.Tabular.OdsCursorOptions.MaxValueChars.get -> int
+TriasDev.Tabular.OdsCursorOptions.MaxValueChars.init -> void
+TriasDev.Tabular.OdsCursorOptions.OdsCursorOptions() -> void
+TriasDev.Tabular.TabularOpenOptions.Archive.get -> TriasDev.Tabular.ArchiveCursorOptions!
+TriasDev.Tabular.TabularOpenOptions.Ods.get -> TriasDev.Tabular.OdsCursorOptions!
+static TriasDev.Tabular.AlternativeGroup.AllOf(string! name, params TriasDev.Tabular.ImportField![]! fields) -> TriasDev.Tabular.AlternativeGroup!
+static TriasDev.Tabular.AlternativeGroup.Ladder(string! name, int requiredLevels, params TriasDev.Tabular.AlternativeLevel![]! levels) -> TriasDev.Tabular.AlternativeGroup!
+TriasDev.Tabular.AlternativeGroup
+TriasDev.Tabular.AlternativeGroup.Levels.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativeLevel!>!
+TriasDev.Tabular.AlternativeGroup.Name.get -> string!
+TriasDev.Tabular.AlternativeGroup.RequiredLevels.get -> int
+TriasDev.Tabular.AlternativeLevel
+TriasDev.Tabular.AlternativeLevel.AlternativeLevel(string! name, params TriasDev.Tabular.ImportField![]! anyOf) -> void
+TriasDev.Tabular.AlternativeLevel.AnyOf.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.ImportField!>!
+TriasDev.Tabular.AlternativeLevel.Name.get -> string!
+TriasDev.Tabular.FieldAlternatives
+TriasDev.Tabular.FieldAlternatives.FieldAlternatives(string! name, System.Collections.Generic.IEnumerable<TriasDev.Tabular.AlternativeGroup!>! groups, bool unresolvedRowFails = false) -> void
+TriasDev.Tabular.FieldAlternatives.Groups.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativeGroup!>!
+TriasDev.Tabular.FieldAlternatives.Name.get -> string!
+TriasDev.Tabular.FieldAlternatives.UnresolvedRowFails.get -> bool
+TriasDev.Tabular.ImportSchema.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.FieldAlternatives!>!
+TriasDev.Tabular.ImportSchema.Alternatives.init -> void
+~override TriasDev.Tabular.AlternativeResolution.Equals(object obj) -> bool
+~override TriasDev.Tabular.AlternativeResolution.ToString() -> string
+const TriasDev.Tabular.ErrorCodes.Group.Unresolved = "group.unresolved" -> string!
+override TriasDev.Tabular.AlternativeResolution.GetHashCode() -> int
+static TriasDev.Tabular.AlternativeResolution.operator !=(TriasDev.Tabular.AlternativeResolution left, TriasDev.Tabular.AlternativeResolution right) -> bool
+static TriasDev.Tabular.AlternativeResolution.operator ==(TriasDev.Tabular.AlternativeResolution left, TriasDev.Tabular.AlternativeResolution right) -> bool
+TriasDev.Tabular.AlternativeResolution
+TriasDev.Tabular.AlternativeResolution.AlternativeResolution() -> void
+TriasDev.Tabular.AlternativeResolution.Equals(TriasDev.Tabular.AlternativeResolution other) -> bool
+TriasDev.Tabular.AlternativeResolution.Group.get -> string?
+TriasDev.Tabular.AlternativeResolution.GroupIndex.get -> int
+TriasDev.Tabular.AlternativeResolution.IsResolved.get -> bool
+TriasDev.Tabular.AlternativeResolution.Level.get -> int
+TriasDev.Tabular.AlternativeResolution.LevelName.get -> string?
+TriasDev.Tabular.ExtractionRun.CurrentResolutions.get -> System.ReadOnlySpan<TriasDev.Tabular.AlternativeResolution>
+const TriasDev.Tabular.ExtractionOptions.ReportedRowsCeiling = 10000 -> int
+override TriasDev.Tabular.AlternativeGroupReport.Equals(object? obj) -> bool
+override TriasDev.Tabular.AlternativeGroupReport.GetHashCode() -> int
+override TriasDev.Tabular.AlternativeGroupReport.ToString() -> string!
+override TriasDev.Tabular.AlternativesReport.Equals(object? obj) -> bool
+override TriasDev.Tabular.AlternativesReport.GetHashCode() -> int
+override TriasDev.Tabular.AlternativesReport.ToString() -> string!
+static TriasDev.Tabular.AlternativeGroupReport.operator !=(TriasDev.Tabular.AlternativeGroupReport? left, TriasDev.Tabular.AlternativeGroupReport? right) -> bool
+static TriasDev.Tabular.AlternativeGroupReport.operator ==(TriasDev.Tabular.AlternativeGroupReport? left, TriasDev.Tabular.AlternativeGroupReport? right) -> bool
+static TriasDev.Tabular.AlternativesReport.operator !=(TriasDev.Tabular.AlternativesReport? left, TriasDev.Tabular.AlternativesReport? right) -> bool
+static TriasDev.Tabular.AlternativesReport.operator ==(TriasDev.Tabular.AlternativesReport? left, TriasDev.Tabular.AlternativesReport? right) -> bool
+TriasDev.Tabular.AlternativeGroupReport
+TriasDev.Tabular.AlternativeGroupReport.<Clone>$() -> TriasDev.Tabular.AlternativeGroupReport!
+TriasDev.Tabular.AlternativeGroupReport.AlternativeGroupReport() -> void
+TriasDev.Tabular.AlternativeGroupReport.Empty.get -> int
+TriasDev.Tabular.AlternativeGroupReport.Empty.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Equals(TriasDev.Tabular.AlternativeGroupReport? other) -> bool
+TriasDev.Tabular.AlternativeGroupReport.IgnoredInvalidValues.get -> int
+TriasDev.Tabular.AlternativeGroupReport.IgnoredInvalidValues.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Incomplete.get -> int
+TriasDev.Tabular.AlternativeGroupReport.Incomplete.init -> void
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRows.get -> System.Collections.Generic.IReadOnlyList<int>!
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRows.init -> void
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRowsComplete.get -> bool
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRowsComplete.init -> void
+TriasDev.Tabular.AlternativeGroupReport.MaxReachableLevel.get -> int
+TriasDev.Tabular.AlternativeGroupReport.MaxReachableLevel.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Name.get -> string!
+TriasDev.Tabular.AlternativeGroupReport.Name.init -> void
+TriasDev.Tabular.AlternativeGroupReport.RowsAtLevel.get -> System.Collections.Generic.IReadOnlyList<int>!
+TriasDev.Tabular.AlternativeGroupReport.RowsAtLevel.init -> void
+TriasDev.Tabular.AlternativeGroupReport.RowsNeeding.get -> int
+TriasDev.Tabular.AlternativeGroupReport.RowsNeeding.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Won.get -> int
+TriasDev.Tabular.AlternativeGroupReport.Won.init -> void
+TriasDev.Tabular.AlternativesReport
+TriasDev.Tabular.AlternativesReport.<Clone>$() -> TriasDev.Tabular.AlternativesReport!
+TriasDev.Tabular.AlternativesReport.AlternativesReport() -> void
+TriasDev.Tabular.AlternativesReport.Equals(TriasDev.Tabular.AlternativesReport? other) -> bool
+TriasDev.Tabular.AlternativesReport.Groups.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativeGroupReport!>!
+TriasDev.Tabular.AlternativesReport.Groups.init -> void
+TriasDev.Tabular.AlternativesReport.Name.get -> string!
+TriasDev.Tabular.AlternativesReport.Name.init -> void
+TriasDev.Tabular.AlternativesReport.RowsJudged.get -> int
+TriasDev.Tabular.AlternativesReport.RowsJudged.init -> void
+TriasDev.Tabular.AlternativesReport.Unresolved.get -> int
+TriasDev.Tabular.AlternativesReport.Unresolved.init -> void
+TriasDev.Tabular.AlternativesReport.UnresolvedRows.get -> System.Collections.Generic.IReadOnlyList<int>!
+TriasDev.Tabular.AlternativesReport.UnresolvedRows.init -> void
+TriasDev.Tabular.AlternativesReport.UnresolvedRowsComplete.get -> bool
+TriasDev.Tabular.AlternativesReport.UnresolvedRowsComplete.init -> void
+TriasDev.Tabular.ExtractionOptions.MaxReportedRows.get -> int
+TriasDev.Tabular.ExtractionOptions.MaxReportedRows.init -> void
+TriasDev.Tabular.ExtractionRun.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
+TriasDev.Tabular.ImportRow.Resolution(TriasDev.Tabular.FieldAlternatives! alternatives) -> TriasDev.Tabular.AlternativeResolution
+TriasDev.Tabular.ImportRun<T>.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
+override TriasDev.Tabular.ImportReview.Equals(object? obj) -> bool
+override TriasDev.Tabular.ImportReview.GetHashCode() -> int
+override TriasDev.Tabular.ImportReview.ToString() -> string!
+override TriasDev.Tabular.ReviewOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.ReviewOptions.GetHashCode() -> int
+override TriasDev.Tabular.ReviewOptions.ToString() -> string!
+static TriasDev.Tabular.ImportReview.operator !=(TriasDev.Tabular.ImportReview? left, TriasDev.Tabular.ImportReview? right) -> bool
+static TriasDev.Tabular.ImportReview.operator ==(TriasDev.Tabular.ImportReview? left, TriasDev.Tabular.ImportReview? right) -> bool
+static TriasDev.Tabular.ReviewOptions.Default.get -> TriasDev.Tabular.ReviewOptions!
+static TriasDev.Tabular.ReviewOptions.operator !=(TriasDev.Tabular.ReviewOptions? left, TriasDev.Tabular.ReviewOptions? right) -> bool
+static TriasDev.Tabular.ReviewOptions.operator ==(TriasDev.Tabular.ReviewOptions? left, TriasDev.Tabular.ReviewOptions? right) -> bool
+static TriasDev.Tabular.TabularExtractor.Review(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.ReviewOptions? options = null, System.IProgress<TriasDev.Tabular.AnalysisProgress!>? progress = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportReview!
+TriasDev.Tabular.ImportReview
+TriasDev.Tabular.ImportReview.<Clone>$() -> TriasDev.Tabular.ImportReview!
+TriasDev.Tabular.ImportReview.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
+TriasDev.Tabular.ImportReview.Alternatives.init -> void
+TriasDev.Tabular.ImportReview.Equals(TriasDev.Tabular.ImportReview? other) -> bool
+TriasDev.Tabular.ImportReview.Errors.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.RowError!>!
+TriasDev.Tabular.ImportReview.Errors.init -> void
+TriasDev.Tabular.ImportReview.ErrorsComplete.get -> bool
+TriasDev.Tabular.ImportReview.ErrorsComplete.init -> void
+TriasDev.Tabular.ImportReview.ImportReview() -> void
+TriasDev.Tabular.ImportReview.Summary.get -> TriasDev.Tabular.ExtractionSummary!
+TriasDev.Tabular.ImportReview.Summary.init -> void
+TriasDev.Tabular.ReviewOptions
+TriasDev.Tabular.ReviewOptions.<Clone>$() -> TriasDev.Tabular.ReviewOptions!
+TriasDev.Tabular.ReviewOptions.Equals(TriasDev.Tabular.ReviewOptions? other) -> bool
+TriasDev.Tabular.ReviewOptions.MaxErrors.get -> int
+TriasDev.Tabular.ReviewOptions.MaxErrors.init -> void
+TriasDev.Tabular.ReviewOptions.MaxReportedRows.get -> int
+TriasDev.Tabular.ReviewOptions.MaxReportedRows.init -> void
+TriasDev.Tabular.ReviewOptions.ProgressInterval.get -> int
+TriasDev.Tabular.ReviewOptions.ProgressInterval.init -> void
+TriasDev.Tabular.ReviewOptions.ProgressStep.get -> double
+TriasDev.Tabular.ReviewOptions.ProgressStep.init -> void
+TriasDev.Tabular.ReviewOptions.ReviewOptions() -> void
+const TriasDev.Tabular.ErrorCodes.Group.LevelUnmapped = "group.level-unmapped" -> string!
+const TriasDev.Tabular.PrecheckArguments.Alternatives = "alternatives" -> string!
+const TriasDev.Tabular.PrecheckArguments.Group = "group" -> string!
+const TriasDev.Tabular.PrecheckArguments.Level = "level" -> string!
+const TriasDev.Tabular.PrecheckArguments.ReachableLevel = "reachableLevel" -> string!
+TriasDev.Tabular.ColumnFacts.RowsWithValueIn(TriasDev.Tabular.FieldConstraint.AllowedValues! allowed) -> int?
