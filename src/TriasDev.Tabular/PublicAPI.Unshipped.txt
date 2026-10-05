@@ -718,3 +718,8 @@ TriasDev.Tabular.ReviewOptions.ProgressInterval.init -> void
 TriasDev.Tabular.ReviewOptions.ProgressStep.get -> double
 TriasDev.Tabular.ReviewOptions.ProgressStep.init -> void
 TriasDev.Tabular.ReviewOptions.ReviewOptions() -> void
+const TriasDev.Tabular.ErrorCodes.Group.LevelUnmapped = "group.level-unmapped" -> string!
+const TriasDev.Tabular.PrecheckArguments.Alternatives = "alternatives" -> string!
+const TriasDev.Tabular.PrecheckArguments.Group = "group" -> string!
+const TriasDev.Tabular.PrecheckArguments.Level = "level" -> string!
+const TriasDev.Tabular.PrecheckArguments.ReachableLevel = "reachableLevel" -> string!

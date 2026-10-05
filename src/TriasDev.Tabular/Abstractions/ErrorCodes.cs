@@ -49,6 +49,9 @@ public static class ErrorCodes
 
         /// <summary><c>group.unresolved</c></summary>
         public const string Unresolved = "group.unresolved";
+
+        /// <summary><c>group.level-unmapped</c></summary>
+        public const string LevelUnmapped = "group.level-unmapped";
     }
 
     /// <summary>A mapping plan that does not fit its schema or its file — from the validator, the precheck and MappingPlanException.</summary>

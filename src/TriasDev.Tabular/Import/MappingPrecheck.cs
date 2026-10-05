@@ -169,6 +169,14 @@ public static class MappingPrecheck
 
         Dictionary<string, ImportField> fields = SchemaFields.ByName(schema);
         List<PrecheckFinding> findings = [];
+        ResolvedAlternatives[] alternatives = SchemaAlternatives.Resolve(schema);
+
+        // Fields of a later group are needed only in rows an earlier group does not locate, which the
+        // profile cannot tell apart; so nothing about them blocks here — the review settles it per row.
+        HashSet<string> lenient =
+        [
+            .. alternatives.SelectMany(a => a.Groups.Skip(1)).SelectMany(g => g.Members).Select(p => schema.Fields[p].Name),
+        ];
 
         // A profile measured against another header row describes another file: the real header and
         // everything above it were counted as data. Nothing measured can be trusted, so nothing
@@ -217,12 +225,13 @@ public static class MappingPrecheck
                 continue;
             }
 
-            Inspect(field, binding, column.Facts, sheet, plan, findings);
+            Inspect(field, binding, column.Facts, sheet, plan, findings, lenient.Contains(field.Name));
         }
 
         if (!stale)
         {
             CheckRequiredGroups(plan, schema, sheet, findings);
+            CheckAlternatives(plan, schema, alternatives, sheet, findings);
         }
 
         bool blocked = findings.Any(f => f.Severity == PrecheckSeverity.Blocking)
@@ -290,20 +299,88 @@ public static class MappingPrecheck
         }
     }
 
+    /// <summary>What the mapping alone decides about each set of alternatives.</summary>
+    /// <remarks>
+    /// Both findings are certain, unlike a count of empty cells: a level with no bound field is empty
+    /// in every row, whatever the file holds.
+    /// </remarks>
+    private static void CheckAlternatives(
+        MappingPlan plan,
+        ImportSchema schema,
+        ResolvedAlternatives[] alternatives,
+        SheetProfile sheet,
+        List<PrecheckFinding> findings)
+    {
+        HashSet<string> names = [.. plan.Bindings.Select(b => b.FieldName)];
+        HashSet<int> bound = [.. Enumerable.Range(0, schema.Fields.Count).Where(i => names.Contains(schema.Fields[i].Name))];
+
+        foreach (ResolvedAlternatives set in alternatives)
+        {
+            bool anyUsable = false;
+
+            foreach (ResolvedGroup group in set.Groups)
+            {
+                int reachable = Reachable(group, bound);
+                anyUsable |= reachable >= group.RequiredLevels;
+
+                if (reachable < group.Levels.Length)
+                {
+                    findings.Add(new PrecheckFinding
+                    {
+                        Code = ErrorCodes.Group.LevelUnmapped,
+                        Severity = PrecheckSeverity.Warning,
+                        FieldName = group.Name,
+                        Arguments = Args(
+                            (PrecheckArguments.Alternatives, set.Declared.Name),
+                            (PrecheckArguments.Group, group.Name),
+                            (PrecheckArguments.Level, group.LevelNames[reachable]),
+                            (PrecheckArguments.ReachableLevel, N(reachable))),
+                    });
+                }
+            }
+
+            if (!anyUsable)
+            {
+                findings.Add(new PrecheckFinding
+                {
+                    Code = ErrorCodes.Group.Unresolved,
+                    Severity = set.Declared.UnresolvedRowFails ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
+                    FieldName = set.Declared.Name,
+                    AffectedRows = sheet.RowCount,
+                    Arguments = Args((PrecheckArguments.Alternatives, set.Declared.Name)),
+                });
+            }
+        }
+    }
+
+    /// <summary>How many levels of a group the bound fields let a row reach.</summary>
+    private static int Reachable(ResolvedGroup group, HashSet<int> bound)
+    {
+        int reachable = 0;
+
+        while (reachable < group.Levels.Length && group.Levels[reachable].Any(bound.Contains))
+        {
+            reachable++;
+        }
+
+        return reachable;
+    }
+
     private static void Inspect(
         ImportField field,
         ColumnBinding binding,
         ColumnFacts facts,
         SheetProfile sheet,
         MappingPlan plan,
-        List<PrecheckFinding> findings)
+        List<PrecheckFinding> findings,
+        bool lenient)
     {
         string? culture = plan.Culture;
         void Add(string code, PrecheckSeverity severity, Evidence evidence) =>
             findings.Add(new PrecheckFinding
             {
                 Code = code,
-                Severity = severity,
+                Severity = lenient && severity == PrecheckSeverity.Blocking ? PrecheckSeverity.Warning : severity,
                 FieldName = field.Name,
                 ColumnIndex = binding.ColumnIndex,
                 AffectedRows = evidence.Rows,
