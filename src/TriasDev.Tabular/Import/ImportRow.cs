@@ -20,11 +20,13 @@ namespace TriasDev.Tabular;
 public readonly ref struct ImportRow
 {
     private readonly ReadOnlySpan<MappedValue> _values;
+    private readonly ReadOnlySpan<AlternativeResolution> _resolutions;
     private readonly FieldIndex _index;
 
-    internal ImportRow(ReadOnlySpan<MappedValue> values, FieldIndex index, int rowNumber)
+    internal ImportRow(ReadOnlySpan<MappedValue> values, ReadOnlySpan<AlternativeResolution> resolutions, FieldIndex index, int rowNumber)
     {
         _values = values;
+        _resolutions = resolutions;
         _index = index;
         RowNumber = rowNumber;
     }
@@ -121,6 +123,15 @@ public readonly ref struct ImportRow
         }
 
         return values;
+    }
+
+    /// <summary>Which group of a set of alternatives locates this row, and how far it reaches.</summary>
+    /// <remarks>Information only: every value of the row is there whichever group won.</remarks>
+    /// <exception cref="ArgumentException">The schema declares no such set.</exception>
+    public AlternativeResolution Resolution(FieldAlternatives alternatives)
+    {
+        ArgumentNullException.ThrowIfNull(alternatives);
+        return _resolutions[_index.SetOf(alternatives)];
     }
 
     private MappedValue Value(ImportField field)
