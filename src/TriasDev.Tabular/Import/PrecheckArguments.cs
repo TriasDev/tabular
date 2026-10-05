@@ -49,6 +49,18 @@ public static class PrecheckArguments
 
     /// <summary>The field's type, in lower case: <c>integer</c>, <c>decimal</c>, <c>date</c>, <c>boolean</c>.</summary>
     public const string Type = "type";
+
+    /// <summary>The set of alternatives a finding is about.</summary>
+    public const string Alternatives = "alternatives";
+
+    /// <summary>The group of a set of alternatives a finding is about.</summary>
+    public const string Group = "group";
+
+    /// <summary>The first level of a group the mapping binds no field to.</summary>
+    public const string Level = "level";
+
+    /// <summary>How many levels of a group the mapping lets a row reach.</summary>
+    public const string ReachableLevel = "reachableLevel";
 }
 
 /// <summary>The causes a <see cref="PrecheckArguments.Reason"/> names, where one code has several.</summary>

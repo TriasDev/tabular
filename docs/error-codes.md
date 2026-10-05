@@ -14,6 +14,7 @@ from them.
 | `value.not-unique` | The column repeats a value, and the field identifies a record |
 | `value.pattern` | Did not match the pattern (as a whole: patterns are anchored at both ends) |
 | `group.required` | A row carries none of a group's variants |
+| `group.level-unmapped` | A precheck finding: the mapping binds no field to a level of a group, so no row reaches past it |
 | `group.unresolved` | A row no group of a set of alternatives makes usable; a row error only where the set's `UnresolvedRowFails` says so, otherwise a precheck finding and a count in the run's report |
 | `mapping.unknown-field`, `mapping.duplicate-binding`, `mapping.required-field-unmapped`, `mapping.required-group-unmapped` | A plan that does not fit its schema |
 | `mapping.invalid-column`, `mapping.invalid-header-row`, `mapping.invalid-sheet`, `mapping.unknown-culture` | A plan that is malformed |
@@ -71,6 +72,8 @@ own language. Besides its `Code`, `Severity`, `FieldName` and `ColumnIndex` it c
 | `mapping.invalid-column` | none: the column is `ColumnIndex` | |
 | `mapping.header-changed` | `expectedHeader`, `actualHeader` | |
 | `group.required` | `boundColumnCount` | |
+| `group.level-unmapped` | `alternatives`, `group`, `level`, `reachableLevel` | |
+| `group.unresolved` | `alternatives` | |
 | `value.required` | `reason` | `every-value-is-nothing`, `empty-cells` |
 | `value.not-unique` | `reason`; `distinctCount` for `too-many-distinct` | `spelled-as-nothing`, `repeats`, `empty-cells`, `no-values`, `too-many-distinct` |
 | a rule's code (`value.max-length`, `value.pattern`, …) | `reason`; `failingCount`, `judgedCount` (distinct values) and `Examples` when judged; `distinctCount` when not | `values-fail`, `no-row-can-satisfy`, `too-many-distinct` |
