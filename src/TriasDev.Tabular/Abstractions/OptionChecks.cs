@@ -20,4 +20,16 @@ internal static class OptionChecks
                 $"{owner}.{option} must be at least {minimum}.");
         }
     }
+
+    /// <param name="options">The parameter the options arrived through, as the exception names it.</param>
+    public static void AtMost(long value, long maximum, string owner, string option, string options = "options")
+    {
+        if (value > maximum)
+        {
+            throw new ArgumentOutOfRangeException(
+                options,
+                value,
+                $"{owner}.{option} must be at most {maximum}.");
+        }
+    }
 }
