@@ -362,8 +362,7 @@ Stated here so they are found before they are hit:
   `.fods` are refused as `format.unsupported` rather than misread; inside an archive they are skipped
   and listed. Archives inside archives are not opened.
 - **Reading is synchronous, over seekable streams.** Parsing is processor work over a buffered stream; a request
-  body or blob stream is copied to a file or `MemoryStream` first. A csv whose dialect you state can
-  be read forward-only.
+  body or blob stream is copied to a file or `MemoryStream` first.
 - **Cultures.** Analysis tries `""` (invariant), `de-DE` and `en-US` by default — set
   `AnalysisOptions.Cultures` for files from elsewhere. Under invariant globalization (slim container
   images) only the invariant culture exists, and a plan naming another is refused.

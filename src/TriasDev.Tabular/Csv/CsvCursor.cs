@@ -20,7 +20,7 @@ namespace TriasDev.Tabular.Csv;
 /// fail an import of five million rows — so it recovers and counts what it repaired.
 /// </para>
 /// </remarks>
-public sealed class CsvCursor : ITabularCursor
+internal sealed class CsvCursor : ITabularCursor
 {
     private const int BufferSize = 64 * 1024;
 

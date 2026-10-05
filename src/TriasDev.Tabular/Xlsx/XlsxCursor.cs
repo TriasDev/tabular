@@ -20,7 +20,7 @@ namespace TriasDev.Tabular.Xlsx;
 /// all numeric never pays for it.
 /// </para>
 /// </remarks>
-public sealed class XlsxCursor : ITabularCursor
+internal sealed class XlsxCursor : ITabularCursor
 {
     /// <summary>
     /// The last column the format has, XFD.

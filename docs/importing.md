@@ -5,11 +5,15 @@ The other direction — writing csv, xlsx, ods and zip files — is [Exporting](
 
 ```csharp
 using FileStream file = File.OpenRead(path);
-using CsvCursor cursor = new(file, Path.GetFileName(path));
+using ITabularCursor cursor = TabularFile.Open(file, Path.GetFileName(path));
 
 FileProfile profile = TabularAnalyzer.Analyze(cursor);
 // hand `profile` to a mapping screen, or build the plan from the headers (below)
 ```
+
+`TabularFile.Open` is the one way to a cursor. It tells a csv, xlsx or ods file, a zip or tar archive
+and a gzip file apart by their bytes, not their names, and reads each with its own reader; the options
+for every one of them are in `TabularOpenOptions`.
 
 ```csharp
 // Declared once. These same objects build the schema and read the values, so a field's name is

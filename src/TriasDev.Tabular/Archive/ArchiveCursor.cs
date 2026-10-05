@@ -30,7 +30,7 @@ namespace TriasDev.Tabular.Archive;
 /// the archive again up to it, unless the cursor is moving forward through the archive anyway.
 /// </para>
 /// </remarks>
-public sealed class ArchiveCursor : ITabularCursor
+internal sealed class ArchiveCursor : ITabularCursor
 {
     private static readonly char[] PathSeparators = ['/', '\\'];
 

@@ -7,7 +7,6 @@ and also when the call fails — unless the caller asked for it to stay open.
 
 | Entry point | Closes the stream | Keep it open with |
 |---|---|---|
-| `new CsvCursor(stream, …)`, `new XlsxCursor(stream, …)` | on `Dispose`, or on a failed open | `leaveOpen: true` |
 | `TabularFile.Open(stream, …)` | on `Dispose`, or on a failed open | `TabularOpenOptions.LeaveOpen` |
 | `TabularImporter.Import(stream, …)` | on `Dispose` of the run, or when the call throws (a refused plan included) | `ImportOptions.Open.LeaveOpen` |
 | `TabularImporter.Import(cursor, …)`, `TabularAnalyzer.Analyze`, `TabularExtractor.Extract` | never — the cursor is the caller's | — |

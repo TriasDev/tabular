@@ -11,8 +11,10 @@
 
   <ItemGroup>
     <!-- The profiler, the distinct budget and the hypothesis builder are internal, and their tests
-         are worth keeping at that level. -->
+         are worth keeping at that level. The cursors are internal too (TabularFile.Open is the only
+         way to one), and the benchmarks measure each of them on its own. -->
     <InternalsVisibleTo Include="TriasDev.Tabular.Tests" />
+    <InternalsVisibleTo Include="TriasDev.Tabular.Benchmarks" />
   </ItemGroup>
 
 </Project>

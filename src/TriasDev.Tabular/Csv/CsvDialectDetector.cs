@@ -10,7 +10,7 @@ namespace TriasDev.Tabular.Csv;
 /// delimiter. A prefix is enough for both questions and costs one seek, where reading the file twice
 /// would cost a second pass over half a gigabyte.
 /// </remarks>
-public static class CsvDialectDetector
+internal static class CsvDialectDetector
 {
     private static readonly char[] DelimiterCandidates = [';', ',', '\t', '|'];
 

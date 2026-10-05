@@ -59,6 +59,15 @@ public sealed class ApiContractTests
     }
 
     [Fact]
+    public void TabularFileOpenIsTheOnlyWayToACursor()
+    {
+        Type[] exported = typeof(ITabularCursor).Assembly.GetExportedTypes();
+
+        Assert.DoesNotContain(exported, t => !t.IsInterface && typeof(ITabularCursor).IsAssignableFrom(t));
+        Assert.DoesNotContain(typeof(CsvDialectDetector), exported);
+    }
+
+    [Fact]
     public void OnlyACursorCreatesItsDiagnostics() =>
         // The counts are live on the cursor that repairs the file; a caller has nothing to count.
         Assert.Empty(typeof(CursorDiagnostics).GetConstructors());

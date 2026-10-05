@@ -29,7 +29,7 @@ namespace TriasDev.Tabular.Archive;
 /// import of the same file.
 /// </para>
 /// </remarks>
-public sealed class GzipCursor : ITabularCursor
+internal sealed class GzipCursor : ITabularCursor
 {
     private readonly Stream _stream;
     private readonly TabularOpenOptions _options;
@@ -97,7 +97,7 @@ public sealed class GzipCursor : ITabularCursor
             if (TarHeader.IsHeader(head))
             {
                 throw new TabularFormatException(TabularFormatException.Unsupported,
-                    "The gzip file holds a tar archive; open it with TabularFile.Open or ArchiveCursor, which read it as an archive.");
+                    "The gzip file holds a tar archive; open it with TabularFile.Open, which reads it as an archive.");
             }
 
             // A legacy workbook, an XML document or a binary file is refused here in the words used

@@ -1,6 +1,59 @@
 #nullable enable
 *REMOVED*TriasDev.Tabular.CursorDiagnostics.CursorDiagnostics() -> void
 *REMOVED*TriasDev.Tabular.AnalysisProgress.RowsRead.get -> long
+*REMOVED*static TriasDev.Tabular.Csv.CsvDialectDetector.Detect(System.IO.Stream! stream, TriasDev.Tabular.Csv.CsvCursorOptions? options = null) -> TriasDev.Tabular.Csv.CsvDialect!
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.CsvCursor(System.IO.Stream! stream, string! sheetName, TriasDev.Tabular.Csv.CsvCursorOptions? options = null, bool leaveOpen = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.CurrentRowNumber.get -> int
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.CurrentSheetIndex.get -> int
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect!
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.Dispose() -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.Format.get -> TriasDev.Tabular.TabularFormat
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.ReadFraction.get -> double?
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
+*REMOVED*TriasDev.Tabular.Csv.CsvDialectDetector
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.CurrentRowNumber.get -> int
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.CurrentSheetIndex.get -> int
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.Dispose() -> void
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.Format.get -> TriasDev.Tabular.TabularFormat
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.ReadFraction.get -> double?
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.XlsxCursor(System.IO.Stream! stream, TriasDev.Tabular.Xlsx.XlsxCursorOptions? options = null, bool leaveOpen = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.ArchiveCursor(System.IO.Stream! stream, TriasDev.Tabular.TabularOpenOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.CurrentRowNumber.get -> int
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.CurrentSheetIndex.get -> int
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.Dispose() -> void
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.Format.get -> TriasDev.Tabular.TabularFormat
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.ReadFraction.get -> double?
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.SkippedEntries.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SkippedEntry!>!
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.CurrentRowNumber.get -> int
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.CurrentSheetIndex.get -> int
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.Dispose() -> void
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.Format.get -> TriasDev.Tabular.TabularFormat
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.OdsCursor(System.IO.Stream! stream, TriasDev.Tabular.Ods.OdsCursorOptions? options = null, bool leaveOpen = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.ReadFraction.get -> double?
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
+*REMOVED*TriasDev.Tabular.Archive.ArchiveCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Csv.CsvCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Ods.OdsCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 TriasDev.Tabular.AnalysisProgress.RowsRead.get -> int
 const TriasDev.Tabular.ErrorCodes.Write.TooManyMerges = "write.too-many-merges" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.TooManyRows = "write.too-many-rows" -> string!
@@ -167,19 +220,6 @@ static TriasDev.Tabular.Xlsx.XlsxWriterOptions.operator !=(TriasDev.Tabular.Xlsx
 static TriasDev.Tabular.Xlsx.XlsxWriterOptions.operator ==(TriasDev.Tabular.Xlsx.XlsxWriterOptions? left, TriasDev.Tabular.Xlsx.XlsxWriterOptions? right) -> bool
 TriasDev.Tabular.SkippedEntryReason.Compressed = 8 -> TriasDev.Tabular.SkippedEntryReason
 TriasDev.Tabular.TabularFormat.Gzip = 4 -> TriasDev.Tabular.TabularFormat
-TriasDev.Tabular.Archive.GzipCursor.CurrentRow.get -> System.ReadOnlySpan<TriasDev.Tabular.RawCell>
-TriasDev.Tabular.Archive.GzipCursor.CurrentRowNumber.get -> int
-TriasDev.Tabular.Archive.GzipCursor.CurrentSheetIndex.get -> int
-TriasDev.Tabular.Archive.GzipCursor.Diagnostics.get -> TriasDev.Tabular.CursorDiagnostics!
-TriasDev.Tabular.Archive.GzipCursor.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
-TriasDev.Tabular.Archive.GzipCursor.Dispose() -> void
-TriasDev.Tabular.Archive.GzipCursor.Format.get -> TriasDev.Tabular.TabularFormat
-TriasDev.Tabular.Archive.GzipCursor.ReadFraction.get -> double?
-TriasDev.Tabular.Archive.GzipCursor.ReadRow(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
-TriasDev.Tabular.Archive.GzipCursor.Sheets.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.SheetInfo!>!
-TriasDev.Tabular.Archive.GzipCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
-TriasDev.Tabular.Archive.GzipCursor
-TriasDev.Tabular.Archive.GzipCursor.GzipCursor(System.IO.Stream! stream, string! name, TriasDev.Tabular.TabularOpenOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
 TriasDev.Tabular.TabularWriterOptions.Ods.get -> TriasDev.Tabular.Ods.OdsWriterOptions!
 TriasDev.Tabular.TabularWriterOptions.Ods.init -> void
 TriasDev.Tabular.Ods.OdsWriterOptions
