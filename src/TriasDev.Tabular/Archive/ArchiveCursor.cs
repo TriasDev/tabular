@@ -235,6 +235,7 @@ public sealed class ArchiveCursor : ITabularCursor
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed)
