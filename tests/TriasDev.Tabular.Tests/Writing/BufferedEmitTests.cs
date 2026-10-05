@@ -12,7 +12,9 @@ namespace TriasDev.Tabular.Tests.Writing;
 /// below were taken from the writers before the buffering, on the same data. (Deflate block boundaries
 /// may differ between the two, so the compressed bytes are not compared.) The xlsx sheets' digest was
 /// taken again when cells stopped carrying a reference where they follow the cell before them: checked
-/// to be the earlier sheet with exactly those references taken out.
+/// to be the earlier sheet with exactly those references taken out. The xlsx sheets' and the ods content's
+/// digests were taken again when every column got at least its header's width: checked to be the
+/// earlier parts with exactly the <c>cols</c> element, and the table-column style names, taken out.
 /// </summary>
 public sealed class BufferedEmitTests
 {
@@ -22,12 +24,12 @@ public sealed class BufferedEmitTests
         "xl/_rels/workbook.xml.rels=2372344717CC04FDF4983D6B5A2A815515CB851C5FCCA40DE351FF35DFDD63A2;" +
         "xl/styles.xml=27B976567DC15ACC3E267A2CE54F27D1F9763687CA3DDEF0A90318D84017D54B;" +
         "xl/workbook.xml=74D6691709AE82EF5F75AA69395F7491DC706F0E33483741705445ACF49FBF9E;" +
-        "xl/worksheets/sheet1.xml=AB50537F9252708F5208ED6C2E7C0C0D16091E57DC4AA376D1E0D2C8A14293D6;" +
-        "xl/worksheets/sheet2.xml=AB50537F9252708F5208ED6C2E7C0C0D16091E57DC4AA376D1E0D2C8A14293D6;";
+        "xl/worksheets/sheet1.xml=7B8DC326616683D4F438775C57CDC13F4534B9F41BD542E35FFA567BC795D3F0;" +
+        "xl/worksheets/sheet2.xml=7B8DC326616683D4F438775C57CDC13F4534B9F41BD542E35FFA567BC795D3F0;";
 
     private const string OdsDigests =
         "META-INF/manifest.xml=ACAD1AC2F8F631AD9AB0434C935A9797F0836422569EA36CABFEA7810AC731BD;" +
-        "content.xml=A198EAFBC6939739FA04748BA505A12290A922F79C4524CA1AA5634D8CF97202;" +
+        "content.xml=BEA9F17BC8BC6B0730BA40DBF86F8D34FAB1B105C882E5CA5D54276E85B0F977;" +
         "mimetype=252A8B94D7A7231935A1E64B941040221EBE10B640BA182F6780FBB89BE1D8B1;" +
         "settings.xml=F9CB132137542FA0DCFAE3D4A4ABD54E8BEEB87129276F17D7526066CA08CB27;" +
         "styles.xml=E12B0A25E90BFD1B8A9F3F485345DA9D9E2487C1B82EEE115F186C0085416AE0;";

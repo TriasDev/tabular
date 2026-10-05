@@ -250,7 +250,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         int headerStyle = layout.HeaderStyle is { } header ? AddStyle(header) : 0;
 
-        _columns = columns.ToArray();
+        _columns = WithHeaderWidths(columns, layout);
         _sheetName = name;
         _sheetNames.Add(name);
         _sheets++;
@@ -278,6 +278,26 @@ public sealed class TabularWriter : IAsyncDisposable
         }
 
         FinishRow();
+    }
+
+    /// <summary>
+    /// The columns as the sheet writer receives them: each at least as wide as its header
+    /// (<see cref="HeaderWidth"/>), so that no column written with a header is narrower than it. Csv
+    /// has no widths and ignores them.
+    /// </summary>
+    private static WriteColumn[] WithHeaderWidths(ReadOnlySpan<WriteColumn> columns, SheetOptions layout)
+    {
+        bool wrap = layout.HeaderStyle?.Wrap == true;
+        WriteColumn[] result = new WriteColumn[columns.Length];
+
+        for (int i = 0; i < columns.Length; i++)
+        {
+            WriteColumn column = columns[i];
+            double header = HeaderWidth.Of(column.Header, wrap, layout.AutoFilter, MaxWidth);
+            result[i] = column with { Width = Math.Max(column.Width ?? 0, header) };
+        }
+
+        return result;
     }
 
     /// <summary>Why the format refuses a sheet's name: the workbook rules first, then its own; null when it is fine.</summary>

@@ -194,7 +194,7 @@ public sealed class XlsxWriterTests
 
         string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
 
-        Assert.Contains("<cols><col min=\"1\" max=\"1\" width=\"12.5\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"30\" customWidth=\"1\"/></cols><sheetData>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<cols><col min=\"1\" max=\"1\" width=\"12.5\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"3\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"30\" customWidth=\"1\"/></cols><sheetData>", sheet, StringComparison.Ordinal);
         Assert.Empty(OoxmlValidation.Errors(xlsx));
     }
 

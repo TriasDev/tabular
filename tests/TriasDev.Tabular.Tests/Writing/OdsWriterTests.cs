@@ -176,7 +176,7 @@ public sealed class OdsWriterTests
 
         string content = Content(ods);
 
-        Assert.Contains("<table:table-column table:style-name=\"co12\"/><table:table-column/><table:table-column table:style-name=\"co30\"/>", content, StringComparison.Ordinal);
+        Assert.Contains("<table:table-column table:style-name=\"co12\"/><table:table-column table:style-name=\"co3\"/><table:table-column table:style-name=\"co30\"/>", content, StringComparison.Ordinal);
         Assert.Contains("style:name=\"co255\"", content, StringComparison.Ordinal);
     }
 
