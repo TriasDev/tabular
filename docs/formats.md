@@ -8,7 +8,9 @@ the end, [what each format holds when written](#what-each-format-holds-when-writ
 A workbook guesses dates from number formats; a `.ods` cell states its type beside its value, so
 there is nothing to guess. `float`, `percentage` and `currency` read as numbers, `date` as a date,
 `time` as the workbook serial of as many days — a time of day on 31 December 1899, the day an xlsx
-time-only cell reads on, and a longer duration on the day that serial names — and `boolean` as a
+time-only cell reads on, and a longer duration on the day that serial names; a spreadsheet that
+states another null date in its calculation settings (LibreOffice offers 1 January 1904) has its
+durations counted from that day — and `boolean` as a
 boolean. Anything else is text: the cell's `office:string-value` when it has one, else its paragraphs
 joined by a line feed, comments left out. A formula reads as the value the writer cached. ODF has no
 error type; LibreOffice marks a failed formula in an extension attribute, and it reads as an error

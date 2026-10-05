@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 
@@ -1531,30 +1532,36 @@ public sealed class XlsxCursor : ITabularCursor
 
     internal static bool TryFromSerial(double serial, bool date1904, out DateTime date)
     {
-        date = default;
-
-        if (!double.IsFinite(serial))
-        {
-            return false;
-        }
-
         DateTime epoch;
-        double days;
 
         if (date1904)
         {
             epoch = new DateTime(1904, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
-            days = serial;
         }
         else if (serial >= 60)
         {
             epoch = new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
-            days = serial;
         }
         else
         {
             epoch = new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified);
-            days = serial;
+        }
+
+        return TryFromDays(epoch, serial, out date);
+    }
+
+    /// <summary>
+    /// The day and time as many days after <paramref name="epoch"/> as <paramref name="days"/> says,
+    /// rounded to the millisecond; false for a count that is no number or leaves the calendar.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool TryFromDays(DateTime epoch, double days, out DateTime date)
+    {
+        date = default;
+
+        if (!double.IsFinite(days))
+        {
+            return false;
         }
 
         // Rounded to the millisecond, which is all a serial date carries. The fraction for 16:00 is

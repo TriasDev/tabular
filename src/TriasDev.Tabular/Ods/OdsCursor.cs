@@ -65,6 +65,12 @@ public sealed class OdsCursor : ITabularCursor
     /// <summary>The cells repeats have handed out beyond the ones written, across the file.</summary>
     private long _repeatedCells;
 
+    /// <summary>
+    /// The day the spreadsheet counts its durations from, when it states one other than the default
+    /// 30 December 1899; null for the default, which reads as a workbook serial does.
+    /// </summary>
+    private DateTime? _nullDate;
+
     private bool _sheetEnded;
     private int _repeatsLeft;
     private bool _disposed;
@@ -237,6 +243,14 @@ public sealed class OdsCursor : ITabularCursor
     /// </summary>
     private void EnterOrLeaveScope(SheetScanner scanner, int index)
     {
+        // The calculation settings stand ahead of the first table, so the pass that reaches the first
+        // sheet reads them — on opening, and again, to the same answer, whenever the part is reopened.
+        if (_tablesEntered == 0 && _nesting == 0 && scanner.Kind == XmlNodeKind.Element && scanner.Name.SequenceEqual("null-date"))
+        {
+            ReadNullDate(scanner);
+            return;
+        }
+
         if (scanner.Kind == XmlNodeKind.EndElement && IsScope(scanner.Name))
         {
             _nesting = Math.Max(0, _nesting - 1);
@@ -264,6 +278,23 @@ public sealed class OdsCursor : ITabularCursor
         }
 
         _nesting++;
+    }
+
+    /// <summary>
+    /// Takes <c>table:null-date</c>'s <c>table:date-value</c>: LibreOffice can count days from another
+    /// day — 1 January 1904 is offered — and states it here, writing its time cells as durations since
+    /// then. A value that is no date leaves the default, as an absent one does.
+    /// </summary>
+    private void ReadNullDate(SheetScanner scanner)
+    {
+        DateTime standard = new(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
+
+        if (scanner.TryGetAttribute("date-value", out ReadOnlySpan<char> value)
+            && value.IndexOf('-') >= 4
+            && DateReading.TryParseAsWritten(value, CultureInfo.InvariantCulture, DateTimeStyles.NoCurrentDateDefault, out DateTime stated))
+        {
+            _nullDate = stated.Date == standard ? null : stated.Date;
+        }
     }
 
     private static bool IsScope(ReadOnlySpan<char> name) => name.SequenceEqual(TableElement) || name.SequenceEqual("dde-link");
@@ -489,7 +520,7 @@ public sealed class OdsCursor : ITabularCursor
             && extension.SequenceEqual("error");
         RawCell typed = isError || !scanner.TryGetAttribute("value-type", out ReadOnlySpan<char> type)
             ? RawCell.Empty
-            : TypedValue(scanner, type);
+            : TypedValue(scanner, type, _nullDate);
 
         if (!typed.IsEmpty)
         {
@@ -532,7 +563,7 @@ public sealed class OdsCursor : ITabularCursor
     }
 
     /// <summary>The value a cell declares in its attributes, or empty for text and for no type.</summary>
-    private static RawCell TypedValue(SheetScanner scanner, ReadOnlySpan<char> type)
+    private static RawCell TypedValue(SheetScanner scanner, ReadOnlySpan<char> type, DateTime? nullDate)
     {
         switch (type)
         {
@@ -552,7 +583,7 @@ public sealed class OdsCursor : ITabularCursor
 
             case "time":
                 return scanner.TryGetAttribute("time-value", out ReadOnlySpan<char> time)
-                    ? FromDuration(time)
+                    ? FromDuration(time, nullDate)
                     : RawCell.Empty;
 
             case "boolean":
@@ -576,14 +607,22 @@ public sealed class OdsCursor : ITabularCursor
     /// <summary>
     /// A time cell, an ISO 8601 duration, read as the workbook serial of as many days: a time of day
     /// on 31 December 1899, as an xlsx time-only cell, and a longer one — LibreOffice's form for a
-    /// date-time under a time-only format — on the day the serial names.
+    /// date-time under a time-only format — on the day the serial names. A spreadsheet that states
+    /// another null date counts the duration from that day instead, as LibreOffice does.
     /// </summary>
-    private static RawCell FromDuration(ReadOnlySpan<char> duration) =>
-        IsoDuration.TryParse(duration, out TimeSpan span)
-        && span >= TimeSpan.Zero
-        && XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out DateTime date)
-            ? RawCell.FromDate(date)
-            : RawCell.Empty;
+    private static RawCell FromDuration(ReadOnlySpan<char> duration, DateTime? nullDate)
+    {
+        if (!IsoDuration.TryParse(duration, out TimeSpan span) || span < TimeSpan.Zero)
+        {
+            return RawCell.Empty;
+        }
+
+        bool read = nullDate is { } day
+            ? XlsxCursor.TryFromDays(day, span.TotalDays, out DateTime date)
+            : XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out date);
+
+        return read ? RawCell.FromDate(date) : RawCell.Empty;
+    }
 
     // The state of one cell's text assembly: how deep the reader is inside the cell, and the depth
     // of the paragraph or annotation it is in, or -1.
