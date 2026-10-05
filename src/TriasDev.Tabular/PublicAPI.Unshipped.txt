@@ -237,10 +237,10 @@ static TriasDev.Tabular.DateFormat.Parse(string! code) -> TriasDev.Tabular.DateF
 static TriasDev.Tabular.NumberFormat.operator !=(TriasDev.Tabular.NumberFormat? left, TriasDev.Tabular.NumberFormat? right) -> bool
 static TriasDev.Tabular.NumberFormat.operator ==(TriasDev.Tabular.NumberFormat? left, TriasDev.Tabular.NumberFormat? right) -> bool
 static TriasDev.Tabular.NumberFormat.Parse(string! code) -> TriasDev.Tabular.NumberFormat!
-TriasDev.Tabular.CellStyle.Date.get -> TriasDev.Tabular.DateFormat?
-TriasDev.Tabular.CellStyle.Date.init -> void
-TriasDev.Tabular.CellStyle.Number.get -> TriasDev.Tabular.NumberFormat?
-TriasDev.Tabular.CellStyle.Number.init -> void
+TriasDev.Tabular.CellStyle.DateFormat.get -> TriasDev.Tabular.DateFormat?
+TriasDev.Tabular.CellStyle.DateFormat.init -> void
+TriasDev.Tabular.CellStyle.NumberFormat.get -> TriasDev.Tabular.NumberFormat?
+TriasDev.Tabular.CellStyle.NumberFormat.init -> void
 TriasDev.Tabular.DateFormat
 TriasDev.Tabular.DateFormat.<Clone>$() -> TriasDev.Tabular.DateFormat!
 TriasDev.Tabular.DateFormat.Code.get -> string!
@@ -249,7 +249,7 @@ TriasDev.Tabular.NumberFormat
 TriasDev.Tabular.NumberFormat.<Clone>$() -> TriasDev.Tabular.NumberFormat!
 TriasDev.Tabular.NumberFormat.Code.get -> string!
 TriasDev.Tabular.NumberFormat.Equals(TriasDev.Tabular.NumberFormat? other) -> bool
-TriasDev.Tabular.TabularWriter.Style(TriasDev.Tabular.CellStyle! style) -> TriasDev.Tabular.StyleId
+TriasDev.Tabular.TabularWriter.RegisterStyle(TriasDev.Tabular.CellStyle! style) -> TriasDev.Tabular.StyleId
 TriasDev.Tabular.TabularWriter.Write(string? value, TriasDev.Tabular.StyleId style) -> void
 TriasDev.Tabular.TabularWriter.Write(long value, TriasDev.Tabular.StyleId style) -> void
 TriasDev.Tabular.TabularWriter.Write(decimal value, TriasDev.Tabular.StyleId style) -> void

@@ -117,8 +117,8 @@ public sealed class FormatCodeTests
     [Fact]
     public void AStyleCarriesBothFormats()
     {
-        CellStyle style = new() { Number = NumberFormat.Parse("0.00"), Date = DateFormat.Parse("dd/mm/yyyy") };
+        CellStyle style = new() { NumberFormat = NumberFormat.Parse("0.00"), DateFormat = DateFormat.Parse("dd/mm/yyyy") };
 
-        Assert.Equal(style, new CellStyle { Number = NumberFormat.Parse("0.00"), Date = DateFormat.Parse("dd/mm/yyyy") });
+        Assert.Equal(style, new CellStyle { NumberFormat = NumberFormat.Parse("0.00"), DateFormat = DateFormat.Parse("dd/mm/yyyy") });
     }
 }

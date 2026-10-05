@@ -17,9 +17,9 @@ public sealed class StyledWriterTests
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
 
-        StyleId first = writer.Style(Red);
-        StyleId again = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0xFF0000) });
-        StyleId other = writer.Style(Red with { Wrap = true });
+        StyleId first = writer.RegisterStyle(Red);
+        StyleId again = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0xFF0000) });
+        StyleId other = writer.RegisterStyle(Red with { Wrap = true });
 
         Assert.Equal(first, again);
         Assert.NotEqual(first, other);
@@ -33,11 +33,11 @@ public sealed class StyledWriterTests
 
         for (int i = 0; i < 4096; i++)
         {
-            writer.Style(new CellStyle { Fill = CellColor.FromRgb(i) });
+            writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(i) });
         }
 
-        writer.Style(new CellStyle { Fill = CellColor.FromRgb(0) });       // already registered: no new style
-        TabularLimitException refused = Assert.Throws<TabularLimitException>(() => writer.Style(new CellStyle { Fill = CellColor.FromRgb(4096) }));
+        writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0) });       // already registered: no new style
+        TabularLimitException refused = Assert.Throws<TabularLimitException>(() => writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(4096) }));
         Assert.Contains("4096", refused.Message, StringComparison.Ordinal);
     }
 
@@ -46,18 +46,18 @@ public sealed class StyledWriterTests
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => writer.Style(new CellStyle { Horizontal = (CellHorizontalAlignment)9 }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => writer.RegisterStyle(new CellStyle { Horizontal = (CellHorizontalAlignment)9 }));
     }
 
     [Fact]
     public async Task AStyleIdFromAnotherWriterIsRefused()
     {
         await using TabularWriter other = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
-        other.Style(Red);
-        StyleId foreign = other.Style(Red with { Wrap = true });           // index 2 there
+        other.RegisterStyle(Red);
+        StyleId foreign = other.RegisterStyle(Red with { Wrap = true });           // index 2 there
 
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
-        writer.Style(Red);                                                  // only index 1 here
+        writer.RegisterStyle(Red);                                                  // only index 1 here
         writer.BeginSheet("data", [new("x")]);
         writer.BeginRow();
 
@@ -68,12 +68,12 @@ public sealed class StyledWriterTests
     public async Task AStyleIdFromAnotherWriterWithTheSameIndexIsRefused()
     {
         await using TabularWriter other = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
-        other.Style(Red);
-        StyleId foreign = other.Style(Red with { Wrap = true });           // index 2 there
+        other.RegisterStyle(Red);
+        StyleId foreign = other.RegisterStyle(Red with { Wrap = true });           // index 2 there
 
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
-        writer.Style(Red);
-        StyleId own = writer.Style(Red with { Wrap = true });               // index 2 here too
+        writer.RegisterStyle(Red);
+        StyleId own = writer.RegisterStyle(Red with { Wrap = true });               // index 2 here too
         writer.BeginSheet("data", [new("x")]);
         writer.BeginRow();
 
@@ -103,7 +103,7 @@ public sealed class StyledWriterTests
 
             await using (TabularWriter writer = TabularWriter.Create(target, TabularFormat.Csv))
             {
-                StyleId style = styled ? writer.Style(Red with { Number = NumberFormat.Parse("0.00"), Date = DateFormat.Parse("dd/mm/yyyy") }) : default;
+                StyleId style = styled ? writer.RegisterStyle(Red with { NumberFormat = NumberFormat.Parse("0.00"), DateFormat = DateFormat.Parse("dd/mm/yyyy") }) : default;
                 writer.BeginSheet("data", [new("text"), new("long"), new("decimal"), new("double"), new("date"), new("day"), new("flag"), new("none")]);
                 writer.BeginRow();
                 writer.Write("a", style);
@@ -129,7 +129,7 @@ public sealed class StyledWriterTests
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
 
-        Assert.Throws<ArgumentNullException>(() => writer.Style(null!));
+        Assert.Throws<ArgumentNullException>(() => writer.RegisterStyle(null!));
     }
 
     [Theory]
@@ -138,7 +138,7 @@ public sealed class StyledWriterTests
     [InlineData(TabularFormat.Ods)]
     public async Task AllocatesNothingPerStyledCell(TabularFormat format)
     {
-        CellStyle[] palette = [.. Enumerable.Range(0, 8).Select(i => new CellStyle { Fill = CellColor.FromRgb(i * 0x101010), Number = NumberFormat.Parse("0.00"), Date = DateFormat.Parse("dd/mm/yyyy") })];
+        CellStyle[] palette = [.. Enumerable.Range(0, 8).Select(i => new CellStyle { Fill = CellColor.FromRgb(i * 0x101010), NumberFormat = NumberFormat.Parse("0.00"), DateFormat = DateFormat.Parse("dd/mm/yyyy") })];
 
         async ValueTask<long> Allocated(int rows)
         {
@@ -146,7 +146,7 @@ public sealed class StyledWriterTests
 
             await using (TabularWriter writer = TabularWriter.Create(Stream.Null, format, new TabularWriterOptions { LeaveOpen = true }))
             {
-                StyleId[] styles = [.. palette.Select(writer.Style)];
+                StyleId[] styles = [.. palette.Select(writer.RegisterStyle)];
                 writer.BeginSheet("data", [new("text"), new("number"), new("integer"), new("date"), new("flag")]);
 
                 for (int i = 0; i < rows; i++)

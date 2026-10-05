@@ -90,7 +90,7 @@ plugins:
            `WriteSheetAsync(writer, sheetName, ...)` for several sheets.
         3. By column: `ColumnBatch` (`Reset(rowCount)`, `Add(list[, style])`) and `writer.WriteBatchAsync(batch, ct)`.
         4. Styles: `CellStyle` (fill, font, `NumberFormat.Parse`, `DateFormat.Parse`, alignment, wrap,
-           border), registered per writer with `writer.Style(style)` → `StyleId`; xlsx and ods only, csv
+           border), registered per writer with `writer.RegisterStyle(style)` → `StyleId`; xlsx and ods only, csv
            ignores them. `SheetOptions`: `HeaderStyle`, `FreezeRows`, `FreezeColumns`, `AutoFilter`;
            `writer.Merge(rows, columns)` merges from the next cell.
         A value the format cannot hold exactly throws `TabularWriteException` (codes `write.*`, with

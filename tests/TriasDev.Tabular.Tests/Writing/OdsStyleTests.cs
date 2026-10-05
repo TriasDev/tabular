@@ -53,7 +53,7 @@ public sealed class OdsStyleTests
     {
         byte[] ods = await Spreadsheet(writer =>
         {
-            StyleId red = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0xF8696B), Font = new CellFont { Bold = true } });
+            StyleId red = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0xF8696B), Font = new CellFont { Bold = true } });
             writer.BeginSheet("data", [new("a")]);
             writer.BeginRow();
             writer.Write("hot", red);
@@ -71,8 +71,8 @@ public sealed class OdsStyleTests
     {
         Fill = CellColor.FromRgb(0xF8696B),
         Font = new CellFont { Color = CellColor.FromRgb(0xFFFFFF), Bold = true, Italic = true },
-        Number = NumberFormat.Parse("#,##0.00"),
-        Date = DateFormat.Parse("dd/mm/yyyy"),
+        NumberFormat = NumberFormat.Parse("#,##0.00"),
+        DateFormat = DateFormat.Parse("dd/mm/yyyy"),
         Horizontal = CellHorizontalAlignment.Center,
         Wrap = true,
         Border = CellBorder.Thin(CellColor.FromRgb(0xBFBFBF)),
@@ -96,7 +96,7 @@ public sealed class OdsStyleTests
     [Fact]
     public async Task StatesTheStyleAsACommonStyle()
     {
-        byte[] ods = await Spreadsheet(writer => EveryKind(writer, writer.Style(Legend)));
+        byte[] ods = await Spreadsheet(writer => EveryKind(writer, writer.RegisterStyle(Legend)));
         string styles = Entry(ods, "styles.xml");
         string content = Entry(ods, "content.xml");
 
@@ -116,7 +116,7 @@ public sealed class OdsStyleTests
     public async Task TheImportReadsAStyledRowAsItReadsAnUnstyledOne()
     {
         byte[] plain = await Spreadsheet(writer => EveryKind(writer, default));
-        byte[] styled = await Spreadsheet(writer => EveryKind(writer, writer.Style(Legend)));
+        byte[] styled = await Spreadsheet(writer => EveryKind(writer, writer.RegisterStyle(Legend)));
 
         Assert.Equal(Rows(plain).Select(r => r.ToArray()), Rows(styled).Select(r => r.ToArray()));
         Assert.Equal(RawCell.FromBoolean(true), Rows(styled)[1][6]);
@@ -127,7 +127,7 @@ public sealed class OdsStyleTests
     {
         byte[] ods = await Spreadsheet(writer =>
         {
-            StyleId percent = writer.Style(new CellStyle { Number = NumberFormat.Parse("0.0%") });
+            StyleId percent = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("0.0%") });
             writer.BeginSheet("data", [new("p")]);
             writer.BeginRow();
             writer.Write(0.125, percent);
@@ -148,7 +148,7 @@ public sealed class OdsStyleTests
             for (int i = 1; i <= 1000; i++)
             {
                 writer.BeginRow();
-                writer.Write(i, i == 1000 ? writer.Style(new CellStyle { Fill = CellColor.FromRgb(0x0000FF) }) : default);
+                writer.Write(i, i == 1000 ? writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x0000FF) }) : default);
                 writer.EndRow();
             }
         });
@@ -162,7 +162,7 @@ public sealed class OdsStyleTests
     {
         byte[] ods = await Spreadsheet(writer =>
         {
-            StyleId style = writer.Style(new CellStyle { Number = NumberFormat.Parse("\"R&D <\"0") });
+            StyleId style = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("\"R&D <\"0") });
             writer.BeginSheet("data", [new("n")]);
             writer.BeginRow();
             writer.Write(5L, style);

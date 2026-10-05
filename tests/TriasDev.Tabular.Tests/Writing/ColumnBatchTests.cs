@@ -76,8 +76,8 @@ public sealed class ColumnBatchTests
     {
         byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
         {
-            StyleId low = writer.Style(Low);
-            StyleId high = writer.Style(High);
+            StyleId low = writer.RegisterStyle(Low);
+            StyleId high = writer.RegisterStyle(High);
             writer.BeginSheet("data", [new("constant"), new("vector"), new("rule")]);
             ColumnBatch batch = new();
             batch.Reset(2);

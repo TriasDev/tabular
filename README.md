@@ -305,8 +305,8 @@ private static readonly CellStyle HeaderStyle = new()
     Font = new CellFont { Color = CellColor.Parse("#FFFFFF"), Bold = true },
 };
 
-private static readonly CellStyle MoneyStyle = new() { Number = NumberFormat.Parse("#,##0.00") };
-private static readonly CellStyle DateStyle = new() { Date = DateFormat.Parse("dd/mm/yyyy") };
+private static readonly CellStyle MoneyStyle = new() { NumberFormat = NumberFormat.Parse("#,##0.00") };
+private static readonly CellStyle DateStyle = new() { DateFormat = DateFormat.Parse("dd/mm/yyyy") };
 
 // A legend: late orders are marked in red.
 private static readonly CellStyle LateStyle = new() { Fill = CellColor.Parse("#FFC7CE") };
@@ -321,9 +321,9 @@ public static async Task WriteAsync(Stream stream, IEnumerable<Order> orders, Ca
         [new WriteColumn("Id", 8), new WriteColumn("Customer", 28), new WriteColumn("Placed", 12), new WriteColumn("Amount", 12), new WriteColumn("Status", 10)],
         new SheetOptions { HeaderStyle = HeaderStyle, FreezeRows = 1, AutoFilter = true });
 
-    StyleId money = writer.Style(MoneyStyle);
-    StyleId date = writer.Style(DateStyle);
-    StyleId late = writer.Style(LateStyle);
+    StyleId money = writer.RegisterStyle(MoneyStyle);
+    StyleId date = writer.RegisterStyle(DateStyle);
+    StyleId late = writer.RegisterStyle(LateStyle);
 
     foreach (Order order in orders)
     {

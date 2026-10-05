@@ -12,8 +12,8 @@ internal static class RowByRow
         Font = new CellFont { Color = CellColor.Parse("#FFFFFF"), Bold = true },
     };
 
-    private static readonly CellStyle MoneyStyle = new() { Number = NumberFormat.Parse("#,##0.00") };
-    private static readonly CellStyle DateStyle = new() { Date = DateFormat.Parse("dd/mm/yyyy") };
+    private static readonly CellStyle MoneyStyle = new() { NumberFormat = NumberFormat.Parse("#,##0.00") };
+    private static readonly CellStyle DateStyle = new() { DateFormat = DateFormat.Parse("dd/mm/yyyy") };
 
     // A legend: late orders are marked in red.
     private static readonly CellStyle LateStyle = new() { Fill = CellColor.Parse("#FFC7CE") };
@@ -30,9 +30,9 @@ internal static class RowByRow
             [new WriteColumn("Id", 8), new WriteColumn("Customer", 28), new WriteColumn("Placed", 12), new WriteColumn("Amount", 12), new WriteColumn("Status", 10)],
             new SheetOptions { HeaderStyle = HeaderStyle, FreezeRows = 1, AutoFilter = true });
 
-        StyleId money = writer.Style(MoneyStyle);
-        StyleId date = writer.Style(DateStyle);
-        StyleId late = writer.Style(LateStyle);
+        StyleId money = writer.RegisterStyle(MoneyStyle);
+        StyleId date = writer.RegisterStyle(DateStyle);
+        StyleId late = writer.RegisterStyle(LateStyle);
 
         foreach (Order order in orders)
         {
@@ -60,7 +60,7 @@ internal static class RowByRow
     {
         await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx);
         writer.BeginSheet("Orders", [new WriteColumn("Id"), new WriteColumn(CustomerHeader), new WriteColumn("Amount")]);
-        StyleId money = writer.Style(MoneyStyle);
+        StyleId money = writer.RegisterStyle(MoneyStyle);
 
         foreach (Order order in orders)
         {
@@ -110,7 +110,7 @@ internal static class RowByRow
     {
         await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx);
         writer.BeginSheet("Orders", [new WriteColumn("Id"), new WriteColumn(CustomerHeader), new WriteColumn("Amount")]);
-        StyleId money = writer.Style(MoneyStyle);
+        StyleId money = writer.RegisterStyle(MoneyStyle);
 
         // One batch for the whole sheet: Reset keeps its slots, and the lists are read where they are.
         ColumnBatch batch = new();

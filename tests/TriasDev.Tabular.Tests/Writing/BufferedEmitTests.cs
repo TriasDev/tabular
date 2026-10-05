@@ -42,7 +42,7 @@ public sealed class BufferedEmitTests
             WriteColumn[] columns = [new("Id"), new("Name"), new("Amount"), new("When"), new("Flag"), new("Note")];
             string longNote = new string('é', 20_000) + "<&>\r\n" + new string('x', 9_000);
             CellStyle bold = new() { Fill = CellColor.FromRgb(0xFFEB84) };
-            StyleId boldId = writer.Style(bold);
+            StyleId boldId = writer.RegisterStyle(bold);
             string[] sheets = ["First", "Second"];
 
             foreach (string sheet in sheets)

@@ -125,10 +125,10 @@ internal sealed class XlsxStyles
 
         int format = kind switch
         {
-            ValueKind.Integer => cell.Number is { } number ? FormatId(number.Code) : BuiltInInteger,
-            ValueKind.Number => cell.Number is { } number ? FormatId(number.Code) : 0,
-            ValueKind.Date => cell.Date is { } date ? FormatId(date.Code) : BuiltInDate,
-            ValueKind.DateTime => cell.Date is { } date ? FormatId(date.Code) : BuiltInDateTime,
+            ValueKind.Integer => cell.NumberFormat is { } number ? FormatId(number.Code) : BuiltInInteger,
+            ValueKind.Number => cell.NumberFormat is { } number ? FormatId(number.Code) : 0,
+            ValueKind.Date => cell.DateFormat is { } date ? FormatId(date.Code) : BuiltInDate,
+            ValueKind.DateTime => cell.DateFormat is { } date ? FormatId(date.Code) : BuiltInDateTime,
             _ => 0,
         };
 

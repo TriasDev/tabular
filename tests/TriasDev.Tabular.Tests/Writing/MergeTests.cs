@@ -260,7 +260,7 @@ public sealed class MergeTests
     {
         byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
         {
-            StyleId boxed = writer.Style(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
+            StyleId boxed = writer.RegisterStyle(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
             writer.BeginSheet("data", Four);
             writer.BeginRow();
             writer.Write("a2");
@@ -295,7 +295,7 @@ public sealed class MergeTests
     {
         byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
         {
-            StyleId boxed = writer.Style(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
+            StyleId boxed = writer.RegisterStyle(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
             writer.BeginSheet("data", Four);
             writer.BeginRow();
             writer.Merge(2, 2);
@@ -351,7 +351,7 @@ public sealed class MergeTests
     {
         byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, writer =>
         {
-            StyleId fill = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0xF8696B) });
+            StyleId fill = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0xF8696B) });
             writer.BeginSheet("data", Four);
             writer.BeginRow();
             writer.Merge(1, 2);

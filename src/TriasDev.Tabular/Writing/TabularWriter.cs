@@ -198,8 +198,8 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="options">The header style, frozen rows and columns, and filter; null for none.</param>
     /// <exception cref="ArgumentOutOfRangeException">A freeze outside the sheet: rows from 0 to the format's row limit less one, columns from 0 to the column count.</exception>
     /// <exception cref="InvalidOperationException">A merged range of the previous sheet still covers rows the sheet did not write.</exception>
-    /// <exception cref="ArgumentException">The <see cref="SheetOptions.HeaderStyle"/> has an alignment that is not a defined value, as <see cref="Style"/> refuses.</exception>
-    /// <exception cref="TabularLimitException">The <see cref="SheetOptions.HeaderStyle"/> would be the file's 4097th distinct style, as <see cref="Style"/> refuses.</exception>
+    /// <exception cref="ArgumentException">The <see cref="SheetOptions.HeaderStyle"/> has an alignment that is not a defined value, as <see cref="RegisterStyle"/> refuses.</exception>
+    /// <exception cref="TabularLimitException">The <see cref="SheetOptions.HeaderStyle"/> would be the file's 4097th distinct style, as <see cref="RegisterStyle"/> refuses.</exception>
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions? options)
     {
         ExpectWritable();
@@ -235,7 +235,7 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Faulting(freezeProblem);
         }
 
-        int headerStyle = layout.HeaderStyle is { } header ? RegisterStyle(header) : 0;
+        int headerStyle = layout.HeaderStyle is { } header ? AddStyle(header) : 0;
 
         _columns = columns.ToArray();
         _sheetName = name;
@@ -293,10 +293,10 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <exception cref="ArgumentNullException"><paramref name="style"/> is null.</exception>
     /// <exception cref="TabularLimitException">The file already holds 4096 distinct styles.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The style's alignment is not a defined value.</exception>
-    public StyleId Style(CellStyle style)
+    public StyleId RegisterStyle(CellStyle style)
     {
         ExpectWritable();
-        return new StyleId(_stamp, RegisterStyle(style));
+        return new StyleId(_stamp, AddStyle(style));
     }
 
     /// <summary>The most rule-returned styles remembered by reference before the cache starts over.</summary>
@@ -345,7 +345,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         if (!_byReference.TryGetValue(style, out StyleId id))
         {
-            id = Style(style);
+            id = RegisterStyle(style);
 
             if (_byReference.Count == StyleCacheLimit)
             {
@@ -364,7 +364,7 @@ public sealed class TabularWriter : IAsyncDisposable
         return id;
     }
 
-    private int RegisterStyle(CellStyle style)
+    private int AddStyle(CellStyle style)
     {
         try
         {
@@ -891,7 +891,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         if ((uint)index >= (uint)_styles.Count || (index != 0 && style.Writer != _stamp))
         {
-            throw Faulting(new ArgumentException($"{style} was not handed out by this writer's Style method.", nameof(style)));
+            throw Faulting(new ArgumentException($"{style} was not handed out by this writer's RegisterStyle method.", nameof(style)));
         }
 
         return index;

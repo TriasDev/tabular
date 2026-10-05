@@ -120,11 +120,11 @@ Styles apply to xlsx and ods; csv ignores them, so one code path writes every fo
 ```
 
 A `CellStyle` sets any of: `Fill` and `Font` (colour, bold, italic) with `CellColor` (`Parse("#RRGGBB")`
-or `FromRgb`), `Number`, `Date`, `Horizontal` (`General`, `Left`, `Center`, `Right`), `Wrap`, and
+or `FromRgb`), `NumberFormat`, `DateFormat`, `Horizontal` (a `CellHorizontalAlignment`: `General`, `Left`, `Center`, `Right`), `Wrap`, and
 `Border` (`CellBorder.Thin(color)`). Unset means the format's default. Styles compare by value, and a
 file holds each distinct style once, at most 4,096.
 
-`writer.Style(style)` registers a style with that writer and returns a `StyleId` for the `Write`
+`writer.RegisterStyle(style)` registers a style with that writer and returns a `StyleId` for the `Write`
 overloads. A `StyleId` belongs to the writer that returned it; another writer refuses it. Register
 each style once per writer.
 

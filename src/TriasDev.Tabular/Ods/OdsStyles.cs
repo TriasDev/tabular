@@ -56,12 +56,12 @@ internal sealed class OdsStyles
     private OdsCellStyle Resolve(int slot, int style, ValueKind kind)
     {
         CellStyle cell = _table[style];
-        bool percent = kind is ValueKind.Integer or ValueKind.Number && cell.Number is { Percent: true };
+        bool percent = kind is ValueKind.Integer or ValueKind.Number && cell.NumberFormat is { Percent: true };
 
         string? data = kind switch
         {
-            ValueKind.Integer or ValueKind.Number when cell.Number is { } number => DataStyle("n:" + number.Code, name => NumberStyle(name, number)),
-            ValueKind.Date or ValueKind.DateTime when cell.Date is { } date => DataStyle("d:" + date.Code, name => DateStyle(name, date)),
+            ValueKind.Integer or ValueKind.Number when cell.NumberFormat is { } number => DataStyle("n:" + number.Code, name => NumberStyle(name, number)),
+            ValueKind.Date or ValueKind.DateTime when cell.DateFormat is { } date => DataStyle("d:" + date.Code, name => DateStyle(name, date)),
             ValueKind.Date => FixedDataStyle(DateData, OdsParts.DateDataStyle),
             ValueKind.DateTime => FixedDataStyle(DateTimeData, OdsParts.DateTimeDataStyle),
             ValueKind.Boolean => FixedDataStyle(BooleanData, name => $"<number:boolean-style style:name=\"{name}\"><number:boolean/></number:boolean-style>"),
