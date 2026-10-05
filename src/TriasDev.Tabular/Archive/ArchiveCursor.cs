@@ -480,7 +480,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
     private Finding JudgeOpenedWorkbook(ArchiveEntry entry, Stream workbook, CancellationToken cancellationToken)
     {
-        (TabularFormat format, SkippedEntryReason? skip) = TabularFile.ClassifyZip(workbook) switch
+        (TabularFormat format, SkippedEntryReason? skip) = TabularFile.ClassifyZip(workbook, TabularFile.ZipEntryBound.Of(_options, archive: true)) switch
         {
             TabularFile.ZipContent.Xlsx => (TabularFormat.Xlsx, (SkippedEntryReason?)null),
             TabularFile.ZipContent.Ods => (TabularFormat.Ods, null),

@@ -14,7 +14,7 @@ held to the formats' own limits and to what the reader reads back; those are fix
 
 | | Default | Option | Why |
 |---|---|---|---|
-| Archive entries | 16,384 | `ArchiveCursorOptions.MaxEntries` | A zip's or tar's directory is read before anything else (a tar.gz's as it is decompressed), and each entry costs a sniff |
+| Archive entries | 16,384 | `ArchiveCursorOptions.MaxEntries` | A zip's or tar's directory is read before anything else (a tar.gz's as it is decompressed), and each entry costs a sniff. A zip's count is first taken from its end record, so a zip declaring more entries than every reader that could take it allows (this bound and the two below, the largest of them) is refused before its directory is walked even once |
 | Archive expansion | 8 GB | `ArchiveCursorOptions.MaxUncompressedBytes` | Every entry's declared size together — for a tar.gz counted as it is decompressed, and its gzip layer counted besides; an archive may carry a zipped ods at that format's own budget. A gzip file is held to the same bound (`ArchiveCursorOptions.MaxUncompressedBytes`) on what it expands to, counted while decompressing, not from any declared size |
 | Workbook inside an archive or a gzip file | 256 MB | `ArchiveCursorOptions.MaxEmbeddedWorkbookBytes` | Held in memory while its sheets are read, one at a time. A server may raise it to any size, past 2 GB too |
 | Package expansion | 2 GB (ods: 8 GB) | `XlsxCursorOptions.MaxUncompressedBytes`, `OdsCursorOptions.MaxUncompressedBytes` | A zip's ratio is unbounded by design; a 50 MB upload could otherwise become fifty gigabytes. OpenDocument writes about four times the bytes for the same cells, so its budget is four times larger |

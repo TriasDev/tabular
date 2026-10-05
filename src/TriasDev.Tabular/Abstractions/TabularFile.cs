@@ -25,6 +25,15 @@ public static class TabularFile
     public static TabularFormat Detect(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
+        return Detect(stream, entryBound: null);
+    }
+
+    /// <summary>
+    /// Detects as <see cref="Detect(Stream)"/> does; a zip whose end record declares more entries
+    /// than <paramref name="entryBound"/> is refused before its directory is walked.
+    /// </summary>
+    internal static TabularFormat Detect(Stream stream, ZipEntryBound? entryBound)
+    {
 
         if (!stream.CanSeek)
         {
@@ -53,7 +62,7 @@ public static class TabularFile
         }
 
         // Another OpenDocument type goes on to the workbook path, which refuses it by name.
-        return ClassifyZip(stream) switch
+        return ClassifyZip(stream, entryBound) switch
         {
             ZipContent.Ods => TabularFormat.Ods,
             ZipContent.Archive => TabularFormat.Zip,
@@ -108,8 +117,13 @@ public static class TabularFile
     /// local header when it stands first, as the format requires, and from the directory when a
     /// writer put it elsewhere. Anything else is an archive. A directory that cannot be read is
     /// called a workbook, so that the workbook path reports the damage as it always has.
+    /// <para>
+    /// Walking the directory is the cost a hostile zip inflates, and every reader that takes the zip
+    /// walks it again before its own entry bound applies. So, given a bound, the count the zip's end
+    /// record declares is checked first, and a zip past it is refused before either walk.
+    /// </para>
     /// </remarks>
-    internal static ZipContent ClassifyZip(Stream stream)
+    internal static ZipContent ClassifyZip(Stream stream, ZipEntryBound? entryBound)
     {
         long origin = stream.Position;
 
@@ -122,6 +136,12 @@ public static class TabularFile
             if (IsOpenDocumentSpreadsheet(head[..read]))
             {
                 return ZipContent.Ods;
+            }
+
+            if (entryBound is { } bound && ZipEndRecord.DeclaredEntries(stream) is { } declared && declared > bound.Maximum)
+            {
+                throw new TabularLimitException(bound.Limit, bound.Maximum,
+                    $"The zip declares {declared} entries, more than the {bound.Maximum} any reader of it allows.");
             }
 
             using ZipArchive zip = new(stream, ZipArchiveMode.Read, leaveOpen: true);
@@ -151,6 +171,33 @@ public static class TabularFile
         finally
         {
             stream.Position = origin;
+        }
+    }
+
+    /// <summary>
+    /// The most entries a zip may declare before it is classified: the largest bound of the readers
+    /// that could take it, so that nothing one of them would accept is refused here.
+    /// </summary>
+    /// <param name="Maximum">The bound.</param>
+    /// <param name="Limit">The option that sets it, as <see cref="TabularLimitException.Limit"/> names it.</param>
+    internal readonly record struct ZipEntryBound(int Maximum, string Limit)
+    {
+        /// <summary>
+        /// For a zip that may turn out an xlsx, an ods or — where <paramref name="archive"/> says so —
+        /// an archive of files, whose own bound is then <see cref="ArchiveCursorOptions.MaxEntries"/>.
+        /// </summary>
+        public static ZipEntryBound Of(TabularOpenOptions options, bool archive)
+        {
+            ZipEntryBound bound = new(options.Xlsx.MaxPackageEntries, nameof(XlsxCursorOptions.MaxPackageEntries));
+
+            if (options.Ods.MaxPackageEntries > bound.Maximum)
+            {
+                bound = new(options.Ods.MaxPackageEntries, nameof(OdsCursorOptions.MaxPackageEntries));
+            }
+
+            return archive && options.Archive.MaxEntries >= bound.Maximum
+                ? new(options.Archive.MaxEntries, nameof(ArchiveCursorOptions.MaxEntries))
+                : bound;
         }
     }
 
@@ -196,7 +243,7 @@ public static class TabularFile
             // Opening a workbook is not free — the package's parts are enumerated and its style
             // table is read before a single row is available — so the token belongs here as much as
             // on a read.
-            return Detect(stream) switch
+            return Detect(stream, ZipEntryBound.Of(effective, archive: true)) switch
             {
                 TabularFormat.Xlsx => new XlsxCursor(stream, effective.Xlsx, effective.LeaveOpen, cancellationToken),
                 TabularFormat.Ods => new OdsCursor(stream, effective.Ods, effective.LeaveOpen, cancellationToken),

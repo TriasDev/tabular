@@ -257,7 +257,7 @@ public sealed class GzipCursor : ITabularCursor
 
         try
         {
-            TabularFormat format = TabularFile.ClassifyZip(buffer) switch
+            TabularFormat format = TabularFile.ClassifyZip(buffer, TabularFile.ZipEntryBound.Of(_options, archive: false)) switch
             {
                 TabularFile.ZipContent.Xlsx => TabularFormat.Xlsx,
                 TabularFile.ZipContent.Ods => TabularFormat.Ods,
