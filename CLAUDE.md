@@ -81,4 +81,7 @@ under `src/TriasDev.Tabular` still group the code by layer:
   `OdsSheetWriter` + `OdsStyles` (common styles in `styles.xml`), `ZipCsvSheetWriter` (`TabularFormat.Zip`: one
   `<sheet>.csv` entry per sheet). xlsx, ods and the zip go through `ZipWriter`, our own forward-only zip writer
   (stored small parts with sizes up front — the ODF `mimetype` needs that —, deflated large parts with data
-  descriptors, zip64 past 4 GB), because `ZipArchive` writes synchronously and seeks back on a seekable target.
+  descriptors, zip64 past 4 GB), because `ZipArchive` does not fit: on a non-seekable stream it puts a data
+  descriptor on every entry, the stored ODF `mimetype` included, which LibreOffice refuses; on a seekable one it
+  seeks back to patch each local header, so a sheet entry cannot be flushed onward until it closes; and it writes
+  synchronously.

@@ -75,7 +75,8 @@ A project dropped into `src/` or `tests/` needs no settings of its own.
   and column). `ArgumentException` is for programmer errors only. Per-row problems are
   `RowError`s, and a row is either values or errors, never both.
 - **The invariant culture is `""`** everywhere — profile, hypotheses and plan.
-- **A writer touches its target only asynchronously.** The format writers write synchronously into the
+- **A writer touches its target only asynchronously** (except closing it after a failed `Create`,
+  which has written nothing). The format writers write synchronously into the
   `SpillBuffer`; only `FlushAsync`, `CompleteAsync` and the async batch and export paths drain it into
   the stream. A synchronous `Write` on the target breaks an ASP.NET Core response body.
 - **What is written reads back.** Every value a writer accepts must come back through the library's own
@@ -130,7 +131,7 @@ folder to keep that case's file in. A found failure becomes a named test beside 
 Writing is tested by round trip: `tests/TriasDev.Tabular.Tests/Writing` writes each value type and
 format and reads it back through the library's own import, fuzzes the csv writer, and checks that
 LibreOffice opens what is written and shows the values (`Fixtures/LibreOffice.cs`, `soffice --headless`;
-the tests skip where LibreOffice is not installed, unless `TABULAR_REQUIRE_SOFFICE` is set, as CI's
+the tests skip where LibreOffice is not installed, unless `TABULAR_REQUIRE_SOFFICE` is set to `1`, as CI's
 Linux job sets it).
 
 Write the failing test first: a fix comes with the test that failed before it, and a new behaviour

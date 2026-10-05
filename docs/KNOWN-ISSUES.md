@@ -173,7 +173,7 @@ Decided, not deferred — listed so they are not mistaken for gaps.
 
 - **Reading is synchronous.** Parsing is processor work over a buffered stream, and a row cannot be a
   `ReadOnlySpan<T>` and be awaited at once. See the remarks on `ITabularCursor`. Writing is the
-  opposite: it writes into memory synchronously and touches the target stream only asynchronously.
+  opposite: it writes into memory synchronously and touches the target stream only asynchronously (except closing it after a failed `Create`).
 - **No comment syntax in csv.** The format does not define one. Add it if the files we receive use it.
 - **The header is the first row.** No heuristic looks elsewhere; `MappingPlan.HeaderRowIndex` is where
   a user says otherwise.

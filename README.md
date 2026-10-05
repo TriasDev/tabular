@@ -193,8 +193,9 @@ over every row, with memory that stays flat:
 **Writing, in flat memory too** — provisional figures from a single pass on a loaded machine, to be
 re-measured ([#96](https://github.com/TriasDev/tabular/issues/96)): 5M rows × 30 columns of csv in
 9.9 s at a 57 MB peak, and a million-row xlsx in 4.8 s at 55 MB, the least memory of the xlsx writers
-measured. SpreadCheetah is faster on xlsx, and Sylvan.Data.Csv on csv; CsvHelper and MiniExcel are
-slower, LargeXlsx (at its default) in two of the three xlsx scenarios. No other library measured
+measured. SpreadCheetah is faster on xlsx; Sylvan.Data.Csv and Sep are faster on csv (Sep and
+TriasDev.Tabular are level on the narrow file). CsvHelper and MiniExcel are slower, LargeXlsx (at its
+default) in two of the three xlsx scenarios. No other library measured
 writes ods or a zip of csv sheets.
 
 Method, every library and every number: [docs/benchmarks.md](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md).
@@ -225,7 +226,8 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
   a time, so it can go straight into an ASP.NET Core response or a blob upload, which need not seek.
 - **Style and lay out a workbook** — fill, font, number and date formats, alignment, wrap and border
   per cell or per column rule; a header style, frozen rows and columns, an auto-filter and merged
-  cells per sheet. Csv ignores them, so one code path writes every format.
+  cells per sheet. Csv ignores styles and layout, so one code path writes every format; a merged range
+  is written there as its value once and empty fields around it.
 - **Write only what reads back** — every value is checked against what the format holds: a double past
   15 significant digits, a date xlsx cannot store, text too long or holding a character XML forbids
   is refused with an error naming its sheet, row and column, never rounded or cut.

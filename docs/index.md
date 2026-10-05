@@ -50,7 +50,7 @@ chunks of objects into a workbook ([exporting](exporting.md)):
 A user uploads a spreadsheet; you profile it, let them map its columns to your fields, check the
 mapping, and import typed rows or precise errors.
 
-- [Getting started](getting-started.md) — install, profile, map, check, import
+- [Getting started](getting-started.md) — install, profile, map, check, import; write a file
 - [How it works](concepts.md) — two independent reads of the file, facts against suggestions
 - [Importing](importing.md) — the run, batches, rules, translated fields, the precheck
 - [Error codes](error-codes.md) — every code a row error or an exception carries

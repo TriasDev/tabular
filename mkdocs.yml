@@ -104,7 +104,7 @@ plugins:
         buffer — copy what you keep before the next read. Row errors carry codes such as
         `value.required`, not messages. Library exceptions derive from `TabularException` and carry a
         code (`TabularFormatException`, `TabularLimitException`, `TabularStructureException`,
-        `MappingPlanException`, and on the write side `TabularWriteException`). Every structure read from a file is bounded by an option. Streams are
+        `MappingPlanException`, and on the write side `TabularWriteException`). Every structure read from a file is bounded, by an option or by the format's own fixed ceiling. Streams are
         closed by the library unless `LeaveOpen` is set. The format is decided by the file's bytes,
         never its name.
       sections:

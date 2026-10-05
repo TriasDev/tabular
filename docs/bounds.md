@@ -3,7 +3,9 @@
 Two kinds of limit. **Reading** is bounded by ceilings on everything a file can make the library hold
 or do, each with a default and, where it is not the format's own, an option — set through
 `TabularOpenOptions` (or a cursor's own options), `AnalysisOptions` or `ExtractionOptions`. A file past
-a structural ceiling is refused with `TabularLimitException`, whose `Limit` names the option; past the
+a structural ceiling is refused with `TabularLimitException`, whose `Limit` names the option — or, for a ceiling the format
+fixes, the nearest one (the reader's fixed tag and buffer ceilings report `MaxValueChars`); an xlsx
+cell past the format's 16,384 columns is a damaged file, `TabularFormatException`; past the
 quoted-field bound a csv quote is repaired and counted instead; past an analysis budget the profile
 reports a lower bound or keeps fewer values rather than failing; and past the error-row ceiling a run stops. **Writing** is
 held to the formats' own limits and to what the reader reads back; those are fixed, not options.
@@ -34,19 +36,6 @@ held to the formats' own limits and to what the reader reads back; those are fix
 | Error rows | 1,000 | `ExtractionOptions.MaxErrorRows` | A wrong mapping fails every row, and the thousand-and-first error says nothing the first did not |
 | Rows per sheet | 2,147,483,647 (csv), 1,048,576 (xlsx) | — | Row numbers and counts are `int`: the workbook format stops at a million rows, and a csv that long is some 100 GB |
 
-## Writing
-
-| | Limit | Why |
-|---|---|---|
-| Rows written per sheet (xlsx, ods) | 1,048,576, the header included | The formats' own limit; the row past it throws `TabularLimitException` after the rows before it were written. Csv and a zip of csv sheets have none |
-| Columns written per sheet | 16,384 | The workbook formats' own width, and what the csv reader reads |
-| Distinct styles written | 4,096 | The most a file's style table holds; the 4,097th throws `TabularLimitException` (`MaxStyles`) |
-| Merged ranges written (xlsx) | 65,536 per sheet | The format's own limit; `TabularLimitException` (`MaxMerges`). Ods has none |
-| Text written | 32,767 chars (xlsx), 16 M chars (csv, ods) | xlsx's cell limit; csv and ods are held to the reader's own limits, so what is written reads back. Past it: `write.text-too-long` |
-| Line breaks in one csv text | 100 | The reader's quoted-field limit (`CsvCursorOptions.MaxQuotedFieldLines`): `write.too-many-lines` |
-| Date written (xlsx) | from 1900-01-01 | A workbook serial has no earlier day: `write.date-out-of-range` |
-| Memory pending in a writer | about 1 MB | Where `FlushRecommended` turns true; flush then and memory stays flat. A file written without flushing is held in memory until `CompleteAsync` |
-
 Getting these right took three attempts, and the pattern of the mistakes is worth more than the
 numbers. The package budget counts bytes a part expands to, which is not what those bytes become in
 the heap — so a shared string table needed a ceiling of its own, and the first such ceiling counted
@@ -60,3 +49,16 @@ Distinct counting stores 64-bit hashes rather than strings. By the birthday boun
 accidental collision is about one in 37 million over a million values, and about one in 9 million
 over the two million the default budget tracks — it rises with the count, not falls. Small enough to
 call the count exact; not zero, and a collision undercounts.
+
+## Writing
+
+| | Limit | Why |
+|---|---|---|
+| Rows written per sheet (xlsx, ods) | 1,048,576, the header included | The formats' own limit; the row past it throws `TabularLimitException` after the rows before it were written. Csv and a zip of csv sheets have none |
+| Columns written per sheet | 16,384 | The workbook formats' own width, and what the csv reader reads |
+| Distinct styles written | 4,096 | The most a file's style table holds; the 4,097th throws `TabularLimitException` (`MaxStyles`) |
+| Merged ranges written (xlsx) | 65,536 per sheet | The format's own limit; `TabularLimitException` (`MaxMerges`). Ods has none |
+| Text written | 32,767 chars (xlsx), 16 M chars (csv, ods) | xlsx's cell limit; csv and ods are held to the reader's own limits, so what is written reads back. Past it: `write.text-too-long` |
+| Line breaks in one csv text | 100 | The reader's quoted-field limit (`CsvCursorOptions.MaxQuotedFieldLines`): `write.too-many-lines` |
+| Date written (xlsx) | from 1900-01-01 | A workbook serial has no earlier day: `write.date-out-of-range` |
+| Memory pending in a writer | about 1 MB | Where `FlushRecommended` turns true; flush then and memory stays flat. A file written without flushing is held in memory until `CompleteAsync` |

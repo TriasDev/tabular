@@ -25,7 +25,7 @@ vulnerabilities:
   where the library promises to refuse what a format cannot hold;
 - a writer whose memory grows with the file although the caller flushes whenever it recommends.
 
-Csv text that a spreadsheet runs as a formula (`=`, `+`, `-`, `@`) is not a vulnerability in the
+Csv text that a spreadsheet runs as a formula (`=`, `+`, `-`, `@`, or a leading tab or carriage return) is not a vulnerability in the
 library: it is written as given unless `CsvWriterOptions.FormulaGuard` is on, which is the caller's
 choice for data that will be opened in a spreadsheet.
 
