@@ -1,7 +1,9 @@
 # How it works
 
-Reads an Excel, OpenDocument or CSV file — or a zip of them — reports what is in it, and extracts it
-through a mapping a person confirmed.
+The library has two halves. **Import** reads an Excel, OpenDocument or CSV file — alone, or in a zip,
+tar or gzip archive — reports what is in it, and extracts it through a mapping a person confirmed.
+**Export** writes csv, xlsx, ods or a zip of csv sheets from your data, streaming into any stream, in
+a form its own import reads back as the same values.
 
 The library **declares no package reference of its own**: everything it does with a file, it does
 with the base class library. The build adds analyzers, and nothing else; none of them is referenced
@@ -16,6 +18,9 @@ Analyze   file ─────────────────────�
           a person maps columns to fields, in a UI this library knows nothing about
 
 Extract   file + MappingPlan + schema ──► typed rows, or errors that locate themselves
+
+Write     rows, objects or columns ──────► csv, xlsx, ods or a zip of csv sheets, into a stream
+          (+ styles, sheet layout)          that reads back through Extract as the same values
 ```
 
 The two are **independent reads of the file**. The library keeps no state between them and has no
@@ -77,6 +82,27 @@ a gzip header stores, else null), the csv `Dialect` it was read with, and the `D
 `FileProfile.Format` is the container's; `FileProfile.Diagnostics` is every sheet together. Both are
 snapshots taken when the pass ended.
 
+## Writing streams, and refuses what would not read back
+
+The write side is not an object model of a workbook. A `TabularWriter` takes a sheet's rows in order,
+cell by cell, typed, and writes them into memory; `FlushAsync` moves about a megabyte at a time into
+the target stream, asynchronously, so a writer serves an ASP.NET Core response body (which refuses
+synchronous writes and cannot seek) and memory stays flat however many rows there are.
+`TabularExport<T>` declares the columns of an object once and drives a writer; `ColumnBatch` hands it
+data by column.
+
+Its contract is the round trip: what it writes reads back through this library's own import as the
+same values. A value the chosen format cannot hold exactly — a double past 15 significant digits, a
+long or decimal an xlsx or ods number cell would round, a date before 1900 in xlsx, text past the
+format's limit or holding a character XML forbids — is refused with a `TabularWriteException` naming
+its sheet, row and column, never rounded or cut. What the formats themselves change on the way (text
+is trimmed on reading, time is kept to milliseconds) is listed in
+[Known issues](KNOWN-ISSUES.md#writing-what-does-not-come-back-exactly-as-written).
+
+A file is valid only after `CompleteAsync`. One that failed part-way is incomplete, and the caller —
+who knows whether `CompleteAsync` returned — discards it. Reading, by contrast, is synchronous: the
+parsing is processor work over a buffered stream, and a row is a span that cannot be awaited.
+
 # What it deliberately does not do
 
 - **Guess where the header is.** The first row is the header. A guess that is usually right produces
@@ -86,5 +112,9 @@ snapshots taken when the pass ended.
 - **Scan for viruses.** That belongs before a file reaches here.
 - **Offer a transformation language.** A list of empty-equivalents, and nothing more,
   because nothing yet asks for more.
+- **Write formulas, charts, images or conditional formats.** A cell holds a value; a style is chosen
+  per cell when the file is written, by a rule you give.
+- **Hold a workbook in memory to edit it.** Writing goes forward, sheet by sheet and row by row; a
+  file is not opened, changed and saved.
 - **Count distinct values beyond its budget.** Past it, a column reports a lower bound and an
   undetermined uniqueness — an explicit "not determined" rather than a confident wrong number.

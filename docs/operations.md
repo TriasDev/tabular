@@ -11,6 +11,13 @@ and also when the call fails — unless the caller asked for it to stay open.
 | `TabularFile.Open(stream, …)` | on `Dispose`, or on a failed open | `TabularOpenOptions.LeaveOpen` |
 | `TabularImporter.Import(stream, …)` | on `Dispose` of the run, or when the call throws (a refused plan included) | `ImportOptions.Open.LeaveOpen` |
 | `TabularImporter.Import(cursor, …)`, `TabularAnalyzer.Analyze`, `TabularExtractor.Extract` | never — the cursor is the caller's | — |
+| `TabularWriter.Create(stream, …)` | on `DisposeAsync`, or on a failed `Create` | `TabularWriterOptions.LeaveOpen` |
+| `TabularExport<T>.WriteAsync(stream, …)` | when the write ends, completed or failed | `TabularWriterOptions.LeaveOpen` |
+| `TabularExport<T>.WriteSheetAsync(writer, …)` | never — the writer is the caller's | — |
+
+A writer only ever writes, flushes and closes its stream asynchronously (a failed `Create`, which has
+written nothing, disposes it synchronously). Leave an ASP.NET Core response body open: the server owns
+it. See [Exporting](exporting.md#where-the-file-goes).
 
 `TabularOpenOptions` also carries the csv, xlsx and ods cursor options and the archive's bounds, so
 ceilings can be changed without giving up format detection. The files inside an archive are read with
@@ -32,6 +39,12 @@ Every operation that reads takes a token, last parameter, as the BCL's do: `Open
 sheets, and `ExtractionRun.ReadRow`, `ImportRun.ReadRows`, `ReadChunks` and `ReadAll` for the
 reading. The token a run was started with keeps applying to every read of it, so either one stops
 the run — a read given no token is stopped by the run's.
+
+Writing takes a token wherever it touches the target: `TabularWriter.FlushAsync`, `CompleteAsync` and
+`WriteBatchAsync`, and `TabularExport<T>.WriteAsync` / `WriteSheetAsync`, which also hand it to an
+asynchronous source they enumerate. A cancelled write faults the writer and leaves an incomplete file, which the
+caller discards; in ASP.NET Core, pass the request's token, so a client that goes away stops the
+write at the next flush.
 
 ## Progress
 
@@ -73,3 +86,8 @@ common in slim container images) only the invariant culture exists. Analysis the
 cultures out instead of failing — the profile's `ParseCounts` show which cultures were used — and a
 mapping that names one is refused by the validator and the precheck as `mapping.unknown-culture`.
 German amounts such as `1.234,50` cannot be read as numbers in that mode.
+
+Writing uses no culture except in csv: `CsvWriterOptions.Culture` writes numbers and dates in a
+culture's format (none writes the invariant culture and ISO dates), and is accepted only if the
+reader reads its numbers and dates back. Xlsx and ods store values, not text; a spreadsheet shows them
+by the cell's number or date format, with its own locale's decimal and thousands separators.

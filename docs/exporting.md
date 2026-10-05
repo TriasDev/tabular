@@ -3,7 +3,10 @@
 The library writes csv, xlsx, ods and a zip of csv sheets, into any stream that can be written —
 a file, a blob upload, an ASP.NET Core response body. The stream need not seek, and the library only
 ever writes, flushes and closes it asynchronously (except that a failed `Create` disposes the stream, unless it was left open). Memory stays flat however many rows the file has:
-a write goes into memory, and a flush moves about a megabyte at a time into the stream.
+a write goes into memory, and a flush moves about a megabyte at a time into the stream. What it writes
+reads back through the library's own [import](importing.md) as the same values, with the
+exceptions [listed at the end of this page](#what-does-not-come-back-exactly-as-written); a value a format
+cannot hold exactly is refused rather than rounded.
 
 Every snippet on this page is taken from
 [`samples/TriasDev.Tabular.Samples.Export`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Export),
@@ -99,6 +102,8 @@ or copying; arrays, `List<T>` and any `IReadOnlyList<T>` work.
 --8<-- "samples/TriasDev.Tabular.Samples.Export/RowByRow.cs:batch"
 ```
 
+- A column can also be selected out of a list of items — `batch.Add(items, item => item.Amount)` —
+  one item per row, read where it is.
 - Reuse one batch for the whole sheet: `Reset(rowCount)` keeps its slots, so a warm batch allocates
   nothing.
 - The lists must not change until the batch is written. `WriteBatchAsync` flushes inside the batch,

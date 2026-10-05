@@ -1,6 +1,7 @@
 # Formats
 
-Which kind of file it is comes from its bytes, never its name. What each kind reads as:
+Which kind of file it is comes from its bytes, never its name. What each kind reads as — and, at
+the end, [what each format holds when written](#what-each-format-holds-when-written):
 
 ## An OpenDocument cell says its own type
 
