@@ -29,6 +29,20 @@ public sealed class ExtractionRun
     private readonly RequiredGroup[] _requiredGroups;
     private readonly List<RowError> _errors = [];
 
+    // Alternatives, resolved once. Flat group ids (_groupOffset[set] + group) index the per-row
+    // arrays, so judging a row allocates nothing.
+    private readonly ResolvedAlternatives[] _alternatives;
+    private readonly int[] _groupOffset;
+    private readonly int[] _setColumn;
+    private readonly int[] _deferredGroup;   // per schema position: the flat id of a later group, or -1
+    private readonly bool[] _invalid;
+    private readonly bool[] _needed;
+    private readonly int[] _levels;
+    private readonly bool[] _anyPresent;
+    private readonly int[] _ignoredInRow;
+    private readonly AlternativeResolution[] _resolutions;
+    private readonly List<(RowError Error, int Group)> _deferred = [];
+
     private bool _finished;
 
     /// <summary>
@@ -108,7 +122,62 @@ public sealed class ExtractionRun
                     mappings.FirstOrDefault(m => g.Any(f => f.position == m.Position)).Binding?.ColumnIndex ?? -1)),
         ];
 
+        _alternatives = SchemaAlternatives.Resolve(schema);
+        _resolutions = new AlternativeResolution[_alternatives.Length];
+        _invalid = new bool[fields.Length];
+
+        _groupOffset = new int[_alternatives.Length];
+        int groups = 0;
+
+        for (int s = 0; s < _alternatives.Length; s++)
+        {
+            _groupOffset[s] = groups;
+            groups += _alternatives[s].Groups.Length;
+        }
+
+        // The column a set's row error points at: its first mapped member, as for a required group.
+        _setColumn =
+        [
+            .. _alternatives.Select(a =>
+            {
+                HashSet<int> members = [.. a.Groups.SelectMany(g => g.Members)];
+                return mappings.FirstOrDefault(m => members.Contains(m.Position)).Binding?.ColumnIndex ?? -1;
+            }),
+        ];
+
+        _deferredGroup = DeferredGroups(_alternatives, _groupOffset, fields.Length);
+        _needed = new bool[groups];
+        _levels = new int[groups];
+        _anyPresent = new bool[groups];
+        _ignoredInRow = new int[groups];
+
         Position();
+    }
+
+    /// <summary>
+    /// Per schema position, the flat id of the later group the field belongs to, or -1.
+    /// </summary>
+    /// <remarks>
+    /// The first group of a set is judged like any field; a later one only where it is needed, so
+    /// its fields' errors wait until the row shows whether it is.
+    /// </remarks>
+    private static int[] DeferredGroups(ResolvedAlternatives[] alternatives, int[] offsets, int fieldCount)
+    {
+        int[] deferred = new int[fieldCount];
+        Array.Fill(deferred, -1);
+
+        for (int s = 0; s < alternatives.Length; s++)
+        {
+            for (int g = 1; g < alternatives[s].Groups.Length; g++)
+            {
+                foreach (int position in alternatives[s].Groups[g].Members)
+                {
+                    deferred[position] = offsets[s] + g;
+                }
+            }
+        }
+
+        return deferred;
     }
 
     /// <summary>What the run amounted to. Complete once the rows have been read out.</summary>
@@ -131,6 +200,13 @@ public sealed class ExtractionRun
 
     /// <summary>The current row's errors, empty for a row that produced values.</summary>
     public IReadOnlyList<RowError> CurrentErrors => _errors;
+
+    /// <summary>
+    /// The current row's resolution per set of alternatives, in schema order. Valid until the next
+    /// <see cref="ReadRow"/>, and empty for a failing row.
+    /// </summary>
+    public ReadOnlySpan<AlternativeResolution> CurrentResolutions =>
+        CurrentRowHasErrors ? [] : _resolutions.AsSpan();
 
     /// <summary>
     /// Advances to the next row that produced either values or errors.
@@ -334,6 +410,8 @@ public sealed class ExtractionRun
         _errors.Clear();
         Array.Clear(_values);
         Array.Clear(_present);
+        Array.Clear(_invalid);
+        _deferred.Clear();
 
         for (int b = 0; b < _mappings.Length; b++)
         {
@@ -359,13 +437,13 @@ public sealed class ExtractionRun
 
             if (!TryReadValue(binding, cell, text, field, out MappedValue value))
             {
-                Fail(binding, ErrorCodes.Value.TypeMismatch, text);
+                Fail(binding, ErrorCodes.Value.TypeMismatch, text, position);
                 continue;
             }
 
             for (int c = 0; c < field.Constraints.Count; c++)
             {
-                Check(binding, field.Constraints[c], value, text);
+                Check(binding, field.Constraints[c], value, text, position);
             }
 
             _present[position] = true;
@@ -377,6 +455,7 @@ public sealed class ExtractionRun
         }
 
         CheckRequiredGroups();
+        ResolveAlternatives();
     }
 
     /// <summary>Reads a cell as its field's type, counting a decimal read with the other separator.</summary>
@@ -463,25 +542,162 @@ public sealed class ExtractionRun
     /// Every failing rule is reported, not merely the first: a value that is both too long and not in
     /// the allowed set is wrong in two ways, and telling a user about one of them wastes an upload.
     /// </remarks>
-    private void Check(ColumnBinding binding, FieldConstraint constraint, in MappedValue value, string text)
+    private void Check(ColumnBinding binding, FieldConstraint constraint, in MappedValue value, string text, int position)
     {
         if (constraint.IsSatisfiedBy(value))
         {
             return;
         }
 
-        Fail(binding, constraint.Code, text);
+        Fail(binding, constraint.Code, text, position);
     }
 
-    private void Fail(ColumnBinding binding, string code, string? raw) =>
-        _errors.Add(new RowError
+    private void Fail(ColumnBinding binding, string code, string? raw, int position = -1)
+    {
+        RowError error = new()
         {
             RowNumber = CurrentRowNumber,
             ColumnIndex = binding.ColumnIndex,
             FieldName = binding.FieldName,
             Code = code,
             RawValue = raw,
-        });
+        };
+
+        int group = position >= 0 ? _deferredGroup[position] : -1;
+
+        if (group >= 0)
+        {
+            // A later group's value: wrong only if the row turns out to need the group.
+            _invalid[position] = true;
+            _deferred.Add((error, group));
+            return;
+        }
+
+        _errors.Add(error);
+    }
+
+    /// <summary>
+    /// Finds each set's winning group and decides the fate of the errors that waited for it.
+    /// </summary>
+    /// <remarks>
+    /// A group is needed while no earlier group is usable. Its waiting errors become the row's where
+    /// it is needed; elsewhere they are dropped and counted, and the values stay as the file holds
+    /// them — a caller may store an address it does not locate by.
+    /// </remarks>
+    private void ResolveAlternatives()
+    {
+        // The one cost a schema without alternatives pays per row.
+        if (_alternatives.Length == 0)
+        {
+            return;
+        }
+
+        Array.Clear(_ignoredInRow);
+
+        for (int s = 0; s < _alternatives.Length; s++)
+        {
+            ResolveSet(s);
+        }
+
+        for (int d = 0; d < _deferred.Count; d++)
+        {
+            (RowError error, int group) = _deferred[d];
+
+            if (_needed[group])
+            {
+                _errors.Add(error);
+            }
+            else
+            {
+                _ignoredInRow[group]++;
+            }
+        }
+    }
+
+    /// <summary>Judges one set's groups in order and records the winner, failing the row where the set says so.</summary>
+    private void ResolveSet(int s)
+    {
+        ResolvedAlternatives set = _alternatives[s];
+        int offset = _groupOffset[s];
+        int winner = -1;
+
+        for (int g = 0; g < set.Groups.Length; g++)
+        {
+            ResolvedGroup group = set.Groups[g];
+            int id = offset + g;
+
+            _needed[id] = winner < 0;
+            _levels[id] = LevelsReached(group);
+            _anyPresent[id] = AnyPresent(group.Members);
+
+            if (winner < 0 && _levels[id] >= group.RequiredLevels)
+            {
+                winner = g;
+            }
+        }
+
+        if (winner >= 0)
+        {
+            ResolvedGroup won = set.Groups[winner];
+            int level = _levels[offset + winner];
+            _resolutions[s] = new AlternativeResolution(won.Name, winner, level, won.LevelNames[level - 1]);
+            return;
+        }
+
+        _resolutions[s] = AlternativeResolution.Unresolved;
+
+        if (set.Declared.UnresolvedRowFails)
+        {
+            _errors.Add(new RowError
+            {
+                RowNumber = CurrentRowNumber,
+                ColumnIndex = _setColumn[s],
+                FieldName = set.Declared.Name,
+                Code = ErrorCodes.Group.Unresolved,
+                RawValue = null,
+            });
+        }
+    }
+
+    /// <summary>How many levels in a row carry a valid value, counting from the first.</summary>
+    private int LevelsReached(ResolvedGroup group)
+    {
+        int reached = 0;
+
+        while (reached < group.Levels.Length && AnyValid(group.Levels[reached]))
+        {
+            reached++;
+        }
+
+        return reached;
+    }
+
+    private bool AnyValid(int[] positions)
+    {
+        for (int i = 0; i < positions.Length; i++)
+        {
+            if (_present[positions[i]] && !_invalid[positions[i]])
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether the row writes anything at all into the group, valid or not.</summary>
+    private bool AnyPresent(int[] positions)
+    {
+        for (int i = 0; i < positions.Length; i++)
+        {
+            if (_present[positions[i]] || _invalid[positions[i]])
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>A group that needs one of its members, and where its positions sit in a row.</summary>
     private readonly record struct RequiredGroup(string Name, int[] Positions, int ColumnIndex);

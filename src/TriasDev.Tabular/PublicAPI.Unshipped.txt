@@ -611,3 +611,18 @@ TriasDev.Tabular.FieldAlternatives.Name.get -> string!
 TriasDev.Tabular.FieldAlternatives.UnresolvedRowFails.get -> bool
 TriasDev.Tabular.ImportSchema.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.FieldAlternatives!>!
 TriasDev.Tabular.ImportSchema.Alternatives.init -> void
+~override TriasDev.Tabular.AlternativeResolution.Equals(object obj) -> bool
+~override TriasDev.Tabular.AlternativeResolution.ToString() -> string
+const TriasDev.Tabular.ErrorCodes.Group.Unresolved = "group.unresolved" -> string!
+override TriasDev.Tabular.AlternativeResolution.GetHashCode() -> int
+static TriasDev.Tabular.AlternativeResolution.operator !=(TriasDev.Tabular.AlternativeResolution left, TriasDev.Tabular.AlternativeResolution right) -> bool
+static TriasDev.Tabular.AlternativeResolution.operator ==(TriasDev.Tabular.AlternativeResolution left, TriasDev.Tabular.AlternativeResolution right) -> bool
+TriasDev.Tabular.AlternativeResolution
+TriasDev.Tabular.AlternativeResolution.AlternativeResolution() -> void
+TriasDev.Tabular.AlternativeResolution.Equals(TriasDev.Tabular.AlternativeResolution other) -> bool
+TriasDev.Tabular.AlternativeResolution.Group.get -> string?
+TriasDev.Tabular.AlternativeResolution.GroupIndex.get -> int
+TriasDev.Tabular.AlternativeResolution.IsResolved.get -> bool
+TriasDev.Tabular.AlternativeResolution.Level.get -> int
+TriasDev.Tabular.AlternativeResolution.LevelName.get -> string?
+TriasDev.Tabular.ExtractionRun.CurrentResolutions.get -> System.ReadOnlySpan<TriasDev.Tabular.AlternativeResolution>
