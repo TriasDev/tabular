@@ -152,4 +152,23 @@ public sealed record ColumnFacts
     /// <c>wood</c> are two entries a case-insensitive caller adds up.
     /// </remarks>
     public IReadOnlyList<ValueFrequency> DistinctValueCounts { get; init => field = Equatable.List(value); } = Equatable.Empty<ValueFrequency>();
+
+    /// <summary>
+    /// How many rows hold a value from the set, or null when the column's distinct values were too
+    /// many to keep and the answer would be a guess.
+    /// </summary>
+    /// <remarks>
+    /// Asked before anything is mapped — which column is the country code? — of every column in turn.
+    /// Answered from <see cref="DistinctValueCounts"/>, so it costs nothing per row: the counting was
+    /// done while analysing.
+    /// </remarks>
+    /// <param name="allowed">The set, compared as the constraint compares it.</param>
+    public int? RowsWithValueIn(FieldConstraint.AllowedValues allowed)
+    {
+        ArgumentNullException.ThrowIfNull(allowed);
+
+        return DistinctValuesAreComplete
+            ? DistinctValueCounts.Where(v => allowed.Contains(v.Value)).Sum(v => v.Count)
+            : null;
+    }
 }

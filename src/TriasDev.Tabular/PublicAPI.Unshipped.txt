@@ -723,3 +723,4 @@ const TriasDev.Tabular.PrecheckArguments.Alternatives = "alternatives" -> string
 const TriasDev.Tabular.PrecheckArguments.Group = "group" -> string!
 const TriasDev.Tabular.PrecheckArguments.Level = "level" -> string!
 const TriasDev.Tabular.PrecheckArguments.ReachableLevel = "reachableLevel" -> string!
+TriasDev.Tabular.ColumnFacts.RowsWithValueIn(TriasDev.Tabular.FieldConstraint.AllowedValues! allowed) -> int?
