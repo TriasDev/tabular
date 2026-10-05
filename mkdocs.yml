@@ -1,5 +1,5 @@
 site_name: TriasDev.Tabular
-site_description: Fast, low-memory reading of large Excel, OpenDocument and CSV files for .NET — profile every column, map, validate and import, with no dependencies
+site_description: Fast, low-memory reading and writing of csv, Excel and OpenDocument files for .NET — profile every column, map, validate and import; export styled files as a stream — with no dependencies
 site_author: TriasDev
 site_url: https://triasdev.github.io/tabular/
 repo_url: https://github.com/TriasDev/tabular
@@ -62,10 +62,11 @@ plugins:
       full_output: llms-full.txt
       markdown_description: |
         TriasDev.Tabular is a .NET 8/10 library (NuGet: TriasDev.Tabular, no dependencies) that reads
-        csv, xlsx, ods and zip archives of them, profiles every column over every row, and imports
-        rows through a column mapping a person confirmed.
+        csv, xlsx, ods (alone or in zip, tar or gzip archives), profiles every column over every row,
+        and imports rows through a column mapping a person confirmed; and that writes csv, xlsx, ods
+        and a zip of csv sheets, streaming and asynchronously, with cell styles and sheet layout.
 
-        The flow is two independent reads of the same file, with no state kept between them:
+        Importing is two independent reads of the same file, with no state kept between them:
 
         1. `TabularFile.Open(stream, name)` returns an `ITabularCursor`; `TabularAnalyzer.Analyze(cursor)`
            returns a `FileProfile` (per sheet `SheetProfile`, per column measured `ColumnFacts` and ranked
@@ -77,7 +78,25 @@ plugins:
         3. `TabularImporter.Import(stream, name, plan, schema, row => new MyType(row[field], ...))`
            returns an `ImportRun<T>`: read it once: `ReadRows(ct)` for outcomes (a value or `RowError`s), `ReadChunks(size, ct)` or `ReadAll(limit, ct)`.
 
-        Every problem the library reports — a `RowError` from a row, a `MappingFault` from a plan, a
+        Exporting writes into any writable stream (it need not seek; an ASP.NET Core response body works):
+
+        1. Row by row: `await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx)`
+           (or `Csv`, `Ods`, `Zip` for a zip of csv sheets); `BeginSheet(name, columns, sheetOptions)`;
+           per row `BeginRow()`, one `Write(value[, styleId])` per column, `EndRow()`; `await FlushAsync(ct)`
+           whenever `FlushRecommended`; `await CompleteAsync(ct)` at the end. The file is valid only
+           after `CompleteAsync`; a writer that failed leaves an incomplete file, which the caller discards.
+        2. Objects: `TabularExport.For<T>().Column("Header", x => x.Value, width, style).Sheet(options).Build()`,
+           kept in a static field, then `WriteAsync(stream, format, sheetName, items or chunks, ct)` or
+           `WriteSheetAsync(writer, sheetName, ...)` for several sheets.
+        3. By column: `ColumnBatch` (`Reset(rowCount)`, `Add(list[, style])`) and `writer.WriteBatchAsync(batch, ct)`.
+        4. Styles: `CellStyle` (fill, font, `NumberFormat.Parse`, `DateFormat.Parse`, alignment, wrap,
+           border), registered per writer with `writer.Style(style)` → `StyleId`; xlsx and ods only, csv
+           ignores them. `SheetOptions`: `HeaderStyle`, `FreezeRows`, `FreezeColumns`, `AutoFilter`;
+           `writer.Merge(rows, columns)` merges from the next cell.
+        A value the format cannot hold exactly throws `TabularWriteException` (codes `write.*`, with
+        `SheetName`, `RowNumber`, `ColumnIndex`, `Header`); it is never rounded.
+
+        Every problem the library reports while reading — a `RowError` from a row, a `MappingFault` from a plan, a
         `PrecheckFinding` predicted from a profile — implements `ITabularProblem` (`Code`, `FieldName`,
         `ColumnIndex`); a finding also carries `Examples` and named `Arguments` instead of a sentence.
 
@@ -85,24 +104,24 @@ plugins:
         buffer — copy what you keep before the next read. Row errors carry codes such as
         `value.required`, not messages. Library exceptions derive from `TabularException` and carry a
         code (`TabularFormatException`, `TabularLimitException`, `TabularStructureException`,
-        `MappingPlanException`). Every structure read from a file is bounded by an option. Streams are
+        `MappingPlanException`, and on the write side `TabularWriteException`). Every structure read from a file is bounded by an option. Streams are
         closed by the library unless `LeaveOpen` is set. The format is decided by the file's bytes,
         never its name.
       sections:
         Start:
-          - index.md: What the library does and where to read on
-          - getting-started.md: Install, read a file, profile, map, check and import
-          - concepts.md: The two reads, what a profile measures, facts against suggestions
+          - index.md: What the library does — reading and writing — and where to read on
+          - getting-started.md: Install, read a file, profile, map, check and import; write a file
+          - concepts.md: The two reads, what a profile measures, facts against suggestions; how writing works
         Using it:
           - importing.md: Import runs, batches, rules, translated fields, the precheck
           - exporting.md: Writing csv, xlsx, ods and zip files; styles, layout, streams, failures
-          - formats.md: What csv, xlsx, ods and zip files read as; csv repair
+          - formats.md: What csv, xlsx, ods, zip, tar and gzip files read as; csv repair; what each format holds when written
           - operations.md: Stream ownership, cancellation, progress, cultures
         Reference:
           - error-codes.md: Every error code
-          - bounds.md: Every ceiling and its option
+          - bounds.md: Every ceiling and its option; the limits a written file is held to
           - performance.md: The library's own speed and memory numbers
-          - benchmarks.md: Comparison with other csv and xlsx libraries
+          - benchmarks.md: Comparison with other csv and xlsx libraries, reading and writing
           - KNOWN-ISSUES.md: Known limitations and when they matter
 
 # Internal material that lives in docs/ but is not published: plans and specs, the old single-page
