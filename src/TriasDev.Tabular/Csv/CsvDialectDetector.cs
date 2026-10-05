@@ -247,91 +247,93 @@ public static class CsvDialectDetector
     }
 
     /// <summary>
-    /// Counts each candidate outside quoted runs across the first lines and prefers the one that
-    /// divides every line into the same number of fields.
+    /// Finds the delimiter in the probe's text, deciding first whether its quotes can be trusted.
     /// </summary>
     /// <remarks>
-    /// Counting alone is not enough, and a real German export is why: its rows hold three times more
-    /// commas than semicolons, because every decimal number contains one. What identifies the real
-    /// delimiter is not how often it occurs but that it occurs equally often on every line.
+    /// Quote-aware line splitting is right for a well-formed file and destructive for one with an
+    /// unbalanced quote, where it swallows everything after it and leaves nothing to count. An odd
+    /// number of quotes in the probe says which case this is — usually. It is also odd, in a
+    /// well-formed file, when the probe ends inside a quoted field that spans lines: a note with line
+    /// breaks cut off by the probe's last byte. The whole records before that field still read
+    /// correctly with quotes honoured, so they are asked first.
     /// </remarks>
     private static (char Delimiter, DialectSource Source) DetectDelimiter(string text)
     {
-        // Quote-aware line splitting is right for a well-formed file and destructive for one with an
-        // unbalanced quote, where it swallows everything after it and leaves nothing to count. An odd
-        // number of quotes in the probe says which case this is — usually. It is also odd, in a
-        // well-formed file, when the probe ends inside a quoted field that spans lines: a note with
-        // line breaks cut off by the probe's last byte. Then the whole records before that field still
-        // read correctly with quotes honoured, and a delimiter that divides each of them the same way
-        // settles it; only when they do not is the odd count taken for a stray quote.
         if (text.AsSpan().Count('"') % 2 == 0)
         {
-            return Decide(FirstLines(text, quotesBalanced: true, keepOpenTail: true), quotesBalanced: true).Choice;
+            return Decide(FirstLines(text, honourQuotes: true, keepOpenTail: true), honourQuotes: true).Choice;
         }
 
-        List<string> whole = FirstLines(text, quotesBalanced: true, keepOpenTail: false);
+        // The whole records' answer stands when its delimiter divides every one of them the same way
+        // and every quote in them stands where a quote can stand around that delimiter. A stray quote fails the
+        // second test even where it passes the first: paired with the opening quote of a later field
+        // that spans lines, it glues pieces of records together, and the commas inside that field can
+        // then look as consistent as the real delimiter. A single whole record is enough — the header,
+        // when the first row's note is longer than the probe. Only when the whole records fail, or
+        // there is none, is the odd count taken for a stray quote and quotes ignored.
+        List<string> whole = FirstLines(text, honourQuotes: true, keepOpenTail: false);
 
-        if (whole.Count >= 2 && Decide(whole, quotesBalanced: true) is { Consistent: true } cut)
+        if (Decide(whole, honourQuotes: true) is { Consistent: true } cut
+            && whole.TrueForAll(record => IsWellQuoted(record, cut.Choice.Delimiter)))
         {
             return cut.Choice;
         }
 
-        return Decide(FirstLines(text, quotesBalanced: false, keepOpenTail: true), quotesBalanced: false).Choice;
+        return Decide(FirstLines(text, honourQuotes: false, keepOpenTail: true), honourQuotes: false).Choice;
     }
 
     /// <summary>
     /// Counts each candidate outside quoted runs across the lines and prefers the one that divides
     /// every line into the same number of fields; says whether the choice was that consistent.
     /// </summary>
-    private static ((char Delimiter, DialectSource Source) Choice, bool Consistent) Decide(List<string> lines, bool quotesBalanced)
+    /// <remarks>
+    /// Counting alone is not enough, and a real German export is why: its rows hold three times more
+    /// commas than semicolons, because every decimal number contains one. What identifies the real
+    /// delimiter is not how often it occurs but that it occurs equally often on every line.
+    /// </remarks>
+    private static ((char Delimiter, DialectSource Source) Choice, bool Consistent) Decide(List<string> lines, bool honourQuotes)
     {
-        if (lines.Count == 0)
-        {
-            return ((';', DialectSource.Fallback), false);
-        }
-
         char best = ';';
         int bestScore = 0;
+        bool bestConsistent = false;
 
         foreach (char candidate in DelimiterCandidates)
         {
-            int[] counts = lines.Select(line => CountOutsideQuotes(line, candidate, quotesBalanced)).ToArray();
+            int[] counts = lines.Select(line => CountOutsideQuotes(line, candidate, honourQuotes)).ToArray();
             int present = counts.Count(c => c > 0);
 
             if (present * 2 <= counts.Length)
             {
-                // Absent from most lines. Requiring it on the *first* line instead is what made a
-                // file opening with a title row fall back to a guess, after which every row read as
-                // one undivided field.
+                // Absent from most lines (or there are no lines). Requiring it on the *first* line
+                // instead is what made a file opening with a title row fall back to a guess, after
+                // which every row read as one undivided field.
                 continue;
             }
 
             int[] onLinesThatHaveIt = [.. counts.Where(c => c > 0)];
             bool consistent = Array.TrueForAll(onLinesThatHaveIt, c => c == onLinesThatHaveIt[0]);
 
-            // Consistency outranks frequency, and a real German export is why: its rows hold three
-            // times more commas than semicolons, because every decimal number contains one. What
-            // identifies the delimiter is not how often it occurs but that it divides every line the
-            // same way.
+            // Consistency outranks frequency.
             int score = (consistent ? 1_000_000 : 0) + (present * 1_000) + onLinesThatHaveIt[0];
 
             if (score > bestScore)
             {
                 bestScore = score;
                 best = candidate;
+                bestConsistent = consistent;
             }
         }
 
         return bestScore == 0
             ? ((';', DialectSource.Fallback), false)
-            : ((best, DialectSource.Detected), bestScore >= 1_000_000);
+            : ((best, DialectSource.Detected), bestConsistent);
     }
 
     /// <summary>
     /// The first lines of the text — records, when quotes are honoured. <paramref name="keepOpenTail"/>
     /// false drops a last record still inside an open quote: the probe's end cut it off.
     /// </summary>
-    private static List<string> FirstLines(string text, bool quotesBalanced, bool keepOpenTail)
+    private static List<string> FirstLines(string text, bool honourQuotes, bool keepOpenTail)
     {
         List<string> lines = [];
         bool inQuotes = false;
@@ -341,7 +343,7 @@ public static class CsvDialectDetector
         {
             char c = text[i];
 
-            if (c == '"' && quotesBalanced)
+            if (c == '"' && honourQuotes)
             {
                 inQuotes = !inQuotes;
             }
@@ -360,14 +362,56 @@ public static class CsvDialectDetector
         return lines;
     }
 
-    private static int CountOutsideQuotes(string line, char delimiter, bool quotesBalanced)
+    /// <summary>
+    /// Whether every quote in the record stands where a quote can stand with <paramref name="delimiter"/>
+    /// between fields: opening a field, at the record's start or after a delimiter; closing it, before
+    /// a delimiter, a carriage return or the record's end; or doubled inside a quoted field.
+    /// </summary>
+    private static bool IsWellQuoted(string record, char delimiter)
+    {
+        bool inQuotes = false;
+        int i = record.IndexOf('"');
+
+        while (i >= 0)
+        {
+            char next = i + 1 < record.Length ? record[i + 1] : delimiter;     // the end closes a field too
+
+            if (!inQuotes)
+            {
+                if (i > 0 && record[i - 1] != delimiter)
+                {
+                    return false;
+                }
+
+                inQuotes = true;
+            }
+            else if (next == '"')
+            {
+                i++;                            // an escaped quote; both halves are read
+            }
+            else if (next == delimiter || next == '\r')
+            {
+                inQuotes = false;
+            }
+            else
+            {
+                return false;
+            }
+
+            i = record.IndexOf('"', i + 1);
+        }
+
+        return true;
+    }
+
+    private static int CountOutsideQuotes(string line, char delimiter, bool honourQuotes)
     {
         int count = 0;
         bool inQuotes = false;
 
         foreach (char c in line)
         {
-            if (c == '"' && quotesBalanced)
+            if (c == '"' && honourQuotes)
             {
                 inQuotes = !inQuotes;
             }
