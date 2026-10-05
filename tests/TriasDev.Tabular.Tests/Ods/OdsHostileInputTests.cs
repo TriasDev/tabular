@@ -301,4 +301,95 @@ public sealed class OdsHostileInputTests
 
         Assert.Equal(nameof(OdsCursorOptions.MaxPackageEntries), error.Limit);
     }
+
+    [Fact]
+    public void HoldsATableTagToAConfiguredValueCeilingInEitherEncoding()
+    {
+        // The sheet-name pass held one tag to sixteen million characters whatever the options said.
+        string table = $"""<table:table table:name="A" table:print-ranges="{new string('x', 200_000)}">{Row(Text("a"))}</table:table>""";
+        OdsPackage package = new OdsPackage().WithRawContent(Content(table));
+        OdsCursorOptions options = new() { MaxValueChars = 100_000 };
+
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(package, options));
+        Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
+        Assert.Equal(100_000, error.Maximum);
+
+        error = Assert.Throws<TabularLimitException>(() => Open(package.WithContentEncoding(Encoding.Unicode), options));
+        Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
+        Assert.Equal(100_000, error.Maximum);
+
+        // The defaults read it as before.
+        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(Content(table)));
+        Assert.Equal("a", Assert.Single(ReadAll(cursor))[0]);
+    }
+
+    [Fact]
+    public void HoldsATextNodeNoValueIsAssembledFromToAConfiguredValueCeiling()
+    {
+        // A number cell's paragraphs are passed over, never assembled — so only the scanner's own
+        // node ceiling stood between them and memory, at sixteen million characters.
+        string cell = Cell("office:value-type=\"float\" office:value=\"1\"", new string('9', 200_000));
+
+        using OdsCursor bounded = Open(new OdsPackage().WithTable("S", Row(cell)), new OdsCursorOptions { MaxValueChars = 100_000 });
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => bounded.ReadRow(Token));
+        Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
+        Assert.Equal(100_000, error.Maximum);
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(cell)));
+        Assert.Equal("1", Assert.Single(ReadAll(cursor))[0]);
+    }
+
+    [Fact]
+    public void HoldsASheetNameToTheValueCeilingInEitherEncoding()
+    {
+        // A sheet name had a ceiling on how many, none on how long; the value ceiling serves.
+        OdsPackage package = new OdsPackage().WithTable(new string('n', 11), Row(Text("v")));
+        OdsCursorOptions options = new() { MaxValueChars = 10 };
+
+        Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), Assert.Throws<TabularLimitException>(() => Open(package, options)).Limit);
+        Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), Assert.Throws<TabularLimitException>(() => Open(package.WithContentEncoding(Encoding.Unicode), options)).Limit);
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable(new string('n', 10), Row(Text("v"))), options);
+        Assert.Equal(new string('n', 10), Assert.Single(cursor.Sheets).Name);
+    }
+
+    [Fact]
+    public void RefusesContentThatCannotBeInflatedMidReadAsACorruptFile()
+    {
+        // Damage behind what the opening reads: the name pass inflated the part and found it whole, the
+        // bytes changed under the cursor, and the read meets a deflate stream the BCL refuses with its
+        // own InvalidDataException — which reaches a caller as the library's format.corrupt.
+        Random random = new(14);
+        StringBuilder rows = new();
+
+        for (int i = 0; i < 20_000; i++)
+        {
+            char[] text = new char[40];
+
+            for (int j = 0; j < text.Length; j++)
+            {
+                text[j] = (char)('a' + random.Next(26));
+            }
+
+            rows.Append(Row(Text(new string(text))));
+        }
+
+        byte[] package = new OdsPackage().WithTable("S", rows.ToString()).Build();
+        using OdsCursor cursor = new(new MemoryStream(package, writable: false), cancellationToken: Token);
+
+        // Overwritten in place: the memory stream reads the same array.
+        package.AsSpan(package.Length / 2, package.Length / 10).Fill(0xFF);
+
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() =>
+        {
+            while (cursor.ReadRow(Token))
+            {
+                // read on to the damage
+            }
+        });
+
+        Assert.Equal(TabularFormatException.Corrupt, error.Code);
+        Assert.IsType<InvalidDataException>(error.InnerException);
+        Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(Token));
+    }
 }

@@ -136,14 +136,27 @@ public sealed class OdsCursor : ITabularCursor
         }
         catch (Exception malformed) when (malformed is XmlException or InvalidDataException or FormatException)
         {
-            _package.Dispose();
+            DisposeOpened();
             throw Corrupt(malformed);
         }
         catch
         {
-            _package.Dispose();
+            DisposeOpened();
             throw;
         }
+    }
+
+    /// <summary>
+    /// Closes what a failed constructor opened: the package, and the content part's scanner, whose
+    /// reader and inflater the package's disposal does not close. A move that fails disposes its own
+    /// scanner already, so nothing reaches this with one open today; it keeps that true for whatever
+    /// comes to fail after a move succeeded.
+    /// </summary>
+    private void DisposeOpened()
+    {
+        _scanner?.Dispose();
+        _scanner = null;
+        _package.Dispose();
     }
 
     /// <inheritdoc />
@@ -214,7 +227,7 @@ public sealed class OdsCursor : ITabularCursor
                 EnterOrLeaveScope(_scanner, index);
             }
         }
-        catch
+        catch (Exception failed)
         {
             // Part-way to the sheet: reading on would hand out rows of whichever sheet the scanner
             // stopped in, under the name of the one it left. The scanner goes too — the node it read
@@ -224,6 +237,12 @@ public sealed class OdsCursor : ITabularCursor
             _moveStopped = true;
             _scanner?.Dispose();
             _scanner = null;
+
+            if (failed is InvalidDataException broken)
+            {
+                throw Corrupt(broken);
+            }
+
             throw;
         }
 
@@ -319,6 +338,13 @@ public sealed class OdsCursor : ITabularCursor
         try
         {
             return ReadRowCore(cancellationToken);
+        }
+        catch (InvalidDataException broken)
+        {
+            // A part the BCL could not inflate. Hardly reachable — the name pass inflated the whole
+            // part on opening — but reported as the library's error, as the xlsx reader reports it.
+            _faulted = true;
+            throw Corrupt(broken);
         }
         catch
         {
@@ -892,7 +918,8 @@ public sealed class OdsCursor : ITabularCursor
     {
         using (Stream bytes = _content.Open())
         {
-            List<(string Name, SheetVisibility Visibility)>? tables = TableNameScan.TryRead(bytes, _options.MaxSheets, cancellationToken);
+            List<(string Name, SheetVisibility Visibility)>? tables =
+                TableNameScan.TryRead(bytes, _options.MaxSheets, _options.MaxValueChars, cancellationToken);
 
             if (tables is not null)
             {
@@ -913,7 +940,7 @@ public sealed class OdsCursor : ITabularCursor
         string? tableStyle = null;
 
         using SheetScanner scanner = new(
-            new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: SheetListAttributes);
+            new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: SheetListAttributes, maxValueChars: _options.MaxValueChars);
         int sinceCheck = 0;
         int depth = 0;
 
@@ -960,6 +987,14 @@ public sealed class OdsCursor : ITabularCursor
         string name = scanner.TryGetAttribute("name", out ReadOnlySpan<char> value)
             ? SheetScanner.DecodeAttribute(value)
             : string.Empty;
+
+        // Bounded as the byte pass bounds it.
+        if (name.Length > _options.MaxValueChars)
+        {
+            throw new TabularLimitException(nameof(OdsCursorOptions.MaxValueChars), _options.MaxValueChars,
+                $"A sheet name exceeds the {_options.MaxValueChars} characters allowed.");
+        }
+
         sheets.Add(new SheetInfo { Index = sheets.Count, Name = name, Format = TabularFormat.Ods });
         tableStyles.Add(scanner.TryGetAttribute("style-name", out ReadOnlySpan<char> style) ? SheetScanner.DecodeAttribute(style) : null);
     }
@@ -1011,7 +1046,8 @@ public sealed class OdsCursor : ITabularCursor
     {
         _scanner?.Dispose();
         _counter = new CountingStream(_content.Open());
-        _scanner = new SheetScanner(new StreamReader(_counter, Encoding.UTF8, true, 64 * 1024), keptLocalNames: KeptAttributes);
+        _scanner = new SheetScanner(
+            new StreamReader(_counter, Encoding.UTF8, true, 64 * 1024), keptLocalNames: KeptAttributes, maxValueChars: _options.MaxValueChars);
         _tablesEntered = 0;
         _nesting = 0;
         _sheetEnded = false;
