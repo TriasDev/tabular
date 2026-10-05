@@ -29,6 +29,40 @@ public sealed class ChunkedBufferTests
     }
 
     [Theory]
+    [InlineData(10, ChunkedBuffer.PieceSize + 5)]   // declared too small: the probe finds more, and it leads the next piece
+    [InlineData(ChunkedBuffer.PieceSize, 3)]        // declared too large: the short first read is the end
+    [InlineData(0, ChunkedBuffer.PieceSize)]        // nothing declared
+    [InlineData(1, 1)]
+    public void CopiesEveryByteWhateverSizeTheSourceDeclared(long sizeHint, int length)
+    {
+        byte[] source = new byte[length];
+        new Random(length).NextBytes(source);
+
+        using ChunkedBuffer buffer = ChunkedBuffer.CopyOf(new MemoryStream(source), sizeHint, long.MaxValue, TestContext.Current.CancellationToken);
+        using MemoryStream back = new();
+        buffer.CopyTo(back);
+
+        Assert.Equal(source, back.ToArray());
+
+        // Random access lands on the right byte across the pieces, whatever size the first one took.
+        buffer.Position = length - 1;
+        Assert.Equal(source[^1], buffer.ReadByte());
+    }
+
+    [Theory]
+    [InlineData(ChunkedBuffer.PieceSize)]
+    [InlineData(ChunkedBuffer.PieceSize + 1)]
+    public void AllowsACopyOfExactlyTheLimitAndRefusesOneByteMore(int length)
+    {
+        using ChunkedBuffer exact = ChunkedBuffer.CopyOf(new MemoryStream(new byte[length]), length, length, TestContext.Current.CancellationToken);
+        Assert.Equal(length, exact.Length);
+
+        TabularLimitException error = Assert.Throws<TabularLimitException>(
+            () => ChunkedBuffer.CopyOf(new MemoryStream(new byte[length]), length, length - 1, TestContext.Current.CancellationToken));
+        Assert.Equal(nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes), error.Limit);
+    }
+
+    [Theory]
     [InlineData(SeekOrigin.Begin, -1)]
     [InlineData(SeekOrigin.Current, -11)]
     [InlineData(SeekOrigin.End, -11)]

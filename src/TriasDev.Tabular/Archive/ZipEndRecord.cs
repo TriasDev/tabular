@@ -54,10 +54,19 @@ internal static class ZipEndRecord
             stream.Position = end;
             stream.ReadExactly(record);
             long count = BinaryPrimitives.ReadUInt16LittleEndian(record[10..]);
+            long? zip64 = Zip64Entries(stream, end);
 
-            // A zip64 writer saturates the count; the zip64 record then holds the real one. Taking the
-            // larger of the two bounds a file that contradicts itself as its worse half.
-            return Zip64Entries(stream, end) is { } zip64 ? Math.Max(count, zip64) : count;
+            // A saturated count is the sentinel that sends a reader to the zip64 record, as the format
+            // and ZipArchive have it — and many writers, ours and Go's among them, saturate every field
+            // once anything in the zip passes four gigabytes, so the sentinel says nothing about the
+            // real count. Only a count that is not the sentinel and still contradicts the zip64 record
+            // is bounded as its worse half.
+            if (count == ushort.MaxValue)
+            {
+                return zip64 ?? count;
+            }
+
+            return zip64 is { } stated ? Math.Max(count, stated) : count;
         }
         catch (IOException)
         {
@@ -110,9 +119,15 @@ internal static class ZipEndRecord
     }
 
     /// <summary>The zip64 record's total entry count, when a locator stands right before the record and points at one.</summary>
+    /// <remarks>
+    /// A record and a locator take 76 bytes before the end record; an end record that starts sooner
+    /// has no room for them, and its locator's offset — read from whatever bytes stand there — is not
+    /// looked at. The offset is checked against the room before the locator in unsigned arithmetic, so
+    /// a forged one never sets a negative position or one past the end.
+    /// </remarks>
     private static long? Zip64Entries(Stream stream, long end)
     {
-        if (end < Zip64LocatorLength)
+        if (end < Zip64LocatorLength + Zip64EndLength)
         {
             return null;
         }

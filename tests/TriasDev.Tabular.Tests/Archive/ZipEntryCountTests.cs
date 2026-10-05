@@ -54,15 +54,22 @@ public sealed class ZipEntryCountTests
         return commented;
     }
 
-    /// <summary>A zip64 end record and its locator put before the end record, which saturates its count as a zip64 writer does.</summary>
+    /// <summary>
+    /// A zip64 end record and its locator put before the end record, whose every field is then
+    /// saturated, as our own writer and Go's do once anything in the zip passes four gigabytes.
+    /// </summary>
     private static byte[] WithZip64Count(byte[] zip, ulong entries)
     {
         int endAt = zip.Length - EndLength;
         byte[] record = new byte[56];
         BinaryPrimitives.WriteUInt32LittleEndian(record, 0x06064b50);
         BinaryPrimitives.WriteUInt64LittleEndian(record.AsSpan(4), 44);
+        BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(12), 45);
+        BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(14), 45);
         BinaryPrimitives.WriteUInt64LittleEndian(record.AsSpan(24), entries);
         BinaryPrimitives.WriteUInt64LittleEndian(record.AsSpan(32), entries);
+        BinaryPrimitives.WriteUInt64LittleEndian(record.AsSpan(40), BinaryPrimitives.ReadUInt32LittleEndian(zip.AsSpan(endAt + 12)));
+        BinaryPrimitives.WriteUInt64LittleEndian(record.AsSpan(48), BinaryPrimitives.ReadUInt32LittleEndian(zip.AsSpan(endAt + 16)));
 
         byte[] locator = new byte[20];
         BinaryPrimitives.WriteUInt32LittleEndian(locator, 0x07064b50);
@@ -73,6 +80,8 @@ public sealed class ZipEntryCountTests
         Span<byte> end = result.AsSpan(result.Length - EndLength);
         BinaryPrimitives.WriteUInt16LittleEndian(end[8..], ushort.MaxValue);
         BinaryPrimitives.WriteUInt16LittleEndian(end[10..], ushort.MaxValue);
+        BinaryPrimitives.WriteUInt32LittleEndian(end[12..], uint.MaxValue);
+        BinaryPrimitives.WriteUInt32LittleEndian(end[16..], uint.MaxValue);
         return result;
     }
 
@@ -106,6 +115,58 @@ public sealed class ZipEntryCountTests
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(WithZip64Count(Zip(1), 1_000_000)));
 
         Assert.Equal(nameof(ArchiveCursorOptions.MaxEntries), error.Limit);
+    }
+
+    [Fact]
+    public void OpensAnHonestZip64WhoseEndRecordIsSaturated()
+    {
+        // The saturated count is the sentinel for "see the zip64 record", not a count: taking the larger
+        // of the two refused every zip64 file as declaring 65,535 entries.
+        using ITabularCursor cursor = Open(WithZip64Count(Zip(2), 2));
+
+        Assert.Equal(2, cursor.Sheets.Count);
+    }
+
+    [Fact]
+    public async Task ReadsBackAZip64FileOurOwnWriterWrote()
+    {
+        // The writer goes zip64 past four gigabytes; lowered, the threshold makes a small file take the
+        // same form — a zip64 record, and an end record with every field saturated.
+        using SpillBuffer buffer = new();
+        ZipWriter zip = new(buffer, System.IO.Compression.CompressionLevel.Fastest, zip64Threshold: 10);
+        zip.AddStored("a.csv", "h\nfirst\n"u8);
+
+        Stream entry = zip.BeginDeflated("b.csv");
+        entry.Write("h\nsecond row, deflated\n"u8);
+        zip.EndEntry();
+        zip.Complete();
+
+        using MemoryStream file = new();
+        await buffer.DrainToAsync(file, Token);
+        byte[] bytes = file.ToArray();
+        Assert.Equal(ushort.MaxValue, BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(bytes.Length - EndLength + 10)));
+
+        using ITabularCursor cursor = Open(bytes);
+        Assert.Equal(["a.csv", "b.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.True(cursor.ReadRow(Token));
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal("second row, deflated", cursor.CurrentRow[0].AsText());
+    }
+
+    [Fact]
+    public void RefusesATinyFileWithAForgedZip64LocatorAsATabularException()
+    {
+        // 46 bytes: a zip signature, a zip64 locator pointing past 2^63, an end record. The end record
+        // starts too early for a zip64 record to stand before it, and the locator's offset once became
+        // a negative position — an ArgumentOutOfRangeException out of the library.
+        byte[] file = new byte[4 + 20 + EndLength];
+        "PK\u0003\u0004"u8.CopyTo(file);
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(4), 0x07064b50);
+        BinaryPrimitives.WriteUInt64LittleEndian(file.AsSpan(12), 0x8000000000000010UL);
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(24), 0x06054b50);
+
+        Assert.ThrowsAny<TabularException>(() => Open(file));
     }
 
     [Fact]
