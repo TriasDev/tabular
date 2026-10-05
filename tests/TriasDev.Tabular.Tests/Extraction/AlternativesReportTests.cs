@@ -74,6 +74,27 @@ public sealed class AlternativesReportTests
     }
 
     [Fact]
+    public void CountsAnIgnoredValueOnceHoweverManyRulesItBreaks()
+    {
+        // "XXXX" is both too long and not allowed: two broken rules, one value kept as it was.
+        TextImportField strict = ImportField.Text("country").AllowedValues(["DEU"]).MaxLength(3);
+        ImportSchema schema = new()
+        {
+            Fields = [Id, Lat, Lon, strict, City, Street],
+            Alternatives =
+            [
+                new FieldAlternatives(
+                    "location",
+                    [AlternativeGroup.AllOf("coordinates", Lat, Lon), AlternativeGroup.Ladder("address", 1, new AlternativeLevel("country", strict))]),
+            ],
+        };
+
+        AlternativesReport report = Report("1;48.1;11.5;XXXX;;\n", schema: schema);
+
+        Assert.Equal(1, report.Groups[1].IgnoredInvalidValues);
+    }
+
+    [Fact]
     public void CountsOnlyRowsThatProduceValues()
     {
         // Row 3 fails on its latitude and is not imported, so it is in the errors, not in the report.
@@ -121,10 +142,10 @@ public sealed class AlternativesReportTests
             TabularExtractor.Extract(cursor, Plan(), Schema, new ExtractionOptions { MaxReportedRows = cap }, TestContext.Current.CancellationToken));
     }
 
-    private static AlternativesReport Report(string data, ExtractionOptions? options = null)
+    private static AlternativesReport Report(string data, ExtractionOptions? options = null, ImportSchema? schema = null)
     {
         using ITabularCursor cursor = Open(Header + data);
-        ExtractionRun run = TabularExtractor.Extract(cursor, Plan(), Schema, options, TestContext.Current.CancellationToken);
+        ExtractionRun run = TabularExtractor.Extract(cursor, Plan(), schema ?? Schema, options, TestContext.Current.CancellationToken);
 
         Drain(run);
 
