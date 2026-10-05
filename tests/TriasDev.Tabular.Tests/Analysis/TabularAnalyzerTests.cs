@@ -186,4 +186,42 @@ public sealed class TabularAnalyzerTests
 
         Assert.Throws<OperationCanceledException>(() => TabularAnalyzer.Analyze(cursor, cancellationToken: cancellation.Token));
     }
+
+    /// <summary>
+    /// Cancelled once the pass is under way — from the first progress report — the analysis stops
+    /// there, rather than only between sheets: the case above cancels before anything is read.
+    /// </summary>
+    [Fact]
+    public void StopsDuringThePassWhenAsked()
+    {
+        StringBuilder text = new("a\n");
+
+        for (int i = 1; i <= 100_000; i++)
+        {
+            text.Append(i).Append('\n');
+        }
+
+        using MemoryStream stream = new(Utf8NoBom.GetBytes(text.ToString()), writable: false);
+        using CsvCursor cursor = new(stream, "big.csv");
+        using CancellationTokenSource cancellation = new();
+        CancelOnFirstReport progress = new(cancellation);
+
+        Assert.Throws<OperationCanceledException>(() =>
+            TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 1_000 }, progress, cancellation.Token));
+
+        Assert.True(progress.Reports > 0, "the pass never reported, so it was not cancelled during it");
+        Assert.True(cursor.CurrentRowNumber < 10_000, $"the analysis read on to row {cursor.CurrentRowNumber} after it was cancelled");
+    }
+
+    /// <summary>Cancels on the first report, synchronously on the analysing thread.</summary>
+    private sealed class CancelOnFirstReport(CancellationTokenSource cancellation) : IProgress<AnalysisProgress>
+    {
+        public int Reports { get; private set; }
+
+        public void Report(AnalysisProgress value)
+        {
+            Reports++;
+            cancellation.Cancel();
+        }
+    }
 }

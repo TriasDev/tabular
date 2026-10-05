@@ -55,6 +55,65 @@ public sealed class ArchiveCursorTarGzTests
     }
 
     [Fact]
+    public void RefusesAnArchiveThatNoLongerHoldsWhatItsListingFound()
+    {
+        // Moving back decompresses the file again. A source that serves other bytes the second time —
+        // a file replaced while it was read — must not hand out another entry's rows under the name
+        // the listing gave, nor end the sheet quietly.
+        byte[] listed = GzipFile.Of(TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "h\na\n"), ("b.csv", "h\nb\n")));
+        byte[] replaced = GzipFile.Of(TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "h\na\n")));
+        ReplaceableStream stream = new(listed);
+        using ArchiveCursor cursor = new(stream, cancellationToken: Token);
+
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal([["h"], ["b"]], ReadAll(cursor));
+
+        stream.Replace(replaced);
+
+        TabularFormatException changed = Assert.Throws<TabularFormatException>(() => cursor.MoveToSheet(1, Token));
+        Assert.Equal(TabularFormatException.Corrupt, changed.Code);
+    }
+
+    /// <summary>A readable, seekable stream whose content can be swapped for other bytes between reads.</summary>
+    private sealed class ReplaceableStream(byte[] content) : Stream
+    {
+        private MemoryStream _inner = new(content, writable: false);
+
+        public void Replace(byte[] next)
+        {
+            long position = _inner.Position;
+            _inner = new MemoryStream(next, writable: false) { Position = Math.Min(position, next.Length) };
+        }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => true;
+
+        public override bool CanWrite => false;
+
+        public override long Length => _inner.Length;
+
+        public override long Position
+        {
+            get => _inner.Position;
+            set => _inner.Position = value;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
+
+        public override void Flush()
+        {
+            // Read-only: nothing to flush.
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    [Fact]
     public void ReadsAGzippedTarAsATar()
     {
         byte[] archive = GzipFile.Of(TarArchive.Of(TarEntryFormat.Pax, ("export/orders.csv", "id;city\n1;Köln\n")));

@@ -26,6 +26,9 @@ public sealed class CancellingStream(Stream inner, CancellationTokenSource sourc
         _after = bytes;
     }
 
+    /// <summary>How many bytes were served since <see cref="CancelAfter"/> armed it — where a read stopped.</summary>
+    public long Served => _after == long.MaxValue ? 0 : _served;
+
     public override bool CanRead => true;
 
     public override bool CanSeek => inner.CanSeek;
