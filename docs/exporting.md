@@ -129,7 +129,7 @@ overloads. A `StyleId` belongs to the writer that returned it; another writer re
 each style once per writer.
 
 Format codes are a subset of Excel's, parsed by `NumberFormat.Parse` and `DateFormat.Parse`, and
-refused there — when you build the style, not when the file is written — if they are outside it:
+refused there with a `FormatException` — when you build the style, not when the file is written — if they are outside it:
 
 | | Supported |
 |---|---|

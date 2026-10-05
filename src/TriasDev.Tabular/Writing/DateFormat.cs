@@ -46,7 +46,8 @@ public sealed record DateFormat
     internal IReadOnlyList<DatePart> Parts { get; }
 
     /// <summary>Parses a format code.</summary>
-    /// <exception cref="ArgumentException">The code is outside the supported subset; the message names the part.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="code"/> is null.</exception>
+    /// <exception cref="FormatException">The code is empty or outside the supported subset; the message names the part.</exception>
     public static DateFormat Parse(string code)
     {
         ArgumentNullException.ThrowIfNull(code);
@@ -244,8 +245,8 @@ public sealed record DateFormat
         return code.ToString();
     }
 
-    private static ArgumentException Refuse(string code, string what) =>
-        new($"The date format \"{code}\" is not supported: {what}.", nameof(code));
+    private static FormatException Refuse(string code, string what) =>
+        new($"The date format \"{code}\" is not supported: {what}.");
 }
 
 /// <summary>The pieces of format-code parsing both parsers share.</summary>
@@ -263,14 +264,14 @@ internal static class FormatCodes
 
         if (end < 0)
         {
-            throw new ArgumentException($"The format \"{code}\" is not supported: a quote at position {i + 1} that never closes.", nameof(code));
+            throw new FormatException($"The format \"{code}\" is not supported: a quote at position {i + 1} that never closes.");
         }
 
         string text = code[(i + 1)..end];
 
         if (TextRules.Check(text) is { } problem)
         {
-            throw new ArgumentException($"The format \"{code}\" is not supported: its quoted text cannot be written ({problem}).", nameof(code));
+            throw new FormatException($"The format \"{code}\" is not supported: its quoted text cannot be written ({problem}).");
         }
 
         i = end + 1;

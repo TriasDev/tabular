@@ -47,7 +47,7 @@ public sealed class FormatCodeTests
     [InlineData("0.0000000000000000000000000000000", "30")]
     public void RefusesANumberFormatOutsideTheSubset(string code, string named)
     {
-        ArgumentException refused = Assert.Throws<ArgumentException>(() => NumberFormat.Parse(code));
+        FormatException refused = Assert.Throws<FormatException>(() => NumberFormat.Parse(code));
         Assert.Contains(named, refused.Message, StringComparison.Ordinal);
     }
 
@@ -94,7 +94,7 @@ public sealed class FormatCodeTests
     [InlineData("dd\"open", "quote")]
     public void RefusesADateFormatOutsideTheSubset(string code, string named)
     {
-        ArgumentException refused = Assert.Throws<ArgumentException>(() => DateFormat.Parse(code));
+        FormatException refused = Assert.Throws<FormatException>(() => DateFormat.Parse(code));
         Assert.Contains(named, refused.Message, StringComparison.Ordinal);
     }
 
@@ -108,11 +108,11 @@ public sealed class FormatCodeTests
 
     [Fact]
     public void ALiteralWithAForbiddenCharacterIsRefused() =>
-        Assert.Throws<ArgumentException>(() => NumberFormat.Parse("0\"\u0007\""));
+        Assert.Throws<FormatException>(() => NumberFormat.Parse("0\"\u0007\""));
 
     [Fact]
     public void AnEscapedCharacterThatIsForbiddenIsRefused() =>
-        Assert.Throws<ArgumentException>(() => DateFormat.Parse("dd\\" + "\u0007"));
+        Assert.Throws<FormatException>(() => DateFormat.Parse("dd\\" + "\u0007"));
 
     [Fact]
     public void AStyleCarriesBothFormats()
