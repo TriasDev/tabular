@@ -102,7 +102,7 @@ internal sealed class GzipCursor : ITabularCursor
 
             // A legacy workbook, an XML document or a binary file is refused here in the words used
             // for one on its own.
-            _dialect = _options.Csv.Dialect ?? CsvDialectDetector.Detect(head);
+            _dialect = CsvDialectDetector.Stated(_options.Csv) ?? CsvDialectDetector.Detect(head, _options.Csv);
             _sheets.Add(new SheetInfo { Index = 0, Name = stored ?? WithoutGzExtension(name), Format = TabularFormat.Csv, Source = stored });
             MoveToSheet(0, cancellationToken);
         }
@@ -196,7 +196,7 @@ internal sealed class GzipCursor : ITabularCursor
         _reader = new GzipStreamReader(_stream, _options.Archive.MaxUncompressedBytes);
 
         // The dialect is stated, so the cursor reads forward and never needs the stream to seek.
-        _inner = new CsvCursor(_reader, _sheets[0].Name, _options.Csv with { Dialect = _dialect });
+        _inner = new CsvCursor(_reader, _sheets[0].Name, _options.Csv, _dialect);
         return true;
     }
 

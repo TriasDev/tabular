@@ -70,14 +70,8 @@ public sealed class AnalysisProgressTests
         using NonSeekableStream stream = new(Csv(30));
         using CsvCursor cursor = new(stream, "test.csv", new CsvCursorOptions
         {
-            Dialect = new CsvDialect
-            {
-                Encoding = Utf8NoBom,
-                EncodingSource = DialectSource.Specified,
-                Delimiter = ';',
-                DelimiterSource = DialectSource.Specified,
-                Quote = '"',
-            },
+            Encoding = Utf8NoBom,
+            Delimiter = ';',
         });
         Recorder recorder = new();
 

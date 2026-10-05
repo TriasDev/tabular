@@ -108,20 +108,6 @@ is indistinguishable from an absent text value.
 Every length, pattern and allowed-value constraint sees `Text`, so a datetime is validated against a
 date-only string while `Date` still carries the ticks.
 
-### `CsvDialect` lets a caller claim a value was detected
-`EncodingSource` and `DelimiterSource` are `required` on a record a caller constructs to *override*
-detection. The provenance exists so a UI can tell a fact from a guess; a hand-built dialect can lie
-about it.
-
-### A byte order mark overrides a caller-specified encoding
-`StreamReader` is constructed with `detectEncodingFromByteOrderMarks: true` alongside the chosen
-encoding.
-
-### The dialect override is all or nothing
-A caller who knows only the delimiter must also supply the encoding, losing detection for it. There
-is no per-property override, no line-ending member, and the quote character is hard-coded with no
-provenance.
-
 ### The package ceiling counts bytes off the wire, not memory
 `MaxUncompressedBytes` sums the entries' declared sizes. Text decoded to UTF-16 doubles, and a buffer
 that grows to hold a token peaks at three times its content. The scanner buffer and the csv field

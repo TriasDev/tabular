@@ -54,6 +54,20 @@
 *REMOVED*TriasDev.Tabular.Csv.CsvCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 *REMOVED*TriasDev.Tabular.Ods.OdsCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
 *REMOVED*TriasDev.Tabular.Xlsx.XlsxCursor.MoveToSheet(int index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> bool
+*REMOVED*TriasDev.Tabular.Csv.CsvCursorOptions.Dialect.get -> TriasDev.Tabular.Csv.CsvDialect?
+*REMOVED*TriasDev.Tabular.Csv.CsvCursorOptions.Dialect.init -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvDialect.CsvDialect() -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvDialect.Delimiter.init -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvDialect.DelimiterSource.init -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvDialect.Encoding.init -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvDialect.EncodingSource.init -> void
+*REMOVED*TriasDev.Tabular.Csv.CsvDialect.Quote.init -> void
+TriasDev.Tabular.Csv.CsvCursorOptions.Delimiter.get -> char?
+TriasDev.Tabular.Csv.CsvCursorOptions.Delimiter.init -> void
+TriasDev.Tabular.Csv.CsvCursorOptions.Encoding.get -> System.Text.Encoding?
+TriasDev.Tabular.Csv.CsvCursorOptions.Encoding.init -> void
+TriasDev.Tabular.Csv.CsvCursorOptions.Quote.get -> char?
+TriasDev.Tabular.Csv.CsvCursorOptions.Quote.init -> void
 TriasDev.Tabular.AnalysisProgress.RowsRead.get -> int
 const TriasDev.Tabular.ErrorCodes.Write.TooManyMerges = "write.too-many-merges" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.TooManyRows = "write.too-many-rows" -> string!

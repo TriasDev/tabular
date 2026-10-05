@@ -30,17 +30,8 @@ public sealed class CsvRoundTripFuzzTests
             string[][] table = OutsideTheStrayQuoteRule(Table(random, Pieces), delimiter);
             byte[] file = Write(table, delimiter, lineEnd, encoding, random, quoteAlways: random.Chance(0.2));
 
-            CsvDialect dialect = new()
-            {
-                Encoding = encoding,
-                EncodingSource = DialectSource.Specified,
-                Delimiter = delimiter,
-                DelimiterSource = DialectSource.Specified,
-                Quote = '"',
-            };
-
             FuzzCases.Keep(seed, ".csv", file);
-            using CsvCursor cursor = new(new MemoryStream(file), "fuzz.csv", new CsvCursorOptions { Dialect = dialect });
+            using CsvCursor cursor = new(new MemoryStream(file), "fuzz.csv", new CsvCursorOptions { Encoding = encoding, Delimiter = delimiter });
             AssertReadsAs(table, cursor, seed);
             Assert.True(cursor.Diagnostics.IsClean, $"seed {seed}: a correct file needed repairs");
         }

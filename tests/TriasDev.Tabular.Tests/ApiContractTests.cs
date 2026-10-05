@@ -165,18 +165,12 @@ public sealed class ApiContractTests
     [Fact]
     public void ReadsAForwardOnlyCsvWhenTheDialectIsGiven()
     {
-        // Detection rewinds, so it needs a seekable stream; a caller who states the dialect needs
-        // none — the way to read a request body without buffering it.
+        // Detection rewinds, so it needs a seekable stream; with the delimiter and the encoding both
+        // stated there is nothing to detect and the head is not read.
         CsvCursorOptions options = new()
         {
-            Dialect = new CsvDialect
-            {
-                Encoding = new UTF8Encoding(false),
-                EncodingSource = DialectSource.Specified,
-                Delimiter = ';',
-                DelimiterSource = DialectSource.Specified,
-                Quote = '"',
-            },
+            Encoding = new UTF8Encoding(false),
+            Delimiter = ';',
         };
 
         using CsvCursor cursor = new(new ForwardOnly(Csv()), "t.csv", options);

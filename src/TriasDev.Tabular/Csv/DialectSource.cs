@@ -11,7 +11,7 @@ namespace TriasDev.Tabular.Csv;
 /// </remarks>
 public enum DialectSource
 {
-    /// <summary>The caller supplied it, and detection was not consulted.</summary>
+    /// <summary>The caller stated it in <see cref="CsvCursorOptions"/>, and detection was not consulted.</summary>
     Specified,
 
     /// <summary>A byte order mark declared it.</summary>

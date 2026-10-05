@@ -225,14 +225,8 @@ public sealed class CsvCursorTests
         // The content would be detected as semicolon-delimited; the caller says otherwise and wins.
         CsvCursorOptions options = new()
         {
-            Dialect = new CsvDialect
-            {
-                Encoding = Utf8NoBom,
-                EncodingSource = DialectSource.Specified,
-                Delimiter = ',',
-                DelimiterSource = DialectSource.Specified,
-                Quote = '"',
-            },
+            Encoding = Utf8NoBom,
+            Delimiter = ',',
         };
 
         List<string?[]> rows = ReadAll(Utf8NoBom.GetBytes("a;b,c\n"), options);

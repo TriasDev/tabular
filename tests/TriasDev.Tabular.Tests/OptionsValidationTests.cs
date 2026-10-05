@@ -32,6 +32,12 @@ public sealed class OptionsValidationTests
         { new CsvCursorOptions { MaxFieldChars = 0 }, nameof(CsvCursorOptions.MaxFieldChars) },
         { new CsvCursorOptions { DialectProbeBytes = -1 }, nameof(CsvCursorOptions.DialectProbeBytes) },
         { new CsvCursorOptions { MaxColumns = 0 }, nameof(CsvCursorOptions.MaxColumns) },
+        { new CsvCursorOptions { Delimiter = ':' }, nameof(CsvCursorOptions.Delimiter) },
+        { new CsvCursorOptions { Delimiter = '"' }, nameof(CsvCursorOptions.Delimiter) },
+        { new CsvCursorOptions { Quote = '\n' }, nameof(CsvCursorOptions.Quote) },
+        { new CsvCursorOptions { Quote = '\r' }, nameof(CsvCursorOptions.Quote) },
+        { new CsvCursorOptions { Quote = ';' }, nameof(CsvCursorOptions.Quote) },
+        { new CsvCursorOptions { Delimiter = '|', Quote = '|' }, nameof(CsvCursorOptions.Quote) },
     };
 
     public static TheoryData<XlsxCursorOptions, string> BadXlsxOptions => new()

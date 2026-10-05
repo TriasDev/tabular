@@ -203,7 +203,7 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
 
 - **Profile a file** — per column: measured facts (empty and distinct counts, lengths, numeric and
   date ranges, how values parse under each culture, located outliers) and ranked type suggestions
-  for a mapping screen to pre-select. Csv delimiter, quoting and encoding are detected.
+  for a mapping screen to pre-select. Csv delimiter, quoting and encoding are detected, or stated one by one where you know them.
 - **Read it fast** — a forward-only cursor over rows of typed cells, for xlsx, OpenDocument (.ods) and csv alike. The
   format is detected from the file's bytes, not its name.
 - **Read a zip or tar archive as one workbook** — plain or gzipped; every csv, xlsx and ods file inside becomes a sheet, named by its
