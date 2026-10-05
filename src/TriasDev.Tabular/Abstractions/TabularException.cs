@@ -47,7 +47,7 @@ public abstract class TabularException : Exception
 [SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
 public sealed class TabularFormatException : TabularException
 {
-    /// <summary>A format this library does not read: .xls, .xlsb, .ods, a binary file, a zip that is no workbook.</summary>
+    /// <summary>A format this library does not read: .xls, .xlsb, .fods, another OpenDocument type, a binary file, an archive with nothing readable in it.</summary>
     public const string Unsupported = ErrorCodes.Format.Unsupported;
 
     /// <summary>A package or part that is damaged: a broken zip, malformed XML, a part that is referenced but missing.</summary>

@@ -20,6 +20,13 @@ namespace TriasDev.Tabular;
 /// an exception, leaves an incomplete file behind — for a workbook, plainly broken; for csv, a file
 /// that looks whole. The caller discards it: aborts the response, deletes the file.
 /// </para>
+/// <para>
+/// Any exception a call throws leaves the writer faulted — a value refused with a
+/// <see cref="TabularWriteException"/>, an argument refused with an <see cref="ArgumentException"/>,
+/// a call out of order refused with an <see cref="InvalidOperationException"/> — because part of the
+/// file is already out. Every later call but <see cref="DisposeAsync"/> throws
+/// <see cref="InvalidOperationException"/>, and the file is incomplete.
+/// </para>
 /// <para>Not thread-safe: one writer, one sequence of calls.</para>
 /// </remarks>
 public sealed class TabularWriter : IAsyncDisposable
@@ -433,6 +440,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <summary>Writes the next cell as text; null writes an empty cell.</summary>
     /// <remarks>The import trims text and reads empty or whitespace-only text as no value.</remarks>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns. This applies to every <c>Write</c> overload and <see cref="WriteEmpty()"/>.</exception>
+    /// <exception cref="TabularWriteException">The text cannot be written as it would read back: <c>write.invalid-character</c> (a character XML forbids, refused in every format), <c>write.text-too-long</c>, or, in csv, <c>write.too-many-lines</c> or <c>write.ambiguous-line-breaks</c>. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(string? value) => Write(value, default);
 
     /// <inheritdoc cref="Write(string?)"/>
@@ -440,6 +448,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException">The text cannot be written as it would read back: <c>write.invalid-character</c> (a character XML forbids, refused in every format), <c>write.text-too-long</c>, or, in csv, <c>write.too-many-lines</c> or <c>write.ambiguous-line-breaks</c>. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(string? value, StyleId style)
     {
         int column = NextCell();
@@ -462,6 +471,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// does not compile; convert it explicitly, to <see cref="long"/> or <see cref="decimal"/>.
     /// </remarks>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, an integer a double cannot hold exactly. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(long value) => Write(value, default);
 
     /// <inheritdoc cref="Write(long)"/>
@@ -469,6 +479,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, an integer a double cannot hold exactly. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(long value, StyleId style)
     {
         int column = NextCell();
@@ -477,6 +488,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Writes the next cell as a decimal number.</summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, a decimal with more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(decimal value) => Write(value, default);
 
     /// <inheritdoc cref="Write(decimal)"/>
@@ -484,6 +496,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, a decimal with more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(decimal value, StyleId style)
     {
         int column = NextCell();
@@ -495,6 +508,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// significant digits — which a workbook would not give back.
     /// </summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.not-finite</c> for NaN or an infinity; <c>write.precision-loss</c> for more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(double value) => Write(value, default);
 
     /// <inheritdoc cref="Write(double)"/>
@@ -502,6 +516,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.not-finite</c> for NaN or an infinity; <c>write.precision-loss</c> for more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(double value, StyleId style)
     {
         int column = NextCell();
@@ -513,6 +528,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// millisecond is dropped, and the kind is not kept: the import returns the wall-clock value.
     /// </summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateTime value) => Write(value, default);
 
     /// <inheritdoc cref="Write(DateTime)"/>
@@ -520,6 +536,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateTime value, StyleId style)
     {
         int column = NextCell();
@@ -529,6 +546,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Writes the next cell as a date. The import returns it as a <see cref="DateTime"/> at midnight.</summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateOnly value) => Write(value, default);
 
     /// <inheritdoc cref="Write(DateOnly)"/>
@@ -536,6 +554,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateOnly value, StyleId style)
     {
         int column = NextCell();

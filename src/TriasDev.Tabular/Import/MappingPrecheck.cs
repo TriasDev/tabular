@@ -57,6 +57,7 @@ public sealed record PrecheckFinding : ITabularProblem
 }
 
 /// <summary>How far a count of rows can be trusted.</summary>
+/// <remarks>Open to new members, as <see cref="TabularFormat"/> is: a switch over it needs a default arm.</remarks>
 public enum RowCountBound
 {
     /// <summary>The count is exact.</summary>

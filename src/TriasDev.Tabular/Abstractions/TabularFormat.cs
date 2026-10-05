@@ -1,9 +1,19 @@
 namespace TriasDev.Tabular;
 
-/// <summary>The file shapes this library reads, and the ones it writes: <see cref="Csv"/>, <see cref="Xlsx"/>, <see cref="Ods"/> and <see cref="Zip"/>.</summary>
+/// <summary>
+/// The file shapes this library reads — <see cref="Csv"/>, <see cref="Xlsx"/>, <see cref="Ods"/>, and
+/// the containers <see cref="Zip"/>, <see cref="Gzip"/> and <see cref="Tar"/> — and the ones it writes:
+/// <see cref="Csv"/>, <see cref="Xlsx"/>, <see cref="Ods"/> and <see cref="Zip"/>.
+/// </summary>
 /// <remarks>
+/// <para>
+/// <see cref="TabularWriter.Create"/> refuses <see cref="Gzip"/> and <see cref="Tar"/> with an
+/// <see cref="ArgumentOutOfRangeException"/>: they are read, not written.
+/// </para>
+/// <para>
 /// Open to new members as the library learns to read or write more. A switch over it needs a default arm, or the day a member is added breaks the build of
 /// whoever wrote it.
+/// </para>
 /// </remarks>
 public enum TabularFormat
 {
@@ -27,13 +37,13 @@ public enum TabularFormat
 
     /// <summary>
     /// A gzip-compressed file, read as the file inside it. The container's format: its sheets keep
-    /// the inner file's.
+    /// the inner file's. Not written.
     /// </summary>
     Gzip,
 
     /// <summary>
     /// A tar archive, plain or compressed with gzip, read as one workbook whose sheets are its files'.
-    /// The container's format: each sheet keeps its own.
+    /// The container's format: each sheet keeps its own. Not written.
     /// </summary>
     Tar,
 }
