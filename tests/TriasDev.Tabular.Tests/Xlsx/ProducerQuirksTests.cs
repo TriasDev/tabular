@@ -163,6 +163,52 @@ public sealed class ProducerQuirksTests
         Assert.Equal("second", cursor.CurrentRow[0].AsText());
     }
 
+    [Theory]
+    [InlineData("../xl/sheets/data{0}.xml")]
+    [InlineData("./sheets/data{0}.xml")]
+    [InlineData("sheets/../sheets/./data{0}.xml")]
+    public void ResolvesRelativeSegmentsInARelationshipTarget(string target)
+    {
+        // A target is resolved against the declaring part's folder, ../ and ./ included. The parts
+        // sit where no convention would look, so only a correctly resolved target finds them.
+        byte[] content = new XlsxPackage()
+            .WithSheet("First", """<row r="1"><c r="A1" t="inlineStr"><is><t>first</t></is></c></row>""")
+            .WithSheet("Second", """<row r="1"><c r="A1" t="inlineStr"><is><t>second</t></is></c></row>""")
+            .WithSheetPartNames(number => string.Format(System.Globalization.CultureInfo.InvariantCulture, target, number))
+            .WithPartNaming(Normalised)
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.Equal(["First", "Second"], cursor.Sheets.Select(s => s.Name));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("first", cursor.CurrentRow[0].AsText());
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("second", cursor.CurrentRow[0].AsText());
+    }
+
+    /// <summary>A part's path in the zip, its relative segments resolved as a producer would store it.</summary>
+    private static string Normalised(string path)
+    {
+        List<string> segments = [];
+
+        foreach (string segment in path.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment == "..")
+            {
+                segments.RemoveAt(segments.Count - 1);
+            }
+            else if (segment != ".")
+            {
+                segments.Add(segment);
+            }
+        }
+
+        return string.Join('/', segments);
+    }
+
     /// <summary>A stylesheet whose second cell format is the given number format.</summary>
     private static string StylesWithFormat(int numFmtId) =>
         $"""<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="{numFmtId}" applyNumberFormat="1"/></cellXfs></styleSheet>""";

@@ -200,4 +200,50 @@ public sealed class SheetLayoutTests
         Assert.Contains("</table:table><table:database-ranges><table:database-range table:name=\"__Anonymous_Sheet_DB__0\" table:target-range-address=\"'Bob''s data'.A1:'Bob''s data'.C4\" table:display-filter-buttons=\"true\"/><table:database-range table:name=\"__Anonymous_Sheet_DB__2\" table:target-range-address=\"'second'.A1:'second'.B1\" table:display-filter-buttons=\"true\"/></table:database-ranges></office:spreadsheet>", content, StringComparison.Ordinal);
         Assert.Equal(4, Rows(ods).Count);
     }
+
+    /// <summary>A sheet name holding every character XML must escape in an attribute.</summary>
+    internal const string MarkupName = "R&D \"x\" <y>";
+
+    internal static void MarkupNamedSheet(TabularWriter writer)
+    {
+        writer.BeginSheet(MarkupName, [new("a"), new("b")], new SheetOptions { FreezeRows = 1, AutoFilter = true });
+        writer.BeginRow();
+        writer.Write(1L);
+        writer.Write("one");
+        writer.EndRow();
+    }
+
+    /// <summary>
+    /// Our reader does not read <c>settings.xml</c> nor the database ranges, so only parsing them shows a
+    /// sheet name escaped wrongly there — malformed XML LibreOffice would refuse.
+    /// </summary>
+    [Fact]
+    public async Task OdsEscapesTheSheetNameInItsFrozenPanesAndFilter()
+    {
+        byte[] ods = await Write(TabularFormat.Ods, MarkupNamedSheet);
+
+        Assert.Equal([MarkupName], Attributes(Entry(ods, "settings.xml"), "config-item-map-entry", "name").Where(n => n.Length > 0));
+        Assert.Equal([$"'{MarkupName}'.A1:'{MarkupName}'.B2"], Attributes(Entry(ods, "content.xml"), "database-range", "target-range-address"));
+
+        using ITabularCursor cursor = TabularFile.Open(new MemoryStream(ods, writable: false), "file", cancellationToken: Token);
+        Assert.Equal([MarkupName], cursor.Sheets.Select(sheet => sheet.Name));
+        Assert.Equal(2, Rows(ods).Count);
+    }
+
+    /// <summary>Every value of one attribute on the elements of one local name, read by a conforming XML parser.</summary>
+    internal static List<string> Attributes(string xml, string element, string attribute)
+    {
+        List<string> values = [];
+        using System.Xml.XmlReader reader = System.Xml.XmlReader.Create(new StringReader(xml));
+
+        while (reader.Read())
+        {
+            if (reader.NodeType == System.Xml.XmlNodeType.Element && reader.LocalName == element)
+            {
+                values.Add(reader.GetAttribute(attribute, reader.LookupNamespace(reader.Prefix) ?? string.Empty) ?? string.Empty);
+            }
+        }
+
+        return values;
+    }
 }

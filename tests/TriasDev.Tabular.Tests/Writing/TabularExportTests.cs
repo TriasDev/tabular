@@ -115,6 +115,77 @@ public sealed class TabularExportTests
         Assert.True(reachedTheTarget > 0, $"{reachedTheTarget} bytes had reached the target by row 40,000 of one chunk");
     }
 
+    /// <summary>
+    /// The per-item sources — the shape an ASP.NET Core endpoint streams — flush as they go too: bytes
+    /// leave before the last item, so the file never sits whole in memory.
+    /// </summary>
+    [Theory]
+    [InlineData(TabularFormat.Csv, false)]
+    [InlineData(TabularFormat.Csv, true)]
+    [InlineData(TabularFormat.Xlsx, false)]
+    [InlineData(TabularFormat.Xlsx, true)]
+    [InlineData(TabularFormat.Ods, false)]
+    public async Task APerItemExportFlushesBeforeItsLastItem(TabularFormat format, bool asynchronous)
+    {
+        const int Count = 200_000;
+        WriteTarget target = new();
+        long reachedTheTarget = -1;
+        TabularExport<Item> export = TabularExport.For<Item>()
+            .Column("Id", i =>
+            {
+                if (i.Id == Count)
+                {
+                    reachedTheTarget = target.Length;
+                }
+
+                return i.Id;
+            })
+            .Column("Name", i => i.Name)
+            .Build();
+        // Random hex shrinks to about half under deflate, and how far depends on the platform's zlib; this many
+        // rows fill the buffer past the flush mark several times over on any of them before the last item.
+        Random random = new(106);
+        Item[] items = [.. Enumerable.Range(1, Count).Select(i => new Item(i, Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())) + Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())), i))];
+
+        int rows = asynchronous
+            ? await export.WriteAsync(target, format, "data", OneByOne(items), NoBom, Token)
+            : await export.WriteAsync(target, format, "data", items, NoBom, Token);
+
+        Assert.Equal(items.Length, rows);
+        Assert.True(reachedTheTarget > 0, $"{reachedTheTarget} bytes had reached the target by the last of {items.Length} items");
+    }
+
+    /// <summary>
+    /// A synchronous source cannot take the token itself; the export observes it at each flush, so a
+    /// cancellation stops the enumeration long before its end rather than only at completion.
+    /// </summary>
+    [Fact]
+    public async Task CancellationStopsASynchronousPerItemSourceAtTheNextFlush()
+    {
+        using CancellationTokenSource cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        WriteTarget target = new();
+        int seen = 0;
+
+        IEnumerable<Item> Source()
+        {
+            foreach (int i in Enumerable.Range(1, 200_000))
+            {
+                if (++seen == 10)
+                {
+                    cancel.Cancel();
+                }
+
+                yield return new Item(i, new string('x', 40), i);
+            }
+        }
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await Export.WriteAsync(target, TabularFormat.Csv, "data", Source(), NoBom, cancel.Token));
+
+        Assert.True(seen < 200_000, $"the whole source was enumerated ({seen} items) before the cancellation was seen");
+        Assert.True(target.IsDisposed);
+    }
+
     [Fact]
     public async Task AFailureInsideASheetLeavesTheCallersWriterUnusable()
     {

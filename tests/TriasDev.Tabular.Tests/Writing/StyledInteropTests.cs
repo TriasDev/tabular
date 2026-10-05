@@ -218,6 +218,18 @@ public sealed class StyledInteropTests
         Assert.Equal(vertical.ToString(System.Globalization.CultureInfo.InvariantCulture), Value(entry, "VerticalSplitPosition"));
     }
 
+    [Fact]
+    public async Task LibreOfficeKeepsTheFrozenPanesAndFilterOfAnOdsSheetWhoseNameNeedsEscaping()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, SheetLayoutTests.MarkupNamedSheet);
+
+        byte[] resaved = LibreOffice.Resave(ods, "ods");
+
+        Assert.Contains(SheetLayoutTests.MarkupName, SheetLayoutTests.Attributes(Entry(resaved, "settings.xml"), "config-item-map-entry", "name"));
+        Assert.Contains("true", SheetLayoutTests.Attributes(Entry(resaved, "content.xml"), "database-range", "display-filter-buttons"));
+        Assert.Equal(2, SheetLayoutTests.Rows(resaved).Count);
+    }
+
     [Theory]
     [InlineData(TabularFormat.Xlsx, "xlsx")]
     [InlineData(TabularFormat.Ods, "ods")]

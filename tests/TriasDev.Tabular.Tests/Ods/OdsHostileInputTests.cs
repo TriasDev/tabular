@@ -117,6 +117,23 @@ public sealed class OdsHostileInputTests
         Assert.Equal([["b"]], ReadAll(direct));
     }
 
+    [Fact]
+    public void ATableBetweenASheetsRowsEndsNeitherTheSheetNorAddsItsRows()
+    {
+        // A table standing between the rows rather than inside a cell: the row reader never sees it,
+        // so the sheet itself must count it — its end is not the sheet's end, its rows not the sheet's.
+        string inner = $"""<table:table table:name="Inner">{Row(Text("inner 1"))}<table:table table:name="Deeper">{Row(Text("deeper"))}</table:table>{Row(Text("inner 2"))}</table:table>""";
+        string body = $"""<table:table table:name="A">{Row(Text("a1"))}{inner}{Row(Text("a2"))}</table:table>"""
+            + $"""<table:table table:name="B">{Row(Text("b"))}</table:table>""";
+
+        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(Content(body)));
+
+        Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
+        Assert.Equal([["a1"], ["a2"]], ReadAll(cursor));
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal([["b"]], ReadAll(cursor));
+    }
+
     [Theory]
     [InlineData("<?><table:table table:name=\"Hidden\"><table:table-row><table:table-cell office:value-type=\"string\"><text:p>h</text:p></table:table-cell></table:table-row></table:table>")]
     [InlineData("<table:table\ftable:name=\"Hidden\"><table:table-row><table:table-cell office:value-type=\"string\"><text:p>h</text:p></table:table-cell></table:table-row></table:table>")]

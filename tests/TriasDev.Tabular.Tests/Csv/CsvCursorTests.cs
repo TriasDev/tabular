@@ -60,6 +60,21 @@ public sealed class CsvCursorTests
     }
 
     [Fact]
+    public void ConsistencyOutranksHowOftenAndWhereADelimiterOccurs()
+    {
+        // The comma is on every line too, and more often than the semicolon on the first — only that
+        // it divides the lines unequally (2, 2, 1) tells it from the real delimiter. The case above is
+        // decided earlier, by the semicolon standing on more lines.
+        byte[] content = Utf8NoBom.GetBytes("Kunde, Name, Ort;Betrag\n1,00;1.234,56\n2,00;3\n");
+
+        List<string?[]> rows = ReadAll(content);
+
+        Assert.Equal(new string?[] { "Kunde, Name, Ort", "Betrag" }, rows[0]);
+        Assert.Equal(new string?[] { "1,00", "1.234,56" }, rows[1]);
+        Assert.Equal(new string?[] { "2,00", "3" }, rows[2]);
+    }
+
+    [Fact]
     public void ReadsUtf8WithoutAByteOrderMark()
     {
         List<string?[]> rows = ReadAll(Utf8NoBom.GetBytes("Name\nMüller\n"));

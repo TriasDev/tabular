@@ -71,6 +71,105 @@ public sealed class ColumnBatchTests
         Assert.Equal(rows, batched);
     }
 
+    private static readonly DateTime Moment = new(2026, 10, 5, 13, 45, 30, DateTimeKind.Unspecified);
+
+    private static readonly DateOnly Day = new(2026, 10, 5);
+
+    /// <summary>One column for every type a batch takes, within what every format holds exactly: a value in the first row, and in the second another value or, for a nullable type, null.</summary>
+    private static ColumnBatch EveryType()
+    {
+        ColumnBatch batch = new();
+        batch.Reset(2);
+        batch.Add(new long[] { -9_007_199_254_740_991, 7 });
+        batch.Add(new long?[] { 9_007_199_254_740_991, null });
+        batch.Add(new int[] { int.MinValue, 8 });
+        batch.Add(new int?[] { int.MaxValue, null });
+        batch.Add(new short[] { short.MinValue, 9 });
+        batch.Add(new short?[] { short.MaxValue, null });
+        batch.Add(new double[] { 0.5, -2.25 });
+        batch.Add(new double?[] { 1.5, null });
+        batch.Add(new decimal[] { 1.25m, -3m });
+        batch.Add(new decimal?[] { 12345.6789m, null });
+        batch.Add(new bool[] { true, false });
+        batch.Add(new bool?[] { false, null });
+        batch.Add(new DateTime[] { Moment, Moment.AddDays(1) });
+        batch.Add(new DateTime?[] { Moment, null });
+        batch.Add(new DateOnly[] { Day, Day.AddDays(1) });
+        batch.Add(new DateOnly?[] { Day, null });
+        batch.Add(new string?[] { "text", null });
+        return batch;
+    }
+
+    private static void EveryTypeRowByRow(TabularWriter writer)
+    {
+        writer.BeginRow();
+        writer.Write(-9_007_199_254_740_991L);
+        writer.Write(9_007_199_254_740_991L);
+        writer.Write((long)int.MinValue);
+        writer.Write((long)int.MaxValue);
+        writer.Write((long)short.MinValue);
+        writer.Write((long)short.MaxValue);
+        writer.Write(0.5);
+        writer.Write(1.5);
+        writer.Write(1.25m);
+        writer.Write(12345.6789m);
+        writer.Write(true);
+        writer.Write(false);
+        writer.Write(Moment);
+        writer.Write(Moment);
+        writer.Write(Day);
+        writer.Write(Day);
+        writer.Write("text");
+        writer.EndRow();
+
+        writer.BeginRow();
+        writer.Write(7L);
+        writer.WriteEmpty();
+        writer.Write(8L);
+        writer.WriteEmpty();
+        writer.Write(9L);
+        writer.WriteEmpty();
+        writer.Write(-2.25);
+        writer.WriteEmpty();
+        writer.Write(-3m);
+        writer.WriteEmpty();
+        writer.Write(false);
+        writer.WriteEmpty();
+        writer.Write(Moment.AddDays(1));
+        writer.WriteEmpty();
+        writer.Write(Day.AddDays(1));
+        writer.WriteEmpty();
+        writer.WriteEmpty();
+        writer.EndRow();
+    }
+
+    /// <summary>
+    /// Every supported type, its nullable form and its null go through the batch's typed dispatch
+    /// exactly as the writer's own calls would write them — a slip in one branch is a wrong number or
+    /// a zero where an empty cell belongs, never a compile error.
+    /// </summary>
+    [Theory]
+    [InlineData(TabularFormat.Csv)]
+    [InlineData(TabularFormat.Xlsx)]
+    [InlineData(TabularFormat.Ods)]
+    [InlineData(TabularFormat.Zip)]
+    public async Task EveryTypeAndItsNullWriteAsTheWritersOwnCalls(TabularFormat format)
+    {
+        WriteColumn[] columns = [.. Enumerable.Range(0, 17).Select(i => new WriteColumn($"c{i}"))];
+
+        byte[] batched = await SheetLayoutTests.Write(format, writer => { writer.BeginSheet("data", columns); writer.WriteBatch(EveryType()); });
+        byte[] rows = await SheetLayoutTests.Write(format, writer => { writer.BeginSheet("data", columns); EveryTypeRowByRow(writer); });
+
+        Assert.Equal(rows, batched);
+
+        List<RawCell[]> read = SheetLayoutTests.Rows(batched);
+        Assert.Equal(3, read.Count);
+        Assert.Equal(int.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture), read[1][3].AsText());
+        Assert.Equal(RawCellKind.Empty, read[2][3].Kind);
+        Assert.Equal(RawCellKind.Empty, read[2][9].Kind);
+        Assert.Equal(RawCellKind.Empty, read[2][11].Kind);
+    }
+
     [Fact]
     public async Task StylesComeFromAConstantAVectorOrARule()
     {

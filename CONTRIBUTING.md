@@ -129,7 +129,7 @@ failure names its seed, which `TABULAR_FUZZ_SEED` replays alone, and `TABULAR_FU
 folder to keep that case's file in. A found failure becomes a named test beside the code it fixes.
 
 Writing is tested by round trip: `tests/TriasDev.Tabular.Tests/Writing` writes each value type and
-format and reads it back through the library's own import, fuzzes the csv writer, and checks that
+format and reads it back through the library's own import, fuzzes the csv, xlsx and ods writers, and checks that
 LibreOffice opens what is written and shows the values (`Fixtures/LibreOffice.cs`, `soffice --headless`;
 the tests skip where LibreOffice is not installed, unless `TABULAR_REQUIRE_SOFFICE` is set to `1`, as CI's
 Linux job sets it).
