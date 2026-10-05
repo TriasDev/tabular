@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.6.0](https://github.com/TriasDev/tabular/compare/v0.5.0...v0.6.0) (2026-10-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* the concrete cursors (CsvCursor, XlsxCursor, OdsCursor, ArchiveCursor, GzipCursor) and CsvDialectDetector are internal, so TabularFile.Open is the only way to a cursor; every public type is in the TriasDev.Tabular namespace, the format options included; CsvCursorOptions.Dialect is replaced by the Delimiter, Encoding and Quote hints and CsvDialect is output-only; the writer reports its limits as TabularWriteException (write.too-many-rows, write.too-many-merges, write.too-many-styles) instead of TabularLimitException; row numbers are int on both sides (TabularExport returns ValueTask<int>, AnalysisProgress.RowsRead is int); HorizontalAlignment is CellHorizontalAlignment, TabularWriter.Style is RegisterStyle, CellStyle.Number and Date are NumberFormat and DateFormat; NumberFormat.Parse and DateFormat.Parse throw FormatException; typed import fields come only from their factories; CursorDiagnostics has no public constructor.
+
+### Features
+
+* count a column's rows that fall in a set of values ([5b773ae](https://github.com/TriasDev/tabular/commit/5b773ae7b1d0d4ab8bb48992186c6c446d768744))
+* declare field groups as alternatives in priority order ([d819eff](https://github.com/TriasDev/tabular/commit/d819eff3885a2ca2762a50a21681e7f558f0d993))
+* hand a mapper the group that locates its row ([5b6ba1d](https://github.com/TriasDev/tabular/commit/5b6ba1db2afbabba9b845086f98ab31ecc3fbcd9))
+* judge field alternatives per row during extraction ([8adec9f](https://github.com/TriasDev/tabular/commit/8adec9f1c806ff757ed7eacec9f5e37cc26ba655))
+* precheck what a mapping decides about field alternatives ([a27d6c6](https://github.com/TriasDev/tabular/commit/a27d6c6d159eaf37300a4e78534aca28f36d5f34))
+* read gzip-compressed files as the file inside them ([#80](https://github.com/TriasDev/tabular/issues/80)) ([78e1223](https://github.com/TriasDev/tabular/commit/78e12232f899fe402c00c5e8db72a029fbfeb77a))
+* read tar and tar.gz archives as one workbook ([#82](https://github.com/TriasDev/tabular/issues/82)) ([faf0be7](https://github.com/TriasDev/tabular/commit/faf0be791bb5a8ea58e4b12358c3c603b7814866))
+* report how each set of alternatives covers the rows ([d691f7c](https://github.com/TriasDev/tabular/commit/d691f7c07f36fe4945263ed649b1f95f4f16a057))
+* review a whole file through a mapping before importing it ([ac2758c](https://github.com/TriasDev/tabular/commit/ac2758caff0532dab820be1310c6ea061e061696))
+* **write:** cell styles for xlsx and ods ([#90](https://github.com/TriasDev/tabular/issues/90)) ([45dbca8](https://github.com/TriasDev/tabular/commit/45dbca8a38bfae9999ddba52ee87808e55ec40cf))
+* **write:** ColumnBatch — rows given by column, typed, with a style per column ([#93](https://github.com/TriasDev/tabular/issues/93)) ([13f2807](https://github.com/TriasDev/tabular/commit/13f28070b0824b320b8031b850602ec9b117272d))
+* **write:** sheet layout — header style, frozen panes, auto-filter, merged cells ([#91](https://github.com/TriasDev/tabular/issues/91)) ([c158848](https://github.com/TriasDev/tabular/commit/c158848f15a9f28709de36ba2fcc8db0e6f4010a))
+* **write:** TabularExport&lt;T&gt; — an export declared once with typed columns ([#84](https://github.com/TriasDev/tabular/issues/84)) ([78f2379](https://github.com/TriasDev/tabular/commit/78f2379a62ffb8922380a5878fd32ad3dd4ba069))
+* **write:** TabularFormat.Zip — a zip of csv sheets ([#94](https://github.com/TriasDev/tabular/issues/94)) ([1e8e23c](https://github.com/TriasDev/tabular/commit/1e8e23c735b6d8cf7148e490c3e47f2d7bfcb96f))
+* **write:** write csv through TabularWriter, round-tripping through the import ([#77](https://github.com/TriasDev/tabular/issues/77)) ([5de3450](https://github.com/TriasDev/tabular/commit/5de345065b61d2bd098e6757dbd2e063a15bbb79))
+* **write:** write OpenDocument spreadsheets through TabularWriter ([#83](https://github.com/TriasDev/tabular/issues/83)) ([8567fa1](https://github.com/TriasDev/tabular/commit/8567fa1aef5f049fecfc4fd3057cf18419fa6267))
+* **write:** write xlsx through TabularWriter, with our own streaming zip writer ([#81](https://github.com/TriasDev/tabular/issues/81)) ([6451e59](https://github.com/TriasDev/tabular/commit/6451e59f37c720c92438385e6a03d3a38d8ece62))
+
+
+### Bug Fixes
+
+* an invalid value locates nothing, an unneeded one costs nothing, and the precheck does not block AllOrNothing for rows that import ([547cc20](https://github.com/TriasDev/tabular/commit/547cc20e1d73671b78c4ae47564b40c67b7aa332))
+* **archive:** refuse a tar metadata entry that claims more than it can hold, instead of letting TarReader's InvalidOperationException escape ([#99](https://github.com/TriasDev/tabular/issues/99)) ([7363a42](https://github.com/TriasDev/tabular/commit/7363a4224959645a3cc31c34f788010acbc3c75f)), closes [#92](https://github.com/TriasDev/tabular/issues/92)
+* **csv:** find the delimiter when the dialect probe ends inside a multi-line quoted field ([#101](https://github.com/TriasDev/tabular/issues/101)) ([916adf8](https://github.com/TriasDev/tabular/commit/916adf86832a5a230d9cb3fb543eaac99ae3f823))
+* the deferred archive and OpenDocument findings ([#102](https://github.com/TriasDev/tabular/issues/102)) ([d88ea71](https://github.com/TriasDev/tabular/commit/d88ea710a7957b3bb57ec85101c7f683f85f67b6))
+* **write:** keep a failed write's exception on close; sheet options for a declared export ([#98](https://github.com/TriasDev/tabular/issues/98)) ([0fea097](https://github.com/TriasDev/tabular/commit/0fea097b901177dab86c2bc5b0a2e85d0409c91d))
+
+
+### Code Refactoring
+
+* the public API's last breaking window before 0.6.0 ([#108](https://github.com/TriasDev/tabular/issues/108)) ([8d6825a](https://github.com/TriasDev/tabular/commit/8d6825a70f86d8c04f5c97bab1216aea9b04b27c))
+
 ## [0.5.0](https://github.com/TriasDev/tabular/compare/v0.4.0...v0.5.0) (2026-09-29)
 
 
