@@ -185,6 +185,13 @@ Read back through this library, xlsx and ods follow the same rules and add no ex
 - LibreOffice shows dates before 1582-10-15 in the Julian calendar: 0001-01-01 written appears as 0001-01-03, 1500-03-01 as 1500-02-20. The stored value is unchanged and reads back exactly through this library.
 - LibreOffice (and Excel) keep 15 significant digits when they re-save a number: a 16-digit integer such as 9007199254740992 comes back as 9007199254740990 after opening and saving the file there. Write identifiers longer than 15 digits as text.
 
+A workbook column is never narrower than its header, but the header is measured without the font at hand, so the
+estimate errs wide: by a character or two for ASCII headers, and by more for other scripts — a lowercase letter
+outside ASCII counts as wide as an "m", anything else as a whole em (a CJK ideograph fits about right; Cyrillic
+and accented headers get visibly more room than they need). Declare a width to get a closer fit; a declared width
+is only ever raised, never lowered. The data is not measured: a value wider than its header and its declared width
+still shows cut off (or as `#####` for a number or date) until the column is widened.
+
 Reading ods back with this library, an all-empty row is passed over rather than handed out, so the import does not count it as skipped; the rows after it keep their numbers.
 
 TabularExport picks a column type by overload resolution, and some lambdas do not resolve: a char property becomes an integer column (its code point); ulong, `p => default` and a lambda returning null are ambiguous; an int or long with a DecimalImportField is ambiguous between decimal and double; TimeSpan, DateTimeOffset, Guid and enums have no overload and fail with a misleading "cannot convert to string" (CS0029). Convert explicitly (`.ToString()`, `.UtcDateTime`, …); write enums and identifiers as text.

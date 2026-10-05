@@ -52,8 +52,12 @@ thread-safe: keep it in a static field and use it for any number of writes at on
 
 A column is a header and a lambda; the lambda's type picks the column's type (text, integer, decimal,
 number, date, date-time, boolean — nullable forms write an empty cell for `null`). `width` is in
-characters. `style` is a rule: it receives the cell's value and returns the style to use, or `null`
-for none. Return styles declared once, as above: the same instance costs a reference compare per cell,
+characters, and a workbook column is never narrower than its header: the header's width, measured
+generously, is the floor (by its longest word when the header style wraps, with room for the filter
+button when the sheet has one), so a column without a `width` still shows its header in full. Only
+the data is left to you — a date-time column defaults to 19 characters, a date to 10. `style` is a
+rule: it receives the cell's value and returns the style to use, or `null` for none. Return styles
+declared once, as above: the same instance costs a reference compare per cell,
 and a rule that builds a style per cell still writes a correct file, more slowly. A column named by
 an import field (`Column(field, o => …)`) takes the field's name as its header, so the file maps back
 onto the import's schema by header.
