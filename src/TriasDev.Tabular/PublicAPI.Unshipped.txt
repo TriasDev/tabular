@@ -1,4 +1,5 @@
 #nullable enable
+*REMOVED*TriasDev.Tabular.CursorDiagnostics.CursorDiagnostics() -> void
 *REMOVED*TriasDev.Tabular.AnalysisProgress.RowsRead.get -> long
 TriasDev.Tabular.AnalysisProgress.RowsRead.get -> int
 const TriasDev.Tabular.ErrorCodes.Write.TooManyMerges = "write.too-many-merges" -> string!

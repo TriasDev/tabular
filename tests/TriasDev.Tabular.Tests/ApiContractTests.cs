@@ -59,6 +59,11 @@ public sealed class ApiContractTests
     }
 
     [Fact]
+    public void OnlyACursorCreatesItsDiagnostics() =>
+        // The counts are live on the cursor that repairs the file; a caller has nothing to count.
+        Assert.Empty(typeof(CursorDiagnostics).GetConstructors());
+
+    [Fact]
     public void ACursorCanBeDisposedTwice()
     {
         foreach (ITabularCursor cursor in Cursors())
