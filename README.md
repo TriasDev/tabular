@@ -190,13 +190,12 @@ over every row, with memory that stays flat:
 | 3M-row csv (364 MB) | 3,000,000 | 9.6 s | 313,000 | 122 MB |
 | 5M-row csv (572 MB) | 5,127,968 | 14.0 s | 366,000 | 122 MB |
 
-**Writing, in flat memory too** — provisional figures from a single pass on a loaded machine, to be
-re-measured ([#96](https://github.com/TriasDev/tabular/issues/96)): 5M rows × 30 columns of csv in
-9.9 s at a 57 MB peak, and a million-row xlsx in 4.8 s at 55 MB, the least memory of the xlsx writers
-measured. SpreadCheetah is faster on xlsx; Sylvan.Data.Csv and Sep are faster on csv (Sep and
-TriasDev.Tabular are level on the narrow file). CsvHelper and MiniExcel are slower, LargeXlsx (at its
-default) in two of the three xlsx scenarios. No other library measured
-writes ods or a zip of csv sheets.
+**Writing, in flat memory too:** 5M rows × 30 columns of csv in 9.4 s at a 57 MB peak, and a
+million-row xlsx in 4.8 s at 55 MB, styled or not — the least memory of the xlsx writers measured.
+Sylvan.Data.Csv is faster on csv, and Sep on the wide file (level on the narrow one). On the narrow
+xlsx files SpreadCheetah and LargeXlsx with cell references off are level with it or up to 6% faster,
+and on the wide one up to 27% faster. CsvHelper, MiniExcel and LargeXlsx at its default are slower.
+No other library measured writes ods or a zip of csv sheets.
 
 Method, every library and every number: [docs/benchmarks.md](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md).
 
@@ -383,7 +382,7 @@ changelog. Error codes are the exception: once published, a code keeps its meani
 | [Documentation](https://triasdev.github.io/tabular/) | Everything the library does and promises: getting started, profiling, import, export, formats, error codes, bounds, cancellation |
 | [Exporting](https://triasdev.github.io/tabular/exporting/) | Writing csv, xlsx, ods and zip files: the writer, declared exports, data by column, styles, layout, ASP.NET Core responses, failures |
 | [For AI agents](https://triasdev.github.io/tabular/llms.txt) | The same documentation for language models: [`llms.txt`](https://triasdev.github.io/tabular/llms.txt) and [`llms-full.txt`](https://triasdev.github.io/tabular/llms-full.txt) |
-| [Benchmarks](https://triasdev.github.io/tabular/benchmarks/) | Reading: speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus. Writing (provisional): against CsvHelper, Sep, Sylvan, LargeXlsx, SpreadCheetah and MiniExcel |
+| [Benchmarks](https://triasdev.github.io/tabular/benchmarks/) | Reading: speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus. Writing: against CsvHelper, Sep, Sylvan, LargeXlsx, SpreadCheetah and MiniExcel |
 | [ADR-0001](https://github.com/TriasDev/tabular/blob/main/docs/adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is our own |
 | [ADR-0002](https://github.com/TriasDev/tabular/blob/main/docs/adr/0002-writing-is-our-own.md) | Why the writing is our own |
 | [Known limitations](https://github.com/TriasDev/tabular/blob/main/docs/KNOWN-ISSUES.md) | Behaviour at the edges not changed yet, and what would make each one matter |

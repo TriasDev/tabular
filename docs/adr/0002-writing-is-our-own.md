@@ -44,7 +44,7 @@ buffer and a zip writer of ours. The library takes no third-party writing depend
 bytes; only `FlushAsync` and `CompleteAsync` touch the target, and they do it asynchronously. The
 caller flushes when the writer recommends it, so memory stays flat: about 57 MB peak for five
 million csv rows, and about 92 MB (csv) to 94 MB (xlsx) for ten thousand rows of 5,003 columns, in the
-provisional benchmarks.
+benchmarks.
 
 **The zip writer is ours.** Small parts — the ods `mimetype`, the manifests, the styles — are stored
 with their sizes up front. Large entries are deflated and streamed with data descriptors. Past 4 GB
@@ -71,11 +71,11 @@ delicate of them, and the large-entry and zip64 cases are tested against `unzip`
 reader because a small file never reaches them. The fixtures, and LibreOffice opening what we write,
 are what say whether the files are right; that is paid in tests rather than in dependencies.
 
-**The measured results are provisional**, from a single pass on a machine other work was using; see
-[benchmarks](../benchmarks.md#writing), which is kept current and not this page. On csv we are faster
-than CsvHelper and slower than Sylvan.Data.Csv. On xlsx we are faster than LargeXlsx (at its default, which writes every cell reference; a run with references off is pending, [#96](https://github.com/TriasDev/tabular/issues/96)) in most
-scenarios; one scenario, the styled narrow xlsx, was slower than LargeXlsx in this pass and its sign
-is unsettled. SpreadCheetah is faster than we are. MiniExcel is the slowest and allocates the most.
+**The measured results** are in [benchmarks](../benchmarks.md#writing), which is kept current and
+not this page. On csv we are faster than CsvHelper and slower than Sylvan.Data.Csv. On xlsx we are
+faster than LargeXlsx at its default, which writes every cell reference; with its references off,
+LargeXlsx is level with us on the narrow files and faster on the wide one. SpreadCheetah is level with
+us on the styled narrow file and faster elsewhere. MiniExcel is the slowest and allocates the most.
 No other library measured writes ods or a zip of csv sheets. On the narrow files we hold the least
 memory of the xlsx writers; on the wide ones we hold more, because 500 rows are batched by column.
 
