@@ -1,4 +1,9 @@
 #nullable enable
+*REMOVED*TriasDev.Tabular.AnalysisProgress.RowsRead.get -> long
+TriasDev.Tabular.AnalysisProgress.RowsRead.get -> int
+const TriasDev.Tabular.ErrorCodes.Write.TooManyMerges = "write.too-many-merges" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TooManyRows = "write.too-many-rows" -> string!
+const TriasDev.Tabular.ErrorCodes.Write.TooManyStyles = "write.too-many-styles" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.AmbiguousLineBreaks = "write.ambiguous-line-breaks" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.DateOutOfRange = "write.date-out-of-range" -> string!
 const TriasDev.Tabular.ErrorCodes.Write.InvalidCharacter = "write.invalid-character" -> string!
@@ -10,9 +15,9 @@ TriasDev.Tabular.ErrorCodes.Write
 TriasDev.Tabular.TabularWriteException
 TriasDev.Tabular.TabularWriteException.ColumnIndex.get -> int
 TriasDev.Tabular.TabularWriteException.Header.get -> string!
-TriasDev.Tabular.TabularWriteException.RowNumber.get -> long
+TriasDev.Tabular.TabularWriteException.RowNumber.get -> int
 TriasDev.Tabular.TabularWriteException.SheetName.get -> string!
-TriasDev.Tabular.TabularWriteException.TabularWriteException(string! code, string! sheetName, long rowNumber, int columnIndex, string! header, string! message) -> void
+TriasDev.Tabular.TabularWriteException.TabularWriteException(string! code, string! sheetName, int rowNumber, int columnIndex, string! header, string! message) -> void
 TriasDev.Tabular.WriteColumn
 TriasDev.Tabular.WriteColumn.Deconstruct(out string! Header, out double? Width) -> void
 TriasDev.Tabular.WriteColumn.Equals(TriasDev.Tabular.WriteColumn other) -> bool
@@ -217,14 +222,14 @@ TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.DecimalImportFi
 TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.IntegerImportField! field, System.Func<T, long?>! value, double? width = null, System.Func<long?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
 TriasDev.Tabular.TabularExportBuilder<T>.Column(TriasDev.Tabular.TextImportField! field, System.Func<T, string?>! value, double? width = null, System.Func<string?, TriasDev.Tabular.CellStyle?>? style = null) -> TriasDev.Tabular.TabularExportBuilder<T>!
 TriasDev.Tabular.TabularExportBuilder<T>.Sheet(TriasDev.Tabular.SheetOptions! options) -> TriasDev.Tabular.TabularExportBuilder<T>!
-TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.IReadOnlyList<T>!>! chunks, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
-TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
-TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
-TriasDev.Tabular.TabularExport<T>.WriteAsync<TChunk>(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<TChunk>! chunks, System.Func<TChunk, System.Collections.Generic.IReadOnlyList<T>!>! itemsOf, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
-TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.IReadOnlyList<T>!>! chunks, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
-TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
-TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
-TriasDev.Tabular.TabularExport<T>.WriteSheetAsync<TChunk>(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<TChunk>! chunks, System.Func<TChunk, System.Collections.Generic.IReadOnlyList<T>!>! itemsOf, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
+TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.IReadOnlyList<T>!>! chunks, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteAsync(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteAsync<TChunk>(System.IO.Stream! stream, TriasDev.Tabular.TabularFormat format, string! sheetName, System.Collections.Generic.IAsyncEnumerable<TChunk>! chunks, System.Func<TChunk, System.Collections.Generic.IReadOnlyList<T>!>! itemsOf, TriasDev.Tabular.TabularWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.IReadOnlyList<T>!>! chunks, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IEnumerable<T>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+TriasDev.Tabular.TabularExport<T>.WriteSheetAsync<TChunk>(TriasDev.Tabular.TabularWriter! writer, string! sheetName, System.Collections.Generic.IAsyncEnumerable<TChunk>! chunks, System.Func<TChunk, System.Collections.Generic.IReadOnlyList<T>!>! itemsOf, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 override TriasDev.Tabular.DateFormat.Equals(object? obj) -> bool
 override TriasDev.Tabular.DateFormat.GetHashCode() -> int
 override TriasDev.Tabular.DateFormat.ToString() -> string!

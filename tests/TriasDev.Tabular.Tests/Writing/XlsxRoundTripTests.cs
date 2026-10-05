@@ -181,7 +181,9 @@ public sealed class XlsxRoundTripTests
                 }
             }
 
-            Assert.Throws<TabularLimitException>(() => writer.BeginRow());
+            TabularWriteException refused = Assert.Throws<TabularWriteException>(() => writer.BeginRow());
+            Assert.Equal(ErrorCodes.Write.TooManyRows, refused.Code);
+            Assert.Equal(1_048_576, refused.RowNumber);     // the last row the sheet holds; the refused one is after it
         }
 
         // The writer is faulted by the refusal, so the file is incomplete by design; write it again,

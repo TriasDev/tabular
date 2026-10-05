@@ -389,7 +389,8 @@ internal sealed class AnalysisRun
             SheetIndex = _sheet?.Index ?? 0,
             SheetName = _sheet?.Name ?? string.Empty,
             SheetCount = cursor.Sheets.Count,
-            RowsRead = _rows,
+            // Counted as a long across the sheets of an archive, reported as the int every other row count is.
+            RowsRead = (int)Math.Min(_rows, int.MaxValue),
             Fraction = fraction,
             IsComplete = isComplete,
         };

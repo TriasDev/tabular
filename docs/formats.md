@@ -117,7 +117,7 @@ they can be, so the same data fails the same way whichever format is chosen. See
 | | csv | zip of csv | xlsx | ods |
 |---|---|---|---|---|
 | Sheets | one, its name not written | any number, each `<name>.csv` | any number | any number |
-| Rows per sheet, header included | no limit | no limit | 1,048,576 | 1,048,576 |
+| Rows per sheet, header included | 2,147,483,647 (the largest row number the reader gives) | the same | 1,048,576 | 1,048,576 |
 | Columns per sheet | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 |
 | Styles, layout, widths | ignored | ignored | yes | yes |
 | Distinct styles per file | | | 4,096 | 4,096 |

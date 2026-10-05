@@ -8,7 +8,8 @@ fixes, the nearest one (the reader's fixed tag and buffer ceilings report `MaxVa
 cell past the format's 16,384 columns is a damaged file, `TabularFormatException`; past the
 quoted-field bound a csv quote is repaired and counted instead; past an analysis budget the profile
 reports a lower bound or keeps fewer values rather than failing; and past the error-row ceiling a run stops. **Writing** is
-held to the formats' own limits and to what the reader reads back; those are fixed, not options.
+held to the formats' own limits and to what the reader reads back; those are fixed, not options, and reaching one is the
+data's doing, so it is a located `TabularWriteException` — `TabularLimitException` is thrown only while reading.
 
 ## Reading
 
@@ -35,7 +36,7 @@ held to the formats' own limits and to what the reader reads back; those are fix
 | Distinct tracking | 2,000,000 values | `AnalysisOptions.DistinctTrackingBudget` | Exact counting costs memory in proportion; the budget is per file, not per column |
 | Retained distinct values | 1,000 per column | `AnalysisOptions.RetainedDistinctValues` | Enough to judge a column of codes against a reference set; a column with more is not one |
 | Error rows | 1,000 | `ExtractionOptions.MaxErrorRows` | A wrong mapping fails every row, and the thousand-and-first error says nothing the first did not |
-| Rows per sheet | 2,147,483,647 (csv), 1,048,576 (xlsx) | — | Row numbers and counts are `int`: the workbook format stops at a million rows, and a csv that long is some 100 GB |
+| Rows per sheet | 2,147,483,647 (csv), 1,048,576 (xlsx) | — | Row numbers and counts are `int`: the workbook format stops at a million rows, and a csv that long is some 100 GB. A cursor that counts its rows (csv; xlsx rows without a number of their own) refuses the row past `int.MaxValue` with `TabularLimitException` (`MaxRows`) rather than wrapping to a negative number |
 
 Getting these right took three attempts, and the pattern of the mistakes is worth more than the
 numbers. The package budget counts bytes a part expands to, which is not what those bytes become in
@@ -55,10 +56,10 @@ call the count exact; not zero, and a collision undercounts.
 
 | | Limit | Why |
 |---|---|---|
-| Rows written per sheet (xlsx, ods) | 1,048,576, the header included | The formats' own limit; the row past it throws `TabularLimitException` after the rows before it were written. Csv and a zip of csv sheets have none |
+| Rows written per sheet | 1,048,576 (xlsx, ods), 2,147,483,647 (csv, zip of csv), the header included | The workbook formats' own limit; csv has none of its own, but the reader numbers rows as an `int`, so a row past `int.MaxValue` would not read back. The row past the limit throws `TabularWriteException` (`write.too-many-rows`, located at the last row the sheet holds) after the rows before it were written |
 | Columns written per sheet | 16,384 | The workbook formats' own width, and what the csv reader reads |
-| Distinct styles written | 4,096 | The most a file's style table holds; the 4,097th throws `TabularLimitException` (`MaxStyles`) |
-| Merged ranges written (xlsx) | 65,536 per sheet | The format's own limit; `TabularLimitException` (`MaxMerges`). Ods has none |
+| Distinct styles written | 4,096 | The most a file's style table holds. The 4,097th returned by a style rule throws `TabularWriteException` (`write.too-many-styles`, located at its cell); the 4,097th registered by hand (`RegisterStyle`, a `HeaderStyle`) is a defect in the calling code, `InvalidOperationException` |
+| Merged ranges written (xlsx) | 65,536 per sheet | The format's own limit; `TabularWriteException` (`write.too-many-merges`, located where the range would begin). Ods has none |
 | Text written | 32,767 chars (xlsx), 16 M chars (csv, ods) | xlsx's cell limit; csv and ods are held to the reader's own limits, so what is written reads back. Past it: `write.text-too-long` |
 | Line breaks in one csv text | 100 | The reader's quoted-field limit (`CsvCursorOptions.MaxQuotedFieldLines`): `write.too-many-lines` |
 | Date written (xlsx) | from 1900-01-01 | A workbook serial has no earlier day: `write.date-out-of-range` |

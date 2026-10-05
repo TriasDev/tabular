@@ -37,8 +37,66 @@ public sealed class StyledWriterTests
         }
 
         writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0) });       // already registered: no new style
-        TabularLimitException refused = Assert.Throws<TabularLimitException>(() => writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(4096) }));
+
+        // 4,097 styles registered by hand is a defect in the calling code, not a file too large:
+        // an InvalidOperationException, not the reader's TabularLimitException (a 413 to a host).
+        InvalidOperationException refused = Assert.Throws<InvalidOperationException>(() => writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(4096) }));
         Assert.Contains("4096", refused.Message, StringComparison.Ordinal);
+        Assert.Throws<InvalidOperationException>(() => writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0) }));   // faulted, as for any refused style
+    }
+
+    [Fact]
+    public async Task AHeaderStyleAfterTheLimitIsRefusedAsRegisterStyleRefusesIt()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+
+        for (int i = 0; i < 4096; i++)
+        {
+            writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(i) });
+        }
+
+        Assert.Throws<InvalidOperationException>(() => writer.BeginSheet("data", [new("a")], new SheetOptions { HeaderStyle = new CellStyle { Wrap = true } }));
+    }
+
+    [Theory]
+    [InlineData(TabularFormat.Xlsx)]
+    [InlineData(TabularFormat.Ods)]
+    public async Task AStyleRuleThatOutgrowsTheLimitIsAWriteErrorAtItsCell(TabularFormat format)
+    {
+        // A rule turns data into styles, so the 4,097th distinct one is the data's doing: a located
+        // TabularWriteException, like any value the format cannot hold.
+        TabularExport<int> export = TabularExport.For<int>()
+            .Column("n", i => (long)i)
+            .Column("shade", i => (long)i, style: v => new CellStyle { Fill = CellColor.FromRgb((int)v) })
+            .Build();
+
+        TabularWriteException refused = await Assert.ThrowsAsync<TabularWriteException>(
+            async () => await export.WriteAsync(new WriteTarget(), format, "data", Enumerable.Range(0, 5000), cancellationToken: Token));
+
+        Assert.Equal(ErrorCodes.Write.TooManyStyles, refused.Code);
+        Assert.Equal("data", refused.SheetName);
+        Assert.Equal(4098, refused.RowNumber);       // item 4096 (the 4,097th style) is row 4098 under the header
+        Assert.Equal(1, refused.ColumnIndex);
+        Assert.Equal("shade", refused.Header);
+    }
+
+    [Fact]
+    public async Task ABatchStyleRuleThatOutgrowsTheLimitIsAWriteErrorAtItsCell()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("n"), new("shade")]);
+        long[] values = [.. Enumerable.Range(0, 5000).Select(i => (long)i)];
+        ColumnBatch batch = new();
+        batch.Reset(values.Length);
+        batch.Add(values);
+        batch.Add(values, v => new CellStyle { Fill = CellColor.FromRgb((int)v) });
+
+        TabularWriteException refused = Assert.Throws<TabularWriteException>(() => writer.WriteBatch(batch));
+
+        Assert.Equal(ErrorCodes.Write.TooManyStyles, refused.Code);
+        Assert.Equal(4098, refused.RowNumber);
+        Assert.Equal(1, refused.ColumnIndex);
+        Assert.Equal("shade", refused.Header);
     }
 
     [Fact]

@@ -332,7 +332,14 @@ public sealed class MergeTests
         }
 
         writer.BeginRow();
-        Assert.Throws<TabularLimitException>(() => writer.Merge(1, 2));
+        TabularWriteException refused = Assert.Throws<TabularWriteException>(() => writer.Merge(1, 2));
+
+        // The data's doing, so a write error located where the merge would begin — not the reader's TabularLimitException.
+        Assert.Equal(ErrorCodes.Write.TooManyMerges, refused.Code);
+        Assert.Equal("data", refused.SheetName);
+        Assert.Equal(65_538, refused.RowNumber);
+        Assert.Equal(0, refused.ColumnIndex);
+        Assert.Equal("a", refused.Header);
     }
 
     [Fact]

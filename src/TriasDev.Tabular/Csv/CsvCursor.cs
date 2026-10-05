@@ -147,8 +147,29 @@ public sealed class CsvCursor : ITabularCursor
     /// <inheritdoc />
     public int CurrentRowNumber { get; private set; }
 
+    /// <summary>
+    /// The largest row number the cursor gives: <see cref="int.MaxValue"/>, the ceiling of every row
+    /// number in the library. Settable only so a test reaches it without reading 2^31 rows.
+    /// </summary>
+    internal int MaxRowNumber { get; init; } = int.MaxValue;
+
     /// <inheritdoc />
     public CursorDiagnostics Diagnostics { get; } = new();
+
+    /// <summary>
+    /// Numbers the record just read; the one past <see cref="MaxRowNumber"/> is refused, because an
+    /// int that went on counting would wrap to a negative row number and point errors at nothing.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CountRow()
+    {
+        if (CurrentRowNumber == MaxRowNumber)
+        {
+            throw RowNumbers.Exceeded(MaxRowNumber);
+        }
+
+        CurrentRowNumber++;
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -331,7 +352,7 @@ public sealed class CsvCursor : ITabularCursor
                 }
 
                 CompleteField(fieldWasQuoted);
-                CurrentRowNumber++;
+                CountRow();
                 return true;
             }
 
@@ -463,7 +484,7 @@ public sealed class CsvCursor : ITabularCursor
             if (c is '\r' or '\n')
             {
                 CompleteField(fieldWasQuoted);
-                CurrentRowNumber++;
+                CountRow();
                 return true;
             }
 

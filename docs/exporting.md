@@ -229,13 +229,17 @@ it to a temporary name and rename on success.
   `write.too-many-lines`, `write.ambiguous-line-breaks`, `write.invalid-character`
   ([error codes](error-codes.md)); `SheetName`, `RowNumber`, `ColumnIndex` (counted from zero) and `Header` say where. The
   file is incomplete.
-- `TabularLimitException` — a bound of the format: more rows than an xlsx or ods sheet holds
-  (1,048,576, the header included), more than 4,096 styles, more than 65,536 merges in an xlsx sheet.
-  The rows before it were written; choose csv or a zip when the count may exceed the row limit. See
-  [bounds](bounds.md).
+- The same exception for a limit of the format the data reached: `write.too-many-rows` — more rows
+  than the sheet holds (1,048,576 in xlsx and ods, 2,147,483,647 in csv, the header included; located
+  at the last row it holds), `write.too-many-merges` — more than 65,536 merges in an xlsx sheet, and
+  `write.too-many-styles` — a style rule's 4,097th distinct style in a file. The rows before it were
+  written; choose csv or a zip when the count may exceed the workbook row limit. See
+  [bounds](bounds.md). (`TabularLimitException`, which a host may answer with 413, is only ever a
+  reader's: an export is never mistaken for an upload that was too large.)
 - A bad argument — a header that is empty, padded or repeated ignoring case, a sheet name the format
   refuses, a column count outside 1 to 16,384 — throws `ArgumentException`, and a call out of order
-  (a row inside a row, `CompleteAsync` with a row open) throws `InvalidOperationException`. The same
+  (a row inside a row, `CompleteAsync` with a row open) or a 4,097th style registered by hand throws
+  `InvalidOperationException`. The same
   data fails the same way whichever format is chosen: the characters XML forbids are refused in csv
   too.
 - Cancelling a flush, or a stream that throws, faults the writer.
