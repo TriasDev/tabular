@@ -7,6 +7,14 @@ public sealed class ImportSchema
     public required IReadOnlyList<ImportField> Fields { get; init; }
 
     /// <summary>
+    /// Sets of field groups in priority order, judged per row.
+    /// </summary>
+    /// <remarks>
+    /// Empty by default, and then costs nothing: a run with no alternatives does not look for them.
+    /// </remarks>
+    public IReadOnlyList<FieldAlternatives> Alternatives { get; init; } = [];
+
+    /// <summary>
     /// What to do about a file that does not import cleanly.
     /// </summary>
     /// <remarks>

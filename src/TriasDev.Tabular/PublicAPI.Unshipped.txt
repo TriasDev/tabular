@@ -594,3 +594,20 @@ TriasDev.Tabular.OdsCursorOptions.OdsCursorOptions() -> void
 TriasDev.Tabular.TabularOpenOptions.Archive.get -> TriasDev.Tabular.ArchiveCursorOptions!
 *REMOVED*TriasDev.Tabular.TabularOpenOptions.Ods.get -> TriasDev.Tabular.Ods.OdsCursorOptions!
 TriasDev.Tabular.TabularOpenOptions.Ods.get -> TriasDev.Tabular.OdsCursorOptions!
+static TriasDev.Tabular.AlternativeGroup.AllOf(string! name, params TriasDev.Tabular.ImportField![]! fields) -> TriasDev.Tabular.AlternativeGroup!
+static TriasDev.Tabular.AlternativeGroup.Ladder(string! name, int requiredLevels, params TriasDev.Tabular.AlternativeLevel![]! levels) -> TriasDev.Tabular.AlternativeGroup!
+TriasDev.Tabular.AlternativeGroup
+TriasDev.Tabular.AlternativeGroup.Levels.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativeLevel!>!
+TriasDev.Tabular.AlternativeGroup.Name.get -> string!
+TriasDev.Tabular.AlternativeGroup.RequiredLevels.get -> int
+TriasDev.Tabular.AlternativeLevel
+TriasDev.Tabular.AlternativeLevel.AlternativeLevel(string! name, params TriasDev.Tabular.ImportField![]! anyOf) -> void
+TriasDev.Tabular.AlternativeLevel.AnyOf.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.ImportField!>!
+TriasDev.Tabular.AlternativeLevel.Name.get -> string!
+TriasDev.Tabular.FieldAlternatives
+TriasDev.Tabular.FieldAlternatives.FieldAlternatives(string! name, System.Collections.Generic.IEnumerable<TriasDev.Tabular.AlternativeGroup!>! groups, bool unresolvedRowFails = false) -> void
+TriasDev.Tabular.FieldAlternatives.Groups.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativeGroup!>!
+TriasDev.Tabular.FieldAlternatives.Name.get -> string!
+TriasDev.Tabular.FieldAlternatives.UnresolvedRowFails.get -> bool
+TriasDev.Tabular.ImportSchema.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.FieldAlternatives!>!
+TriasDev.Tabular.ImportSchema.Alternatives.init -> void
