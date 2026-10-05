@@ -70,7 +70,7 @@ styled, streamed into a response or a blob, in flat memory.
 
 - [Exporting](exporting.md) — the writer, declared exports, data by column, styles, sheet layout, where the file goes, failures
 - [Formats](formats.md#what-each-format-holds-when-written) — what each format holds when written
-- [Benchmarks](benchmarks.md#writing) — against CsvHelper, Sep, Sylvan, LargeXlsx, SpreadCheetah and MiniExcel (provisional figures)
+- [Benchmarks](benchmarks.md#writing) — against CsvHelper, Sep, Sylvan, LargeXlsx, SpreadCheetah and MiniExcel
 
 ### I need to know what it will refuse
 
