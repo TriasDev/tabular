@@ -77,6 +77,14 @@ plugins:
            `MappingPrecheck.Check(plan, schema, profile)`.
         3. `TabularImporter.Import(stream, name, plan, schema, row => new MyType(row[field], ...))`
            returns an `ImportRun<T>`: read it once: `ReadRows(ct)` for outcomes (a value or `RowError`s), `ReadChunks(size, ct)` or `ReadAll(limit, ct)`.
+        4. Fields that stand in for one another (coordinates, or an address where a row has none):
+           `ImportSchema.Alternatives = [new FieldAlternatives("location", [AlternativeGroup.AllOf("coordinates", lat, lon),
+           AlternativeGroup.Ladder("address", requiredLevels: 1, new AlternativeLevel("country", country), ...)])]`.
+           The first usable group wins a row; a later group's fields are validated only in rows that need it
+           (elsewhere kept as is). `row.Resolution(set)` says which group won; `ImportRun<T>.Alternatives` reports
+           coverage. `TabularExtractor.Review(cursor, plan, schema, options, progress, ct)` reads the whole file
+           without keeping values and returns an `ImportReview` (summary, first errors, alternatives report) —
+           exact numbers for a screen between mapping and import.
 
         Exporting writes into any writable stream (it need not seek; an ASP.NET Core response body works):
 
@@ -113,7 +121,7 @@ plugins:
           - getting-started.md: Install, read a file, profile, map, check and import; write a file
           - concepts.md: The two reads, what a profile measures, facts against suggestions; how writing works
         Using it:
-          - importing.md: Import runs, batches, rules, translated fields, the precheck
+          - importing.md: Import runs, batches, rules, translated fields, field alternatives, the precheck, the review before import
           - exporting.md: Writing csv, xlsx, ods and zip files; styles, layout, streams, failures
           - formats.md: What csv, xlsx, ods, zip, tar and gzip files read as; csv repair; what each format holds when written
           - operations.md: Stream ownership, cancellation, progress, cultures

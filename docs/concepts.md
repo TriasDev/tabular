@@ -17,6 +17,8 @@ Analyze   file ─────────────────────�
 
           a person maps columns to fields, in a UI this library knows nothing about
 
+Review    file + MappingPlan + schema ──► exact counts and errors, nothing kept (optional)
+
 Extract   file + MappingPlan + schema ──► typed rows, or errors that locate themselves
 
 Write     rows, objects or columns ──────► csv, xlsx, ods or a zip of csv sheets, into a stream
@@ -24,7 +26,11 @@ Write     rows, objects or columns ──────► csv, xlsx, ods or a zip
 ```
 
 The two are **independent reads of the file**. The library keeps no state between them and has no
-persistence; a caller that wants to hold a profile while a user thinks stores it itself.
+persistence; a caller that wants to hold a profile while a user thinks stores it itself. A third
+read is optional: `TabularExtractor.Review` runs the extraction over the whole file, keeping nothing,
+so a screen can show exact numbers — rows that will fail, rows a set of
+[field alternatives](importing.md#fields-that-stand-in-for-one-another) cannot locate — before
+anything is written.
 
 ## Analysis reads every row
 
