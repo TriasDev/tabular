@@ -259,13 +259,35 @@ public static class CsvDialectDetector
     {
         // Quote-aware line splitting is right for a well-formed file and destructive for one with an
         // unbalanced quote, where it swallows everything after it and leaves nothing to count. An odd
-        // number of quotes in the probe says which case this is.
-        bool quotesBalanced = text.AsSpan().Count('"') % 2 == 0;
-        List<string> lines = FirstLines(text, quotesBalanced);
+        // number of quotes in the probe says which case this is — usually. It is also odd, in a
+        // well-formed file, when the probe ends inside a quoted field that spans lines: a note with
+        // line breaks cut off by the probe's last byte. Then the whole records before that field still
+        // read correctly with quotes honoured, and a delimiter that divides each of them the same way
+        // settles it; only when they do not is the odd count taken for a stray quote.
+        if (text.AsSpan().Count('"') % 2 == 0)
+        {
+            return Decide(FirstLines(text, quotesBalanced: true, keepOpenTail: true), quotesBalanced: true).Choice;
+        }
 
+        List<string> whole = FirstLines(text, quotesBalanced: true, keepOpenTail: false);
+
+        if (whole.Count >= 2 && Decide(whole, quotesBalanced: true) is { Consistent: true } cut)
+        {
+            return cut.Choice;
+        }
+
+        return Decide(FirstLines(text, quotesBalanced: false, keepOpenTail: true), quotesBalanced: false).Choice;
+    }
+
+    /// <summary>
+    /// Counts each candidate outside quoted runs across the lines and prefers the one that divides
+    /// every line into the same number of fields; says whether the choice was that consistent.
+    /// </summary>
+    private static ((char Delimiter, DialectSource Source) Choice, bool Consistent) Decide(List<string> lines, bool quotesBalanced)
+    {
         if (lines.Count == 0)
         {
-            return (';', DialectSource.Fallback);
+            return ((';', DialectSource.Fallback), false);
         }
 
         char best = ';';
@@ -300,10 +322,16 @@ public static class CsvDialectDetector
             }
         }
 
-        return bestScore == 0 ? (';', DialectSource.Fallback) : (best, DialectSource.Detected);
+        return bestScore == 0
+            ? ((';', DialectSource.Fallback), false)
+            : ((best, DialectSource.Detected), bestScore >= 1_000_000);
     }
 
-    private static List<string> FirstLines(string text, bool quotesBalanced)
+    /// <summary>
+    /// The first lines of the text — records, when quotes are honoured. <paramref name="keepOpenTail"/>
+    /// false drops a last record still inside an open quote: the probe's end cut it off.
+    /// </summary>
+    private static List<string> FirstLines(string text, bool quotesBalanced, bool keepOpenTail)
     {
         List<string> lines = [];
         bool inQuotes = false;
@@ -324,7 +352,7 @@ public static class CsvDialectDetector
             }
         }
 
-        if (start < text.Length && lines.Count < LinesInspected)
+        if (start < text.Length && lines.Count < LinesInspected && (keepOpenTail || !inQuotes))
         {
             lines.Add(text[start..].TrimEnd('\r'));
         }
