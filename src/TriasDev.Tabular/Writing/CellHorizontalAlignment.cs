@@ -1,7 +1,7 @@
 namespace TriasDev.Tabular;
 
 /// <summary>Where a cell's content sits across the cell.</summary>
-public enum HorizontalAlignment
+public enum CellHorizontalAlignment
 {
     /// <summary>The format's default: text left, numbers and dates right.</summary>
     General,

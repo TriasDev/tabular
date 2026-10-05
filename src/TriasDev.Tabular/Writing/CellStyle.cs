@@ -24,7 +24,7 @@ public sealed record CellStyle
     public DateFormat? Date { get; init; }
 
     /// <summary>Where the content sits across the cell.</summary>
-    public HorizontalAlignment Horizontal { get; init; }
+    public CellHorizontalAlignment Horizontal { get; init; }
 
     /// <summary>Wraps text onto several lines within the column's width.</summary>
     public bool Wrap { get; init; }

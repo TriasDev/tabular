@@ -45,7 +45,7 @@ internal sealed class StyleTable
 
         if (!Enum.IsDefined(style.Horizontal))
         {
-            throw new ArgumentOutOfRangeException(nameof(style), style.Horizontal, "The horizontal alignment is not one HorizontalAlignment defines.");
+            throw new ArgumentOutOfRangeException(nameof(style), style.Horizontal, "The horizontal alignment is not one CellHorizontalAlignment defines.");
         }
 
         if (_indices.Count == MaxStyles)

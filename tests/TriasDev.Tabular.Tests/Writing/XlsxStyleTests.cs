@@ -17,7 +17,7 @@ public sealed class XlsxStyleTests
         Font = new CellFont { Color = CellColor.FromRgb(0xFFFFFF), Bold = true, Italic = true },
         Number = NumberFormat.Parse("#,##0.00"),
         Date = DateFormat.Parse("dd/mm/yyyy"),
-        Horizontal = HorizontalAlignment.Center,
+        Horizontal = CellHorizontalAlignment.Center,
         Wrap = true,
         Border = CellBorder.Thin(CellColor.FromRgb(0xBFBFBF)),
     };

@@ -69,15 +69,15 @@ TriasDev.Tabular.CellStyle.Fill.get -> TriasDev.Tabular.CellColor?
 TriasDev.Tabular.CellStyle.Fill.init -> void
 TriasDev.Tabular.CellStyle.Font.get -> TriasDev.Tabular.CellFont?
 TriasDev.Tabular.CellStyle.Font.init -> void
-TriasDev.Tabular.CellStyle.Horizontal.get -> TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.CellStyle.Horizontal.get -> TriasDev.Tabular.CellHorizontalAlignment
 TriasDev.Tabular.CellStyle.Horizontal.init -> void
 TriasDev.Tabular.CellStyle.Wrap.get -> bool
 TriasDev.Tabular.CellStyle.Wrap.init -> void
-TriasDev.Tabular.HorizontalAlignment
-TriasDev.Tabular.HorizontalAlignment.Center = 2 -> TriasDev.Tabular.HorizontalAlignment
-TriasDev.Tabular.HorizontalAlignment.General = 0 -> TriasDev.Tabular.HorizontalAlignment
-TriasDev.Tabular.HorizontalAlignment.Left = 1 -> TriasDev.Tabular.HorizontalAlignment
-TriasDev.Tabular.HorizontalAlignment.Right = 3 -> TriasDev.Tabular.HorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.Center = 2 -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.General = 0 -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.Left = 1 -> TriasDev.Tabular.CellHorizontalAlignment
+TriasDev.Tabular.CellHorizontalAlignment.Right = 3 -> TriasDev.Tabular.CellHorizontalAlignment
 TriasDev.Tabular.StyleId
 TriasDev.Tabular.StyleId.Equals(TriasDev.Tabular.StyleId other) -> bool
 TriasDev.Tabular.StyleId.StyleId() -> void

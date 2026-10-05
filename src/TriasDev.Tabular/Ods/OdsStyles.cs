@@ -157,12 +157,12 @@ internal sealed class OdsStyles
         xml.Append(cell.Fill is { } fill ? $" fo:background-color=\"{fill}\"" : string.Empty);
         xml.Append(cell.Border is { } border ? $" fo:border=\"0.06pt solid {border.Color}\"" : string.Empty);
         xml.Append(cell.Wrap ? " fo:wrap-option=\"wrap\"" : string.Empty);
-        xml.Append(cell.Horizontal != HorizontalAlignment.General ? " style:text-align-source=\"fix\"" : string.Empty);
+        xml.Append(cell.Horizontal != CellHorizontalAlignment.General ? " style:text-align-source=\"fix\"" : string.Empty);
         xml.Append("/>");
 
-        if (cell.Horizontal != HorizontalAlignment.General)
+        if (cell.Horizontal != CellHorizontalAlignment.General)
         {
-            xml.Append("<style:paragraph-properties fo:text-align=\"").Append(cell.Horizontal switch { HorizontalAlignment.Left => "start", HorizontalAlignment.Center => "center", _ => "end" }).Append("\"/>");
+            xml.Append("<style:paragraph-properties fo:text-align=\"").Append(cell.Horizontal switch { CellHorizontalAlignment.Left => "start", CellHorizontalAlignment.Center => "center", _ => "end" }).Append("\"/>");
         }
 
         if (cell.Font is { } font)

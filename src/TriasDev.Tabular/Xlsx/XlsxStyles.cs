@@ -31,7 +31,7 @@ internal sealed class XlsxStyles
     private const string XmlDeclaration = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>";
 
     private readonly StyleTable _table;
-    private readonly List<CellFormat> _xfs = [new(0, 0, 0, 0, HorizontalAlignment.General, false), new(BuiltInDate, 0, 0, 0, HorizontalAlignment.General, false), new(BuiltInDateTime, 0, 0, 0, HorizontalAlignment.General, false), new(BuiltInInteger, 0, 0, 0, HorizontalAlignment.General, false)];
+    private readonly List<CellFormat> _xfs = [new(0, 0, 0, 0, CellHorizontalAlignment.General, false), new(BuiltInDate, 0, 0, 0, CellHorizontalAlignment.General, false), new(BuiltInDateTime, 0, 0, 0, CellHorizontalAlignment.General, false), new(BuiltInInteger, 0, 0, 0, CellHorizontalAlignment.General, false)];
     private readonly Dictionary<CellFormat, int> _xfIndices = [];
     private readonly List<CellFont> _fonts = [];          // index + 1 in <fonts>; 0 is the default font
     private readonly Dictionary<CellFont, int> _fontIndices = [];
@@ -179,7 +179,7 @@ internal sealed class XlsxStyles
         xml.Append(xf.Fill != 0 ? " applyFill=\"1\"" : string.Empty);
         xml.Append(xf.Border != 0 ? " applyBorder=\"1\"" : string.Empty);
 
-        if (xf.Horizontal == HorizontalAlignment.General && !xf.Wrap)
+        if (xf.Horizontal == CellHorizontalAlignment.General && !xf.Wrap)
         {
             xml.Append("/>");
             return;
@@ -187,9 +187,9 @@ internal sealed class XlsxStyles
 
         xml.Append(" applyAlignment=\"1\"><alignment");
 
-        if (xf.Horizontal != HorizontalAlignment.General)
+        if (xf.Horizontal != CellHorizontalAlignment.General)
         {
-            xml.Append(" horizontal=\"").Append(xf.Horizontal switch { HorizontalAlignment.Left => "left", HorizontalAlignment.Center => "center", _ => "right" }).Append('"');
+            xml.Append(" horizontal=\"").Append(xf.Horizontal switch { CellHorizontalAlignment.Left => "left", CellHorizontalAlignment.Center => "center", _ => "right" }).Append('"');
         }
 
         xml.Append(xf.Wrap ? " wrapText=\"1\"" : string.Empty).Append("/></xf>");
@@ -215,5 +215,5 @@ internal sealed class XlsxStyles
         }
     }
 
-    private readonly record struct CellFormat(int Format, int Font, int Fill, int Border, HorizontalAlignment Horizontal, bool Wrap);
+    private readonly record struct CellFormat(int Format, int Font, int Fill, int Border, CellHorizontalAlignment Horizontal, bool Wrap);
 }

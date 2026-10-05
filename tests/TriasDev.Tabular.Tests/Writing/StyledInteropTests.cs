@@ -229,7 +229,7 @@ public sealed class StyledInteropTests
         byte[] file = await SheetLayoutTests.Write(format, writer =>
         {
             StyleId[] colours = [.. legend.Select(writer.Style)];
-            StyleId title = writer.Style(new CellStyle { Font = new CellFont { Bold = true }, Horizontal = HorizontalAlignment.Center });
+            StyleId title = writer.Style(new CellStyle { Font = new CellFont { Bold = true }, Horizontal = CellHorizontalAlignment.Center });
 
             writer.BeginSheet("Data", [new("Id"), new("Score"), new("Date", 12)], new SheetOptions { HeaderStyle = header, FreezeRows = 1, AutoFilter = true });
 

@@ -46,7 +46,7 @@ public sealed class StyledWriterTests
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => writer.Style(new CellStyle { Horizontal = (HorizontalAlignment)9 }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => writer.Style(new CellStyle { Horizontal = (CellHorizontalAlignment)9 }));
     }
 
     [Fact]

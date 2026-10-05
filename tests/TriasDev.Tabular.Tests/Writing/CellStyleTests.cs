@@ -37,8 +37,8 @@ public sealed class CellStyleTests
     [Fact]
     public void StylesWithTheSameSettingsAreEqual()
     {
-        CellStyle a = new() { Fill = CellColor.FromRgb(0xFF0000), Font = new CellFont { Bold = true, Color = CellColor.FromRgb(0xFFFFFF) }, Border = CellBorder.Thin(CellColor.FromRgb(0x808080)), Horizontal = HorizontalAlignment.Center, Wrap = true };
-        CellStyle b = new() { Fill = CellColor.FromRgb(0xFF0000), Font = new CellFont { Bold = true, Color = CellColor.FromRgb(0xFFFFFF) }, Border = CellBorder.Thin(CellColor.FromRgb(0x808080)), Horizontal = HorizontalAlignment.Center, Wrap = true };
+        CellStyle a = new() { Fill = CellColor.FromRgb(0xFF0000), Font = new CellFont { Bold = true, Color = CellColor.FromRgb(0xFFFFFF) }, Border = CellBorder.Thin(CellColor.FromRgb(0x808080)), Horizontal = CellHorizontalAlignment.Center, Wrap = true };
+        CellStyle b = new() { Fill = CellColor.FromRgb(0xFF0000), Font = new CellFont { Bold = true, Color = CellColor.FromRgb(0xFFFFFF) }, Border = CellBorder.Thin(CellColor.FromRgb(0x808080)), Horizontal = CellHorizontalAlignment.Center, Wrap = true };
 
         Assert.Equal(a, b);
         Assert.Equal(a.GetHashCode(), b.GetHashCode());
@@ -53,7 +53,7 @@ public sealed class CellStyleTests
         Assert.Null(style.Fill);
         Assert.Null(style.Font);
         Assert.Null(style.Border);
-        Assert.Equal(HorizontalAlignment.General, style.Horizontal);
+        Assert.Equal(CellHorizontalAlignment.General, style.Horizontal);
         Assert.False(style.Wrap);
     }
 
