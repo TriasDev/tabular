@@ -19,6 +19,13 @@ The repository is public. It was extracted from an internal product; nothing pro
 [CONTRIBUTING.md](CONTRIBUTING.md) holds the commands, the build layout, the benchmark variables, the
 invariants that are easy to break and the test conventions. They apply here as written.
 
+Above all: every change reaches `main` through a pull request that is **squash-merged** (the only
+merge method the repository allows). The squash commit is the pull request's title and description,
+so write both by hand for the changelog: a Conventional Commit title, and a description of what
+changes and why — the `PR description` check refuses anything less. A breaking change puts `!` in the
+title and a `BREAKING CHANGE:` paragraph in the description (see "Commits and pull requests" in
+CONTRIBUTING.md).
+
 ## Architecture
 
 The read pipeline has two independent reads of the same file with a human in between; the library
