@@ -231,12 +231,24 @@ internal static class IsoDuration
 
             switch (part)
             {
-                case Years: _years = value; break;
-                case Months: _months = value; break;
-                case Days: _days = value; break;
-                case Hours: _hours = value; break;
-                case Minutes: _minutes = value; break;
-                default: _seconds = value; break;
+                case Years:
+                    _years = value;
+                    break;
+                case Months:
+                    _months = value;
+                    break;
+                case Days:
+                    _days = value;
+                    break;
+                case Hours:
+                    _hours = value;
+                    break;
+                case Minutes:
+                    _minutes = value;
+                    break;
+                default:
+                    _seconds = value;
+                    break;
             }
         }
 
