@@ -312,11 +312,11 @@ public sealed class OdsHostileInputTests
 
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(package, options));
         Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
-        Assert.Equal(100_000, error.Maximum);
+        Assert.Equal(100_000 + (64 * 1024), error.Maximum);
 
         error = Assert.Throws<TabularLimitException>(() => Open(package.WithContentEncoding(Encoding.Unicode), options));
         Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
-        Assert.Equal(100_000, error.Maximum);
+        Assert.Equal(100_000 + (64 * 1024), error.Maximum);
 
         // The defaults read it as before.
         using OdsCursor cursor = Open(new OdsPackage().WithRawContent(Content(table)));
@@ -333,7 +333,7 @@ public sealed class OdsHostileInputTests
         using OdsCursor bounded = Open(new OdsPackage().WithTable("S", Row(cell)), new OdsCursorOptions { MaxValueChars = 100_000 });
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => bounded.ReadRow(Token));
         Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
-        Assert.Equal(100_000, error.Maximum);
+        Assert.Equal(100_000 + (64 * 1024), error.Maximum);
 
         using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(cell)));
         Assert.Equal("1", Assert.Single(ReadAll(cursor))[0]);
@@ -391,5 +391,31 @@ public sealed class OdsHostileInputTests
         Assert.Equal(TabularFormatException.Corrupt, error.Code);
         Assert.IsType<InvalidDataException>(error.InnerException);
         Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(Token));
+    }
+
+    [Fact]
+    public void NeverRefusesAStatedStringWithinTheValueCeilingForTheLengthOfItsTag()
+    {
+        // The node ceiling holds a whole tag, and office:string-value shares its tag with the cell's
+        // other attributes: a value just within the ceiling made a tag just beyond it.
+        string value = new('v', 99_990);
+        string cell = Cell($"table:style-name=\"ce1\" office:value-type=\"string\" calcext:value-type=\"string\" office:string-value=\"{value}\"", "shown");
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(cell)), new OdsCursorOptions { MaxValueChars = 100_000 });
+
+        Assert.Equal(value, Assert.Single(ReadAll(cursor))[0]);
+    }
+
+    [Fact]
+    public void ReportsTheNodeCeilingInForceBelowTheFirstBuffer()
+    {
+        // Nothing within the first buffer is refused, so a ceiling of ten does not refuse at ten.
+        string cell = Cell("office:value-type=\"float\" office:value=\"1\"", new string('9', 200_000));
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(cell)), new OdsCursorOptions { MaxValueChars = 10 });
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => cursor.ReadRow(Token));
+
+        Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
+        Assert.Equal(10 + (64 * 1024), error.Maximum);
     }
 }

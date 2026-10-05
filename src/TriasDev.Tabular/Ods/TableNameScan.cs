@@ -58,7 +58,8 @@ internal sealed class TableNameScan
 
     /// <summary>
     /// The longest tag held whole: <see cref="MaxTagBytes"/>, or what a smaller configured value
-    /// ceiling allows at the same three bytes a character — the reading holds a node to it too.
+    /// ceiling allows with the reading's headroom for a tag's other attributes (64 K characters), at
+    /// the same three bytes a character — the reading holds a node to it too.
     /// </summary>
     private readonly int _maxTagBytes;
 
@@ -83,7 +84,7 @@ internal sealed class TableNameScan
         _stream = stream;
         _cancellationToken = cancellationToken;
         _maxValueChars = maxValueChars;
-        _maxTagBytes = (int)Math.Min(MaxTagBytes, 3L * maxValueChars);
+        _maxTagBytes = (int)Math.Min(MaxTagBytes, 3L * (maxValueChars + (64L * 1024)));
     }
 
     /// <summary>

@@ -99,14 +99,16 @@ internal sealed class SheetScanner : IDisposable
     /// </param>
     /// <param name="maxValueChars">
     /// A configured value ceiling below <see cref="MaxBufferChars"/>, which then bounds one node
-    /// instead: no node longer than the longest value allowed is held whole. The buffer still starts
-    /// at its usual size, so a node shorter than that is never refused by this ceiling.
+    /// instead, with <see cref="InitialBufferSize"/> of headroom: a node is a whole tag, and a value
+    /// stated in an attribute (<c>office:string-value</c>) shares its tag with the cell's other
+    /// attributes, so a value within the ceiling is never refused for its tag. The headroom is also
+    /// the first buffer, so the ceiling reported is the one in force.
     /// </param>
     public SheetScanner(TextReader reader, bool leaveOpen = false, string[]? keptLocalNames = null, int maxValueChars = MaxBufferChars)
     {
         _reader = reader;
         _leaveOpen = leaveOpen;
-        _maxBufferChars = Math.Min(MaxBufferChars, maxValueChars);
+        _maxBufferChars = (int)Math.Min(MaxBufferChars, (long)maxValueChars + InitialBufferSize);
         _keptLocalNames = keptLocalNames;
         _keptWholeNames = keptLocalNames is null ? [] : [.. keptLocalNames.Where(kept => kept.Contains(':', StringComparison.Ordinal))];
     }
