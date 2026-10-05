@@ -206,7 +206,7 @@ library here that writes ods and zip, so those have nothing to be compared with.
 
 | Library | Version | Licence |
 |---|---|---|
-| TriasDev.Tabular | 0.5.0+ (main, unreleased) | MIT |
+| TriasDev.Tabular | 0.6.0 | MIT |
 | CsvHelper | 33.1.0 | MS-PL or Apache-2.0 |
 | Sep | 0.17.1 | MIT |
 | Sylvan.Data.Csv | 1.4.4 | MIT |
