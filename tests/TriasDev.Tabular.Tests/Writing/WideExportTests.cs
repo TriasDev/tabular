@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Reflection;
+
 using TriasDev.Tabular.Tests.Fixtures;
 
 using Xunit;
@@ -129,6 +132,11 @@ public sealed class WideExportTests
     [InlineData(TabularFormat.Zip)]
     public async Task ABatchAllocatesNothingPerCell(TabularFormat format)
     {
+        // Unoptimized code allocates a few bytes per row of its own, so the bound is the optimized library's (CI tests Release).
+        Assert.SkipWhen(
+            typeof(TabularWriter).Assembly.GetCustomAttribute<DebuggableAttribute>()?.IsJITOptimizerDisabled == true,
+            "The library is built without optimization; its allocations are measured in a Release build.");
+
         const int Chunk = 100;
         double?[][] measured = [.. Enumerable.Range(0, Measured).Select(_ => new double?[Chunk])];
         long[] ids = new long[Chunk];
