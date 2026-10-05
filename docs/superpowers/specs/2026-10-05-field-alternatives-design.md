@@ -70,12 +70,12 @@ Row lists hold at most `ExtractionOptions.MaxReportedRows` (default 50, at most 
 
 ## Precheck
 
-- `group.level-unmapped` (Warning) per group whose mapping stops short of its last level;
+- `group.level-unmapped` (Undetermined) per group whose mapping stops short of its last level;
   arguments `alternatives`, `group`, `level` (the first unmapped level), `reachableLevel`.
 - `group.unresolved` when no group of a set can become usable under the mapping: `Blocking` if
-  `UnresolvedRowFails`, else `Warning`; `AffectedRows` = the sheet's row count.
-- Findings on a field of a later group are never `Blocking` (downgraded to `Warning`): only the
-  dry run knows the rows that need it.
+  `UnresolvedRowFails`, else `Undetermined`; `AffectedRows` = the sheet's row count.
+- Findings on a field of a later group are `Undetermined`: only the dry run knows the rows that
+  need it. (`Warning` means rows fail, and blocks `AllOrNothing`; none of these says that.)
 
 ## Helper
 

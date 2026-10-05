@@ -41,7 +41,7 @@ public sealed class ExtractionRun
     private readonly bool[] _anyPresent;
     private readonly int[] _ignoredInRow;
     private readonly AlternativeResolution[] _resolutions;
-    private readonly List<(RowError Error, int Group)> _deferred = [];
+    private readonly List<Deferred> _deferred = [];
     private readonly AlternativesTally? _tally;
     private readonly RowJudgement _judgement;
 
@@ -598,27 +598,34 @@ public sealed class ExtractionRun
 
     private void Fail(ColumnBinding binding, string code, string? raw, int position = -1)
     {
-        RowError error = new()
+        if (position >= 0)
         {
-            RowNumber = CurrentRowNumber,
-            ColumnIndex = binding.ColumnIndex,
-            FieldName = binding.FieldName,
-            Code = code,
-            RawValue = raw,
-        };
-
-        int group = position >= 0 ? _deferredGroup[position] : -1;
-
-        if (group >= 0)
-        {
-            // A later group's value: wrong only if the row turns out to need the group.
+            // An invalid value counts towards no level, whichever group it belongs to: a latitude
+            // of 91 locates nothing, and the address must be judged as if it were missing.
             _invalid[position] = true;
-            _deferred.Add((error, group));
-            return;
+
+            int group = _deferredGroup[position];
+
+            if (group >= 0)
+            {
+                // A later group's value: wrong only if the row turns out to need the group. Kept as a
+                // struct until then — a row whose coordinates win never pays for an error object.
+                _deferred.Add(new Deferred(binding, code, raw, position, group));
+                return;
+            }
         }
 
-        _errors.Add(error);
+        _errors.Add(Error(binding, code, raw));
     }
+
+    private RowError Error(ColumnBinding binding, string code, string? raw) => new()
+    {
+        RowNumber = CurrentRowNumber,
+        ColumnIndex = binding.ColumnIndex,
+        FieldName = binding.FieldName,
+        Code = code,
+        RawValue = raw,
+    };
 
     /// <summary>
     /// Finds each set's winning group and decides the fate of the errors that waited for it.
@@ -645,15 +652,17 @@ public sealed class ExtractionRun
 
         for (int d = 0; d < _deferred.Count; d++)
         {
-            (RowError error, int group) = _deferred[d];
+            Deferred deferred = _deferred[d];
 
-            if (_needed[group])
+            if (_needed[deferred.Group])
             {
-                _errors.Add(error);
+                _errors.Add(Error(deferred.Binding, deferred.Code, deferred.Raw));
             }
-            else
+            else if (d == 0 || _deferred[d - 1].Position != deferred.Position)
             {
-                _ignoredInRow[group]++;
+                // Values, not broken rules: one binding's failures are added one after another, so a
+                // value breaking two rules is counted at the first of them.
+                _ignoredInRow[deferred.Group]++;
             }
         }
     }
@@ -742,6 +751,9 @@ public sealed class ExtractionRun
 
         return false;
     }
+
+    /// <summary>A later group's failure, waiting to learn whether the row needs the group.</summary>
+    private readonly record struct Deferred(ColumnBinding Binding, string Code, string? Raw, int Position, int Group);
 
     /// <summary>A group that needs one of its members, and where its positions sit in a row.</summary>
     private readonly record struct RequiredGroup(string Name, int[] Positions, int ColumnIndex);

@@ -299,7 +299,7 @@ returns the summary, the first `ReviewOptions.MaxErrors` row errors and the alte
 ```
 
 It costs one more read of the file. On the 5M-row csv, reading eight mapped columns, a review with
-the location rule took 3.9 s against 3.7 s for extracting the same columns without it (best of three,
+the location rule took 4.0 s against 3.7 s for extracting the same columns without it (best of three,
 same allocations); a schema without alternatives pays nothing measurable.
 
 The precheck, which needs no second read, says what the mapping alone decides:
@@ -307,10 +307,12 @@ The precheck, which needs no second read, says what the mapping alone decides:
 - `group.level-unmapped` — a level with no mapped field, so no row reaches past it (`level`,
   `reachableLevel`);
 - `group.unresolved` — no group of a set can become usable under this mapping; `Blocking` when the set
-  fails such rows, `Warning` otherwise.
+  fails such rows, since then no row can import.
 
-Findings on a field of a later group never block: whether a row needs its address is exactly what a
-profile cannot tell. To suggest which column holds country codes before anything is mapped,
+Otherwise both are `Undetermined`, and so is every finding on a field of a later group. None of them
+says that a row fails — a `Warning` does, and blocks an `AllOrNothing` schema — because rows only
+reach less far, are imported unlocated, or may not need their address at all: exactly what a profile
+cannot tell, and what the review counts. To suggest which column holds country codes before anything is mapped,
 `ColumnFacts.RowsWithValueIn(allowed)` counts the rows whose value is in a set, from the counts the
 analysis already kept.
 

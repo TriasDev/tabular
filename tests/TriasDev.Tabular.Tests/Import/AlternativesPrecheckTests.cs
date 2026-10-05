@@ -18,11 +18,12 @@ public sealed class AlternativesPrecheckTests
     private static readonly TextImportField House = ImportField.Text("house");
 
     [Fact]
-    public void WarnsWhereTheMappingEndsALadderEarly()
+    public void NotesWhereTheMappingEndsALadderEarly()
     {
+        // No row fails for it — rows only reach less far — so it is not a warning, which says rows fail.
         PrecheckFinding finding = Assert.Single(Check(Schema(), "lat", "lon", "country", "house").Findings, f => f.Code == "group.level-unmapped");
 
-        Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
+        Assert.Equal(PrecheckSeverity.Undetermined, finding.Severity);
         Assert.Equal("address", finding.FieldName);
         Assert.Equal("locality", finding.Arguments["level"]);
         Assert.Equal("1", finding.Arguments["reachableLevel"]);
@@ -39,12 +40,13 @@ public sealed class AlternativesPrecheckTests
     }
 
     [Fact]
-    public void WarnsWhenNoGroupCanLocateARow()
+    public void NotesWhenNoGroupCanLocateARow()
     {
+        // Such rows are imported by default, so none fails; the review counts them.
         PrecheckResult result = Check(Schema(), "lat", "city");
         PrecheckFinding finding = Assert.Single(result.Findings, f => f.Code == "group.unresolved");
 
-        Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
+        Assert.Equal(PrecheckSeverity.Undetermined, finding.Severity);
         Assert.Equal("location", finding.FieldName);
         Assert.Equal(1, finding.AffectedRows);
         Assert.True(result.CanImport);
@@ -66,7 +68,27 @@ public sealed class AlternativesPrecheckTests
         // one, and the profile cannot say which those are.
         PrecheckFinding finding = Assert.Single(Check(Schema(), "lat", "lon", "country", "city", "house").Findings, f => f.Code == "value.not-allowed");
 
-        Assert.Equal(PrecheckSeverity.Warning, finding.Severity);
+        Assert.Equal(PrecheckSeverity.Undetermined, finding.Severity);
+    }
+
+    [Fact]
+    public void AllOrNothingImportsDespiteAnUnmappedLevel()
+    {
+        // Every row of this file imports; refusing it for a house number nobody mapped would be wrong.
+        ImportSchema schema = Schema();
+        ImportSchema strict = new() { Fields = schema.Fields, Alternatives = schema.Alternatives, Policy = ImportPolicy.AllOrNothing };
+
+        Assert.True(Check(strict, "lat", "lon", "country", "city").CanImport);
+    }
+
+    [Fact]
+    public void AllOrNothingIsNotBlockedByALaterGroupsField()
+    {
+        // Every country is wrong, but every row has coordinates, so no row needs one.
+        ImportSchema schema = Schema();
+        ImportSchema strict = new() { Fields = schema.Fields, Alternatives = schema.Alternatives, Policy = ImportPolicy.AllOrNothing };
+
+        Assert.True(Check(strict, "lat", "lon", "country", "city", "house").CanImport);
     }
 
     [Fact]

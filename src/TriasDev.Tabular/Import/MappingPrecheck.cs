@@ -172,7 +172,8 @@ public static class MappingPrecheck
         ResolvedAlternatives[] alternatives = SchemaAlternatives.Resolve(schema);
 
         // Fields of a later group are needed only in rows an earlier group does not locate, which the
-        // profile cannot tell apart; so nothing about them blocks here — the review settles it per row.
+        // profile cannot tell apart. So whether any row fails for them is undetermined — not a warning,
+        // which says rows fail, and so blocks AllOrNothing — and the review settles it per row.
         HashSet<string> lenient =
         [
             .. alternatives.SelectMany(a => a.Groups.Skip(1)).SelectMany(g => g.Members).Select(p => schema.Fields[p].Name),
@@ -301,8 +302,10 @@ public static class MappingPrecheck
 
     /// <summary>What the mapping alone decides about each set of alternatives.</summary>
     /// <remarks>
-    /// Both findings are certain, unlike a count of empty cells: a level with no bound field is empty
-    /// in every row, whatever the file holds.
+    /// Both are certain about the mapping — a level with no bound field is empty in every row — but
+    /// neither fails a row by itself: rows reach less far, or are imported unlocated. So they are
+    /// undetermined, which a warning is not (a warning says rows fail, and blocks AllOrNothing), unless
+    /// the set fails unlocated rows: then no row of the file can import.
     /// </remarks>
     private static void CheckAlternatives(
         MappingPlan plan,
@@ -328,7 +331,7 @@ public static class MappingPrecheck
                     findings.Add(new PrecheckFinding
                     {
                         Code = ErrorCodes.Group.LevelUnmapped,
-                        Severity = PrecheckSeverity.Warning,
+                        Severity = PrecheckSeverity.Undetermined,
                         FieldName = group.Name,
                         Arguments = Args(
                             (PrecheckArguments.Alternatives, set.Declared.Name),
@@ -344,7 +347,7 @@ public static class MappingPrecheck
                 findings.Add(new PrecheckFinding
                 {
                     Code = ErrorCodes.Group.Unresolved,
-                    Severity = set.Declared.UnresolvedRowFails ? PrecheckSeverity.Blocking : PrecheckSeverity.Warning,
+                    Severity = set.Declared.UnresolvedRowFails ? PrecheckSeverity.Blocking : PrecheckSeverity.Undetermined,
                     FieldName = set.Declared.Name,
                     AffectedRows = sheet.RowCount,
                     Arguments = Args((PrecheckArguments.Alternatives, set.Declared.Name)),
@@ -380,7 +383,7 @@ public static class MappingPrecheck
             findings.Add(new PrecheckFinding
             {
                 Code = code,
-                Severity = lenient && severity == PrecheckSeverity.Blocking ? PrecheckSeverity.Warning : severity,
+                Severity = lenient ? PrecheckSeverity.Undetermined : severity,
                 FieldName = field.Name,
                 ColumnIndex = binding.ColumnIndex,
                 AffectedRows = evidence.Rows,

@@ -88,6 +88,24 @@ public sealed class FieldAlternativesExtractionTests
     }
 
     [Fact]
+    public void AnOutOfRangeCoordinateDoesNotLocateTheRow()
+    {
+        // 91 reads as a number but breaks the latitude's range, so it locates nothing: the address is
+        // needed, and its own fault is reported in the same pass rather than on the next upload.
+        RowError[] errors = Single("1;91;11.5;XX;Munich;;\n").Errors;
+
+        Assert.Equal(["lat:value.out-of-range", "country:value.not-allowed"], errors.Select(e => $"{e.FieldName}:{e.Code}"));
+    }
+
+    [Fact]
+    public void AnOutOfRangeCoordinateLeavesARowUnresolved()
+    {
+        RowError[] errors = Single("1;91;11.5;;;;\n", unresolvedRowFails: true).Errors;
+
+        Assert.Equal(["lat:value.out-of-range", "location:group.unresolved"], errors.Select(e => $"{e.FieldName}:{e.Code}"));
+    }
+
+    [Fact]
     public void ImportsARowNoGroupLocatesByDefault()
     {
         Row row = Single("1;;;;Munich;;\n");
