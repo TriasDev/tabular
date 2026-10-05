@@ -62,6 +62,11 @@
 *REMOVED*TriasDev.Tabular.Csv.CsvDialect.Encoding.init -> void
 *REMOVED*TriasDev.Tabular.Csv.CsvDialect.EncodingSource.init -> void
 *REMOVED*TriasDev.Tabular.Csv.CsvDialect.Quote.init -> void
+*REMOVED*TriasDev.Tabular.BooleanImportField.BooleanImportField() -> void
+*REMOVED*TriasDev.Tabular.DateImportField.DateImportField() -> void
+*REMOVED*TriasDev.Tabular.DecimalImportField.DecimalImportField() -> void
+*REMOVED*TriasDev.Tabular.IntegerImportField.IntegerImportField() -> void
+*REMOVED*TriasDev.Tabular.TextImportField.TextImportField() -> void
 TriasDev.Tabular.Csv.CsvCursorOptions.Delimiter.get -> char?
 TriasDev.Tabular.Csv.CsvCursorOptions.Delimiter.init -> void
 TriasDev.Tabular.Csv.CsvCursorOptions.Encoding.get -> System.Text.Encoding?

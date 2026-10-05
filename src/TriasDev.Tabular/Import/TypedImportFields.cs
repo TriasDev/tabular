@@ -6,8 +6,11 @@ namespace TriasDev.Tabular;
 /// <summary>A field whose values are text.</summary>
 public sealed class TextImportField : ImportField
 {
-    /// <summary>Declares the field; <see cref="ImportField.Text"/> is the usual way.</summary>
-    public TextImportField()
+    /// <summary>
+    /// Declares the field. Not public: <see cref="ImportField.Text"/> is the only way in, so the field's
+    /// <see cref="ImportField.Type"/> always matches its kind.
+    /// </summary>
+    internal TextImportField()
     {
     }
 
@@ -61,8 +64,11 @@ public sealed class TextImportField : ImportField
 /// <summary>A field whose values are whole numbers.</summary>
 public sealed class IntegerImportField : ImportField
 {
-    /// <summary>Declares the field; <see cref="ImportField.Integer"/> is the usual way.</summary>
-    public IntegerImportField()
+    /// <summary>
+    /// Declares the field. Not public: <see cref="ImportField.Integer"/> is the only way in, so the field's
+    /// <see cref="ImportField.Type"/> always matches its kind.
+    /// </summary>
+    internal IntegerImportField()
     {
     }
 
@@ -104,8 +110,11 @@ public sealed class IntegerImportField : ImportField
 /// <summary>A field whose values are numbers with a fractional part.</summary>
 public sealed class DecimalImportField : ImportField
 {
-    /// <summary>Declares the field; <see cref="ImportField.Decimal"/> is the usual way.</summary>
-    public DecimalImportField()
+    /// <summary>
+    /// Declares the field. Not public: <see cref="ImportField.Decimal"/> is the only way in, so the field's
+    /// <see cref="ImportField.Type"/> always matches its kind.
+    /// </summary>
+    internal DecimalImportField()
     {
     }
 
@@ -147,8 +156,11 @@ public sealed class DecimalImportField : ImportField
 /// <summary>A field whose values are dates.</summary>
 public sealed class DateImportField : ImportField
 {
-    /// <summary>Declares the field; <see cref="ImportField.Date"/> is the usual way.</summary>
-    public DateImportField()
+    /// <summary>
+    /// Declares the field. Not public: <see cref="ImportField.Date"/> is the only way in, so the field's
+    /// <see cref="ImportField.Type"/> always matches its kind.
+    /// </summary>
+    internal DateImportField()
     {
     }
 
@@ -181,8 +193,11 @@ public sealed class DateImportField : ImportField
 /// <summary>A field whose values are true or false.</summary>
 public sealed class BooleanImportField : ImportField
 {
-    /// <summary>Declares the field; <see cref="ImportField.Boolean"/> is the usual way.</summary>
-    public BooleanImportField()
+    /// <summary>
+    /// Declares the field. Not public: <see cref="ImportField.Boolean"/> is the only way in, so the field's
+    /// <see cref="ImportField.Type"/> always matches its kind.
+    /// </summary>
+    internal BooleanImportField()
     {
     }
 

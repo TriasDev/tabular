@@ -67,6 +67,16 @@ public sealed class ApiContractTests
         Assert.DoesNotContain(typeof(CsvDialectDetector), exported);
     }
 
+    [Theory]
+    [InlineData(typeof(TextImportField))]
+    [InlineData(typeof(IntegerImportField))]
+    [InlineData(typeof(DecimalImportField))]
+    [InlineData(typeof(DateImportField))]
+    [InlineData(typeof(BooleanImportField))]
+    public void ATypedFieldComesOnlyFromItsFactory(Type field) =>
+        // `new TextImportField { Type = ColumnType.Date }` would compile and fail only at run time.
+        Assert.Empty(field.GetConstructors());
+
     [Fact]
     public void OnlyACursorCreatesItsDiagnostics() =>
         // The counts are live on the cursor that repairs the file; a caller has nothing to count.
