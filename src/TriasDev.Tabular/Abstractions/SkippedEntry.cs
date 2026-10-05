@@ -48,4 +48,11 @@ public enum SkippedEntryReason
     /// own, or a file in an archive, not both.
     /// </summary>
     Compressed,
+
+    /// <summary>
+    /// A file whose path repeats an earlier file's in the archive. Its sheets would carry the same
+    /// name and <see cref="SheetInfo.Source"/> as the first one's, and nothing could tell them apart,
+    /// so only the first is read.
+    /// </summary>
+    DuplicatePath,
 }

@@ -12,7 +12,9 @@ namespace TriasDev.Tabular.Archive;
 /// The archive is flattened rather than nested so that nothing above the cursor learns what an
 /// archive is: a sheet is profiled, mapped and imported the same way wherever it came from. Two
 /// files may both hold a sheet called <c>Sheet1</c>; their <see cref="SheetInfo.Source"/> tells them
-/// apart, and a mapping plan records both.
+/// apart, and a mapping plan records both. Two files with the same path could not be told apart, so
+/// a repeat of an earlier path is skipped and reported in <see cref="SkippedEntries"/> as
+/// <see cref="SkippedEntryReason.DuplicatePath"/>; the first in the archive's order is read.
 /// </para>
 /// <para>
 /// Every file is judged by its bytes, not its name, with the rules <see cref="TabularFile.Open"/>
@@ -286,7 +288,9 @@ public sealed class ArchiveCursor : ITabularCursor
     /// that can only be read as a stream is counted and judged as it is read, in its own order — each
     /// file while it is the current one, which is the only time that is cheap — and the findings are
     /// put in path order afterwards, so the sheets come in the same order whatever order the archiver
-    /// wrote.
+    /// wrote. A path that repeats an earlier one — a zip may list it twice, a tar appends a newer copy —
+    /// is skipped as <see cref="SkippedEntryReason.DuplicatePath"/>: its sheets would carry the same
+    /// name and source as the first one's, and nothing could tell them apart.
     /// </remarks>
     private void ListSources(CancellationToken cancellationToken)
     {
@@ -303,15 +307,20 @@ public sealed class ArchiveCursor : ITabularCursor
         }
 
         List<Finding> findings = [];
+        HashSet<string> paths = new(StringComparer.Ordinal);
 
         foreach (ArchiveEntry entry in order)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!IsLeftOut(entry))
+            if (IsLeftOut(entry))
             {
-                findings.Add(Judge(entry, cancellationToken));
+                continue;
             }
+
+            // Judged once: a repeat is skipped without opening it. The sort below is stable, so the
+            // first in the archive's own order stays first.
+            findings.Add(paths.Add(entry.Path) ? Judge(entry, cancellationToken) : Skipped(entry, SkippedEntryReason.DuplicatePath));
         }
 
         foreach (Finding finding in findings.OrderBy(f => f.Entry.Path, StringComparer.Ordinal))

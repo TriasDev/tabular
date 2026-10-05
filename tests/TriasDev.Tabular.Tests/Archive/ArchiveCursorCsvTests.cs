@@ -252,6 +252,24 @@ public sealed class ArchiveCursorCsvTests
     }
 
     [Fact]
+    public void SkipsAFileWhosePathRepeatsAnEarlierOne()
+    {
+        // Two sheets named "a" from "a.csv" used to be listed, and nothing told them apart.
+        byte[] archive = new ZipArchiveBuilder()
+            .With("a.csv", "h\nfirst\n")
+            .With("b.csv", "h\nb\n")
+            .With("a.csv", "h\nsecond\n")
+            .Build();
+        using ArchiveCursor cursor = Open(archive);
+
+        Assert.Equal(["a.csv", "b.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.Equal([["h"], ["first"]], ReadAll(cursor));
+        SkippedEntry skipped = Assert.Single(cursor.SkippedEntries);
+        Assert.Equal("a.csv", skipped.Path);
+        Assert.Equal(SkippedEntryReason.DuplicatePath, skipped.Reason);
+    }
+
+    [Fact]
     public void ReportsProgressAcrossTheSheets()
     {
         string rows = string.Concat(Enumerable.Range(0, 2000).Select(i => $"{i};value {i}\n"));

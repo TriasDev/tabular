@@ -37,6 +37,23 @@ public sealed class ArchiveCursorTarGzTests
     private static byte[] Workbook(string sheet, string text) =>
         new XlsxPackage().WithSheet(sheet, $"""<row r="1"><c t="inlineStr"><is><t>{text}</t></is></c></row>""").Build();
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SkipsAFileWhosePathRepeatsAnEarlierOneInTheArchivesOrder(bool compressed)
+    {
+        // A tar appends a newer copy under the same path; the sheets of both could not be told apart.
+        // The first in the archive's order is read, whether the archive is read with a directory
+        // (a plain tar) or as a stream (compressed).
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("z.csv", "h\nfirst\n"), ("a.csv", "h\na\n"), ("z.csv", "h\nsecond\n"));
+        using ArchiveCursor cursor = Open(compressed ? GzipFile.Of(tar) : tar);
+
+        Assert.Equal(["a.csv", "z.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal([["h"], ["first"]], ReadAll(cursor));
+        Assert.Equal([new SkippedEntry { Path = "z.csv", Reason = SkippedEntryReason.DuplicatePath }], cursor.SkippedEntries);
+    }
+
     [Fact]
     public void ReadsAGzippedTarAsATar()
     {

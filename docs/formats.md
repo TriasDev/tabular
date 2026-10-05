@@ -40,7 +40,9 @@ file on its own is.
   and folders (`.DS_Store`, anything whose name starts with a dot, macOS `._` files) and `__MACOSX/`.
 - **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a gzip-compressed file, a nested zip or tar, another
   OpenDocument type, a legacy `.xls`, an XML document, a binary file, and a workbook that is damaged
-  or of a kind not read (`.xlsb`). Nested archives are not opened.
+  or of a kind not read (`.xlsb`). Nested archives are not opened. A file whose path repeats an
+  earlier one's is skipped too (`DuplicatePath`): its sheets could not be told apart from the first's,
+  which is read.
 - **Refused:** an archive with nothing readable in it, as `format.unsupported`.
 
 A csv file is read as a stream straight out of the archive, never unpacked, with its dialect

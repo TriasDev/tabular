@@ -308,3 +308,4 @@ TriasDev.Tabular.TabularWriterOptions.Zip.get -> TriasDev.Tabular.Archive.ZipWri
 TriasDev.Tabular.TabularWriterOptions.Zip.init -> void
 TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxSheets.get -> int
 TriasDev.Tabular.Archive.ArchiveCursorOptions.MaxSheets.init -> void
+TriasDev.Tabular.SkippedEntryReason.DuplicatePath = 9 -> TriasDev.Tabular.SkippedEntryReason
