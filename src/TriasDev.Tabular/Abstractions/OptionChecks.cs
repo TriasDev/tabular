@@ -32,4 +32,16 @@ internal static class OptionChecks
                 $"{owner}.{option} must be at most {maximum}.");
         }
     }
+
+    /// <param name="options">The parameter the options arrived through, as the exception names it.</param>
+    public static void Fraction(double value, string owner, string option, string options = "options")
+    {
+        if (value is < 0 or > 1 || double.IsNaN(value))
+        {
+            throw new ArgumentOutOfRangeException(
+                options,
+                value,
+                $"{owner}.{option} must be between 0 and 1.");
+        }
+    }
 }

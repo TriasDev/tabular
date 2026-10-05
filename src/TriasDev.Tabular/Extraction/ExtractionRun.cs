@@ -58,12 +58,22 @@ public sealed class ExtractionRun
         MappingPlan plan,
         ImportSchema schema,
         ExtractionOptions options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool ignoreErrorLimit = false)
     {
         _cursor = cursor;
         _plan = plan;
         _options = options;
-        _errorLimit = schema.Policy == ImportPolicy.AllOrNothing ? 1 : options.MaxErrorRows;
+        // A review reads the whole file whatever the policy says: it reports what an import would
+        // meet, and stopping at the first error would report one problem of many as the file's.
+        if (ignoreErrorLimit)
+        {
+            _errorLimit = int.MaxValue;
+        }
+        else
+        {
+            _errorLimit = schema.Policy == ImportPolicy.AllOrNothing ? 1 : options.MaxErrorRows;
+        }
         _cancellationToken = cancellationToken;
         _culture = plan.Culture is { Length: > 0 } name
             ? CultureInfo.GetCultureInfo(name)
