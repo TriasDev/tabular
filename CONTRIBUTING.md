@@ -143,8 +143,24 @@ with the test that pins it.
   no direct pushes, no force pushes, and a pull request merges only when the `CI Success` check is
   green (the build and tests on three systems and two runtimes, the culture jobs, the package and the
   documentation built strictly). No approval is required, so a maintainer can merge their own.
-- Commit titles follow [Conventional Commits](https://www.conventionalcommits.org/) (`fix: …`,
-  `feat: …`, `docs: …`); release notes are generated from them.
+- **Every pull request is squash-merged: one change, one commit on `main`.** A feature built in twelve
+  commits lands as one, so the history and the changelog read one line per change, and reverting it is
+  one revert. The repository allows no other merge method. The branch's own commits may be as small as
+  you like; only the squashed commit counts.
+- **The pull request's title and description *are* that commit, so write them by hand, for the
+  changelog.** The squash takes the title as the commit's subject and the description as its message —
+  never the branch's commit messages. The title is a
+  [Conventional Commit](https://www.conventionalcommits.org/) (`fix: …`, `feat: …`, `docs: …`,
+  `feat!: …` for a break) and becomes the release-note line: say what a user gets, not what you did.
+  The description says what changes and why, what was measured on a read or write path, and what a
+  reader of the code would not guess. The `PR description` check (`.github/workflows/pull-request.yml`)
+  refuses a title that is not a Conventional Commit and a description under 80 characters, and runs
+  again when either is edited; `main` requires it.
+- **A breaking change says so in the description.** Put `!` in the title and a `BREAKING CHANGE:`
+  paragraph in the description naming every public type or member that changes; the squash carries it
+  into the commit, where release-please reads it. Footers in the branch's own commits are lost in the
+  squash. If a break was missed after merging, add a `BEGIN_COMMIT_OVERRIDE` … `END_COMMIT_OVERRIDE`
+  block to the merged pull request's description; release-please reads it on its next run.
 - One concern per pull request. Describe what changes and why, and call out anything that breaks the
   public API — until 1.0 that is allowed in a minor release, but it is listed in the changelog.
 - Comments and XML docs in this repository explain *why*, often at length; match that when you change

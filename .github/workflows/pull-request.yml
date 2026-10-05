@@ -1,0 +1,48 @@
+name: Pull request
+
+# Every pull request is squash-merged, and the squash commit is the pull request's title and description
+# (the repository's merge settings take them, not the branch's commit messages). So the title and the
+# description are what lands on main and in the changelog: this check refuses a pull request until
+# both are written for that. It runs again whenever the title or the description is edited.
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, edited, reopened, synchronize ]
+
+permissions:
+  contents: read
+
+jobs:
+  description:
+    name: PR description
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the title and the description
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          fail=0
+
+          # The title becomes the release-note line: a Conventional Commit with a real summary.
+          types='feat|fix|perf|docs|chore|build|ci|test|refactor|style|revert'
+          if ! printf '%s' "$TITLE" | grep -Eq "^($types)(\([a-z0-9-]+\))?!?: .{10,}$"; then
+            echo "::error::The title must be a Conventional Commit with a summary of at least ten characters, e.g. 'fix(csv): find the delimiter when …'. It is: $TITLE"
+            fail=1
+          fi
+
+          # The description becomes the commit's body: written by hand, not left empty or as a list of
+          # the branch's commits. HTML comments (a template's hints) do not count.
+          text=$(printf '%s' "$BODY" | perl -0pe 's/<!--.*?-->//gs' | tr -s '[:space:]' ' ')
+          if [ "$(printf '%s' "$text" | tr -d '[:space:]' | wc -c)" -lt 80 ]; then
+            echo "::error::Write a description of at least 80 characters: what changes and why, what was measured, what breaks. It becomes the squash commit's message."
+            fail=1
+          fi
+
+          # A break is announced in the commit itself, or release-please lists nothing under it.
+          if printf '%s' "$TITLE" | grep -Eq '^[a-z]+(\([a-z0-9-]+\))?!:' && ! printf '%s' "$BODY" | grep -q 'BREAKING CHANGE:'; then
+            echo "::error::A title with '!' needs a 'BREAKING CHANGE:' paragraph in the description, naming every public type or member that changes."
+            fail=1
+          fi
+
+          exit $fail
