@@ -30,19 +30,21 @@ internal static class CsvRoundTrip
     }
 
     /// <summary>
-    /// Imports a file whose columns are these fields, in order, bound by the fields' names; each row
-    /// comes back as its values, or the codes of its errors.
+    /// Imports a file — csv, or a workbook's sheet — whose columns are these fields, in order, bound by
+    /// the fields' names; each row comes back as its values, or the codes of its errors.
     /// </summary>
     public static (List<object?[]> Rows, List<string> Errors, int Skipped) Import(
         byte[] file,
         string culture,
         IReadOnlyList<ImportField> fields,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int sheetIndex = 0)
     {
         ImportSchema schema = new() { Fields = [.. fields] };
         MappingPlan plan = new()
         {
             Culture = culture,
+            SheetIndex = sheetIndex,
             Bindings = [.. fields.Select((f, i) => new ColumnBinding { ColumnIndex = i, Header = f.Name, FieldName = f.Name })],
         };
 
