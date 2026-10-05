@@ -10,23 +10,28 @@ about seventy tests exercise de-DE and en-US readings directly and fail there by
 flow under invariant mode is pinned instead by `tests/TriasDev.Tabular.InvariantGlobalizationTests`,
 whose whole test host runs with `InvariantGlobalization` — so the main suite need not.
 
-### One error code is asserted nowhere
-`value.min-length`. The codes are a frontend's translation contract; swapping two of them leaves the
-suite green.
+### Culture-cleanliness is pinned at build time and in CI, not in-process
+The library never touches `CurrentCulture`. A call that would fall back to it — a parse, format,
+comparison or case change without a culture or `StringComparison` — fails the build: CA1304, CA1305,
+CA1310 and CA1311 are errors for `src/` (`.editorconfig`). The `culture-tests` CI jobs run the whole
+suite under de-DE and tr-TR, which catches a dropped culture argument wherever those cultures
+disagree with the one the code names. No test sets `CurrentCulture` in-process, so a run on one
+machine in one locale proves nothing about the others; the analyzers are what holds there.
 
-The count used to be wrong in both halves at once — it said four of nineteen when it was two of
-twenty — so the catalog itself is now pinned by `ErrorCodeCatalogTests` rather than described here.
+### Remaining weak spots
+Found by reading the code against the suite; each is a one-test fix.
 
-### Nothing pins the library's culture-cleanliness
-The library never touches `CurrentCulture` and the suite passes under German and Turkish locales, but
-nothing would *fail* if a `_culture` argument were dropped. On a US runner that regression is
-invisible.
-
-### Assorted weak tests
-Several tests assert less than their names claim — the delimiter-consistency tests never reach the
-consistency rule, `TabularAnalyzerTests`' cancellation test cancels before the pass begins rather than
-during it, and the "no values for a failing row" invariant is never actually read.
-
-Two that were on this list have been fixed rather than recorded: the quote-storm guard now compares
-allocation across two input sizes instead of asserting a wall-clock ceiling no defect could exceed,
-and `ExtractionSessionTests` cancels after a row rather than before the first.
+- `GzipBoundsTests.ReadsAFileThatExpandsToExactlyTheBound` reads without asserting what it read.
+- `GzipCursor`: refusing a non-seekable stream, and reading after a move that failed part-way.
+- `ArchiveCursor`: an entry that is unreadable while it is classified (a corrupt deflate stream)
+  reaching `SkippedEntries` rather than aborting the archive.
+- A self-closing `<table:table/>` between two ods sheets: the name pass and the reading must both
+  skip it.
+- `TabularWriter`: a header only the format writer refuses (a csv header with a lone CR) faulting the
+  writer; `CsvWriterOptions` refusing a culture whose output the import would not read back;
+  `SheetNames` refusing a lone surrogate or U+FFFF.
+- `ZipEndRecord`: a 16-bit entry count that contradicts a larger zip64 count.
+- `EquatableDictionary` equality and hash, as `FileProfile` equality uses them.
+- The workbook write fuzz draws no merges.
+- `TabularAnalyzer` checks its token between rows and hands it into `ReadRow`; for csv each covers
+  for the other, so a test can only show that removing both is caught, not either alone.
