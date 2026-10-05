@@ -1,4 +1,3 @@
-using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 
 namespace TriasDev.Tabular.Tests.Writing;

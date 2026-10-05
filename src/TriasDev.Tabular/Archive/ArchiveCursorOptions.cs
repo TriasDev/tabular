@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Archive;
+namespace TriasDev.Tabular;
 
 /// <summary>Bounds on what a zip archive or a gzip-compressed file may make the reader hold or do.</summary>
 /// <remarks>

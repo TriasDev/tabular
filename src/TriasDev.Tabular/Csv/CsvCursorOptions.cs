@@ -1,6 +1,7 @@
 using System.Text;
+using TriasDev.Tabular.Csv;
 
-namespace TriasDev.Tabular.Csv;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for reading a csv file.</summary>
 public sealed record CsvCursorOptions

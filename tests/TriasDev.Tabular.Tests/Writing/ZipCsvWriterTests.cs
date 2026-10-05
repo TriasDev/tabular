@@ -2,7 +2,6 @@ using System.IO.Compression;
 using System.Text;
 
 using TriasDev.Tabular.Archive;
-using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 
 using Xunit;

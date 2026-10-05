@@ -1,6 +1,7 @@
 using System.Globalization;
+using TriasDev.Tabular.Csv;
 
-namespace TriasDev.Tabular.Csv;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for writing a csv file.</summary>
 /// <remarks>

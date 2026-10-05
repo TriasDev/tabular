@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Csv;
+namespace TriasDev.Tabular;
 
 /// <summary>How a property of a csv dialect came to be what it is.</summary>
 /// <remarks>

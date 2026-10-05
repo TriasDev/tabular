@@ -1,7 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 
-using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 
 using Xunit;

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TriasDev.Tabular.Csv;
+namespace TriasDev.Tabular;
 
 /// <summary>How a csv file was encoded and punctuated, as the reader decided it.</summary>
 /// <remarks>

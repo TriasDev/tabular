@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Ods;
+namespace TriasDev.Tabular;
 
 /// <summary>Bounds on what an OpenDocument spreadsheet may make the reader hold or do.</summary>
 /// <remarks>

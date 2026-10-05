@@ -38,9 +38,9 @@ internal abstract class TabularWriters : IWriter
         Enum.TryParse(Environment.GetEnvironmentVariable("TABULAR_COMPRESSION"), true, out System.IO.Compression.CompressionLevel level)
             ? new TabularWriterOptions
             {
-                Xlsx = new Xlsx.XlsxWriterOptions { CompressionLevel = level },
-                Ods = new Ods.OdsWriterOptions { CompressionLevel = level },
-                Zip = new Archive.ZipWriterOptions { CompressionLevel = level },
+                Xlsx = new XlsxWriterOptions { CompressionLevel = level },
+                Ods = new OdsWriterOptions { CompressionLevel = level },
+                Zip = new ZipWriterOptions { CompressionLevel = level },
             }
             : TabularWriterOptions.Default;
 

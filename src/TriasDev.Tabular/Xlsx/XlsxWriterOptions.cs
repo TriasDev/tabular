@@ -1,6 +1,6 @@
 using System.IO.Compression;
 
-namespace TriasDev.Tabular.Xlsx;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for writing an xlsx workbook.</summary>
 public sealed record XlsxWriterOptions
