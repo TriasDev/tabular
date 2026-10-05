@@ -20,7 +20,7 @@ namespace TriasDev.Tabular.Xlsx;
 /// all numeric never pays for it.
 /// </para>
 /// </remarks>
-public sealed class XlsxCursor : ITabularCursor
+internal sealed class XlsxCursor : ITabularCursor
 {
     /// <summary>
     /// The last column the format has, XFD.
@@ -299,6 +299,33 @@ public sealed class XlsxCursor : ITabularCursor
     /// <inheritdoc />
     public int CurrentRowNumber { get; private set; }
 
+    /// <summary>
+    /// The row's own number, not a count of how many were read: rows may be absent, and a message
+    /// pointing a user at the wrong line is worse than no message. Taken only where it can be one —
+    /// within the format's rows and after the row before — so numbering never goes backwards or
+    /// repeats; anything else is read as the next row.
+    /// </summary>
+    private int NextRowNumber(SheetScanner scanner)
+    {
+        if (scanner.TryGetAttribute("r", out ReadOnlySpan<char> reference)
+            && int.TryParse(reference, NumberStyles.None, CultureInfo.InvariantCulture, out int number)
+            && number > CurrentRowNumber
+            && number <= MaxRows)
+        {
+            return number;
+        }
+
+        // Counted, not read: rows past the format's limit without a number of their own go on
+        // counting, and the one past MaxRowNumber is refused rather than wrapped negative.
+        return CurrentRowNumber != MaxRowNumber ? CurrentRowNumber + 1 : throw RowNumbers.Exceeded(MaxRowNumber);
+    }
+
+    /// <summary>
+    /// The largest row number the cursor gives: <see cref="int.MaxValue"/>, the ceiling of every row
+    /// number in the library. Settable only so a test reaches it without reading 2^31 rows.
+    /// </summary>
+    internal int MaxRowNumber { get; init; } = int.MaxValue;
+
     /// <inheritdoc />
     public CursorDiagnostics Diagnostics { get; } = new();
 
@@ -442,17 +469,7 @@ public sealed class XlsxCursor : ITabularCursor
                 continue;
             }
 
-            // The row's own number, not a count of how many were read: rows may be absent, and a
-            // message pointing a user at the wrong line is worse than no message. Taken only where it
-            // can be one — within the format's rows and after the row before — so numbering never
-            // goes backwards or repeats; anything else is read as the next row.
-            CurrentRowNumber = scanner.TryGetAttribute("r", out ReadOnlySpan<char> reference)
-                && int.TryParse(reference, NumberStyles.None, CultureInfo.InvariantCulture, out int number)
-                && number > CurrentRowNumber
-                && number <= MaxRows
-                    ? number
-                    : CurrentRowNumber + 1;
-
+            CurrentRowNumber = NextRowNumber(scanner);
             _cellCount = 0;
 
             if (!scanner.IsEmptyElement)

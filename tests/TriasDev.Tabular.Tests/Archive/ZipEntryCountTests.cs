@@ -1,9 +1,7 @@
 using System.Buffers.Binary;
 
 using TriasDev.Tabular.Archive;
-using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Tests.Fixtures;
-using TriasDev.Tabular.Xlsx;
 
 using Xunit;
 

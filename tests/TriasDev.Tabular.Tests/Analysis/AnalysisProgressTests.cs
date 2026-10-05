@@ -41,7 +41,7 @@ public sealed class AnalysisProgressTests
 
         TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 10, ProgressStep = 0 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal([10L, 20L, 25L], recorder.Reports.Select(r => r.RowsRead));
+        Assert.Equal([10, 20, 25], recorder.Reports.Select(r => r.RowsRead));
         Assert.True(recorder.Reports[^1].IsComplete);
         Assert.All(recorder.Reports.SkipLast(1), r => Assert.False(r.IsComplete));
     }
@@ -70,21 +70,15 @@ public sealed class AnalysisProgressTests
         using NonSeekableStream stream = new(Csv(30));
         using CsvCursor cursor = new(stream, "test.csv", new CsvCursorOptions
         {
-            Dialect = new CsvDialect
-            {
-                Encoding = Utf8NoBom,
-                EncodingSource = DialectSource.Specified,
-                Delimiter = ';',
-                DelimiterSource = DialectSource.Specified,
-                Quote = '"',
-            },
+            Encoding = Utf8NoBom,
+            Delimiter = ';',
         });
         Recorder recorder = new();
 
         TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 10 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         // With no length there is no percentage to step by, so the row interval alone decides.
-        Assert.Equal([10L, 20L, 30L, 30L], recorder.Reports.Select(r => r.RowsRead));
+        Assert.Equal([10, 20, 30, 30], recorder.Reports.Select(r => r.RowsRead));
         Assert.All(recorder.Reports.SkipLast(1), r => Assert.Null(r.Fraction));
         Assert.Equal(30, recorder.Reports[^1].RowsRead);
         Assert.Equal(1, recorder.Reports[^1].Fraction);
@@ -109,7 +103,7 @@ public sealed class AnalysisProgressTests
         TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 10, ProgressStep = 0 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
 
         // The header row of each sheet is not a data row: 20 + 10.
-        Assert.Equal([10L, 20L, 30L, 30L], recorder.Reports.Select(r => r.RowsRead));
+        Assert.Equal([10, 20, 30, 30], recorder.Reports.Select(r => r.RowsRead));
         Assert.Equal(["First", "First", "Second", "Second"], recorder.Reports.Select(r => r.SheetName));
         Assert.All(recorder.Reports, r => Assert.Equal(2, r.SheetCount));
 

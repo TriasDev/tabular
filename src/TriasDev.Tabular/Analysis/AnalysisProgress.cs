@@ -16,8 +16,12 @@ public sealed record AnalysisProgress
     /// <summary>How many sheets the file holds.</summary>
     public required int SheetCount { get; init; }
 
-    /// <summary>Data rows read so far, across every sheet; header rows and blank rows are not counted.</summary>
-    public required long RowsRead { get; init; }
+    /// <summary>
+    /// Data rows read so far, across every sheet; header rows and blank rows are not counted. An int,
+    /// as every row number and count in the library; an archive whose sheets together hold more rows
+    /// than that reports <see cref="int.MaxValue"/> from there on.
+    /// </summary>
+    public required int RowsRead { get; init; }
 
     /// <summary>
     /// How much of the file has been read, from 0 to 1, or null where the file's size cannot be known.

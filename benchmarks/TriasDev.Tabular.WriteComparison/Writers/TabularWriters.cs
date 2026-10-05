@@ -38,9 +38,9 @@ internal abstract class TabularWriters : IWriter
         Enum.TryParse(Environment.GetEnvironmentVariable("TABULAR_COMPRESSION"), true, out System.IO.Compression.CompressionLevel level)
             ? new TabularWriterOptions
             {
-                Xlsx = new Xlsx.XlsxWriterOptions { CompressionLevel = level },
-                Ods = new Ods.OdsWriterOptions { CompressionLevel = level },
-                Zip = new Archive.ZipWriterOptions { CompressionLevel = level },
+                Xlsx = new XlsxWriterOptions { CompressionLevel = level },
+                Ods = new OdsWriterOptions { CompressionLevel = level },
+                Zip = new ZipWriterOptions { CompressionLevel = level },
             }
             : TabularWriterOptions.Default;
 
@@ -80,7 +80,7 @@ internal abstract class TabularWriters : IWriter
         writer.BeginSheet("Data", ColumnsOf(dataset), LayoutOf(scenario));
 
         StyleId[] styles = [.. columns.Select(c => scenario.Styled ? StyleOf(writer, c.Kind) : default)];
-        StyleId[] legend = scenario.Styled ? [.. Legend.Select(writer.Style)] : [];
+        StyleId[] legend = scenario.Styled ? [.. Legend.Select(writer.RegisterStyle)] : [];
         Datum[] cells = new Datum[columns.Length];
 
         for (long row = 0; row < scenario.Rows; row++)
@@ -104,9 +104,9 @@ internal abstract class TabularWriters : IWriter
 
     private static StyleId StyleOf(TabularWriter writer, ValueKind kind) => kind switch
     {
-        ValueKind.Date => writer.Style(new CellStyle { Date = DateFormat.Parse(Styles.DateFormat) }),
-        ValueKind.DateTime => writer.Style(new CellStyle { Date = DateFormat.Parse(Styles.DateTimeFormat) }),
-        ValueKind.Decimal => writer.Style(new CellStyle { Number = NumberFormat.Parse(Styles.DecimalFormat) }),
+        ValueKind.Date => writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse(Styles.DateFormat) }),
+        ValueKind.DateTime => writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse(Styles.DateTimeFormat) }),
+        ValueKind.Decimal => writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse(Styles.DecimalFormat) }),
         _ => default,
     };
 
@@ -144,7 +144,7 @@ internal abstract class TabularWriters : IWriter
     private static void WriteWide(TabularWriter writer, Scenario scenario)
     {
         writer.BeginSheet("Data", ColumnsOf(scenario.Dataset), LayoutOf(scenario));
-        StyleId date = scenario.Styled ? writer.Style(new CellStyle { Date = DateFormat.Parse(Styles.DateFormat) }) : default;
+        StyleId date = scenario.Styled ? writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse(Styles.DateFormat) }) : default;
 
         ColumnBatch batch = new();
         WideChunk chunk = new(WideChunkRows);

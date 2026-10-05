@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 
-using TriasDev.Tabular.Csv;
 
 using Xunit;
 
@@ -19,8 +18,8 @@ public sealed class InvariantGlobalizationTests
 
     private static readonly ImportSchema Schema = new() { Fields = [Amount] };
 
-    private static CsvCursor Csv() =>
-        new(new MemoryStream(Utf8NoBom.GetBytes("amount;x\n1.5;a\n2.25;b\n"), writable: false), "t.csv");
+    private static ITabularCursor Csv() =>
+        TabularFile.Open(new MemoryStream(Utf8NoBom.GetBytes("amount;x\n1.5;a\n2.25;b\n"), writable: false), "t.csv");
 
     private static MappingPlan Plan(string? culture) => new()
     {
@@ -38,7 +37,7 @@ public sealed class InvariantGlobalizationTests
     [Fact]
     public void AnalysesWithTheDefaultCulturesByLeavingTheNamedOnesOut()
     {
-        using CsvCursor cursor = Csv();
+        using ITabularCursor cursor = Csv();
 
         FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -50,7 +49,7 @@ public sealed class InvariantGlobalizationTests
     [Fact]
     public void AnalysesUnderTheInvariantCultureWhenNoneOfTheListedOnesExists()
     {
-        using CsvCursor cursor = Csv();
+        using ITabularCursor cursor = Csv();
 
         FileProfile profile = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { Cultures = ["de-DE"] }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -62,7 +61,7 @@ public sealed class InvariantGlobalizationTests
     {
         Assert.Contains(MappingPlanValidator.Validate(Plan("de-DE"), Schema), f => f.Code == ErrorCodes.Mapping.UnknownCulture);
 
-        using CsvCursor cursor = Csv();
+        using ITabularCursor cursor = Csv();
         FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
         PrecheckResult result = MappingPrecheck.Check(Plan("de-DE"), Schema, profile);
 
@@ -73,7 +72,7 @@ public sealed class InvariantGlobalizationTests
     [Fact]
     public void ImportsThroughAnInvariantPlan()
     {
-        using CsvCursor cursor = Csv();
+        using ITabularCursor cursor = Csv();
         using ImportRun<decimal?> run = TabularImporter.Import(cursor, Plan(""), Schema, row => row[Amount], cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal([1.5m, 2.25m], run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);

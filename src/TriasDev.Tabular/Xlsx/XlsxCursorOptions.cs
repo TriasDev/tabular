@@ -1,4 +1,4 @@
-namespace TriasDev.Tabular.Xlsx;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for reading a workbook.</summary>
 public sealed record XlsxCursorOptions

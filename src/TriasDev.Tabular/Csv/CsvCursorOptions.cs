@@ -1,4 +1,7 @@
-namespace TriasDev.Tabular.Csv;
+using System.Text;
+using TriasDev.Tabular.Csv;
+
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for reading a csv file.</summary>
 public sealed record CsvCursorOptions
@@ -7,9 +10,45 @@ public sealed record CsvCursorOptions
     public static CsvCursorOptions Default { get; } = new();
 
     /// <summary>
-    /// A dialect the caller has decided. When null, the dialect is detected from the file's head.
+    /// The character separating fields, when the caller knows it: one of <c>,</c> <c>;</c> tab
+    /// <c>|</c>, the delimiters the reader detects. When null it is detected from the file's head.
     /// </summary>
-    public CsvDialect? Dialect { get; init; }
+    /// <remarks>
+    /// A stated delimiter is reported as <see cref="DialectSource.Specified"/> in
+    /// <see cref="CsvDialect.DelimiterSource"/>; the encoding is still detected unless
+    /// <see cref="Encoding"/> is stated too. The same property as <see cref="CsvWriterOptions.Delimiter"/>,
+    /// so a file written with one reads back with the other.
+    /// </remarks>
+    public char? Delimiter { get; init; }
+
+    /// <summary>
+    /// The encoding the file's bytes are read with, when the caller knows it. When null it is
+    /// detected: a byte order mark, else valid UTF-8, else Windows-1252.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A stated encoding is reported as <see cref="DialectSource.Specified"/> in
+    /// <see cref="CsvDialect.EncodingSource"/>, and it wins over a byte order mark: a mark of the
+    /// stated encoding is skipped, never read as content; the mark of another encoding is read as
+    /// the characters its bytes are in the stated one.
+    /// </para>
+    /// <para>
+    /// Stating it, or the whole dialect, does not stop a file that is not csv at all — a legacy
+    /// workbook, an XML document, a binary file — from being refused as
+    /// <see cref="TabularFormatException.Unsupported"/>: the file's head is still read for that.
+    /// </para>
+    /// </remarks>
+    public Encoding? Encoding { get; init; }
+
+    /// <summary>
+    /// The character that quotes a field, when it is not <c>"</c>. When null it is <c>"</c>.
+    /// </summary>
+    /// <remarks>
+    /// It may not be a line ending, nor one of the delimiters the reader knows (<c>,</c> <c>;</c> tab
+    /// <c>|</c>), since a detected delimiter could then be the quote too. Delimiter detection honours
+    /// it.
+    /// </remarks>
+    public char? Quote { get; init; }
 
     /// <summary>
     /// How many line endings one quoted field may contain before the reader concludes its opening
@@ -72,6 +111,27 @@ public sealed record CsvCursorOptions
         OptionChecks.AtLeast(MaxFieldChars, 1, nameof(CsvCursorOptions), nameof(MaxFieldChars));
         OptionChecks.AtLeast(DialectProbeBytes, 1, nameof(CsvCursorOptions), nameof(DialectProbeBytes));
         OptionChecks.AtLeast(MaxColumns, 1, nameof(CsvCursorOptions), nameof(MaxColumns));
+
+        if (Delimiter is { } delimiter && !CsvDialectDetector.IsDelimiter(delimiter))
+        {
+#pragma warning disable S3928 // Justification: the options arrive through a parameter named options, as OptionChecks names it
+            throw new ArgumentOutOfRangeException(
+                "options",
+                delimiter,
+                $"{nameof(CsvCursorOptions)}.{nameof(Delimiter)} must be one of , ; tab | — the delimiters the reader detects.");
+#pragma warning restore S3928
+        }
+
+        if (Quote is { } quote && (quote is '\r' or '\n' || CsvDialectDetector.IsDelimiter(quote)))
+        {
+#pragma warning disable S3928 // Justification: the options arrive through a parameter named options, as OptionChecks names it
+            throw new ArgumentOutOfRangeException(
+                "options",
+                quote,
+                $"{nameof(CsvCursorOptions)}.{nameof(Quote)} may be neither a line ending nor one of , ; tab |, the delimiters the reader detects.");
+#pragma warning restore S3928
+        }
+
         return this;
     }
 }

@@ -1,6 +1,6 @@
 using System.IO.Compression;
 
-namespace TriasDev.Tabular.Archive;
+namespace TriasDev.Tabular;
 
 /// <summary>How a zip of csv sheets is written.</summary>
 public sealed record ZipWriterOptions

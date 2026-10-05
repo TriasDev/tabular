@@ -51,7 +51,9 @@ internal sealed class CsvSheetWriter : ISheetWriter
     {
     }
 
-    public long MaxRows => long.MaxValue;
+    // Csv has no row limit of its own, but the reader numbers rows as an int, the header row 1: a row
+    // past int.MaxValue would not read back, so the writer refuses it (write.too-many-rows).
+    public int MaxRows => int.MaxValue;
 
     public bool AllowsSeveralSheets => false;
 

@@ -7,7 +7,7 @@ namespace TriasDev.Tabular;
 /// <remarks>
 /// Compares by value: two styles with the same settings are the same style, and a file holds it
 /// once. Declare the styles an export uses once (<c>static readonly</c>) and register each with
-/// a writer's Style method.
+/// a writer's RegisterStyle method.
 /// </remarks>
 public sealed record CellStyle
 {
@@ -18,13 +18,13 @@ public sealed record CellStyle
     public CellFont? Font { get; init; }
 
     /// <summary>How an integer, decimal or double cell shows its value; ignored for other cells. Null keeps the default.</summary>
-    public NumberFormat? Number { get; init; }
+    public NumberFormat? NumberFormat { get; init; }
 
     /// <summary>How a date or date-time cell shows its value; ignored for other cells. Null keeps the writer's default date format.</summary>
-    public DateFormat? Date { get; init; }
+    public DateFormat? DateFormat { get; init; }
 
     /// <summary>Where the content sits across the cell.</summary>
-    public HorizontalAlignment Horizontal { get; init; }
+    public CellHorizontalAlignment Horizontal { get; init; }
 
     /// <summary>Wraps text onto several lines within the column's width.</summary>
     public bool Wrap { get; init; }

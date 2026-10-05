@@ -15,9 +15,9 @@ public sealed class XlsxStyleTests
     {
         Fill = CellColor.FromRgb(0xF8696B),
         Font = new CellFont { Color = CellColor.FromRgb(0xFFFFFF), Bold = true, Italic = true },
-        Number = NumberFormat.Parse("#,##0.00"),
-        Date = DateFormat.Parse("dd/mm/yyyy"),
-        Horizontal = HorizontalAlignment.Center,
+        NumberFormat = NumberFormat.Parse("#,##0.00"),
+        DateFormat = DateFormat.Parse("dd/mm/yyyy"),
+        Horizontal = CellHorizontalAlignment.Center,
         Wrap = true,
         Border = CellBorder.Thin(CellColor.FromRgb(0xBFBFBF)),
     };
@@ -77,7 +77,7 @@ public sealed class XlsxStyleTests
     [Fact]
     public async Task AStyledWorkbookIsValidAndStatesTheStyle()
     {
-        byte[] xlsx = await Workbook(writer => EveryKind(writer, writer.Style(Legend)));
+        byte[] xlsx = await Workbook(writer => EveryKind(writer, writer.RegisterStyle(Legend)));
 
         Assert.Empty(OoxmlValidation.Errors(xlsx));
 
@@ -98,7 +98,7 @@ public sealed class XlsxStyleTests
     public async Task TheImportReadsAStyledRowAsItReadsAnUnstyledOne()
     {
         byte[] plain = await Workbook(writer => EveryKind(writer, default));
-        byte[] styled = await Workbook(writer => EveryKind(writer, writer.Style(Legend)));
+        byte[] styled = await Workbook(writer => EveryKind(writer, writer.RegisterStyle(Legend)));
 
         // The unstyled empty cell is left out; the styled one is written, and reads as an empty cell at the end of the row.
         Assert.Equal(Rows(plain)[0], Rows(styled)[0]);
@@ -112,7 +112,7 @@ public sealed class XlsxStyleTests
     [Fact]
     public async Task OneStyleOnSeveralKindsTakesAFormatPerKind()
     {
-        byte[] xlsx = await Workbook(writer => EveryKind(writer, writer.Style(Legend)));
+        byte[] xlsx = await Workbook(writer => EveryKind(writer, writer.RegisterStyle(Legend)));
         string styles = Part(xlsx, "xl/styles.xml");
 
         // text/flag/none share one xf (General), long/decimal/double share the number format, date and stamp the date format.
@@ -124,9 +124,9 @@ public sealed class XlsxStyleTests
     {
         byte[] xlsx = await Workbook(writer =>
         {
-            StyleId a = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0x00FF00) });
-            StyleId b = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0x00FF00) });
-            StyleId c = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0x00FF00), Wrap = true });
+            StyleId a = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x00FF00) });
+            StyleId b = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x00FF00) });
+            StyleId c = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x00FF00), Wrap = true });
             writer.BeginSheet("data", [new("a"), new("b"), new("c")]);
             writer.BeginRow();
             writer.Write("x", a);
@@ -150,7 +150,7 @@ public sealed class XlsxStyleTests
             for (int i = 1; i <= 1000; i++)
             {
                 writer.BeginRow();
-                writer.Write(i, i == 1000 ? writer.Style(new CellStyle { Fill = CellColor.FromRgb(0x0000FF) }) : default);
+                writer.Write(i, i == 1000 ? writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x0000FF) }) : default);
                 writer.EndRow();
             }
         });
@@ -165,7 +165,7 @@ public sealed class XlsxStyleTests
     {
         byte[] xlsx = await Workbook(writer =>
         {
-            StyleId style = writer.Style(new CellStyle { Number = NumberFormat.Parse("\"R&D <\"0") });
+            StyleId style = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("\"R&D <\"0") });
             writer.BeginSheet("data", [new("n")]);
             writer.BeginRow();
             writer.Write(5L, style);
@@ -190,7 +190,7 @@ public sealed class XlsxStyleTests
     {
         byte[] xlsx = await Workbook(writer =>
         {
-            StyleId style = writer.Style(new CellStyle { Number = NumberFormat.Parse(code) });
+            StyleId style = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse(code) });
             writer.BeginSheet("data", [new("a"), new("b"), new("c")]);
             writer.BeginRow();
             writer.Write(42.0, style);
@@ -209,7 +209,7 @@ public sealed class XlsxStyleTests
     {
         byte[] xlsx = await Workbook(writer =>
         {
-            StyleId style = writer.Style(new CellStyle { Date = DateFormat.Parse("dd \"\U0001F4C5\" yyyy") });
+            StyleId style = writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse("dd \"\U0001F4C5\" yyyy") });
             writer.BeginSheet("data", [new("d")]);
             writer.BeginRow();
             writer.Write(new DateOnly(2026, 10, 4), style);
@@ -227,7 +227,7 @@ public sealed class XlsxStyleTests
     {
         byte[] xlsx = await Workbook(writer =>
         {
-            StyleId style = writer.Style(new CellStyle { Number = NumberFormat.Parse("\"a\tb\"0") });
+            StyleId style = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("\"a\tb\"0") });
             writer.BeginSheet("data", [new("n")]);
             writer.BeginRow();
             writer.Write(5L, style);

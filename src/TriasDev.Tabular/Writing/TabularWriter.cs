@@ -20,6 +20,13 @@ namespace TriasDev.Tabular;
 /// an exception, leaves an incomplete file behind — for a workbook, plainly broken; for csv, a file
 /// that looks whole. The caller discards it: aborts the response, deletes the file.
 /// </para>
+/// <para>
+/// Any exception a call throws leaves the writer faulted — a value refused with a
+/// <see cref="TabularWriteException"/>, an argument refused with an <see cref="ArgumentException"/>,
+/// a call out of order refused with an <see cref="InvalidOperationException"/> — because part of the
+/// file is already out. Every later call but <see cref="DisposeAsync"/> throws
+/// <see cref="InvalidOperationException"/>, and the file is incomplete.
+/// </para>
 /// <para>Not thread-safe: one writer, one sequence of calls.</para>
 /// </remarks>
 public sealed class TabularWriter : IAsyncDisposable
@@ -46,7 +53,7 @@ public sealed class TabularWriter : IAsyncDisposable
     private readonly HashSet<string> _sheetNames = new(StringComparer.OrdinalIgnoreCase);
     private string _sheetName = string.Empty;
     private int _sheets;
-    private long _rowNumber;
+    private int _rowNumber;
     private int _column;
 
     // Merges: per column, the rows a range covers there (first..last, 0 when none). Allocated on a
@@ -66,6 +73,7 @@ public sealed class TabularWriter : IAsyncDisposable
         _sheet = sheet;
         _styles = styles;
         _leaveOpen = leaveOpen;
+        MaxRows = sheet.MaxRows;
     }
 
     private enum State
@@ -85,6 +93,12 @@ public sealed class TabularWriter : IAsyncDisposable
     /// Whether enough is pending in memory that the caller should <see cref="FlushAsync"/> now.
     /// </summary>
     public bool FlushRecommended => _buffer.Pending >= FlushThreshold;
+
+    /// <summary>
+    /// The most rows a sheet holds, the header included: the format's limit, which for csv is the
+    /// largest row number the reader gives. Settable only so a test can reach it without writing 2^31 rows.
+    /// </summary>
+    internal int MaxRows { get; set; }
 
     /// <summary>Bytes held in memory and not yet handed to the stream; a test hook for the memory bound.</summary>
     internal int PendingBytes => (int)Math.Min(int.MaxValue, _buffer.Pending);
@@ -197,9 +211,8 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
     /// <param name="options">The header style, frozen rows and columns, and filter; null for none.</param>
     /// <exception cref="ArgumentOutOfRangeException">A freeze outside the sheet: rows from 0 to the format's row limit less one, columns from 0 to the column count.</exception>
-    /// <exception cref="InvalidOperationException">A merged range of the previous sheet still covers rows the sheet did not write.</exception>
-    /// <exception cref="ArgumentException">The <see cref="SheetOptions.HeaderStyle"/> has an alignment that is not a defined value, as <see cref="Style"/> refuses.</exception>
-    /// <exception cref="TabularLimitException">The <see cref="SheetOptions.HeaderStyle"/> would be the file's 4097th distinct style, as <see cref="Style"/> refuses.</exception>
+    /// <exception cref="ArgumentException">The <see cref="SheetOptions.HeaderStyle"/> has an alignment that is not a defined value, as <see cref="RegisterStyle"/> refuses.</exception>
+    /// <exception cref="InvalidOperationException">The <see cref="SheetOptions.HeaderStyle"/> would be the file's 4097th distinct style, as <see cref="RegisterStyle"/> refuses; or a merged range of the previous sheet still covers rows the sheet did not write.</exception>
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions? options)
     {
         ExpectWritable();
@@ -230,12 +243,12 @@ public sealed class TabularWriter : IAsyncDisposable
 
         SheetOptions layout = options ?? SheetOptions.Default;
 
-        if (layout.FreezeProblem(nameof(options), _sheet.MaxRows, columns.Length) is { } freezeProblem)
+        if (layout.FreezeProblem(nameof(options), MaxRows, columns.Length) is { } freezeProblem)
         {
             throw Faulting(freezeProblem);
         }
 
-        int headerStyle = layout.HeaderStyle is { } header ? RegisterStyle(header) : 0;
+        int headerStyle = layout.HeaderStyle is { } header ? AddStyle(header) : 0;
 
         _columns = columns.ToArray();
         _sheetName = name;
@@ -272,7 +285,7 @@ public sealed class TabularWriter : IAsyncDisposable
         _sheet.NamesSheets ? SheetNames.Problem(name, _sheetNames) ?? _sheet.NameProblem(name) : null;
 
     /// <summary>Begins a row; its values follow, one per column, then <see cref="EndRow"/>.</summary>
-    /// <exception cref="TabularLimitException">The sheet already holds as many rows as its format allows.</exception>
+    /// <exception cref="TabularWriteException">The sheet already holds as many rows as its format allows (<c>write.too-many-rows</c>, located at the last row it holds): 1,048,576 for xlsx and ods, <see cref="int.MaxValue"/> — the largest row number the reader gives — for csv and a zip of csv sheets. The writer is faulted.</exception>
     public void BeginRow()
     {
         ExpectWritable();
@@ -291,12 +304,12 @@ public sealed class TabularWriter : IAsyncDisposable
     /// csv files ignore styles.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="style"/> is null.</exception>
-    /// <exception cref="TabularLimitException">The file already holds 4096 distinct styles.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">The style's alignment is not a defined value.</exception>
-    public StyleId Style(CellStyle style)
+    /// <exception cref="InvalidOperationException">The file already holds 4096 distinct styles: registering that many by hand is a defect in the calling code. The writer is faulted. (A style rule that reaches the limit is the data's doing instead: <see cref="TabularWriteException"/> <c>write.too-many-styles</c>, located at its cell.)</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The style's alignment is not a defined value. The writer is faulted.</exception>
+    public StyleId RegisterStyle(CellStyle style)
     {
         ExpectWritable();
-        return new StyleId(_stamp, RegisterStyle(style));
+        return new StyleId(_stamp, AddStyle(style));
     }
 
     /// <summary>The most rule-returned styles remembered by reference before the cache starts over.</summary>
@@ -345,7 +358,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         if (!_byReference.TryGetValue(style, out StyleId id))
         {
-            id = Style(style);
+            id = RegisterRuleStyle(style);
 
             if (_byReference.Count == StyleCacheLimit)
             {
@@ -364,22 +377,70 @@ public sealed class TabularWriter : IAsyncDisposable
         return id;
     }
 
-    private int RegisterStyle(CellStyle style)
+    private int AddStyle(CellStyle style)
     {
         try
         {
             return _styles.Add(style);
         }
-        catch (Exception refused) when (refused is ArgumentException or TabularLimitException)
+        catch (Exception refused) when (refused is ArgumentException or InvalidOperationException)
         {
             MarkFaulted();
             throw;
         }
     }
 
+    /// <summary>
+    /// Registers a style a rule returned for the cell about to be written. A rule turns data into
+    /// styles, so the one past the limit is the data's doing — a write error located at its cell —
+    /// where the same limit reached by <see cref="RegisterStyle"/> is a defect in the calling code.
+    /// </summary>
+    private StyleId RegisterRuleStyle(CellStyle style)
+    {
+        ExpectWritable();
+
+        try
+        {
+            if (_styles.TryAdd(style, out int index))
+            {
+                return new StyleId(_stamp, index);
+            }
+        }
+        catch (ArgumentException)
+        {
+            MarkFaulted();
+            throw;
+        }
+
+        int column = NextUncoveredColumn();
+        string header = column < _columns.Length ? _columns[column].Header : string.Empty;
+
+        throw Faulting(new TabularWriteException(
+            ErrorCodes.Write.TooManyStyles,
+            _sheetName,
+            _rowNumber,
+            column,
+            header,
+            $"Row {_rowNumber}, column {column + 1} (\"{header}\") of sheet \"{_sheetName}\" cannot be written: its style rule returned a {StyleTable.MaxStyles + 1}th distinct style, and a file holds at most {StyleTable.MaxStyles}."));
+    }
+
+    /// <summary>The cell the next write lands in: the row's position, past any positions a merged range covers.</summary>
+    private int NextUncoveredColumn()
+    {
+        int column = _column;
+
+        while (_coveredFrom is not null && column < _columns.Length && IsCovered(column))
+        {
+            column++;
+        }
+
+        return column;
+    }
+
     /// <summary>Writes the next cell as text; null writes an empty cell.</summary>
     /// <remarks>The import trims text and reads empty or whitespace-only text as no value.</remarks>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns. This applies to every <c>Write</c> overload and <see cref="WriteEmpty()"/>.</exception>
+    /// <exception cref="TabularWriteException">The text cannot be written as it would read back: <c>write.invalid-character</c> (a character XML forbids, refused in every format), <c>write.text-too-long</c>, or, in csv, <c>write.too-many-lines</c> or <c>write.ambiguous-line-breaks</c>. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(string? value) => Write(value, default);
 
     /// <inheritdoc cref="Write(string?)"/>
@@ -387,6 +448,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException">The text cannot be written as it would read back: <c>write.invalid-character</c> (a character XML forbids, refused in every format), <c>write.text-too-long</c>, or, in csv, <c>write.too-many-lines</c> or <c>write.ambiguous-line-breaks</c>. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(string? value, StyleId style)
     {
         int column = NextCell();
@@ -409,6 +471,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// does not compile; convert it explicitly, to <see cref="long"/> or <see cref="decimal"/>.
     /// </remarks>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, an integer a double cannot hold exactly. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(long value) => Write(value, default);
 
     /// <inheritdoc cref="Write(long)"/>
@@ -416,6 +479,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, an integer a double cannot hold exactly. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(long value, StyleId style)
     {
         int column = NextCell();
@@ -424,6 +488,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Writes the next cell as a decimal number.</summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, a decimal with more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(decimal value) => Write(value, default);
 
     /// <inheritdoc cref="Write(decimal)"/>
@@ -431,6 +496,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.precision-loss</c>: in xlsx and ods, a decimal with more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(decimal value, StyleId style)
     {
         int column = NextCell();
@@ -442,6 +508,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// significant digits — which a workbook would not give back.
     /// </summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.not-finite</c> for NaN or an infinity; <c>write.precision-loss</c> for more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(double value) => Write(value, default);
 
     /// <inheritdoc cref="Write(double)"/>
@@ -449,6 +516,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.not-finite</c> for NaN or an infinity; <c>write.precision-loss</c> for more than 15 significant digits. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(double value, StyleId style)
     {
         int column = NextCell();
@@ -460,6 +528,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// millisecond is dropped, and the kind is not kept: the import returns the wall-clock value.
     /// </summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateTime value) => Write(value, default);
 
     /// <inheritdoc cref="Write(DateTime)"/>
@@ -467,6 +536,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateTime value, StyleId style)
     {
         int column = NextCell();
@@ -476,6 +546,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Writes the next cell as a date. The import returns it as a <see cref="DateTime"/> at midnight.</summary>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateOnly value) => Write(value, default);
 
     /// <inheritdoc cref="Write(DateOnly)"/>
@@ -483,6 +554,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="style">A style this writer handed out, or the default for none.</param>
     /// <exception cref="ArgumentException"><paramref name="style"/> was not handed out by this writer.</exception>
     /// <exception cref="InvalidOperationException">A <see cref="Merge"/> waits and this cell would overlap a range declared earlier, or the range reaches past the sheet's columns.</exception>
+    /// <exception cref="TabularWriteException"><c>write.date-out-of-range</c>: a date the format cannot hold, as xlsx cannot one before 1900-01-01. Located by sheet, row, column and header. The writer is faulted.</exception>
     public void Write(DateOnly value, StyleId style)
     {
         int column = NextCell();
@@ -527,7 +599,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">Rows or columns below 1, or a single cell.</exception>
     /// <exception cref="InvalidOperationException">Outside a row, or a merge already waits for its cell.</exception>
-    /// <exception cref="TabularLimitException">The sheet already holds as many merges as its format allows.</exception>
+    /// <exception cref="TabularWriteException">The sheet already holds as many merges as its format allows — 65,536 for xlsx (<c>write.too-many-merges</c>, located where the range would begin). The writer is faulted.</exception>
     public void Merge(int rows, int columns)
     {
         ExpectWritable();
@@ -549,7 +621,16 @@ public sealed class TabularWriter : IAsyncDisposable
 
         if (_merges == _sheet.MaxMerges)
         {
-            throw Faulting(new TabularLimitException("MaxMerges", _sheet.MaxMerges, $"A {Format} sheet holds at most {_sheet.MaxMerges} merged ranges."));
+            int column = Math.Min(NextUncoveredColumn(), _columns.Length - 1);
+            string header = _columns[column].Header;
+
+            throw Faulting(new TabularWriteException(
+                ErrorCodes.Write.TooManyMerges,
+                _sheetName,
+                _rowNumber,
+                column,
+                header,
+                $"Row {_rowNumber}, column {column + 1} (\"{header}\") of sheet \"{_sheetName}\" cannot begin a merged range: a {Format} sheet holds at most {_sheet.MaxMerges}."));
         }
 
         // Allocated here, on the sheet's first merge, so that a merge waiting implies the arrays exist
@@ -584,8 +665,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// </summary>
     /// <exception cref="ArgumentException">The batch's columns are not the sheet's.</exception>
     /// <exception cref="InvalidOperationException">Outside a sheet, or inside a row.</exception>
-    /// <exception cref="TabularWriteException">A value the format cannot hold, located by sheet, row, column and header.</exception>
-    /// <exception cref="TabularLimitException">The sheet outgrew its format's row limit.</exception>
+    /// <exception cref="TabularWriteException">A value the format cannot hold, or a row past the sheet's limit, located by sheet, row, column and header.</exception>
     public void WriteBatch(ColumnBatch batch)
     {
         ExpectBatch(batch);
@@ -611,8 +691,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// </summary>
     /// <exception cref="ArgumentException">The batch's columns are not the sheet's.</exception>
     /// <exception cref="InvalidOperationException">Outside a sheet, or inside a row.</exception>
-    /// <exception cref="TabularWriteException">A value the format cannot hold, located by sheet, row, column and header.</exception>
-    /// <exception cref="TabularLimitException">The sheet outgrew its format's row limit.</exception>
+    /// <exception cref="TabularWriteException">A value the format cannot hold, or a row past the sheet's limit, located by sheet, row, column and header.</exception>
     /// <exception cref="OperationCanceledException">Cancelled; the writer is faulted and the file incomplete.</exception>
     public async ValueTask WriteBatchAsync(ColumnBatch batch, CancellationToken cancellationToken = default)
     {
@@ -848,15 +927,32 @@ public sealed class TabularWriter : IAsyncDisposable
 
     private void StartRow()
     {
-        if (_rowNumber >= _sheet.MaxRows)
+        if (_rowNumber >= MaxRows)
         {
-            throw Faulting(new TabularLimitException("MaxRows", _sheet.MaxRows, $"A {Format} sheet holds at most {_sheet.MaxRows} rows, the header included."));
+            throw Faulting(TooManyRows());
         }
 
         _rowNumber++;
         _column = 0;
         _sheet.BeginRow();
         _state = State.InRow;
+    }
+
+    /// <summary>
+    /// The refusal of the row past the limit, located at the last row the sheet holds: the refused
+    /// row's own number may not fit in an int — for csv the limit is <see cref="int.MaxValue"/> itself.
+    /// </summary>
+    private TabularWriteException TooManyRows()
+    {
+        string header = _columns.Length > 0 ? _columns[0].Header : string.Empty;
+
+        return new TabularWriteException(
+            ErrorCodes.Write.TooManyRows,
+            _sheetName,
+            _rowNumber,
+            0,
+            header,
+            $"Sheet \"{_sheetName}\" holds {_rowNumber} rows, the header included, the most a {Format} sheet holds; the row after row {_rowNumber} cannot be written.");
     }
 
     private void FinishRow()
@@ -891,7 +987,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         if ((uint)index >= (uint)_styles.Count || (index != 0 && style.Writer != _stamp))
         {
-            throw Faulting(new ArgumentException($"{style} was not handed out by this writer's Style method.", nameof(style)));
+            throw Faulting(new ArgumentException($"{style} was not handed out by this writer's RegisterStyle method.", nameof(style)));
         }
 
         return index;
@@ -965,7 +1061,7 @@ public sealed class TabularWriter : IAsyncDisposable
 
         long[] coveredFrom = _coveredFrom!;
         long[] coveredThrough = _coveredThrough!;
-        long last = _rowNumber + rows - 1;
+        long last = (long)_rowNumber + rows - 1;
 
         for (int c = column; c < column + columns; c++)
         {
@@ -978,7 +1074,7 @@ public sealed class TabularWriter : IAsyncDisposable
         for (int c = column; c < column + columns; c++)
         {
             // The top-left cell holds the value; every other position in the range is covered.
-            coveredFrom[c] = c == column ? _rowNumber + 1 : _rowNumber;
+            coveredFrom[c] = c == column ? _rowNumber + 1L : _rowNumber;
             coveredThrough[c] = c == column && rows == 1 ? 0 : last;
         }
 

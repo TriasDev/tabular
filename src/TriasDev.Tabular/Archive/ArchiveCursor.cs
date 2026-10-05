@@ -30,7 +30,7 @@ namespace TriasDev.Tabular.Archive;
 /// the archive again up to it, unless the cursor is moving forward through the archive anyway.
 /// </para>
 /// </remarks>
-public sealed class ArchiveCursor : ITabularCursor
+internal sealed class ArchiveCursor : ITabularCursor
 {
     private static readonly char[] PathSeparators = ['/', '\\'];
 
@@ -427,7 +427,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
         try
         {
-            dialect = CsvDialectDetector.Detect(head);
+            dialect = CsvDialectDetector.Detect(head, _options.Csv);
         }
         catch (TabularFormatException)
         {
@@ -435,7 +435,7 @@ public sealed class ArchiveCursor : ITabularCursor
         }
 
         string name = Path.GetFileNameWithoutExtension(entry.Name);
-        return new Finding(entry, new Source(entry, TabularFormat.Csv, _options.Csv.Dialect ?? dialect),
+        return new Finding(entry, new Source(entry, TabularFormat.Csv, dialect),
             [(name.Length > 0 ? name : entry.Name, SheetVisibility.Visible)], null);
     }
 
@@ -578,7 +578,7 @@ public sealed class ArchiveCursor : ITabularCursor
 
         // The dialect is stated, so the cursor reads forward and never needs the stream to seek.
         _inner = new CsvCursor(_counter, _sheets[_origins.FindIndex(o => o.Source == index)].Name,
-            _options.Csv with { Dialect = source.Dialect });
+            _options.Csv, source.Dialect!);
         _innerSource = index;
     }
 

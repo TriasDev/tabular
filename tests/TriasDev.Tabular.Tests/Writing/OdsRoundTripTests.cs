@@ -210,7 +210,9 @@ public sealed class OdsRoundTripTests
             full.EndRow();
         }
 
-        Assert.Throws<TabularLimitException>(() => full.BeginRow());
+        TabularWriteException refused = Assert.Throws<TabularWriteException>(() => full.BeginRow());
+        Assert.Equal(ErrorCodes.Write.TooManyRows, refused.Code);
+        Assert.Equal(1_048_576, refused.RowNumber);
     }
 
     [Theory]

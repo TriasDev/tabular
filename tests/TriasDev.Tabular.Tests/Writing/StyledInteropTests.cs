@@ -24,12 +24,12 @@ public sealed class StyledInteropTests
 
         await using (TabularWriter writer = TabularWriter.Create(target, format))
         {
-            StyleId twoPlaces = writer.Style(new CellStyle { Number = NumberFormat.Parse("0.00") });
-            StyleId percent = writer.Style(new CellStyle { Number = NumberFormat.Parse("0.0%") });
-            StyleId prefixed = writer.Style(new CellStyle { Number = NumberFormat.Parse("\"EUR \"0") });
-            StyleId day = writer.Style(new CellStyle { Date = DateFormat.Parse("dd/mm/yyyy") });
-            StyleId stamp = writer.Style(new CellStyle { Date = DateFormat.Parse("dd.mm.yyyy hh:mm") });
-            StyleId red = writer.Style(Red);
+            StyleId twoPlaces = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("0.00") });
+            StyleId percent = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("0.0%") });
+            StyleId prefixed = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("\"EUR \"0") });
+            StyleId day = writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse("dd/mm/yyyy") });
+            StyleId stamp = writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse("dd.mm.yyyy hh:mm") });
+            StyleId red = writer.RegisterStyle(Red);
 
             writer.BeginSheet("data", [new("a"), new("b"), new("c"), new("d"), new("e"), new("f")]);
             writer.BeginRow();
@@ -164,7 +164,7 @@ public sealed class StyledInteropTests
 
     private static void FilledMerge(TabularWriter writer)
     {
-        StyleId fill = writer.Style(new CellStyle { Fill = CellColor.FromRgb(0xF8696B) });
+        StyleId fill = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0xF8696B) });
         writer.BeginSheet("data", [new("a"), new("b"), new("c")]);
         writer.BeginRow();
         writer.Merge(1, 3);
@@ -228,8 +228,8 @@ public sealed class StyledInteropTests
 
         byte[] file = await SheetLayoutTests.Write(format, writer =>
         {
-            StyleId[] colours = [.. legend.Select(writer.Style)];
-            StyleId title = writer.Style(new CellStyle { Font = new CellFont { Bold = true }, Horizontal = HorizontalAlignment.Center });
+            StyleId[] colours = [.. legend.Select(writer.RegisterStyle)];
+            StyleId title = writer.RegisterStyle(new CellStyle { Font = new CellFont { Bold = true }, Horizontal = CellHorizontalAlignment.Center });
 
             writer.BeginSheet("Data", [new("Id"), new("Score"), new("Date", 12)], new SheetOptions { HeaderStyle = header, FreezeRows = 1, AutoFilter = true });
 

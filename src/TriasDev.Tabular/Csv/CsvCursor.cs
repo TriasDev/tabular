@@ -20,7 +20,7 @@ namespace TriasDev.Tabular.Csv;
 /// fail an import of five million rows — so it recovers and counts what it repaired.
 /// </para>
 /// </remarks>
-public sealed class CsvCursor : ITabularCursor
+internal sealed class CsvCursor : ITabularCursor
 {
     private const int BufferSize = 64 * 1024;
 
@@ -86,7 +86,9 @@ public sealed class CsvCursor : ITabularCursor
     private bool _faulted;
 
     /// <summary>Opens a cursor over a csv stream.</summary>
-    /// <param name="stream">The file. Must be seekable when the dialect is to be detected.</param>
+    /// <param name="stream">
+    /// The file. Must be seekable unless the options state both the delimiter and the encoding.
+    /// </param>
     /// <param name="sheetName">What to call the file's single sheet, normally the file's name.</param>
     /// <param name="options">Reading options, or null for the defaults.</param>
     /// <param name="leaveOpen">
@@ -99,6 +101,26 @@ public sealed class CsvCursor : ITabularCursor
         CsvCursorOptions? options = null,
         bool leaveOpen = false,
         CancellationToken cancellationToken = default)
+        : this(stream, sheetName, options, dialect: null, leaveOpen, cancellationToken)
+    {
+    }
+
+    /// <summary>
+    /// Opens a cursor over a csv file whose dialect was decided from a head read earlier — a file in
+    /// an archive or a gzip file, opened afresh, which reads forward and never seeks.
+    /// </summary>
+    public CsvCursor(Stream stream, string sheetName, CsvCursorOptions options, CsvDialect dialect)
+        : this(stream, sheetName, options, (CsvDialect?)dialect, leaveOpen: false, CancellationToken.None)
+    {
+    }
+
+    private CsvCursor(
+        Stream stream,
+        string sheetName,
+        CsvCursorOptions? options,
+        CsvDialect? dialect,
+        bool leaveOpen,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
@@ -110,7 +132,12 @@ public sealed class CsvCursor : ITabularCursor
             _options.Checked();
             ArgumentException.ThrowIfNullOrEmpty(sheetName);
             cancellationToken.ThrowIfCancellationRequested();
-            Dialect = _options.Dialect ?? CsvDialectDetector.Detect(stream, _options);
+            // The head is read even when the options state the whole dialect: what refuses a file
+            // that is not csv at all runs on it. Only a stream that cannot be rewound — never one
+            // TabularFile.Open hands over — goes without.
+            Dialect = dialect
+                ?? (stream.CanSeek ? null : CsvDialectDetector.Stated(_options))
+                ?? CsvDialectDetector.Detect(stream, _options);
             _specials = SearchValues.Create($"{Dialect.Delimiter}{Dialect.Quote}\r\n");
         }
         catch when (!leaveOpen)
@@ -119,14 +146,46 @@ public sealed class CsvCursor : ITabularCursor
             throw;
         }
 
+        // A stated encoding wins over a byte order mark, so the reader is not let to detect one.
+        bool encodingStated = Dialect.EncodingSource == DialectSource.Specified;
+
         _reader = new StreamReader(
             stream,
             Dialect.Encoding,
-            detectEncodingFromByteOrderMarks: true,
+            detectEncodingFromByteOrderMarks: !encodingStated,
             BufferSize,
             leaveOpen);
 
+        if (encodingStated)
+        {
+            SkipByteOrderMark();
+        }
+
         Sheets = [new SheetInfo { Index = 0, Name = sheetName, Format = TabularFormat.Csv }];
+    }
+
+    /// <summary>
+    /// Skips a byte order mark of the stated encoding, which decodes as U+FEFF and is not content.
+    /// </summary>
+    /// <remarks>
+    /// The reader skips the mark itself only when the encoding instance carries it as its preamble,
+    /// which <c>new UTF8Encoding(false)</c> does not. A mark of another encoding does not decode as
+    /// U+FEFF in the stated one, so it stays: the stated encoding wins.
+    /// </remarks>
+    private void SkipByteOrderMark()
+    {
+        try
+        {
+            if (_reader.Peek() == '\uFEFF')
+            {
+                _reader.Read();
+            }
+        }
+        catch
+        {
+            _reader.Dispose();      // closes the stream unless it is to be left open
+            throw;
+        }
     }
 
     /// <summary>How this file is encoded and punctuated, and how that was decided.</summary>
@@ -147,8 +206,29 @@ public sealed class CsvCursor : ITabularCursor
     /// <inheritdoc />
     public int CurrentRowNumber { get; private set; }
 
+    /// <summary>
+    /// The largest row number the cursor gives: <see cref="int.MaxValue"/>, the ceiling of every row
+    /// number in the library. Settable only so a test reaches it without reading 2^31 rows.
+    /// </summary>
+    internal int MaxRowNumber { get; init; } = int.MaxValue;
+
     /// <inheritdoc />
     public CursorDiagnostics Diagnostics { get; } = new();
+
+    /// <summary>
+    /// Numbers the record just read; the one past <see cref="MaxRowNumber"/> is refused, because an
+    /// int that went on counting would wrap to a negative row number and point errors at nothing.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CountRow()
+    {
+        if (CurrentRowNumber == MaxRowNumber)
+        {
+            throw RowNumbers.Exceeded(MaxRowNumber);
+        }
+
+        CurrentRowNumber++;
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -331,7 +411,7 @@ public sealed class CsvCursor : ITabularCursor
                 }
 
                 CompleteField(fieldWasQuoted);
-                CurrentRowNumber++;
+                CountRow();
                 return true;
             }
 
@@ -463,7 +543,7 @@ public sealed class CsvCursor : ITabularCursor
             if (c is '\r' or '\n')
             {
                 CompleteField(fieldWasQuoted);
-                CurrentRowNumber++;
+                CountRow();
                 return true;
             }
 

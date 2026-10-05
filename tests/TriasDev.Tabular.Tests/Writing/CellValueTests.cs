@@ -72,7 +72,7 @@ public sealed class CellValueTests
     {
         byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
         {
-            StyleId red = writer.Style(Red);
+            StyleId red = writer.RegisterStyle(Red);
             writer.BeginSheet("data", [new("a"), new("b")]);
             writer.BeginRow();
             CellValue<double?>.Write(writer, null, red);
@@ -92,7 +92,7 @@ public sealed class CellValueTests
         StyleId first = writer.StyleFor(Red);
         Assert.Equal(first, writer.StyleFor(Red));
         Assert.Equal(first, writer.StyleFor(Red with { }));           // another instance, same value
-        Assert.Equal(first, writer.Style(Red));
+        Assert.Equal(first, writer.RegisterStyle(Red));
         Assert.Equal(default, writer.StyleFor(null));
     }
 
@@ -108,7 +108,7 @@ public sealed class CellValueTests
             id = writer.StyleFor(new CellStyle { Fill = CellColor.FromRgb(0xFF0000) });
         }
 
-        Assert.Equal(writer.Style(Red), id);
+        Assert.Equal(writer.RegisterStyle(Red), id);
         Assert.True(writer.StyleCacheCount <= TabularWriter.StyleCacheLimit, $"{writer.StyleCacheCount} cached styles");
     }
 
@@ -136,8 +136,8 @@ public sealed class CellValueTests
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
         CellStyle blue = new() { Fill = CellColor.FromRgb(0x0000FF) };
         writer.BeginSheet("data", [new("a"), new("b")]);
-        StyleId red = writer.Style(Red);
-        StyleId blueId = writer.Style(blue);
+        StyleId red = writer.RegisterStyle(Red);
+        StyleId blueId = writer.RegisterStyle(blue);
 
         bool same = Row(writer, red, blueId);
         same &= Row(writer, red, blueId);

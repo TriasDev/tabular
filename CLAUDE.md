@@ -32,8 +32,7 @@ Write:    TabularWriter / TabularExport<T> / ColumnBatch ─► ISheetWriter ─
           (the round trip through Import is the contract; a value a format cannot hold → TabularWriteException)
 ```
 
-Everything a consumer touches is in the `TriasDev.Tabular` namespace; only the format-specific
-cursors, the format writers and their options live in `TriasDev.Tabular.Csv`, `TriasDev.Tabular.Xlsx`, `TriasDev.Tabular.Ods` and `TriasDev.Tabular.Archive`. The folders
+Every public type is in the `TriasDev.Tabular` namespace, the format options included (`CsvCursorOptions`, `XlsxWriterOptions`, `ZipWriterOptions` and the rest); only internal format code (the cursors, sheet writers, containers) keeps the sub-namespaces `TriasDev.Tabular.Csv`, `.Xlsx`, `.Ods` and `.Archive`. The folders
 under `src/TriasDev.Tabular` still group the code by layer:
 
 - **Abstractions** — `ITabularCursor` is the only format-aware seam of reading; everything above is

@@ -25,7 +25,7 @@ namespace TriasDev.Tabular.Ods;
 /// cells.
 /// </para>
 /// </remarks>
-public sealed class OdsCursor : ITabularCursor
+internal sealed class OdsCursor : ITabularCursor
 {
     private const string SpreadsheetMimetype = "application/vnd.oasis.opendocument.spreadsheet";
 

@@ -13,7 +13,7 @@ namespace TriasDev.Tabular;
 internal interface ISheetWriter : IDisposable
 {
     /// <summary>The most rows a sheet holds, the header included.</summary>
-    long MaxRows { get; }
+    int MaxRows { get; }
 
     /// <summary>Whether a file holds more than one sheet.</summary>
     bool AllowsSeveralSheets { get; }

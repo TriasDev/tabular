@@ -34,28 +34,38 @@ internal sealed class StyleTable
     public CellStyle this[int index] => _styles[index];
 
     /// <summary>Registers a style, or finds it registered already; returns its index.</summary>
-    public int Add(CellStyle style)
+    /// <exception cref="InvalidOperationException">The table already holds <see cref="MaxStyles"/> styles.</exception>
+    public int Add(CellStyle style) =>
+        TryAdd(style, out int index)
+            ? index
+            : throw new InvalidOperationException($"A file holds at most {MaxStyles} distinct styles; this would be the {MaxStyles + 1}th.");
+
+    /// <summary>
+    /// Registers a style, or finds it registered already; false when it is new and the table is full,
+    /// so the caller decides what kind of mistake that is — a call in the code, or a rule fed by data.
+    /// </summary>
+    public bool TryAdd(CellStyle style, out int index)
     {
         ArgumentNullException.ThrowIfNull(style);
 
-        if (_indices.TryGetValue(style, out int index))
+        if (_indices.TryGetValue(style, out index))
         {
-            return index;
+            return true;
         }
 
         if (!Enum.IsDefined(style.Horizontal))
         {
-            throw new ArgumentOutOfRangeException(nameof(style), style.Horizontal, "The horizontal alignment is not one HorizontalAlignment defines.");
+            throw new ArgumentOutOfRangeException(nameof(style), style.Horizontal, "The horizontal alignment is not one CellHorizontalAlignment defines.");
         }
 
         if (_indices.Count == MaxStyles)
         {
-            throw new TabularLimitException("MaxStyles", MaxStyles, $"A file holds at most {MaxStyles} distinct styles.");
+            return false;
         }
 
         index = _styles.Count;
         _styles.Add(style);
         _indices.Add(style, index);
-        return index;
+        return true;
     }
 }

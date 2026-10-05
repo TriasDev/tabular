@@ -4,8 +4,11 @@ namespace TriasDev.Tabular;
 /// What a cell carries as the file itself presents it, before anything is inferred about it.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A csv file only ever produces <see cref="Empty"/> and <see cref="Text"/>: it has no types, and
 /// deciding that a column of text is really a column of dates belongs to the analyzer, not here.
+/// </para>
+/// <para>Open to new members, as <see cref="TabularFormat"/> is: a switch over it needs a default arm.</para>
 /// </remarks>
 public enum RawCellKind : byte
 {

@@ -88,6 +88,27 @@ file; bytes after the last member that do not start another are ignored, as the 
 Not read: a zip archive inside a gzip file, a file compressed twice, and a gzip file inside a zip
 archive — skipped there as `Compressed`.
 
+## A csv file's dialect is detected, or stated
+
+A csv file's encoding and delimiter are decided from its head (`CsvCursorOptions.DialectProbeBytes`,
+64 KB): the encoding from a byte order mark, else valid UTF-8, else Windows-1252; the delimiter as the
+one of `,` `;` tab `|` that divides the first records the same way. Where a caller knows better, it
+states any part of it in `CsvCursorOptions`, each on its own — `Delimiter`, `Encoding` and `Quote`
+(otherwise `"`):
+
+```csharp
+TabularOpenOptions options = new() { Csv = new CsvCursorOptions { Delimiter = ';' } };
+using ITabularCursor cursor = TabularFile.Open(stream, name, options);
+```
+
+What is stated wins, and the sheet's `Dialect` reports it as `DialectSource.Specified`; the rest is
+still detected and reported as `Detected`, `ByteOrderMark` or `Fallback`. A stated encoding wins over
+a byte order mark as well: a mark of that encoding is skipped, never read as content, and the mark of
+another encoding is read as the characters its bytes are in the stated one. Stating the dialect does not
+switch off the checks that refuse a file that is not csv at all (a legacy `.xls`, an XML document, a
+binary file): it is still refused as `format.unsupported`. The same options apply to
+every csv file in an archive and to a gzip-compressed one.
+
 ## Malformed input is repaired, and the repair is counted
 
 Files that people upload are not well-formed. A 572 MB real-world export carries quotes inside
@@ -117,7 +138,7 @@ they can be, so the same data fails the same way whichever format is chosen. See
 | | csv | zip of csv | xlsx | ods |
 |---|---|---|---|---|
 | Sheets | one, its name not written | any number, each `<name>.csv` | any number | any number |
-| Rows per sheet, header included | no limit | no limit | 1,048,576 | 1,048,576 |
+| Rows per sheet, header included | 2,147,483,647 (the largest row number the reader gives) | the same | 1,048,576 | 1,048,576 |
 | Columns per sheet | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 |
 | Styles, layout, widths | ignored | ignored | yes | yes |
 | Distinct styles per file | | | 4,096 | 4,096 |

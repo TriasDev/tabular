@@ -1,7 +1,3 @@
-using TriasDev.Tabular.Archive;
-using TriasDev.Tabular.Csv;
-using TriasDev.Tabular.Ods;
-using TriasDev.Tabular.Xlsx;
 
 namespace TriasDev.Tabular;
 
@@ -20,7 +16,7 @@ public sealed record TabularOpenOptions
     /// <summary>Options for the cursor, should the file be an OpenDocument spreadsheet.</summary>
     public OdsCursorOptions Ods { get; init; } = OdsCursorOptions.Default;
 
-    /// <summary>The bounds of a zip archive or a gzip-compressed file; the files inside are read with the options above.</summary>
+    /// <summary>The bounds of a zip or tar archive (plain or gzip-compressed) or a gzip-compressed file; the files inside are read with the options above.</summary>
     public ArchiveCursorOptions Archive { get; init; } = ArchiveCursorOptions.Default;
 
     /// <summary>

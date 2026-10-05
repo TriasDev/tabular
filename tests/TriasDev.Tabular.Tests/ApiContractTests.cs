@@ -59,6 +59,30 @@ public sealed class ApiContractTests
     }
 
     [Fact]
+    public void TabularFileOpenIsTheOnlyWayToACursor()
+    {
+        Type[] exported = typeof(ITabularCursor).Assembly.GetExportedTypes();
+
+        Assert.DoesNotContain(exported, t => !t.IsInterface && typeof(ITabularCursor).IsAssignableFrom(t));
+        Assert.DoesNotContain(typeof(CsvDialectDetector), exported);
+    }
+
+    [Theory]
+    [InlineData(typeof(TextImportField))]
+    [InlineData(typeof(IntegerImportField))]
+    [InlineData(typeof(DecimalImportField))]
+    [InlineData(typeof(DateImportField))]
+    [InlineData(typeof(BooleanImportField))]
+    public void ATypedFieldComesOnlyFromItsFactory(Type field) =>
+        // `new TextImportField { Type = ColumnType.Date }` would compile and fail only at run time.
+        Assert.Empty(field.GetConstructors());
+
+    [Fact]
+    public void OnlyACursorCreatesItsDiagnostics() =>
+        // The counts are live on the cursor that repairs the file; a caller has nothing to count.
+        Assert.Empty(typeof(CursorDiagnostics).GetConstructors());
+
+    [Fact]
     public void ACursorCanBeDisposedTwice()
     {
         foreach (ITabularCursor cursor in Cursors())
@@ -151,18 +175,12 @@ public sealed class ApiContractTests
     [Fact]
     public void ReadsAForwardOnlyCsvWhenTheDialectIsGiven()
     {
-        // Detection rewinds, so it needs a seekable stream; a caller who states the dialect needs
-        // none — the way to read a request body without buffering it.
+        // Detection rewinds, so it needs a seekable stream; with the delimiter and the encoding both
+        // stated there is nothing to detect and the head is not read.
         CsvCursorOptions options = new()
         {
-            Dialect = new CsvDialect
-            {
-                Encoding = new UTF8Encoding(false),
-                EncodingSource = DialectSource.Specified,
-                Delimiter = ';',
-                DelimiterSource = DialectSource.Specified,
-                Quote = '"',
-            },
+            Encoding = new UTF8Encoding(false),
+            Delimiter = ';',
         };
 
         using CsvCursor cursor = new(new ForwardOnly(Csv()), "t.csv", options);

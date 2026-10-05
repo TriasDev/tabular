@@ -4,5 +4,5 @@ namespace TriasDev.Tabular;
 internal static class SheetLimits
 {
     /// <summary>The rows of a workbook sheet (xlsx and ods).</summary>
-    public const long WorkbookMaxRows = 1_048_576;
+    public const int WorkbookMaxRows = 1_048_576;
 }

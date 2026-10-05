@@ -83,9 +83,9 @@ ranges — the obvious second use — cannot be expressed yet.
 
 **Matters as soon as** a caller wants one. Fix with a date-typed range constraint.
 
-### `CsvCursor.MoveToSheet` does not rewind
-The interface documents "positions before its first row"; the csv implementation returns `index == 0`
-and stays where it is. Analysing and then extracting through one cursor instance reads a csv from
+### A csv file's `MoveToSheet` does not rewind
+The interface documents "positions before its first row"; the cursor `TabularFile.Open` gives for a
+csv file returns `index == 0` and stays where it is. Analysing and then extracting through one cursor instance reads a csv from
 wherever it stopped. A csv inside an archive does rewind: the archive reopens its file.
 
 ### `IsBlank` ignores the binding's empty-equivalents
@@ -107,20 +107,6 @@ is indistinguishable from an absent text value.
 ### `MappedValue.FromDate` loses the time of day in `Text`
 Every length, pattern and allowed-value constraint sees `Text`, so a datetime is validated against a
 date-only string while `Date` still carries the ticks.
-
-### `CsvDialect` lets a caller claim a value was detected
-`EncodingSource` and `DelimiterSource` are `required` on a record a caller constructs to *override*
-detection. The provenance exists so a UI can tell a fact from a guess; a hand-built dialect can lie
-about it.
-
-### A byte order mark overrides a caller-specified encoding
-`StreamReader` is constructed with `detectEncodingFromByteOrderMarks: true` alongside the chosen
-encoding.
-
-### The dialect override is all or nothing
-A caller who knows only the delimiter must also supply the encoding, losing detection for it. There
-is no per-property override, no line-ending member, and the quote character is hard-coded with no
-provenance.
 
 ### The package ceiling counts bytes off the wire, not memory
 `MaxUncompressedBytes` sums the entries' declared sizes. Text decoded to UTF-16 doubles, and a buffer
@@ -216,14 +202,14 @@ TabularExport picks a column type by overload resolution, and some lambdas do no
 - Format codes are a subset of Excel's (see `NumberFormat` and `DateFormat`); anything else is refused when parsed, never at write time.
 - Separators in a date format show as written (`dd/mm/yyyy` shows slashes in every locale); the decimal point and thousands separator of a number format follow the reader's locale.
 - A `StyleId` belongs to the writer that returned it; passing it to another writer is refused with an `ArgumentException` (the default `StyleId`, the unstyled cell, is accepted by every writer).
-- At most 4096 distinct styles per file. Declare the styles once (`static readonly`) and register each once per writer.
+- At most 4096 distinct styles per file. Declare the styles once (`static readonly`) and register each once per writer. A style rule that returns a 4,097th is refused at its cell (`write.too-many-styles`); a 4,097th registered by hand is an `InvalidOperationException`.
 
 ### Sheet layout
 
 - `SheetOptions` sets a header style, frozen rows and columns, and an auto-filter on the header row through the last row written; csv ignores it. A declared export takes its `SheetOptions` once on its builder (`.Sheet(...)`) and applies them to every sheet it writes.
 - `writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips the covered positions — the row's next write lands after the range, later rows skip it too — and writes them itself. The import reads a merged range as its value in the top-left cell and empty cells elsewhere; csv writes exactly that.
 - A merge must end inside the sheet: ending a sheet (or the file) while a range still has rows to cover is refused.
-- xlsx holds at most 65,536 merged ranges per sheet.
+- xlsx holds at most 65,536 merged ranges per sheet; the next is refused with `write.too-many-merges`.
 
 ### Data by column
 

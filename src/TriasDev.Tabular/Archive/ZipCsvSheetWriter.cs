@@ -32,7 +32,9 @@ internal sealed class ZipCsvSheetWriter : ISheetWriter
     /// <summary>The entry buffer's current size, for the test that a huge row does not keep it.</summary>
     internal int EntryBufferLength => _entryBuffer.BufferLength;
 
-    public long MaxRows => long.MaxValue;
+    // Csv has no row limit of its own, but the reader numbers rows as an int, the header row 1: a row
+    // past int.MaxValue would not read back, so the writer refuses it (write.too-many-rows).
+    public int MaxRows => int.MaxValue;
 
     public bool AllowsSeveralSheets => true;
 

@@ -2,7 +2,6 @@ using System.IO.Compression;
 using System.Text;
 
 using TriasDev.Tabular.Archive;
-using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 
 using Xunit;
@@ -262,7 +261,7 @@ public sealed class ZipCsvWriterTests
 
         byte[] laidOut = await SheetLayoutTests.Write(TabularFormat.Zip, writer =>
         {
-            StyleId style = writer.Style(red);
+            StyleId style = writer.RegisterStyle(red);
             writer.BeginSheet("Data", [new("a"), new("b")], new SheetOptions { HeaderStyle = red, FreezeRows = 1, AutoFilter = true });
             writer.BeginRow();
             writer.Write("x", style);

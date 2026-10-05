@@ -56,12 +56,12 @@ internal sealed class OdsStyles
     private OdsCellStyle Resolve(int slot, int style, ValueKind kind)
     {
         CellStyle cell = _table[style];
-        bool percent = kind is ValueKind.Integer or ValueKind.Number && cell.Number is { Percent: true };
+        bool percent = kind is ValueKind.Integer or ValueKind.Number && cell.NumberFormat is { Percent: true };
 
         string? data = kind switch
         {
-            ValueKind.Integer or ValueKind.Number when cell.Number is { } number => DataStyle("n:" + number.Code, name => NumberStyle(name, number)),
-            ValueKind.Date or ValueKind.DateTime when cell.Date is { } date => DataStyle("d:" + date.Code, name => DateStyle(name, date)),
+            ValueKind.Integer or ValueKind.Number when cell.NumberFormat is { } number => DataStyle("n:" + number.Code, name => NumberStyle(name, number)),
+            ValueKind.Date or ValueKind.DateTime when cell.DateFormat is { } date => DataStyle("d:" + date.Code, name => DateStyle(name, date)),
             ValueKind.Date => FixedDataStyle(DateData, OdsParts.DateDataStyle),
             ValueKind.DateTime => FixedDataStyle(DateTimeData, OdsParts.DateTimeDataStyle),
             ValueKind.Boolean => FixedDataStyle(BooleanData, name => $"<number:boolean-style style:name=\"{name}\"><number:boolean/></number:boolean-style>"),
@@ -157,12 +157,12 @@ internal sealed class OdsStyles
         xml.Append(cell.Fill is { } fill ? $" fo:background-color=\"{fill}\"" : string.Empty);
         xml.Append(cell.Border is { } border ? $" fo:border=\"0.06pt solid {border.Color}\"" : string.Empty);
         xml.Append(cell.Wrap ? " fo:wrap-option=\"wrap\"" : string.Empty);
-        xml.Append(cell.Horizontal != HorizontalAlignment.General ? " style:text-align-source=\"fix\"" : string.Empty);
+        xml.Append(cell.Horizontal != CellHorizontalAlignment.General ? " style:text-align-source=\"fix\"" : string.Empty);
         xml.Append("/>");
 
-        if (cell.Horizontal != HorizontalAlignment.General)
+        if (cell.Horizontal != CellHorizontalAlignment.General)
         {
-            xml.Append("<style:paragraph-properties fo:text-align=\"").Append(cell.Horizontal switch { HorizontalAlignment.Left => "start", HorizontalAlignment.Center => "center", _ => "end" }).Append("\"/>");
+            xml.Append("<style:paragraph-properties fo:text-align=\"").Append(cell.Horizontal switch { CellHorizontalAlignment.Left => "start", CellHorizontalAlignment.Center => "center", _ => "end" }).Append("\"/>");
         }
 
         if (cell.Font is { } font)

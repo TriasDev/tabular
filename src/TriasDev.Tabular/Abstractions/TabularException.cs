@@ -15,9 +15,10 @@ namespace TriasDev.Tabular;
 /// <item><see cref="TabularFormatException"/> — not a file this library reads, or not a readable one
 /// (a client error: 400/415).</item>
 /// <item><see cref="TabularLimitException"/> — a readable file that exceeds a configured bound (413),
-/// which is also how most hostile files end.</item>
-/// <item><see cref="TabularWriteException"/> — a value the chosen format cannot hold exactly, found
-/// while writing (500 for a server's own export: the data or the format choice must change).</item>
+/// which is also how most hostile files end. Only readers throw it.</item>
+/// <item><see cref="TabularWriteException"/> — a value the chosen format cannot hold exactly, or a
+/// limit of the format the data reached, found while writing (500 for a server's own export: the
+/// data or the format choice must change).</item>
 /// <item><see cref="TabularStructureException"/> — a readable file that is not the one the plan was
 /// built for (409/422: map it again).</item>
 /// <item><see cref="MappingPlanException"/> — a plan that does not fit its schema (a defect in the
@@ -25,7 +26,10 @@ namespace TriasDev.Tabular;
 /// </list>
 /// <para>
 /// Mistakes in the calling code — a null argument, a negative option, a field the schema does not
-/// declare — remain <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/>.
+/// declare — remain <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/>; a
+/// format code or colour the calling code passes to <see cref="NumberFormat.Parse"/>,
+/// <see cref="DateFormat.Parse"/> or <see cref="CellColor.Parse"/> and that cannot be read is a
+/// <see cref="FormatException"/>.
 /// </para>
 /// </remarks>
 [SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
@@ -46,7 +50,7 @@ public abstract class TabularException : Exception
 [SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
 public sealed class TabularFormatException : TabularException
 {
-    /// <summary>A format this library does not read: .xls, .xlsb, .ods, a binary file, a zip that is no workbook.</summary>
+    /// <summary>A format this library does not read: .xls, .xlsb, .fods, another OpenDocument type, a binary file, an archive with nothing readable in it.</summary>
     public const string Unsupported = ErrorCodes.Format.Unsupported;
 
     /// <summary>A package or part that is damaged: a broken zip, malformed XML, a part that is referenced but missing.</summary>
@@ -67,8 +71,17 @@ public sealed class TabularFormatException : TabularException
 
 /// <summary>A readable file exceeds one of the bounds its reader was given.</summary>
 /// <remarks>
-/// The bounds are the <c>Max…</c> properties of <c>XlsxCursorOptions</c> and <c>CsvCursorOptions</c>,
-/// plus the format's own limits; the documentation's bounds page lists them with their defaults.
+/// <para>
+/// The bounds are the <c>Max…</c> properties of <see cref="CsvCursorOptions"/>,
+/// <see cref="XlsxCursorOptions"/>, <see cref="OdsCursorOptions"/> and
+/// <see cref="ArchiveCursorOptions"/>, plus the format's own limits; the
+/// documentation's bounds page lists them with their defaults.
+/// </para>
+/// <para>
+/// Only readers throw it, so a host may answer it as an upload that was too large (413). A limit
+/// the writer reaches — rows, merged ranges or styles — is the data's doing and is reported as a
+/// located <see cref="TabularWriteException"/> instead.
+/// </para>
 /// </remarks>
 [SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
 public sealed class TabularLimitException : TabularException
@@ -87,18 +100,29 @@ public sealed class TabularLimitException : TabularException
         Maximum = maximum;
     }
 
-    /// <summary>Which bound was exceeded, by the name of the option that sets it.</summary>
+    /// <summary>
+    /// Which bound was exceeded, by the name of the option that sets it — or, for a ceiling the format
+    /// fixes, the nearest one (<c>MaxRows</c> for a row number past <see cref="int.MaxValue"/>).
+    /// </summary>
     public string Limit { get; }
 
     /// <summary>The bound's value.</summary>
     public long Maximum { get; }
 }
 
-/// <summary>A value cannot be written in the chosen format without changing it.</summary>
+/// <summary>A value cannot be written in the chosen format without changing it, or the sheet outgrew the format.</summary>
 /// <remarks>
+/// <para>
 /// Raised while writing, so part of the file is already out: the writer is faulted, and the caller
 /// discards what it wrote — aborts the response, deletes the file. The code says what the format
 /// could not hold; the sheet, row and column say where.
+/// </para>
+/// <para>
+/// A format's limits reached by the data are reported here too, never as the reader's
+/// <see cref="TabularLimitException"/>: a row past the sheet's limit (<c>write.too-many-rows</c>),
+/// a merged range past it (<c>write.too-many-merges</c>), a style rule's style past the file's
+/// 4,096 (<c>write.too-many-styles</c>).
+/// </para>
 /// </remarks>
 [SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
 public sealed class TabularWriteException : TabularException
@@ -110,7 +134,7 @@ public sealed class TabularWriteException : TabularException
     /// <param name="columnIndex">The column, zero-based.</param>
     /// <param name="header">The column's header.</param>
     /// <param name="message">What was found, in English, for logs.</param>
-    public TabularWriteException(string code, string sheetName, long rowNumber, int columnIndex, string header, string message)
+    public TabularWriteException(string code, string sheetName, int rowNumber, int columnIndex, string header, string message)
         : base(code, message)
     {
         SheetName = sheetName;
@@ -122,10 +146,13 @@ public sealed class TabularWriteException : TabularException
     /// <summary>The sheet being written.</summary>
     public string SheetName { get; }
 
-    /// <summary>The row as a spreadsheet counts it: the header is row 1.</summary>
-    public long RowNumber { get; }
+    /// <summary>
+    /// The row as a spreadsheet counts it: the header is row 1. For <c>write.too-many-rows</c>, the
+    /// last row the sheet holds — the refused row is the one after it.
+    /// </summary>
+    public int RowNumber { get; }
 
-    /// <summary>The column, zero-based.</summary>
+    /// <summary>The column, zero-based; for <c>write.too-many-rows</c>, which concerns a whole row, the first.</summary>
     public int ColumnIndex { get; }
 
     /// <summary>The column's header.</summary>

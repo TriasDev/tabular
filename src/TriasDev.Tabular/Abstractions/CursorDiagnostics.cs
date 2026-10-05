@@ -12,6 +12,14 @@ namespace TriasDev.Tabular;
 public sealed record CursorDiagnostics
 {
     /// <summary>
+    /// Only a cursor creates one: the counts are live on the cursor that repairs the file, and a
+    /// profile carries a snapshot of them. A caller has nothing to count.
+    /// </summary>
+    internal CursorDiagnostics()
+    {
+    }
+
+    /// <summary>
     /// Quoted fields that were never closed and had to be abandoned at the configured bound, their
     /// opening quote then read as an ordinary character.
     /// </summary>

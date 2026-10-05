@@ -10,21 +10,34 @@ namespace TriasDev.Tabular.Csv;
 /// delimiter. A prefix is enough for both questions and costs one seek, where reading the file twice
 /// would cost a second pass over half a gigabyte.
 /// </remarks>
-public static class CsvDialectDetector
+internal static class CsvDialectDetector
 {
     private static readonly char[] DelimiterCandidates = [';', ',', '\t', '|'];
 
     private const int LinesInspected = 20;
 
+    /// <summary>Whether the character is one of the delimiters the reader detects.</summary>
+    internal static bool IsDelimiter(char c) => c is ';' or ',' or '\t' or '|';
+
+    /// <summary>
+    /// The dialect the options state outright — the delimiter and the encoding both — or null when
+    /// anything is left to detect from the file's head.
+    /// </summary>
+    internal static CsvDialect? Stated(CsvCursorOptions options) =>
+        options is { Delimiter: { } delimiter, Encoding: { } encoding }
+            ? new CsvDialect(encoding, DialectSource.Specified, delimiter, DialectSource.Specified, options.Quote ?? '"')
+            : null;
+
     /// <summary>
     /// Reads the head of a seekable stream, decides the dialect, and leaves the stream where it found
-    /// it.
+    /// it. What the options state is taken as stated; only the rest is detected.
     /// </summary>
-    public static CsvDialect Detect(Stream stream, CsvCursorOptions? options = null)
+    internal static CsvDialect Detect(Stream stream, CsvCursorOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        int probeBytes = (options ?? CsvCursorOptions.Default).Checked().DialectProbeBytes;
+        CsvCursorOptions checkedOptions = (options ?? CsvCursorOptions.Default).Checked();
+        int probeBytes = checkedOptions.DialectProbeBytes;
 
         if (!stream.CanSeek)
         {
@@ -37,14 +50,16 @@ public static class CsvDialectDetector
         int read = stream.ReadAtLeast(probe, probeBytes, throwOnEndOfStream: false);
         stream.Position = origin;
 
-        return Detect(probe.AsSpan(0, read));
+        return Detect(probe.AsSpan(0, read), checkedOptions);
     }
 
     /// <summary>
     /// Decides the dialect from a file's head already read — for a stream that cannot be rewound,
     /// such as a file inside an archive, whose head is read once and the file then opened afresh.
+    /// What <paramref name="options"/> states is taken as stated, and only the rest is detected; the
+    /// head is still judged for being csv at all.
     /// </summary>
-    internal static CsvDialect Detect(ReadOnlySpan<byte> probe)
+    internal static CsvDialect Detect(ReadOnlySpan<byte> probe, CsvCursorOptions options)
     {
         // Trimmed before the encoding is judged, not after. A multi-byte character cut in half by the
         // end of the probe is not invalid UTF-8, it is an incomplete view of it — and judging it
@@ -69,7 +84,16 @@ public static class CsvDialectDetector
                 + "2003 XML spreadsheets are not supported; save it as .ods, .xlsx or .csv.");
         }
 
-        (Encoding encoding, DialectSource encodingSource) = DetectEncoding(head);
+        (Encoding encoding, DialectSource encodingSource) = options.Encoding is { } stated
+            ? (RefuseBinaryUnlessWide(head, stated), DialectSource.Specified)
+            : DetectEncoding(head);
+
+        char quote = options.Quote ?? '"';
+
+        if (options.Delimiter is { } delimiterStated)
+        {
+            return new CsvDialect(encoding, encodingSource, delimiterStated, DialectSource.Specified, quote);
+        }
 
         // The probe may end mid-character, and decoding a partial one would fail on the tail rather
         // than on real content. Trimming to the last line ending removes that risk for nothing: the
@@ -82,16 +106,9 @@ public static class CsvDialectDetector
             text = text[..lastBreak];
         }
 
-        (char delimiter, DialectSource delimiterSource) = DetectDelimiter(text);
+        (char delimiter, DialectSource delimiterSource) = DetectDelimiter(text, quote);
 
-        return new CsvDialect
-        {
-            Encoding = encoding,
-            EncodingSource = encodingSource,
-            Delimiter = delimiter,
-            DelimiterSource = delimiterSource,
-            Quote = '"',
-        };
+        return new CsvDialect(encoding, encodingSource, delimiter, delimiterSource, quote);
     }
 
     /// <summary>
@@ -126,21 +143,39 @@ public static class CsvDialectDetector
         // mark. NUL bytes in any number anywhere else say the file is not text at all: compressed or
         // binary data carries one in every few hundred bytes. A stray one in a text export does not
         // make it binary, so a handful is tolerated.
-        int nulls = head.Count((byte)0);
-
-        if (nulls >= 4 && nulls * 1000L >= head.Length)
+        if (HoldsNulBytes(head))
         {
             return Utf16WithoutMark(head) is { } utf16
                 ? (utf16, DialectSource.Detected)
-                : throw new TabularFormatException(TabularFormatException.Unsupported,
-                    "The file is not text: it holds NUL bytes, which a csv file does not. It may be a "
-                    + "binary document (a PDF, an image, an archive) uploaded as a table.");
+                : throw NotText();
         }
 
         return IsValidUtf8(head)
             ? (new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), DialectSource.Detected)
             : (Windows1252Encoding.Instance, DialectSource.Fallback);
     }
+
+    /// <summary>NUL bytes in a number no text export has; see <see cref="DetectEncoding"/>.</summary>
+    private static bool HoldsNulBytes(ReadOnlySpan<byte> head)
+    {
+        int nulls = head.Count((byte)0);
+        return nulls >= 4 && nulls * 1000L >= head.Length;
+    }
+
+    private static TabularFormatException NotText() =>
+        new(TabularFormatException.Unsupported,
+            "The file is not text: it holds NUL bytes, which a csv file does not. It may be a "
+            + "binary document (a PDF, an image, an archive) uploaded as a table.");
+
+    /// <summary>
+    /// A stated encoding, after the head was judged to be text at all: a caller who knows the
+    /// encoding of the files they expect still gets a binary upload refused, not read as mojibake.
+    /// UTF-16 and UTF-32 put NUL bytes beside every ASCII character, so for them the test is moot.
+    /// </summary>
+    private static Encoding RefuseBinaryUnlessWide(ReadOnlySpan<byte> head, Encoding stated) =>
+        stated.CodePage is not (1200 or 1201 or 12000 or 12001) && HoldsNulBytes(head)
+            ? throw NotText()
+            : stated;
 
     /// <summary>
     /// Whether the file opens with an XML declaration, after whitespace: in UTF-8, with or without its
@@ -297,11 +332,11 @@ public static class CsvDialectDetector
     /// breaks cut off by the probe's last byte. The whole records before that field still read
     /// correctly with quotes honoured, so they are asked first.
     /// </remarks>
-    private static (char Delimiter, DialectSource Source) DetectDelimiter(string text)
+    private static (char Delimiter, DialectSource Source) DetectDelimiter(string text, char quote)
     {
-        if (text.AsSpan().Count('"') % 2 == 0)
+        if (text.AsSpan().Count(quote) % 2 == 0)
         {
-            return Decide(FirstLines(text, honourQuotes: true, keepOpenTail: true), honourQuotes: true).Choice;
+            return Decide(FirstLines(text, quote, honourQuotes: true, keepOpenTail: true), quote, honourQuotes: true).Choice;
         }
 
         // The whole records' answer stands when its delimiter divides every one of them the same way
@@ -311,15 +346,15 @@ public static class CsvDialectDetector
         // then look as consistent as the real delimiter. A single whole record is enough — the header,
         // when the first row's note is longer than the probe. Only when the whole records fail, or
         // there is none, is the odd count taken for a stray quote and quotes ignored.
-        List<string> whole = FirstLines(text, honourQuotes: true, keepOpenTail: false);
+        List<string> whole = FirstLines(text, quote, honourQuotes: true, keepOpenTail: false);
 
-        if (Decide(whole, honourQuotes: true) is { Consistent: true } cut
-            && whole.TrueForAll(record => IsWellQuoted(record, cut.Choice.Delimiter)))
+        if (Decide(whole, quote, honourQuotes: true) is { Consistent: true } cut
+            && whole.TrueForAll(record => IsWellQuoted(record, cut.Choice.Delimiter, quote)))
         {
             return cut.Choice;
         }
 
-        return Decide(FirstLines(text, honourQuotes: false, keepOpenTail: true), honourQuotes: false).Choice;
+        return Decide(FirstLines(text, quote, honourQuotes: false, keepOpenTail: true), quote, honourQuotes: false).Choice;
     }
 
     /// <summary>
@@ -331,7 +366,7 @@ public static class CsvDialectDetector
     /// commas than semicolons, because every decimal number contains one. What identifies the real
     /// delimiter is not how often it occurs but that it occurs equally often on every line.
     /// </remarks>
-    private static ((char Delimiter, DialectSource Source) Choice, bool Consistent) Decide(List<string> lines, bool honourQuotes)
+    private static ((char Delimiter, DialectSource Source) Choice, bool Consistent) Decide(List<string> lines, char quote, bool honourQuotes)
     {
         char best = ';';
         int bestScore = 0;
@@ -339,7 +374,7 @@ public static class CsvDialectDetector
 
         foreach (char candidate in DelimiterCandidates)
         {
-            int[] counts = lines.Select(line => CountOutsideQuotes(line, candidate, honourQuotes)).ToArray();
+            int[] counts = lines.Select(line => CountOutsideQuotes(line, candidate, quote, honourQuotes)).ToArray();
             int present = counts.Count(c => c > 0);
 
             if (present * 2 <= counts.Length)
@@ -373,7 +408,7 @@ public static class CsvDialectDetector
     /// The first lines of the text — records, when quotes are honoured. <paramref name="keepOpenTail"/>
     /// false drops a last record still inside an open quote: the probe's end cut it off.
     /// </summary>
-    private static List<string> FirstLines(string text, bool honourQuotes, bool keepOpenTail)
+    private static List<string> FirstLines(string text, char quote, bool honourQuotes, bool keepOpenTail)
     {
         List<string> lines = [];
         bool inQuotes = false;
@@ -383,7 +418,7 @@ public static class CsvDialectDetector
         {
             char c = text[i];
 
-            if (c == '"' && honourQuotes)
+            if (c == quote && honourQuotes)
             {
                 inQuotes = !inQuotes;
             }
@@ -407,10 +442,10 @@ public static class CsvDialectDetector
     /// between fields: opening a field, at the record's start or after a delimiter; closing it, before
     /// a delimiter, a carriage return or the record's end; or doubled inside a quoted field.
     /// </summary>
-    private static bool IsWellQuoted(string record, char delimiter)
+    private static bool IsWellQuoted(string record, char delimiter, char quote)
     {
         bool inQuotes = false;
-        int i = record.IndexOf('"');
+        int i = record.IndexOf(quote);
 
         while (i >= 0)
         {
@@ -425,7 +460,7 @@ public static class CsvDialectDetector
 
                 inQuotes = true;
             }
-            else if (next == '"')
+            else if (next == quote)
             {
                 i++;                            // an escaped quote; both halves are read
             }
@@ -438,20 +473,20 @@ public static class CsvDialectDetector
                 return false;
             }
 
-            i = record.IndexOf('"', i + 1);
+            i = record.IndexOf(quote, i + 1);
         }
 
         return true;
     }
 
-    private static int CountOutsideQuotes(string line, char delimiter, bool honourQuotes)
+    private static int CountOutsideQuotes(string line, char delimiter, char quote, bool honourQuotes)
     {
         int count = 0;
         bool inQuotes = false;
 
         foreach (char c in line)
         {
-            if (c == '"' && honourQuotes)
+            if (c == quote && honourQuotes)
             {
                 inQuotes = !inQuotes;
             }

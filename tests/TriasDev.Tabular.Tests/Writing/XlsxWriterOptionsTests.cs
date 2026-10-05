@@ -1,6 +1,5 @@
 using System.IO.Compression;
 
-using TriasDev.Tabular.Xlsx;
 
 using Xunit;
 

@@ -70,7 +70,7 @@ A project dropped into `src/` or `tests/` needs no settings of its own.
   `leaveOpen`. New entry points follow the same rule.
 - **Options are checked where they are handed over** (`OptionChecks`), never discovered mid-read.
 - Every library exception derives from `TabularException` and carries a code: `TabularFormatException`
-  (unreadable/unsupported), `TabularLimitException` (a bound), `TabularStructureException` (whole-run),
+  (unreadable/unsupported), `TabularLimitException` (a reader's bound), `TabularStructureException` (whole-run),
   `MappingPlanException`, and `TabularWriteException` (a value a format cannot hold, with its sheet, row
   and column). `ArgumentException` is for programmer errors only. Per-row problems are
   `RowError`s, and a row is either values or errors, never both.

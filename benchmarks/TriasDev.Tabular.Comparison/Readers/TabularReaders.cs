@@ -1,21 +1,18 @@
-using TriasDev.Tabular.Csv;
-using TriasDev.Tabular.Xlsx;
-
 namespace TriasDev.Tabular.Comparison.Readers;
 
-/// <summary>TriasDev.Tabular's csv cursor. It detects the dialect itself, so the delimiter is unused.</summary>
+/// <summary>TriasDev.Tabular reading a csv file. It detects the dialect itself, so the delimiter is unused.</summary>
 internal sealed class TabularCsv : IReader
 {
     public string Name => "TriasDev.Tabular";
 
-    public Type Anchor => typeof(CsvCursor);
+    public Type Anchor => typeof(TabularFile);
 
     public FileKind Kind => FileKind.Csv;
 
     public ReadCount Read(string path, char delimiter)
     {
         using FileStream stream = File.OpenRead(path);
-        using CsvCursor cursor = new(stream, Path.GetFileName(path));
+        using ITabularCursor cursor = TabularFile.Open(stream, Path.GetFileName(path));
 
         return ReadAll(cursor);
     }
@@ -40,19 +37,19 @@ internal sealed class TabularCsv : IReader
     }
 }
 
-/// <summary>TriasDev.Tabular's xlsx cursor.</summary>
+/// <summary>TriasDev.Tabular reading an xlsx file.</summary>
 internal sealed class TabularXlsx : IReader
 {
     public string Name => "TriasDev.Tabular";
 
-    public Type Anchor => typeof(XlsxCursor);
+    public Type Anchor => typeof(TabularFile);
 
     public FileKind Kind => FileKind.Xlsx;
 
     public ReadCount Read(string path, char delimiter)
     {
         using FileStream stream = File.OpenRead(path);
-        using XlsxCursor cursor = new(stream);
+        using ITabularCursor cursor = TabularFile.Open(stream, Path.GetFileName(path));
 
         return TabularCsv.ReadAll(cursor);
     }

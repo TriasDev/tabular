@@ -1,6 +1,6 @@
 using System.IO.Compression;
 
-namespace TriasDev.Tabular.Ods;
+namespace TriasDev.Tabular;
 
 /// <summary>Knobs for writing an OpenDocument spreadsheet.</summary>
 public sealed record OdsWriterOptions

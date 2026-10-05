@@ -124,7 +124,7 @@ public static class ErrorCodes
         public const string Exceeded = "limit.exceeded";
     }
 
-    /// <summary>A value the chosen format cannot hold exactly — TabularWriteException.</summary>
+    /// <summary>A value, or a sheet, the chosen format cannot hold — TabularWriteException.</summary>
     public static class Write
     {
         /// <summary><c>write.ambiguous-line-breaks</c></summary>
@@ -147,6 +147,15 @@ public static class ErrorCodes
 
         /// <summary><c>write.too-many-lines</c></summary>
         public const string TooManyLines = "write.too-many-lines";
+
+        /// <summary><c>write.too-many-merges</c></summary>
+        public const string TooManyMerges = "write.too-many-merges";
+
+        /// <summary><c>write.too-many-rows</c></summary>
+        public const string TooManyRows = "write.too-many-rows";
+
+        /// <summary><c>write.too-many-styles</c></summary>
+        public const string TooManyStyles = "write.too-many-styles";
     }
 
     /// <summary>The prefixes of the library's own codes; a caller's rule may not use them.</summary>

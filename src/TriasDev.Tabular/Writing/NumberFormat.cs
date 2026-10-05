@@ -45,7 +45,8 @@ public sealed record NumberFormat
     internal string Suffix { get; }
 
     /// <summary>Parses a format code.</summary>
-    /// <exception cref="ArgumentException">The code is outside the supported subset; the message names the part.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="code"/> is null.</exception>
+    /// <exception cref="FormatException">The code is empty or outside the supported subset; the message names the part.</exception>
     public static NumberFormat Parse(string code)
     {
         ArgumentNullException.ThrowIfNull(code);
@@ -156,6 +157,6 @@ public sealed record NumberFormat
         return (code[start..i], decimals, minDecimals);
     }
 
-    private static ArgumentException Refuse(string code, string what) =>
-        new($"The number format \"{code}\" is not supported: {what}.", nameof(code));
+    private static FormatException Refuse(string code, string what) =>
+        new($"The number format \"{code}\" is not supported: {what}.");
 }

@@ -25,7 +25,7 @@ public sealed record SheetOptions
     /// What is wrong with the freeze for a sheet of <paramref name="columns"/> columns whose format holds
     /// <paramref name="maxRows"/> rows, named <paramref name="paramName"/>, or null. Shared by the writer and an export's builder, so the rules cannot drift.
     /// </summary>
-    internal ArgumentOutOfRangeException? FreezeProblem(string paramName, long maxRows, int columns)
+    internal ArgumentOutOfRangeException? FreezeProblem(string paramName, int maxRows, int columns)
     {
         if (FreezeRows < 0 || FreezeRows >= maxRows)
         {

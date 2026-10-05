@@ -1,6 +1,5 @@
 using System.Text;
 
-using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
 
 using Xunit;

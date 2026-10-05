@@ -203,7 +203,7 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
 
 - **Profile a file** — per column: measured facts (empty and distinct counts, lengths, numeric and
   date ranges, how values parse under each culture, located outliers) and ranked type suggestions
-  for a mapping screen to pre-select. Csv delimiter, quoting and encoding are detected.
+  for a mapping screen to pre-select. Csv delimiter, quoting and encoding are detected, or stated one by one where you know them.
 - **Read it fast** — a forward-only cursor over rows of typed cells, for xlsx, OpenDocument (.ods) and csv alike. The
   format is detected from the file's bytes, not its name.
 - **Read a zip or tar archive as one workbook** — plain or gzipped; every csv, xlsx and ods file inside becomes a sheet, named by its
@@ -305,8 +305,8 @@ private static readonly CellStyle HeaderStyle = new()
     Font = new CellFont { Color = CellColor.Parse("#FFFFFF"), Bold = true },
 };
 
-private static readonly CellStyle MoneyStyle = new() { Number = NumberFormat.Parse("#,##0.00") };
-private static readonly CellStyle DateStyle = new() { Date = DateFormat.Parse("dd/mm/yyyy") };
+private static readonly CellStyle MoneyStyle = new() { NumberFormat = NumberFormat.Parse("#,##0.00") };
+private static readonly CellStyle DateStyle = new() { DateFormat = DateFormat.Parse("dd/mm/yyyy") };
 
 // A legend: late orders are marked in red.
 private static readonly CellStyle LateStyle = new() { Fill = CellColor.Parse("#FFC7CE") };
@@ -321,9 +321,9 @@ public static async Task WriteAsync(Stream stream, IEnumerable<Order> orders, Ca
         [new WriteColumn("Id", 8), new WriteColumn("Customer", 28), new WriteColumn("Placed", 12), new WriteColumn("Amount", 12), new WriteColumn("Status", 10)],
         new SheetOptions { HeaderStyle = HeaderStyle, FreezeRows = 1, AutoFilter = true });
 
-    StyleId money = writer.Style(MoneyStyle);
-    StyleId date = writer.Style(DateStyle);
-    StyleId late = writer.Style(LateStyle);
+    StyleId money = writer.RegisterStyle(MoneyStyle);
+    StyleId date = writer.RegisterStyle(DateStyle);
+    StyleId late = writer.RegisterStyle(LateStyle);
 
     foreach (Order order in orders)
     {
@@ -357,13 +357,12 @@ the guide is [Exporting](https://triasdev.github.io/tabular/exporting/).
 
 Stated here so they are found before they are hit:
 
-- **Writing.** csv, xlsx, ods and a zip of csv sheets, asynchronous towards the target; styles and layout apply to xlsx and ods only. An xlsx or ods sheet holds 1,048,576 rows (the header included), a sheet at most 16,384 columns, a file 4,096 distinct styles, an xlsx sheet 65,536 merged ranges; text is limited to 32,767 characters in xlsx, and a date before 1900-01-01 is refused in xlsx. A value a format cannot hold exactly is refused with a located `TabularWriteException`, not rounded. A writer that fails leaves an incomplete file, which the caller discards. [Known limitations](https://github.com/TriasDev/tabular/blob/main/docs/KNOWN-ISSUES.md#writing-what-does-not-come-back-exactly-as-written) lists what does not come back exactly as written.
+- **Writing.** csv, xlsx, ods and a zip of csv sheets, asynchronous towards the target; styles and layout apply to xlsx and ods only. An xlsx or ods sheet holds 1,048,576 rows (the header included), a csv sheet 2,147,483,647 (the largest row number the reader gives), a sheet at most 16,384 columns, a file 4,096 distinct styles, an xlsx sheet 65,536 merged ranges; text is limited to 32,767 characters in xlsx, and a date before 1900-01-01 is refused in xlsx. A value a format cannot hold exactly is refused with a located `TabularWriteException`, not rounded. A writer that fails leaves an incomplete file, which the caller discards. [Known limitations](https://github.com/TriasDev/tabular/blob/main/docs/KNOWN-ISSUES.md#writing-what-does-not-come-back-exactly-as-written) lists what does not come back exactly as written.
 - **xlsx, ods and csv only, alone, zipped, tarred or gzipped.** Legacy `.xls`, binary `.xlsb` and flat OpenDocument
   `.fods` are refused as `format.unsupported` rather than misread; inside an archive they are skipped
   and listed. Archives inside archives are not opened.
 - **Reading is synchronous, over seekable streams.** Parsing is processor work over a buffered stream; a request
-  body or blob stream is copied to a file or `MemoryStream` first. A csv whose dialect you state can
-  be read forward-only.
+  body or blob stream is copied to a file or `MemoryStream` first.
 - **Cultures.** Analysis tries `""` (invariant), `de-DE` and `en-US` by default — set
   `AnalysisOptions.Cultures` for files from elsewhere. Under invariant globalization (slim container
   images) only the invariant culture exists, and a plan naming another is refused.
