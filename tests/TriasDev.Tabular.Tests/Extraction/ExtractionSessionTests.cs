@@ -38,7 +38,8 @@ public sealed class ExtractionRunTests
             ],
         };
 
-    private sealed record Run(List<string?[]> Values, List<RowError> Errors, ExtractionSummary Summary);
+    /// <param name="ValuesOfFailingRows">How many values <c>CurrentValues</c> held on each failing row — read, not assumed.</param>
+    private sealed record Run(List<string?[]> Values, List<RowError> Errors, ExtractionSummary Summary, List<int> ValuesOfFailingRows);
 
     private static Run Extract(
         string text,
@@ -52,12 +53,14 @@ public sealed class ExtractionRunTests
 
         List<string?[]> values = [];
         List<RowError> errors = [];
+        List<int> valuesOfFailingRows = [];
 
         while (session.ReadRow())
         {
             if (session.CurrentRowHasErrors)
             {
                 errors.AddRange(session.CurrentErrors);
+                valuesOfFailingRows.Add(session.CurrentValues.Length);
                 continue;
             }
 
@@ -71,7 +74,7 @@ public sealed class ExtractionRunTests
             values.Add(row);
         }
 
-        return new Run(values, errors, session.Summary);
+        return new Run(values, errors, session.Summary, valuesOfFailingRows);
     }
 
     [Fact]
@@ -98,10 +101,12 @@ public sealed class ExtractionRunTests
     public void ProducesNoValuesForARowThatFails()
     {
         // Half a row invites a caller to build half an entity, which is how silent corruption starts.
+        // The amount alone would map; the row still hands out nothing, not the half that fitted.
         Run run = Extract("Land;Betrag\nDEUX;1,00\n");
 
         Assert.Empty(run.Values);
         Assert.Equal("value.exact-length", Assert.Single(run.Errors).Code);
+        Assert.Equal([0], run.ValuesOfFailingRows);
     }
 
     [Fact]
