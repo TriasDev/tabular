@@ -30,11 +30,21 @@ public sealed record ArchiveCursorOptions
     /// </remarks>
     public long MaxEmbeddedWorkbookBytes { get; init; } = 256L * 1024 * 1024;
 
+    /// <summary>How many sheets the archive's files may hold, all together.</summary>
+    /// <remarks>
+    /// One descriptor per sheet, held for the cursor's life, as a workbook's are. The archive has a
+    /// bound of its own because its sheets come from files of every kind: a csv file is one sheet and
+    /// is bound by no workbook option. Each workbook inside still obeys its own format's
+    /// <c>MaxSheets</c>.
+    /// </remarks>
+    public int MaxSheets { get; init; } = 4_096;
+
     internal ArchiveCursorOptions Checked()
     {
         OptionChecks.AtLeast(MaxEntries, 1, nameof(ArchiveCursorOptions), nameof(MaxEntries));
         OptionChecks.AtLeast(MaxUncompressedBytes, 1, nameof(ArchiveCursorOptions), nameof(MaxUncompressedBytes));
         OptionChecks.AtLeast(MaxEmbeddedWorkbookBytes, 1, nameof(ArchiveCursorOptions), nameof(MaxEmbeddedWorkbookBytes));
+        OptionChecks.AtLeast(MaxSheets, 1, nameof(ArchiveCursorOptions), nameof(MaxSheets));
         return this;
     }
 }

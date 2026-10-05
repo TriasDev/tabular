@@ -513,11 +513,11 @@ public sealed class ArchiveCursor : ITabularCursor
 
     private void AddSource(Source source, IReadOnlyList<(string Name, SheetVisibility Visibility)> sheetNames)
     {
-        int maxSheets = _options.Xlsx.MaxSheets;
+        int maxSheets = _options.Archive.MaxSheets;
 
         if (_sheets.Count + sheetNames.Count > maxSheets)
         {
-            throw new TabularLimitException("MaxSheets", maxSheets,
+            throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxSheets), maxSheets,
                 $"The archive's files hold more than the {maxSheets} sheets allowed.");
         }
 

@@ -250,9 +250,24 @@ public sealed class ArchiveCursorWorkbookTests
 
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(
             new ZipArchiveBuilder().With("a.csv", "h\n1\n").With("b.xlsx", xlsx).Build(),
-            new TabularOpenOptions { Xlsx = new XlsxCursorOptions { MaxSheets = 3 } }));
+            new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxSheets = 3 } }));
 
-        Assert.Equal("MaxSheets", error.Limit);
+        Assert.Equal(nameof(ArchiveCursorOptions.MaxSheets), error.Limit);
+    }
+
+    [Fact]
+    public void HoldsEachWorkbookInsideToItsOwnFormatsSheetCeiling()
+    {
+        byte[] xlsx = Workbook(("S1", InlineRow(1, "a")), ("S2", InlineRow(1, "b")));
+
+        // The archive allows the sheets; the workbook's own format does not. A workbook past a bound
+        // fails the archive rather than being skipped.
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(
+            new ZipArchiveBuilder().With("b.xlsx", xlsx).Build(),
+            new TabularOpenOptions { Xlsx = new XlsxCursorOptions { MaxSheets = 1 } }));
+
+        Assert.Equal(nameof(XlsxCursorOptions.MaxSheets), error.Limit);
+        Assert.Equal(1, error.Maximum);
     }
 
     private static byte[] Zip(params (string Name, string Content)[] entries)

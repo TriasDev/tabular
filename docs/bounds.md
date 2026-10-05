@@ -20,6 +20,7 @@ held to the formats' own limits and to what the reader reads back; those are fix
 | Package expansion | 2 GB (ods: 8 GB) | `XlsxCursorOptions.MaxUncompressedBytes`, `OdsCursorOptions.MaxUncompressedBytes` | A zip's ratio is unbounded by design; a 50 MB upload could otherwise become fifty gigabytes. OpenDocument writes about four times the bytes for the same cells, so its budget is four times larger |
 | Package parts | 16,384 | `MaxPackageEntries` (xlsx, ods) | Every entry's metadata is materialised to find parts by name, before any budget can be consulted |
 | Worksheets | 4,096 | `MaxSheets` (xlsx, ods) | One descriptor per sheet, held for the cursor's life and walked by anything that analyses the file |
+| Sheets in an archive | 4,096 | `ArchiveCursorOptions.MaxSheets` | The same descriptors, for every file of an archive together — a csv file is one sheet and no workbook option bounds it. Each workbook inside is still held to its own format's `MaxSheets` |
 | Workbook relationships | 8,192 | `XlsxCursorOptions.MaxRelationships` | A map built before anything reads from it; a workbook declares about one per sheet |
 | Shared string entries | 1,048,576 | `XlsxCursorOptions.MaxSharedStrings` | The sheet's own row count — more distinct strings than a column can hold cells |
 | Shared string characters | 64 M | `XlsxCursorOptions.MaxSharedStringChars` | What a table costs is its characters, not its entries — a million entries of two thousand each is 3.9 GB |
