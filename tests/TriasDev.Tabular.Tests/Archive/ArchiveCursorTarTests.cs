@@ -246,6 +246,41 @@ public sealed class ArchiveCursorTarTests
         Assert.Equal(TabularFormatException.Corrupt, Assert.Throws<TabularFormatException>(() => Open(tar)).Code);
     }
 
+    /// <summary>
+    /// A PAX or GNU metadata entry whose size field claims more than <see cref="int.MaxValue"/> bytes:
+    /// the BCL's TarReader throws <see cref="InvalidOperationException"/> for it, which must come out as
+    /// the library's own refusal, not escape as a framework exception (seen on a mangled tar in CI).
+    /// </summary>
+    [Theory]
+    [InlineData(TarEntryFormat.Pax, 'x', false)]
+    [InlineData(TarEntryFormat.Pax, 'x', true)]
+    [InlineData(TarEntryFormat.Gnu, 'L', false)]
+    [InlineData(TarEntryFormat.Gnu, 'L', true)]
+    public void RefusesAMetadataEntryThatClaimsMoreThanItCanHold(TarEntryFormat format, char metadata, bool gzipped)
+    {
+        // A name past 100 characters makes the GNU writer put a long-name ('L') entry first.
+        string name = format == TarEntryFormat.Gnu ? new string('n', 120) + ".csv" : "a.csv";
+        byte[] tar = TarArchive.Of(format, (name, "a\n1\n"));
+        Assert.Equal((byte)metadata, tar[156]);                    // the first header is the metadata entry
+        byte[] oversized = TarArchive.Patched(tar, 0, header => System.Text.Encoding.ASCII.GetBytes("77777777777\0").CopyTo(header, 124));
+        byte[] file = gzipped ? GzipFile.Of(oversized) : oversized;
+
+        TabularFormatException refused = Assert.Throws<TabularFormatException>(() =>
+        {
+            using ITabularCursor cursor = TabularFile.Open(new MemoryStream(file, writable: false), gzipped ? "x.tar.gz" : "x.tar", cancellationToken: Token);
+
+            for (int s = 0; s < cursor.Sheets.Count && cursor.MoveToSheet(s, Token); s++)
+            {
+                while (cursor.ReadRow(Token))
+                {
+                    _ = cursor.CurrentRow.Length;
+                }
+            }
+        });
+
+        Assert.Equal(TabularFormatException.Corrupt, refused.Code);
+    }
+
     [Fact]
     public void HoldsATarToTheEntryAndSizeBounds()
     {

@@ -63,8 +63,14 @@ internal static class TarEntries
     /// <see cref="NotSupportedException"/> for an entry type it cannot read, such as a GNU sparse file,
     /// which it refuses at the header, so nothing after it can be reached either.
     /// </summary>
+    /// <remarks>
+    /// It also throws <see cref="InvalidOperationException"/> when a PAX or GNU metadata entry's size
+    /// field claims more than it will read — a damaged header, not a misuse. Taken only from
+    /// <c>System.Formats.Tar</c> itself, so one raised by the library's own code is not mistaken for it.
+    /// </remarks>
     public static bool IsFailure(Exception e) =>
-        e is EndOfStreamException or InvalidDataException or FormatException or OverflowException or NotSupportedException;
+        e is EndOfStreamException or InvalidDataException or FormatException or OverflowException or NotSupportedException
+        || e is InvalidOperationException { Source: "System.Formats.Tar" };
 
     public static TabularFormatException Map(Exception e) => e switch
     {
