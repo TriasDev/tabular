@@ -21,7 +21,7 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <VersionPrefix>0.6.0</VersionPrefix>
+    <VersionPrefix>0.7.0</VersionPrefix>
     <Authors>TriasDev GmbH &amp; Co. KG</Authors>
     <Company>TriasDev GmbH &amp; Co. KG</Company>
     <Copyright>Copyright © 2026 TriasDev GmbH &amp; Co. KG</Copyright>

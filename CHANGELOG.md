@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/TriasDev/tabular/compare/v0.6.0...v0.7.0) (2026-10-05)
+
+
+### Features
+
+* **write:** a workbook column is never narrower than its header ([#115](https://github.com/TriasDev/tabular/issues/115)) ([59dfdc4](https://github.com/TriasDev/tabular/commit/59dfdc44a9045b7f535ceb21ca92910c7fc1741e))
+
 ## [0.6.0](https://github.com/TriasDev/tabular/compare/v0.5.0...v0.6.0) (2026-10-05)
 
 
