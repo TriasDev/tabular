@@ -115,6 +115,75 @@ public sealed class TabularExportTests
         Assert.True(reachedTheTarget > 0, $"{reachedTheTarget} bytes had reached the target by row 40,000 of one chunk");
     }
 
+    /// <summary>
+    /// The per-item sources — the shape an ASP.NET Core endpoint streams — flush as they go too: bytes
+    /// leave before the last item, so the file never sits whole in memory.
+    /// </summary>
+    [Theory]
+    [InlineData(TabularFormat.Csv, false)]
+    [InlineData(TabularFormat.Csv, true)]
+    [InlineData(TabularFormat.Xlsx, false)]
+    [InlineData(TabularFormat.Xlsx, true)]
+    [InlineData(TabularFormat.Ods, false)]
+    public async Task APerItemExportFlushesBeforeItsLastItem(TabularFormat format, bool asynchronous)
+    {
+        WriteTarget target = new();
+        long reachedTheTarget = -1;
+        TabularExport<Item> export = TabularExport.For<Item>()
+            .Column("Id", i =>
+            {
+                if (i.Id == 40_000)
+                {
+                    reachedTheTarget = target.Length;
+                }
+
+                return i.Id;
+            })
+            .Column("Name", i => i.Name)
+            .Build();
+        // Text deflate cannot shrink much, so a compressed format also fills its buffer past the flush mark.
+        Random random = new(106);
+        Item[] items = [.. Enumerable.Range(1, 60_000).Select(i => new Item(i, Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())) + Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())), i))];
+
+        int rows = asynchronous
+            ? await export.WriteAsync(target, format, "data", OneByOne(items), NoBom, Token)
+            : await export.WriteAsync(target, format, "data", items, NoBom, Token);
+
+        Assert.Equal(items.Length, rows);
+        Assert.True(reachedTheTarget > 0, $"{reachedTheTarget} bytes had reached the target by item 40,000 of {items.Length}");
+    }
+
+    /// <summary>
+    /// A synchronous source cannot take the token itself; the export observes it at each flush, so a
+    /// cancellation stops the enumeration long before its end rather than only at completion.
+    /// </summary>
+    [Fact]
+    public async Task CancellationStopsASynchronousPerItemSourceAtTheNextFlush()
+    {
+        using CancellationTokenSource cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        WriteTarget target = new();
+        int seen = 0;
+
+        IEnumerable<Item> Source()
+        {
+            foreach (int i in Enumerable.Range(1, 200_000))
+            {
+                if (++seen == 10)
+                {
+                    cancel.Cancel();
+                }
+
+                yield return new Item(i, new string('x', 40), i);
+            }
+        }
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await Export.WriteAsync(target, TabularFormat.Csv, "data", Source(), NoBom, cancel.Token));
+
+        Assert.True(seen < 200_000, $"the whole source was enumerated ({seen} items) before the cancellation was seen");
+        Assert.True(target.IsDisposed);
+    }
+
     [Fact]
     public async Task AFailureInsideASheetLeavesTheCallersWriterUnusable()
     {

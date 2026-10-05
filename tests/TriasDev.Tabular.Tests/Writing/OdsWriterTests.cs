@@ -191,15 +191,18 @@ public sealed class OdsWriterTests
     }
 
     [Theory]
-    [InlineData('&')]
-    [InlineData('\r')]
-    public async Task RefusesTextWhoseEscapedFormExceedsTheReadersTokenLimit(char c)
+    [InlineData('&', 5)]
+    [InlineData('<', 4)]
+    [InlineData('>', 4)]
+    [InlineData('\r', 5)]
+    public async Task RefusesTextWhoseEscapedFormExceedsTheReadersTokenLimit(char c, int escaped)
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
         writer.BeginSheet("data", [new("v")]);
         writer.BeginRow();
 
-        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write(new string(c, 4_000_000))).Code);
+        // One character more than AcceptsTheLongestEscapedTextTheReaderTakes writes.
+        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write(new string(c, ((16 * 1024 * 1024 - 1024) / escaped) + 1))).Code);
     }
 
     [Fact]
@@ -217,6 +220,21 @@ public sealed class OdsWriterTests
     public async Task AcceptsTheLongestTextTheReaderTakes()
     {
         string value = new('x', 16 * 1024 * 1024 - 2048);
+
+        Assert.Equal([RawCell.FromText(value)], await Column(value));
+    }
+
+    /// <summary>
+    /// The other side of the escaped-length rule: text whose escaped form just fits under the reader's
+    /// token limit is written and read back whole, so the writer refuses only what the reader would.
+    /// </summary>
+    [Theory]
+    [InlineData('<', 4)]
+    [InlineData('>', 4)]
+    [InlineData('&', 5)]
+    public async Task AcceptsTheLongestEscapedTextTheReaderTakes(char c, int escaped)
+    {
+        string value = new(c, (16 * 1024 * 1024 - 1024) / escaped);
 
         Assert.Equal([RawCell.FromText(value)], await Column(value));
     }
