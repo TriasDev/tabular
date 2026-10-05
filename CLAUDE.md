@@ -4,10 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`TriasDev.Tabular` is a .NET library (net8.0 + net10.0; benchmarks and samples net10.0 only), published open source and destined for NuGet, that reads an
-Excel (xlsx), OpenDocument (ods) or CSV file, profiles every row of it, and imports it through a column mapping a person
-confirmed. It parses both formats itself using only the base class library — see
-`docs/adr/0001-tabular-parsing-is-our-own-cursor.md` for why.
+`TriasDev.Tabular` is a .NET library (net8.0 + net10.0; benchmarks and samples net10.0 only), published open source and destined for NuGet, with two halves. It
+**reads** an Excel (xlsx), OpenDocument (ods) or CSV file — alone or in a zip, tar or gzip archive — profiles every
+row of it, and imports it through a column mapping a person confirmed. It **writes** csv, xlsx, ods and a zip of csv
+sheets, streaming and asynchronously towards the target, with cell styles and sheet layout, in a form its own import
+reads back. It parses and writes every format itself using only the base class library — see
+`docs/adr/0001-tabular-parsing-is-our-own-cursor.md` and `docs/adr/0002-writing-is-our-own.md` for why.
 
 The repository is public. It was extracted from an internal product; nothing product-specific
 (product names, internal paths, customer data) belongs in code, docs or commit messages.
@@ -19,21 +21,23 @@ invariants that are easy to break and the test conventions. They apply here as w
 
 ## Architecture
 
-The pipeline has two independent reads of the same file with a human in between; the library holds
-no state between them:
+The read pipeline has two independent reads of the same file with a human in between; the library
+holds no state between them. The write side is separate and forward-only:
 
 ```
 Analyze:  ITabularCursor ─► TabularAnalyzer ─► FileProfile (ColumnFacts + ranked TypeHypothesis)
           (a UI, outside this library, turns the profile into a MappingPlan)
 Import:   ITabularCursor ─► TabularExtractor / TabularImporter ─► typed rows or located RowErrors
+Write:    TabularWriter / TabularExport<T> / ColumnBatch ─► ISheetWriter ─► SpillBuffer ─► target Stream
+          (the round trip through Import is the contract; a value a format cannot hold → TabularWriteException)
 ```
 
 Everything a consumer touches is in the `TriasDev.Tabular` namespace; only the format-specific
-cursors and their options live in `TriasDev.Tabular.Csv`, `TriasDev.Tabular.Xlsx`, `TriasDev.Tabular.Ods` and `TriasDev.Tabular.Archive`. The folders
+cursors, the format writers and their options live in `TriasDev.Tabular.Csv`, `TriasDev.Tabular.Xlsx`, `TriasDev.Tabular.Ods` and `TriasDev.Tabular.Archive`. The folders
 under `src/TriasDev.Tabular` still group the code by layer:
 
-- **Abstractions** — `ITabularCursor` is the only format-aware seam; everything above is written
-  against it. `TabularFile.Open` picks the cursor from the file's bytes, never from its extension: not a
+- **Abstractions** — `ITabularCursor` is the only format-aware seam of reading; everything above is
+  written against it. `TabularFile.Open` picks the cursor from the file's bytes, never from its extension: not a
   zip → csv; a zip → xlsx when its directory holds `[Content_Types].xml` or `_rels/.rels`, ods when
   it holds the OpenDocument spreadsheet `mimetype`, otherwise an archive; gzip (`1F 8B 08`) → `GzipCursor`, unless its first decompressed block is a tar
   header; a tar header (magic + checksum), raw or inside gzip → `ArchiveCursor`.
@@ -61,3 +65,20 @@ under `src/TriasDev.Tabular` still group the code by layer:
 - **Import** — `TabularImporter` = extraction + the caller's mapper, exposed as `ImportRun<T>`
   (read once, by `ReadRows`, `ReadChunks` or `ReadAll(limit)`). `ImportField` declares fields that are both the schema and
   the accessor. `MappingPrecheck` judges a plan against a `FileProfile` before importing.
+- **Writing** — `TabularWriter` (`Create(stream, TabularFormat, options)`, `BeginSheet`, `BeginRow`/`Write`/`EndRow`,
+  `FlushAsync` when `FlushRecommended`, `CompleteAsync`) keeps the order of calls, the row and column counts and merges;
+  the checks every format shares live in `ValueChecks`, `TextRules`, `SheetNames` and `SheetLimits`. A file is valid only after
+  `CompleteAsync`, and a writer that failed is faulted. `ISheetWriter` is the only format-aware seam, as
+  `ITabularCursor` is for reading. Format writers write synchronously into a `SpillBuffer` (pooled 64 KB segments);
+  only `FlushAsync`/`CompleteAsync` drain it into the target, asynchronously, so an ASP.NET Core response body works
+  and memory stays flat. `TabularExport<T>` (built by `TabularExportBuilder<T>`, immutable, thread-safe) declares typed
+  columns with style rules and `SheetOptions` and writes items, async items or chunks; `ColumnBatch` takes data by
+  column, typed, without boxing. Styles: `CellStyle` (fill, `CellFont`, `NumberFormat`/`DateFormat` — a parsed subset
+  of Excel's codes —, alignment, wrap, `CellBorder`) registered per writer as a `StyleId` in a `StyleTable` (at most
+  4,096); `SheetOptions` gives the header style, frozen panes and auto-filter; `Merge` merged ranges.
+- **Format writers** — `CsvSheetWriter` (culture, delimiter, BOM, formula guard; refuses text the reader would split),
+  `XlsxSheetWriter` + `XlsxStyles` (inline strings, no shared string table; styles part written at the end),
+  `OdsSheetWriter` + `OdsStyles` (common styles in `styles.xml`), `ZipCsvSheetWriter` (`TabularFormat.Zip`: one
+  `<sheet>.csv` entry per sheet). xlsx, ods and the zip go through `ZipWriter`, our own forward-only zip writer
+  (stored small parts with sizes up front — the ODF `mimetype` needs that —, deflated large parts with data
+  descriptors, zip64 past 4 GB), because `ZipArchive` writes synchronously and seeks back on a seekable target.
