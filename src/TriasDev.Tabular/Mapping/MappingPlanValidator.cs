@@ -27,6 +27,10 @@ public static class MappingPlanValidator
 
         HashSet<string> bound = CheckBindings(plan, SchemaFields.ByName(schema), faults);
 
+        // Refused here as at every other entry point: alternatives that name a field the schema does
+        // not declare are the programmer's mistake, not the plan's.
+        SchemaAlternatives.Resolve(schema);
+
         CheckRequiredFields(schema, bound, faults);
         CheckRequiredGroups(schema, bound, faults);
         CheckConstraintTypes(schema, faults);
