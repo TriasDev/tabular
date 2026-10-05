@@ -646,7 +646,10 @@ public sealed class XlsxCursor : ITabularCursor
                         : RawCell.FromText(new string(text));
         }
 
-        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+        // NaN, Infinity and an overflow such as 1e400 parse, but are no number a spreadsheet holds;
+        // as Number cells they would reach the analysis' sums. They read as their text, as an
+        // unparseable value does — and as the ods reader reads them.
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value) || !double.IsFinite(value))
         {
             return RawCell.FromText(new string(text));
         }

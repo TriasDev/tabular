@@ -57,7 +57,8 @@ caller comparing the two formats sees the writer's differences, not the reader's
 
 ### Flat OpenDocument (`.fods`) and Excel 2003 XML are not read
 Both are a spreadsheet as one plain XML document, without the zip. A file that opens with an XML
-declaration is refused as unsupported rather than read as csv. Matters if anyone sends one.
+declaration — in UTF-8, or in UTF-16 after its byte order mark — is refused as unsupported rather
+than read as csv. Matters if anyone sends one.
 
 ---
 

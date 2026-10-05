@@ -143,12 +143,14 @@ public static class CsvDialectDetector
     }
 
     /// <summary>
-    /// Whether the file opens with an XML declaration, after a UTF-8 byte order mark and whitespace.
+    /// Whether the file opens with an XML declaration, after whitespace: in UTF-8, with or without its
+    /// byte order mark, or in UTF-16 after its byte order mark, either way round.
     /// </summary>
     /// <remarks>
     /// A spreadsheet can be written as one XML document — flat OpenDocument, Excel 2003's XML — and
     /// read as csv it profiles as a column of tags. No csv starts with <c>&lt;?xml</c>; a table of
-    /// markup that does not declare itself is left to be read as the text it is.
+    /// markup that does not declare itself is left to be read as the text it is. Excel 2003 XML is
+    /// also saved in UTF-16, which declares itself by its byte order mark.
     /// </remarks>
     internal static bool IsXmlDocument(ReadOnlySpan<byte> head)
     {
@@ -156,9 +158,47 @@ public static class CsvDialectDetector
         {
             head = head[3..];
         }
+        else if (head.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xFE]))
+        {
+            return IsUtf16XmlDeclaration(head[2..], bigEndian: false);
+        }
+        else if (head.StartsWith((ReadOnlySpan<byte>)[0xFE, 0xFF]))
+        {
+            return IsUtf16XmlDeclaration(head[2..], bigEndian: true);
+        }
 
         return head.TrimStart(" \t\r\n"u8).StartsWith("<?xml"u8);
     }
+
+    /// <summary>Whether UTF-16 code units, after whitespace, spell <c>&lt;?xml</c>.</summary>
+    private static bool IsUtf16XmlDeclaration(ReadOnlySpan<byte> units, bool bigEndian)
+    {
+        const string Declaration = "<?xml";
+        int at = 0;
+
+        while (at + 1 < units.Length && Unit(units, at, bigEndian) is ' ' or '\t' or '\r' or '\n')
+        {
+            at += 2;
+        }
+
+        if (units.Length - at < 2 * Declaration.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < Declaration.Length; i++)
+        {
+            if (Unit(units, at + (2 * i), bigEndian) != Declaration[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static char Unit(ReadOnlySpan<byte> units, int at, bool bigEndian) =>
+        (char)(bigEndian ? (units[at] << 8) | units[at + 1] : units[at] | (units[at + 1] << 8));
 
     /// <summary>The OLE2 compound-file signature: a .xls workbook, or an encrypted .xlsx.</summary>
     internal static ReadOnlySpan<byte> CompoundFileSignature => [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];

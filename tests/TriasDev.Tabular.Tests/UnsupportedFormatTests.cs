@@ -51,6 +51,20 @@ public sealed class UnsupportedFormatTests
         Assert.Contains("XML", error.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    public void RefusesAnXmlDocumentInUtf16AsItDoesOneInUtf8(string encodingName)
+    {
+        // Excel 2003 XML and flat OpenDocument may be saved in UTF-16 with a byte order mark; that is
+        // still an XML document and no csv.
+        Encoding encoding = Encoding.GetEncoding(encodingName);
+        const string Document = "<?xml version=\"1.0\" encoding=\"UTF-16\"?><Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\">\n<row>1;2</row>\n";
+
+        Assert.Contains("XML", Refusal([.. encoding.GetPreamble(), .. encoding.GetBytes(Document)]).Message, StringComparison.Ordinal);
+        Assert.Contains("XML", Refusal([.. encoding.GetPreamble(), .. encoding.GetBytes(" \r\n" + Document)]).Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void RefusesABinaryFileInsteadOfProfilingItAsText()
     {

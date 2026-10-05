@@ -568,8 +568,12 @@ public sealed class OdsCursor : ITabularCursor
         switch (type)
         {
             case "float" or "percentage" or "currency":
+                // NaN, Infinity and an overflow such as 1e400 parse, but are no number a spreadsheet
+                // holds: passed over like an unparseable value, the cell reads as its text — as the
+                // xlsx reader has it.
                 return scanner.TryGetAttribute("value", out ReadOnlySpan<char> number)
                     && double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+                    && double.IsFinite(value)
                         ? RawCell.FromNumber(value)
                         : RawCell.Empty;
 
@@ -691,6 +695,14 @@ public sealed class OdsCursor : ITabularCursor
         }
         else if (name.SequenceEqual("p") || name.SequenceEqual("h"))
         {
+            if (_paragraphDepth >= 0)
+            {
+                // A paragraph inside a paragraph is malformed ODF, but its text is the cell's: it
+                // breaks the line, and its end closes nothing, so the outer one's tail is kept.
+                Append("\n");
+                return;
+            }
+
             if (_anyParagraph)
             {
                 Append("\n");

@@ -167,6 +167,43 @@ public sealed class OdsCursorTests
     }
 
     [Fact]
+    public void ReadsAParagraphInsideAParagraphAsALineBreakAndKeepsTheOuterTail()
+    {
+        // Malformed ODF, but text either way: the inner paragraph breaks the line, and the outer one's
+        // text after it is still the cell's.
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", "<table:table-row>"
+            + Cell("office:value-type=\"string\"", "ab<text:p>in</text:p>ef")
+            + Cell("office:value-type=\"string\"", "ab<text:p/>ef<text:h>in<text:p>ner</text:p>most</text:h>")
+            + "</table:table-row>"));
+        RawCell[] cells = Assert.Single(ReadAll(cursor));
+
+        Assert.Equal("ab\ninef", cells[0].AsText());
+        Assert.Equal("ab\nef\nin\nnermost", cells[1].AsText());
+    }
+
+    [Fact]
+    public void ReadsANumberThatIsNoFiniteNumberAsTheCellsTextAsItDoesAnUnparseableOne()
+    {
+        // double.TryParse accepts NaN and Infinity, and reads 1e400 as Infinity; none is a number a
+        // spreadsheet holds. They are passed over as an unparseable value is, so the cell reads as
+        // its text, as the xlsx reader reads them.
+        string row = "<table:table-row>"
+            + Cell("office:value-type=\"float\" office:value=\"NaN\"", "NaN shown")
+            + Cell("office:value-type=\"float\" office:value=\"Infinity\"", "inf")
+            + Cell("office:value-type=\"percentage\" office:value=\"-Infinity\"", "-inf")
+            + Cell("office:value-type=\"currency\" office:value=\"1e400\"", "huge")
+            + Cell("office:value-type=\"float\" office:value=\"abc\"", "abc shown")
+            + Cell("office:value-type=\"float\" office:value=\"1e300\"", "big")
+            + "</table:table-row>";
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", row));
+
+        Assert.Equal(
+            [RawCell.FromText("NaN shown"), RawCell.FromText("inf"), RawCell.FromText("-inf"), RawCell.FromText("huge"), RawCell.FromText("abc shown"), RawCell.FromNumber(1e300)],
+            Assert.Single(ReadAll(cursor)));
+    }
+
+    [Fact]
     public void ReadsAStringValueAttributeOverTheParagraphs()
     {
         using OdsCursor cursor = Open(new OdsPackage().WithTable("S",
