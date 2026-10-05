@@ -682,3 +682,39 @@ TriasDev.Tabular.ExtractionOptions.MaxReportedRows.init -> void
 TriasDev.Tabular.ExtractionRun.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
 TriasDev.Tabular.ImportRow.Resolution(TriasDev.Tabular.FieldAlternatives! alternatives) -> TriasDev.Tabular.AlternativeResolution
 TriasDev.Tabular.ImportRun<T>.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
+override TriasDev.Tabular.ImportReview.Equals(object? obj) -> bool
+override TriasDev.Tabular.ImportReview.GetHashCode() -> int
+override TriasDev.Tabular.ImportReview.ToString() -> string!
+override TriasDev.Tabular.ReviewOptions.Equals(object? obj) -> bool
+override TriasDev.Tabular.ReviewOptions.GetHashCode() -> int
+override TriasDev.Tabular.ReviewOptions.ToString() -> string!
+static TriasDev.Tabular.ImportReview.operator !=(TriasDev.Tabular.ImportReview? left, TriasDev.Tabular.ImportReview? right) -> bool
+static TriasDev.Tabular.ImportReview.operator ==(TriasDev.Tabular.ImportReview? left, TriasDev.Tabular.ImportReview? right) -> bool
+static TriasDev.Tabular.ReviewOptions.Default.get -> TriasDev.Tabular.ReviewOptions!
+static TriasDev.Tabular.ReviewOptions.operator !=(TriasDev.Tabular.ReviewOptions? left, TriasDev.Tabular.ReviewOptions? right) -> bool
+static TriasDev.Tabular.ReviewOptions.operator ==(TriasDev.Tabular.ReviewOptions? left, TriasDev.Tabular.ReviewOptions? right) -> bool
+static TriasDev.Tabular.TabularExtractor.Review(TriasDev.Tabular.ITabularCursor! cursor, TriasDev.Tabular.MappingPlan! plan, TriasDev.Tabular.ImportSchema! schema, TriasDev.Tabular.ReviewOptions? options = null, System.IProgress<TriasDev.Tabular.AnalysisProgress!>? progress = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> TriasDev.Tabular.ImportReview!
+TriasDev.Tabular.ImportReview
+TriasDev.Tabular.ImportReview.<Clone>$() -> TriasDev.Tabular.ImportReview!
+TriasDev.Tabular.ImportReview.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
+TriasDev.Tabular.ImportReview.Alternatives.init -> void
+TriasDev.Tabular.ImportReview.Equals(TriasDev.Tabular.ImportReview? other) -> bool
+TriasDev.Tabular.ImportReview.Errors.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.RowError!>!
+TriasDev.Tabular.ImportReview.Errors.init -> void
+TriasDev.Tabular.ImportReview.ErrorsComplete.get -> bool
+TriasDev.Tabular.ImportReview.ErrorsComplete.init -> void
+TriasDev.Tabular.ImportReview.ImportReview() -> void
+TriasDev.Tabular.ImportReview.Summary.get -> TriasDev.Tabular.ExtractionSummary!
+TriasDev.Tabular.ImportReview.Summary.init -> void
+TriasDev.Tabular.ReviewOptions
+TriasDev.Tabular.ReviewOptions.<Clone>$() -> TriasDev.Tabular.ReviewOptions!
+TriasDev.Tabular.ReviewOptions.Equals(TriasDev.Tabular.ReviewOptions? other) -> bool
+TriasDev.Tabular.ReviewOptions.MaxErrors.get -> int
+TriasDev.Tabular.ReviewOptions.MaxErrors.init -> void
+TriasDev.Tabular.ReviewOptions.MaxReportedRows.get -> int
+TriasDev.Tabular.ReviewOptions.MaxReportedRows.init -> void
+TriasDev.Tabular.ReviewOptions.ProgressInterval.get -> int
+TriasDev.Tabular.ReviewOptions.ProgressInterval.init -> void
+TriasDev.Tabular.ReviewOptions.ProgressStep.get -> double
+TriasDev.Tabular.ReviewOptions.ProgressStep.init -> void
+TriasDev.Tabular.ReviewOptions.ReviewOptions() -> void
