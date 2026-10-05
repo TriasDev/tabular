@@ -223,6 +223,84 @@ one field. It proposes; it never decides. A header is written by whoever exporte
 acting on it silently is the worst mistake available here: the text arrives, it is simply filed under
 the wrong language, and nobody finds out until a reader of that language does.
 
+## Fields that stand in for one another
+
+Some fields are alternatives: a location is given by its coordinates, or — where a row has none — by
+an address, and the address itself is a ladder: without a country it locates nothing, a postal code or
+a city narrows it, a street and a house number narrow it further. Whether a *particular row* has what
+it needs is a question about several columns at once, which no column profile answers: two
+half-empty columns can cover each other's gaps. So the schema declares the rule and every row is
+judged by it.
+
+```csharp
+--8<-- "samples/TriasDev.Tabular.Samples.Import/Locations.cs:declare"
+```
+
+- A **level** is satisfied when *any* of its fields carries a valid value — a postal code and a city
+  locate equally well. One field may stand on two levels: a column holding "Main Street 5" satisfies
+  the street and the house number.
+- A row **reaches** level *k* when levels 1 to *k* are all satisfied; a gap ends the ladder, because a
+  street without its city locates nothing finer than the country. A group is **usable** from its
+  `RequiredLevels` on: `AllOf` needs every field, the address above needs the country.
+- The first usable group **wins** the row. A later group is **needed** only where every earlier one
+  fell short, and that is the only place it is judged.
+
+That last point decides validation. The first group's fields are validated like any field: `abc` in
+a latitude is a `RowError`, because it cannot be stored as one. A later group's fields are validated
+strictly only in rows that need them — a row with good coordinates and the country `XX` imports
+cleanly, its `XX` kept as the file holds it, because a caller may store the address even where it
+does not locate by it. Such values are counted as `IgnoredInvalidValues` rather than silently
+forgotten.
+
+A row no group makes usable is imported and reported by default: the caller may hand every row to a
+service that decides better than a file can. `new FieldAlternatives(…, unresolvedRowFails: true)`
+makes it a row error, `group.unresolved`, instead.
+
+**Per row**, a mapper can read which group won and how far it reached —
+`row.Resolution(location)` gives `Group`, `Level` and `LevelName`. It is information only: every value
+of the row is there whichever group won.
+
+**Per run**, `ImportRun<T>.Alternatives` (and `ExtractionRun.Alternatives`) report each set over the
+rows that produced values — rows that fail are in the errors, not here, so percentages describe the
+rows that will arrive:
+
+- `RowsJudged` — the denominator; `Unresolved` and `UnresolvedRows`;
+- per group: `RowsNeeding` (every row for the first group, the rows without usable coordinates for
+  the address), `Won`, `RowsAtLevel` (rows by how many levels they reach), `Empty` (needing the group
+  and writing nothing into it), `Incomplete` and `IncompleteRows` — needing the group and stopping
+  short of `MaxReachableLevel`, the deepest level *the mapping* can reach. An unmapped house number
+  therefore does not turn every row into a warning; the precheck says it once.
+
+Row-number lists keep the first `ExtractionOptions.MaxReportedRows` (50 by default, at most 10,000);
+the counts are always complete.
+
+### Reviewing a file before importing it
+
+Those numbers are wanted on a screen between the mapping and the import, before anything is written.
+`TabularExtractor.Review` is that pass: it reads the whole file through the mapping, keeps no value,
+never stops at an error limit (`AllOrNothing` included), reports progress as analysis does, and
+returns the summary, the first `ReviewOptions.MaxErrors` row errors and the alternatives report:
+
+```csharp
+--8<-- "samples/TriasDev.Tabular.Samples.Import/Locations.cs:review"
+```
+
+It costs one more read of the file. On the 5M-row csv, reading eight mapped columns, a review with
+the location rule took 3.9 s against 3.7 s for extracting the same columns without it (best of three,
+same allocations); a schema without alternatives pays nothing measurable.
+
+The precheck, which needs no second read, says what the mapping alone decides:
+
+- `group.level-unmapped` — a level with no mapped field, so no row reaches past it (`level`,
+  `reachableLevel`);
+- `group.unresolved` — no group of a set can become usable under this mapping; `Blocking` when the set
+  fails such rows, `Warning` otherwise.
+
+Findings on a field of a later group never block: whether a row needs its address is exactly what a
+profile cannot tell. To suggest which column holds country codes before anything is mapped,
+`ColumnFacts.RowsWithValueIn(allowed)` counts the rows whose value is in a set, from the counts the
+analysis already kept.
+
 ## Rows the run drops
 
 A row blank from end to end is padding — a spreadsheet accumulates it below the data as a matter of

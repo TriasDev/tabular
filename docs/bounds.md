@@ -36,6 +36,8 @@ data's doing, so it is a located `TabularWriteException` — `TabularLimitExcept
 | Distinct tracking | 2,000,000 values | `AnalysisOptions.DistinctTrackingBudget` | Exact counting costs memory in proportion; the budget is per file, not per column |
 | Retained distinct values | 1,000 per column | `AnalysisOptions.RetainedDistinctValues` | Enough to judge a column of codes against a reference set; a column with more is not one |
 | Error rows | 1,000 | `ExtractionOptions.MaxErrorRows` | A wrong mapping fails every row, and the thousand-and-first error says nothing the first did not |
+| Row numbers per alternatives list | 50, at most 10,000 | `ExtractionOptions.MaxReportedRows`, `ReviewOptions.MaxReportedRows` | A list of every unlocatable row of a large file would hold memory in proportion to it; the counts stay complete |
+| Errors a review keeps | 50, at most 10,000 | `ReviewOptions.MaxErrors` | A review reads past every error limit, so the errors it keeps need a ceiling of their own; the summary counts them all |
 | Rows per sheet | 2,147,483,647 (csv), 1,048,576 (xlsx) | — | Row numbers and counts are `int`: the workbook format stops at a million rows, and a csv that long is some 100 GB. A cursor that counts its rows (csv; xlsx rows without a number of their own) refuses the row past `int.MaxValue` with `TabularLimitException` (`MaxRows`) rather than wrapping to a negative number |
 
 Getting these right took three attempts, and the pattern of the mistakes is worth more than the
