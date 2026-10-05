@@ -2376,7 +2376,7 @@ Expected: PASS on net8.0 and net10.0.
 
 - [ ] **Step 4: Measure**
 
-On the 5M-row csv (`~/Documents/lri-files`, see `CONTRIBUTING.md` for `TABULAR_FIXTURES`/`TABULAR_FILES`), min of N runs, alternating with `main`:
+On the 5M-row csv (the local fixtures folder; see `CONTRIBUTING.md` for `TABULAR_FIXTURES`/`TABULAR_FILES`), min of N runs, alternating with `main`:
 - the existing import benchmark with a schema **without** alternatives — must be within run-to-run variance of `main` (time and allocations);
 - `TabularExtractor.Review` with the location schema — record the time; target ≤ ~20 s.
 
