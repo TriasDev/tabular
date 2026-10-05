@@ -13,6 +13,7 @@ internal sealed class FieldIndex
 {
     private readonly Dictionary<string, int> _byName;
     private readonly Dictionary<string, (string Variant, int Position)[]> _byGroup;
+    private readonly Dictionary<string, int> _bySet;
 
     public FieldIndex(ImportSchema schema)
     {
@@ -37,6 +38,13 @@ internal sealed class FieldIndex
                 g => g.Key,
                 g => g.Select(f => (f.field.Variant!, f.position)).ToArray(),
                 StringComparer.Ordinal);
+
+        _bySet = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        for (int i = 0; i < schema.Alternatives.Count; i++)
+        {
+            _bySet[schema.Alternatives[i].Name] = i;
+        }
     }
 
     public (string Variant, int Position)[] PositionsOf(TranslatedImportField group)
@@ -50,6 +58,20 @@ internal sealed class FieldIndex
             $"The schema does not declare a field group named '{group.Name}'. It declares: "
             + (_byGroup.Count == 0 ? "none" : string.Join(", ", _byGroup.Keys.Order(StringComparer.Ordinal))) + ".",
             nameof(group));
+    }
+
+    /// <summary>Where a set of alternatives sits among the schema's, by its name.</summary>
+    public int SetOf(FieldAlternatives alternatives)
+    {
+        if (_bySet.TryGetValue(alternatives.Name, out int index))
+        {
+            return index;
+        }
+
+        throw new ArgumentException(
+            $"The schema declares no set of alternatives named '{alternatives.Name}'. It declares: "
+            + (_bySet.Count == 0 ? "none" : string.Join(", ", _bySet.Keys.Order(StringComparer.Ordinal))) + ".",
+            nameof(alternatives));
     }
 
     public int PositionOf(ImportField field)

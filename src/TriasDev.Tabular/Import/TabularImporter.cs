@@ -214,6 +214,9 @@ public sealed class ImportRun<T> : IDisposable
         }
     }
 
+    /// <summary>What the run found about each set of alternatives; complete once the rows have been read.</summary>
+    public IReadOnlyList<AlternativesReport> Alternatives => _session.Alternatives;
+
     /// <summary>
     /// The first rows as they were mapped, when <see cref="ImportOptions.PreviewRows"/> asked for any.
     /// </summary>
@@ -359,7 +362,7 @@ public sealed class ImportRun<T> : IDisposable
             return ImportOutcome<T>.Failed(_session.CurrentRowNumber, [.. _session.CurrentErrors]);
         }
 
-        ImportRow row = new(_session.CurrentValues, _index, _session.CurrentRowNumber);
+        ImportRow row = new(_session.CurrentValues, _session.CurrentResolutions, _index, _session.CurrentRowNumber);
 
         Observe(row);
 

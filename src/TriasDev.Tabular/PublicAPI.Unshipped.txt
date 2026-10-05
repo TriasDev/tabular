@@ -680,3 +680,5 @@ TriasDev.Tabular.AlternativesReport.UnresolvedRowsComplete.init -> void
 TriasDev.Tabular.ExtractionOptions.MaxReportedRows.get -> int
 TriasDev.Tabular.ExtractionOptions.MaxReportedRows.init -> void
 TriasDev.Tabular.ExtractionRun.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
+TriasDev.Tabular.ImportRow.Resolution(TriasDev.Tabular.FieldAlternatives! alternatives) -> TriasDev.Tabular.AlternativeResolution
+TriasDev.Tabular.ImportRun<T>.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!
