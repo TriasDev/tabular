@@ -127,12 +127,13 @@ public sealed class TabularExportTests
     [InlineData(TabularFormat.Ods, false)]
     public async Task APerItemExportFlushesBeforeItsLastItem(TabularFormat format, bool asynchronous)
     {
+        const int Count = 200_000;
         WriteTarget target = new();
         long reachedTheTarget = -1;
         TabularExport<Item> export = TabularExport.For<Item>()
             .Column("Id", i =>
             {
-                if (i.Id == 40_000)
+                if (i.Id == Count)
                 {
                     reachedTheTarget = target.Length;
                 }
@@ -141,16 +142,17 @@ public sealed class TabularExportTests
             })
             .Column("Name", i => i.Name)
             .Build();
-        // Text deflate cannot shrink much, so a compressed format also fills its buffer past the flush mark.
+        // Random hex shrinks to about half under deflate, and how far depends on the platform's zlib; this many
+        // rows fill the buffer past the flush mark several times over on any of them before the last item.
         Random random = new(106);
-        Item[] items = [.. Enumerable.Range(1, 60_000).Select(i => new Item(i, Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())) + Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())), i))];
+        Item[] items = [.. Enumerable.Range(1, Count).Select(i => new Item(i, Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())) + Convert.ToHexString(BitConverter.GetBytes(random.NextInt64())), i))];
 
         int rows = asynchronous
             ? await export.WriteAsync(target, format, "data", OneByOne(items), NoBom, Token)
             : await export.WriteAsync(target, format, "data", items, NoBom, Token);
 
         Assert.Equal(items.Length, rows);
-        Assert.True(reachedTheTarget > 0, $"{reachedTheTarget} bytes had reached the target by item 40,000 of {items.Length}");
+        Assert.True(reachedTheTarget > 0, $"{reachedTheTarget} bytes had reached the target by the last of {items.Length} items");
     }
 
     /// <summary>
