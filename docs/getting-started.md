@@ -1,5 +1,8 @@
 # Getting started
 
+The library reads and writes. This page walks through both: reading a file, importing it into your
+own type through a mapping, and writing one.
+
 ## Install
 
 ```bash
@@ -10,8 +13,8 @@ The package targets .NET 8 and .NET 10 and references nothing but the base class
 
 ## Read a file
 
-`TabularFile.Open` decides the format from the file's bytes — csv, xlsx, ods, or a zip archive of
-them — and returns a cursor over its sheets and rows:
+`TabularFile.Open` decides the format from the file's bytes — csv, xlsx, ods, a zip or tar archive of
+them, or a gzip-compressed file — and returns a cursor over its sheets and rows:
 
 ```csharp
 using TriasDev.Tabular;
@@ -66,8 +69,39 @@ changes the plan on a mapping screen; the profile is what that screen shows:
 Run it with `dotnet run --project samples/TriasDev.Tabular.Samples.Import`: the sample file has a date
 that is not one and an empty required amount, and both come back as row errors.
 
+## Write a file
+
+The other direction, from
+[`samples/TriasDev.Tabular.Samples.Export`](https://github.com/TriasDev/tabular/tree/main/samples/TriasDev.Tabular.Samples.Export),
+which the build compiles too.
+
+**Declare the export once.** A column is a header and a lambda, whose type picks the column's type;
+a style rule picks a style per cell, and the sheet options give the header a style, freeze it and put
+an auto-filter on it:
+
+```csharp
+--8<-- "samples/TriasDev.Tabular.Samples.Export/Declared.cs:declare"
+```
+
+**Write it into any stream** — a file, a blob, an ASP.NET Core response; it need not seek. Chunks are
+the fast source, and memory holds a chunk and about a megabyte:
+
+```csharp
+--8<-- "samples/TriasDev.Tabular.Samples.Export/Declared.cs:chunks"
+```
+
+`TabularFormat.Csv`, `Ods` and `Zip` (a zip of csv sheets) are the same call; csv ignores the styles.
+The file is valid only once the write has returned: one that failed is incomplete, and you discard
+it. A value the format cannot hold exactly — a double past 15 significant digits, a date xlsx cannot
+store — fails the write with a `TabularWriteException` that names its sheet, row and column, rather
+than being rounded.
+
+Run it with `dotnet run --project samples/TriasDev.Tabular.Samples.Export`: it writes each kind of file
+and reads it back.
+
 ## Next
 
-- [How it works](concepts.md) — why analysis and import are two reads, and what a profile measures
+- [How it works](concepts.md) — why analysis and import are two reads, what a profile measures, and how writing works
 - [Importing](importing.md) — batches, rules of your own, translated fields, the precheck in depth
-- [Formats](formats.md) — what csv, xlsx, ods and zip files read as
+- [Exporting](exporting.md) — the row-by-row writer, data by column, styles, layout, ASP.NET Core responses, failures
+- [Formats](formats.md) — what csv, xlsx, ods, zip, tar and gzip files read as, and what each format holds when written

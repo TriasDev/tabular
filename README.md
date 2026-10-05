@@ -5,21 +5,81 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/TriasDev/tabular/blob/main/LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%2010-purple)](https://dotnet.microsoft.com/download)
 
-**Fast, low-memory reading of large Excel, OpenDocument and CSV files for .NET — with no dependencies.**
+**Fast, low-memory reading and writing of csv, Excel (.xlsx) and OpenDocument (.ods) files for .NET — with no dependencies.**
 
-Hand it a file and it tells you what is in it: every column's type, emptiness, uniqueness, value
-ranges and the rows that do not fit — measured over every row, not a sample. Then read the data
-itself, as raw cells or as typed rows through a mapping, with errors that point at the row and
-column they came from.
+Two halves, one contract between them:
 
-It reads multi-million-row files in seconds while its memory stays flat as the files grow, and it is
-built on the base class library alone: no third-party packages.
+- **Import** — reads xlsx, ods and csv, alone or inside zip, tar and gzip archives; profiles every
+  column over every row; imports typed rows through a column mapping a person confirmed, with errors
+  that name their row, column and code.
+- **Export** — writes csv, xlsx, ods and a zip of csv sheets, streaming and asynchronously into any
+  stream (an ASP.NET Core response, a blob), with typed columns, cell styles, frozen headers and
+  auto-filters. What it writes reads back through its own import; a value a format cannot hold
+  exactly is refused, never rounded.
 
-Use it when users upload spreadsheets into your application — profile what arrived, let a person map
-its columns to your fields, validate, import typed rows — or when you simply need the fastest way to
-stream a multi-million-row workbook in .NET.
+Multi-million-row files are read in seconds, and memory stays flat in both directions as files grow.
+Built on the base class library alone: no third-party packages.
 
-## In one look
+Use it when users upload spreadsheets into your application and when it hands them back as
+downloads — or when you simply need to stream a multi-million-row file in or out of .NET quickly.
+
+**Reading** — declare the fields once, profile the file, and build a mapping plan from its headers
+(then `TabularImporter.Import` turns rows into your type, or into errors with a location and a code):
+
+```csharp
+// The fields, declared once: they build the schema and read the values.
+TextImportField name = ImportField.Text("name").Require().MaxLength(100);
+TextImportField country = ImportField.Text("country").ExactLength(2);
+DateImportField signedOn = ImportField.Date("signed_on");
+DecimalImportField amount = ImportField.Decimal("amount").Require();
+ImportSchema schema = new() { Fields = [name, country, signedOn, amount] };
+```
+
+```csharp
+// 1. Profile the file, and build the plan from its headers.
+FileProfile profile;
+using (FileStream file = File.OpenRead(path))
+using (ITabularCursor cursor = TabularFile.Open(file, Path.GetFileName(path)))
+{
+    profile = TabularAnalyzer.Analyze(cursor);
+}
+
+MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[0], schema, culture: "de-DE");
+```
+
+**Writing** — declare the columns once, with a style rule and a frozen, filtered header, and stream
+chunks of objects into a workbook:
+
+```csharp
+private static readonly CellStyle Late = new() { Fill = CellColor.Parse("#FFC7CE") };
+
+private static readonly CellStyle Header = new() { Fill = CellColor.Parse("#1F4E78"), Font = new CellFont { Bold = true, Color = CellColor.Parse("#FFFFFF") } };
+
+// Declared once, kept in a static field, shared by any number of concurrent writes.
+public static readonly TabularExport<Order> Export = TabularExport.For<Order>()
+    .Column("Id", o => o.Id, width: 8)
+    .Column("Customer", o => o.Customer, width: 28)
+    .Column("Placed", o => o.Placed)
+    .Column("Amount", o => o.Amount, width: 12)
+    .Column("Status", o => o.Status, width: 10, style: status => status == "late" ? Late : null)
+    .Column("Paid", o => o.Paid)
+    .Sheet(new SheetOptions { HeaderStyle = Header, FreezeRows = 1, AutoFilter = true })
+    .Build();
+```
+
+```csharp
+public static async Task<long> WriteChunksAsync(Stream stream, IAsyncEnumerable<IReadOnlyList<Order>> chunks, CancellationToken cancellationToken) =>
+    await Export.WriteAsync(stream, TabularFormat.Xlsx, "Orders", chunks, cancellationToken: cancellationToken);
+```
+
+Both are taken from samples the build compiles:
+[`Samples.Import`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Import/Program.cs)
+and [`Samples.Export`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Export/Declared.cs).
+The [documentation](https://triasdev.github.io/tabular/) has the rest:
+[importing](https://triasdev.github.io/tabular/importing/), [exporting](https://triasdev.github.io/tabular/exporting/),
+formats, bounds and every error code.
+
+## What a profile says
 
 A csv file, as someone might export it — German number format, a date column with a stray value,
 an empty amount:
@@ -130,6 +190,14 @@ over every row, with memory that stays flat:
 | 3M-row csv (364 MB) | 3,000,000 | 9.6 s | 313,000 | 122 MB |
 | 5M-row csv (572 MB) | 5,127,968 | 14.0 s | 366,000 | 122 MB |
 
+**Writing, in flat memory too** — provisional figures from a single pass on a loaded machine, to be
+re-measured ([#96](https://github.com/TriasDev/tabular/issues/96)): 5M rows × 30 columns of csv in
+9.9 s at a 57 MB peak, and a million-row xlsx in 4.8 s at 55 MB, the least memory of the xlsx writers
+measured. SpreadCheetah is faster on xlsx; Sylvan.Data.Csv and Sep are faster on csv (Sep and
+TriasDev.Tabular are level on the narrow file). CsvHelper and MiniExcel are slower, LargeXlsx (at its
+default) in two of the three xlsx scenarios. No other library measured
+writes ods or a zip of csv sheets.
+
 Method, every library and every number: [docs/benchmarks.md](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md).
 
 ## What it does
@@ -152,6 +220,17 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
   cancellation, including inside a single long read.
 - **Report progress** — a fraction of the file taken from the bytes read, about once per percent on
   large files, so a progress bar needs no second pass to count rows.
+- **Write csv, xlsx, ods or a zip of csv sheets** — row by row (`TabularWriter`), from objects
+  declared once (`TabularExport<T>`, from lists, async streams or chunks), or by column
+  (`ColumnBatch`, thousands of columns). Asynchronous towards the target and flushed a megabyte at
+  a time, so it can go straight into an ASP.NET Core response or a blob upload, which need not seek.
+- **Style and lay out a workbook** — fill, font, number and date formats, alignment, wrap and border
+  per cell or per column rule; a header style, frozen rows and columns, an auto-filter and merged
+  cells per sheet. Csv ignores styles and layout, so one code path writes every format; a merged range
+  is written there as its value once and empty fields around it.
+- **Write only what reads back** — every value is checked against what the format holds: a double past
+  15 significant digits, a date xlsx cannot store, text too long or holding a character XML forbids
+  is refused with an error naming its sheet, row and column, never rounded or cut.
 
 ## Quick start
 
@@ -279,11 +358,11 @@ the guide is [Exporting](https://triasdev.github.io/tabular/exporting/).
 
 Stated here so they are found before they are hit:
 
-- **Writing.** csv, xlsx, ods and a zip of csv sheets, asynchronous towards the target; styles and layout apply to xlsx and ods only. An xlsx or ods sheet holds 1,048,576 rows (the header included), a sheet at most 16,384 columns, a file 4,096 distinct styles, an xlsx sheet 65,536 merged ranges; text is limited to 32,767 characters in xlsx, and a date before 1900-01-01 is refused in xlsx. A value a format cannot hold exactly is refused with a located `TabularWriteException`, not rounded. A writer that fails leaves an incomplete file, which the caller discards. [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) lists what does not come back exactly as written.
+- **Writing.** csv, xlsx, ods and a zip of csv sheets, asynchronous towards the target; styles and layout apply to xlsx and ods only. An xlsx or ods sheet holds 1,048,576 rows (the header included), a sheet at most 16,384 columns, a file 4,096 distinct styles, an xlsx sheet 65,536 merged ranges; text is limited to 32,767 characters in xlsx, and a date before 1900-01-01 is refused in xlsx. A value a format cannot hold exactly is refused with a located `TabularWriteException`, not rounded. A writer that fails leaves an incomplete file, which the caller discards. [Known limitations](https://github.com/TriasDev/tabular/blob/main/docs/KNOWN-ISSUES.md#writing-what-does-not-come-back-exactly-as-written) lists what does not come back exactly as written.
 - **xlsx, ods and csv only, alone, zipped, tarred or gzipped.** Legacy `.xls`, binary `.xlsb` and flat OpenDocument
   `.fods` are refused as `format.unsupported` rather than misread; inside an archive they are skipped
   and listed. Archives inside archives are not opened.
-- **Synchronous, over seekable streams.** Parsing is processor work over a buffered stream; a request
+- **Reading is synchronous, over seekable streams.** Parsing is processor work over a buffered stream; a request
   body or blob stream is copied to a file or `MemoryStream` first. A csv whose dialect you state can
   be read forward-only.
 - **Cultures.** Analysis tries `""` (invariant), `de-DE` and `en-US` by default — set
@@ -301,13 +380,15 @@ changelog. Error codes are the exception: once published, a code keeps its meani
 
 | | |
 |---|---|
-| [Documentation](https://triasdev.github.io/tabular/) | Everything the library does and promises: getting started, profiling, import, formats, error codes, bounds, cancellation |
+| [Documentation](https://triasdev.github.io/tabular/) | Everything the library does and promises: getting started, profiling, import, export, formats, error codes, bounds, cancellation |
+| [Exporting](https://triasdev.github.io/tabular/exporting/) | Writing csv, xlsx, ods and zip files: the writer, declared exports, data by column, styles, layout, ASP.NET Core responses, failures |
 | [For AI agents](https://triasdev.github.io/tabular/llms.txt) | The same documentation for language models: [`llms.txt`](https://triasdev.github.io/tabular/llms.txt) and [`llms-full.txt`](https://triasdev.github.io/tabular/llms-full.txt) |
-| [Benchmarks](https://triasdev.github.io/tabular/benchmarks/) | Speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus |
+| [Benchmarks](https://triasdev.github.io/tabular/benchmarks/) | Reading: speed and memory against Sylvan, Sep, CsvHelper, ExcelDataReader, MiniExcel, Open XML SDK, ClosedXML, NPOI and EPPlus. Writing (provisional): against CsvHelper, Sep, Sylvan, LargeXlsx, SpreadCheetah and MiniExcel |
 | [ADR-0001](https://github.com/TriasDev/tabular/blob/main/docs/adr/0001-tabular-parsing-is-our-own-cursor.md) | Why the parsing is our own |
+| [ADR-0002](https://github.com/TriasDev/tabular/blob/main/docs/adr/0002-writing-is-our-own.md) | Why the writing is our own |
 | [Known limitations](https://github.com/TriasDev/tabular/blob/main/docs/KNOWN-ISSUES.md) | Behaviour at the edges not changed yet, and what would make each one matter |
 | [Contributing](https://github.com/TriasDev/tabular/blob/main/CONTRIBUTING.md) | Building, testing, the invariants a change must keep |
-| [Security](https://github.com/TriasDev/tabular/blob/main/SECURITY.md) | What counts as a vulnerability in a file reader, and how to report one privately |
+| [Security](https://github.com/TriasDev/tabular/blob/main/SECURITY.md) | What counts as a vulnerability in a file reader and writer, and how to report one privately |
 
 ## Requirements
 

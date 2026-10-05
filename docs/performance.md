@@ -39,6 +39,10 @@ slower and analyses it 5–18% slower (import 6.05 s against 5.25–5.32 s; anal
 20.1–22.9 s, the widest net10 run being noise), with the same allocations — the runtime's own gains,
 not a different code path. Behaviour is identical on both; the test suite runs on each.
 
+These are reading figures. The write side's are in the [writing comparison](benchmarks.md#writing),
+provisional until they are re-measured on a quiet machine
+([#96](https://github.com/TriasDev/tabular/issues/96)).
+
 **That table is the reader, not the analysis.** Profiling costs more than reading, and how much more
 depends on the format: a workbook's numbers and dates arrive already typed and are never parsed,
 while every value in a csv is text and is tried under each culture in the options.

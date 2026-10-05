@@ -1,5 +1,8 @@
 # Importing
 
+The read half: profile a file, map its columns to your fields, check the mapping, import typed rows.
+The other direction — writing csv, xlsx, ods and zip files — is [Exporting](exporting.md).
+
 ```csharp
 using FileStream file = File.OpenRead(path);
 using CsvCursor cursor = new(file, Path.GetFileName(path));
@@ -109,7 +112,7 @@ counts as they stand when it is taken — take it again once the run is read out
 `TabularExtractor.Extract` is the layer underneath, and hands back typed values without building
 anything. `TabularImporter` is that plus your mapper, and is what a caller normally wants.
 
-A workbook, an OpenDocument spreadsheet or a zip archive is the same call. Which kind of file it is
+A workbook, an OpenDocument spreadsheet, a zip or tar archive or a gzip-compressed file is the same call. Which kind of file it is
 comes from its bytes, not its name — a csv saved as `.xlsx` is commoner than it ought to be, and a
 reader that trusts the extension fails on it with a message about a corrupt archive. A zip's
 directory says whether it is a workbook, a spreadsheet or an archive of files.
@@ -335,7 +338,14 @@ distinct values — "2 of 1,200 distinct values fail this rule" — or `Undeterm
 did not keep them all. It is only asked about a value that is present, and typed by its field:
 `Func<string, bool>` for text, `long` for integers, `decimal`, `DateTime`.
 
-The code is yours to translate and may not start with `value.`, `mapping.`, `group.` or
-`structure.`, so a caller's rule is never mistaken for one of the library's codes below.
+The code is yours to translate and may not start with `value.`, `mapping.`, `group.`, `structure.`,
+`format.`, `limit.` or `write.` (`ErrorCodes.ReservedPrefixes`), so a caller's rule is never mistaken
+for one of the library's [error codes](error-codes.md).
 `CheckDigits` ships Luhn (card numbers; ISINs, with letters counted as A = 10 … Z = 35) and ISO 7064
 MOD 97-10 (LEIs; IBANs with their first four characters moved to the end).
+
+## Writing data back out
+
+An export can be declared against the same fields: `TabularExport.For<T>().Column(field, x => …)` takes
+the field's name as the column's header, so the file it writes maps back onto this schema by header.
+See [Exporting](exporting.md).

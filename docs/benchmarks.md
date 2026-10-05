@@ -1,7 +1,8 @@
 # Benchmarks
 
 TriasDev.Tabular against the libraries a .NET developer would otherwise reach for, reading the same
-large files on the same machine under the same harness.
+large files on the same machine under the same harness — and, [further down](#writing), writing the
+same data (provisional figures, to be re-measured).
 
 **In short:** on workbooks it is the fastest reader measured, with a peak memory in the same band as
 the other streaming readers and a fraction of what the object-model libraries need. On clean csv it
@@ -204,7 +205,7 @@ that other work was using; they are to be re-measured on a quiet machine: [#96](
 
 | Library | Version | Licence |
 |---|---|---|
-| TriasDev.Tabular | 0.5.0 | MIT |
+| TriasDev.Tabular | 0.5.0+ (main, unreleased) | MIT |
 | CsvHelper | 33.1.0 | MS-PL or Apache-2.0 |
 | Sep | 0.17.1 | MIT |
 | Sylvan.Data.Csv | 1.4.4 | MIT |

@@ -1,7 +1,7 @@
 # Known limitations
 
-Behaviour of `TriasDev.Tabular` that is wrong at the edges, or looser than it reads, and has not been
-changed yet — each with what would make it matter, so you can tell whether it affects your files. None
+Behaviour of `TriasDev.Tabular` — reading and writing — that is wrong at the edges, or looser than it
+reads, and has not been changed yet — each with what would make it matter, so you can tell whether it affects your files. None
 of them loses or silently alters data in files an ordinary producer writes; where one could, it says
 so and links the issue that tracks it.
 
@@ -171,8 +171,9 @@ fails the whole pass instead of skipping it.
 
 Decided, not deferred — listed so they are not mistaken for gaps.
 
-- **Synchronous throughout.** Parsing is processor work over a buffered stream, and a row cannot be a
-  `ReadOnlySpan<T>` and be awaited at once. See the remarks on `ITabularCursor`.
+- **Reading is synchronous.** Parsing is processor work over a buffered stream, and a row cannot be a
+  `ReadOnlySpan<T>` and be awaited at once. See the remarks on `ITabularCursor`. Writing is the
+  opposite: it writes into memory synchronously and touches the target stream only asynchronously (except closing it after a failed `Create`).
 - **No comment syntax in csv.** The format does not define one. Add it if the files we receive use it.
 - **The header is the first row.** No heuristic looks elsewhere; `MappingPlan.HeaderRowIndex` is where
   a user says otherwise.

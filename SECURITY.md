@@ -17,7 +17,20 @@ vulnerabilities:
 - a file that is read as data it does not contain — values silently altered, records silently joined
   or dropped — where an attacker could use that to smuggle a value past validation.
 
-The ceilings and what they protect are listed in the guide, under "Bounds".
+It also writes files from data that may come from someone else. On that side these are
+vulnerabilities:
+
+- a value that the writer accepts and that comes back as something else — text that breaks out of its
+  csv field or its XML cell and adds records, cells or markup, or a number or date silently changed —
+  where the library promises to refuse what a format cannot hold;
+- a writer whose memory grows with the file although the caller flushes whenever it recommends.
+
+Csv text that a spreadsheet runs as a formula (`=`, `+`, `-`, `@`, or a leading tab or carriage return) is not a vulnerability in the
+library: it is written as given unless `CsvWriterOptions.FormulaGuard` is on, which is the caller's
+choice for data that will be opened in a spreadsheet.
+
+The ceilings and what they protect are listed in the documentation, under
+[Bounds](https://triasdev.github.io/tabular/bounds/).
 
 ## Reporting
 

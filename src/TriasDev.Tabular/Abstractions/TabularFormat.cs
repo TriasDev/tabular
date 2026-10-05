@@ -1,8 +1,8 @@
 namespace TriasDev.Tabular;
 
-/// <summary>The file shapes this library reads.</summary>
+/// <summary>The file shapes this library reads, and the ones it writes: <see cref="Csv"/>, <see cref="Xlsx"/>, <see cref="Ods"/> and <see cref="Zip"/>.</summary>
 /// <remarks>
-/// Open to new members as the library learns to read more. A switch over it needs a default arm, or the day a member is added breaks the build of
+/// Open to new members as the library learns to read or write more. A switch over it needs a default arm, or the day a member is added breaks the build of
 /// whoever wrote it.
 /// </remarks>
 public enum TabularFormat

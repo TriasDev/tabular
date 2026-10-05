@@ -20,13 +20,20 @@ the repository; set `TABULAR_FIXTURES` to their folder and `TABULAR_FILES` to a 
 of file names in it — without both it measures nothing. It runs
 every measurement in a child process on purpose, so peak working set is not shared between candidates.
 
+`benchmarks/TriasDev.Tabular.WriteComparison` writes the same generated data with TriasDev.Tabular,
+CsvHelper, Sep, Sylvan.Data.Csv, LargeXlsx, SpreadCheetah and MiniExcel (`TABULAR_RUNS`,
+`TABULAR_WRITERS`, `TABULAR_SCENARIOS`, `TABULAR_COMPRESSION`, `TABULAR_ROWS_SCALE`); it needs no
+fixtures — see "Reproducing the writing comparison" in `docs/benchmarks.md`.
+
 No large files at hand? `benchmarks/TriasDev.Tabular.FixtureGenerator <folder> [scale]` writes
 synthetic ones of the published shape — see "Reproducing" in `docs/benchmarks.md`.
 
 `benchmarks/TriasDev.Tabular.Comparison` reads the same fixtures with Sylvan, Sep, CsvHelper,
 ExcelDataReader, MiniExcel, the Open XML SDK, ClosedXML, NPOI and EPPlus (same variables, plus
-`TABULAR_RUNS`, `TABULAR_READERS`); it is the only project allowed third-party parsing packages, and
-only versions free for commercial use are committed (EPPlus 4.5.3.3, NPOI 2.7.6).
+`TABULAR_RUNS`, `TABULAR_READERS`). The two comparison projects are the only ones allowed third-party
+csv and spreadsheet packages, and only versions free for commercial use are committed (EPPlus
+4.5.3.3, NPOI 2.7.6). The test project's one exception is the Open XML SDK, used only to validate
+the xlsx the writer produces against the OOXML schema.
 
 There is no separate lint step: Roslynator, Sonar and the .NET analyzers run as part of the build.
 `CS8509` (non-exhaustive switch) is an error everywhere, `CS8600` additionally in the library.
@@ -64,9 +71,20 @@ A project dropped into `src/` or `tests/` needs no settings of its own.
 - **Options are checked where they are handed over** (`OptionChecks`), never discovered mid-read.
 - Every library exception derives from `TabularException` and carries a code: `TabularFormatException`
   (unreadable/unsupported), `TabularLimitException` (a bound), `TabularStructureException` (whole-run),
-  `MappingPlanException`. `ArgumentException` is for programmer errors only. Per-row problems are
+  `MappingPlanException`, and `TabularWriteException` (a value a format cannot hold, with its sheet, row
+  and column). `ArgumentException` is for programmer errors only. Per-row problems are
   `RowError`s, and a row is either values or errors, never both.
 - **The invariant culture is `""`** everywhere — profile, hypotheses and plan.
+- **A writer touches its target only asynchronously** (except closing it after a failed `Create`,
+  which has written nothing). The format writers write synchronously into the
+  `SpillBuffer`; only `FlushAsync`, `CompleteAsync` and the async batch and export paths drain it into
+  the stream. A synchronous `Write` on the target breaks an ASP.NET Core response body.
+- **What is written reads back.** Every value a writer accepts must come back through the library's own
+  import as the same value (within the documented exceptions in `docs/KNOWN-ISSUES.md`); anything else
+  is refused with a `TabularWriteException` carrying a `write.*` code and its location, never rounded or
+  cut. A new value type or format rule comes with its round-trip test.
+- **A written file's limits are the reader's.** Text length, line breaks in a csv field, columns per
+  sheet: what the writer allows is what the reader reads, so the limits move together.
 
 ## The public API is recorded
 
@@ -75,10 +93,10 @@ Adding, changing or removing one without updating them fails the build (RS0016/R
 code fix writes the line for you. New members go into `Unshipped`; a release moves them to `Shipped`.
 A change to a line in `Shipped` is a breaking change — call it out in the pull request.
 
-## Working on the read path
+## Working on the read and write paths
 
-Speed and flat memory are the point of this library, so a change to a cursor, the analyzer or the
-import loop is measured, not assumed:
+Speed and flat memory are the point of this library, so a change to a cursor, the analyzer, the
+import loop or a writer is measured, not assumed:
 
 - iterate on small files, then check the largest fixture you have before you call it done;
 - compare against the commit before your change, alternating runs, and report time and allocations;
@@ -109,6 +127,12 @@ refused with a `TabularException`, never anything else and never a hang. The cas
 run a few hundred each by default. For a long local run set `TABULAR_FUZZ_CASES` (say `20000`); a
 failure names its seed, which `TABULAR_FUZZ_SEED` replays alone, and `TABULAR_FUZZ_DUMP` names a
 folder to keep that case's file in. A found failure becomes a named test beside the code it fixes.
+
+Writing is tested by round trip: `tests/TriasDev.Tabular.Tests/Writing` writes each value type and
+format and reads it back through the library's own import, fuzzes the csv writer, and checks that
+LibreOffice opens what is written and shows the values (`Fixtures/LibreOffice.cs`, `soffice --headless`;
+the tests skip where LibreOffice is not installed, unless `TABULAR_REQUIRE_SOFFICE` is set to `1`, as CI's
+Linux job sets it).
 
 Write the failing test first: a fix comes with the test that failed before it, and a new behaviour
 with the test that pins it.
@@ -151,17 +175,21 @@ Commit titles:
 
 ## Docs to consult
 
-- `README.md` — the short front page: what the library does, a quick start, headline numbers
+- `README.md` — the short front page: what the library does, reading and writing, a quick start, headline numbers.
+  It is also the NuGet readme, so its links are absolute, and its snippets taken from `samples/` are copied
+  verbatim — update them when a sample region changes
 - `docs/*.md` — the documentation site (MkDocs, `mkdocs.yml`), published to https://triasdev.github.io/tabular/: the
-  behavioural contract split by topic (`concepts`, `importing`, `formats`, `operations`), the error codes, the bounds
+  behavioural contract split by topic (`concepts`, `importing`, `exporting`, `formats`, `operations`), the error codes, the bounds
   and the library's own performance numbers. Build it with `pip install -r requirements.txt && mkdocs build --strict`;
   CI builds it the same way on every pull request. Code on the site is included from `samples/` with
   `--8<--` markers, so it is compiled by the build.
-- `docs/benchmarks.md` — the comparison with other csv/xlsx libraries (`benchmarks/TriasDev.Tabular.Comparison`)
+- `docs/benchmarks.md` — the comparison with other csv/xlsx libraries, reading (`benchmarks/TriasDev.Tabular.Comparison`)
+  and writing (`benchmarks/TriasDev.Tabular.WriteComparison`)
 - `docs/KNOWN-ISSUES.md` — known limitations, with when each would matter; add one when you choose not to fix something
 - `docs/TEST-GAPS.md` — where the suite is thinner than the code deserves
 - `docs/IDEAS.md` — extensions the design allows that nobody has asked for yet
 - `docs/adr/0001-…` — why the parsing is our own; its measurements are frozen, the site's performance and benchmark pages are live
+- `docs/adr/0002-…` — why the writing is our own: the zip writer, the spill buffer, the round-trip contract
 
 Code comments and XML docs in this repository explain *why*, often at length; match that when
 changing behaviour.
