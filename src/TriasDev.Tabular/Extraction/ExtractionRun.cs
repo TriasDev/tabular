@@ -42,6 +42,8 @@ public sealed class ExtractionRun
     private readonly int[] _ignoredInRow;
     private readonly AlternativeResolution[] _resolutions;
     private readonly List<(RowError Error, int Group)> _deferred = [];
+    private readonly AlternativesTally? _tally;
+    private readonly RowJudgement _judgement;
 
     private bool _finished;
 
@@ -150,6 +152,10 @@ public sealed class ExtractionRun
         _levels = new int[groups];
         _anyPresent = new bool[groups];
         _ignoredInRow = new int[groups];
+        _judgement = new RowJudgement(_resolutions, _needed, _levels, _anyPresent, _ignoredInRow);
+        _tally = _alternatives.Length == 0
+            ? null
+            : new AlternativesTally(_alternatives, _groupOffset, MaxReachable(_alternatives, mappings), options.MaxReportedRows);
 
         Position();
     }
@@ -179,6 +185,33 @@ public sealed class ExtractionRun
 
         return deferred;
     }
+
+    /// <summary>Per flat group id, how many levels the mapping can reach before a level with no mapped field.</summary>
+    private static int[] MaxReachable(ResolvedAlternatives[] sets, List<Mapped> mappings)
+    {
+        HashSet<int> mapped = [.. mappings.Select(m => m.Position)];
+
+        return
+        [
+            .. sets.SelectMany(s => s.Groups).Select(g =>
+            {
+                int reachable = 0;
+
+                while (reachable < g.Levels.Length && g.Levels[reachable].Any(mapped.Contains))
+                {
+                    reachable++;
+                }
+
+                return reachable;
+            }),
+        ];
+    }
+
+    /// <summary>
+    /// What the run found about each set of alternatives, as it stands; complete once the rows have
+    /// been read out, and empty for a schema without alternatives.
+    /// </summary>
+    public IReadOnlyList<AlternativesReport> Alternatives => _tally?.Snapshot() ?? [];
 
     /// <summary>What the run amounted to. Complete once the rows have been read out.</summary>
     public ExtractionSummary Summary => _counters.Snapshot();
@@ -273,6 +306,7 @@ public sealed class ExtractionRun
                 return true;
             }
 
+            _tally?.Row(CurrentRowNumber, _judgement);
             _counters.RowsProduced++;
             return true;
         }

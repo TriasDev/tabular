@@ -626,3 +626,57 @@ TriasDev.Tabular.AlternativeResolution.IsResolved.get -> bool
 TriasDev.Tabular.AlternativeResolution.Level.get -> int
 TriasDev.Tabular.AlternativeResolution.LevelName.get -> string?
 TriasDev.Tabular.ExtractionRun.CurrentResolutions.get -> System.ReadOnlySpan<TriasDev.Tabular.AlternativeResolution>
+const TriasDev.Tabular.ExtractionOptions.ReportedRowsCeiling = 10000 -> int
+override TriasDev.Tabular.AlternativeGroupReport.Equals(object? obj) -> bool
+override TriasDev.Tabular.AlternativeGroupReport.GetHashCode() -> int
+override TriasDev.Tabular.AlternativeGroupReport.ToString() -> string!
+override TriasDev.Tabular.AlternativesReport.Equals(object? obj) -> bool
+override TriasDev.Tabular.AlternativesReport.GetHashCode() -> int
+override TriasDev.Tabular.AlternativesReport.ToString() -> string!
+static TriasDev.Tabular.AlternativeGroupReport.operator !=(TriasDev.Tabular.AlternativeGroupReport? left, TriasDev.Tabular.AlternativeGroupReport? right) -> bool
+static TriasDev.Tabular.AlternativeGroupReport.operator ==(TriasDev.Tabular.AlternativeGroupReport? left, TriasDev.Tabular.AlternativeGroupReport? right) -> bool
+static TriasDev.Tabular.AlternativesReport.operator !=(TriasDev.Tabular.AlternativesReport? left, TriasDev.Tabular.AlternativesReport? right) -> bool
+static TriasDev.Tabular.AlternativesReport.operator ==(TriasDev.Tabular.AlternativesReport? left, TriasDev.Tabular.AlternativesReport? right) -> bool
+TriasDev.Tabular.AlternativeGroupReport
+TriasDev.Tabular.AlternativeGroupReport.<Clone>$() -> TriasDev.Tabular.AlternativeGroupReport!
+TriasDev.Tabular.AlternativeGroupReport.AlternativeGroupReport() -> void
+TriasDev.Tabular.AlternativeGroupReport.Empty.get -> int
+TriasDev.Tabular.AlternativeGroupReport.Empty.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Equals(TriasDev.Tabular.AlternativeGroupReport? other) -> bool
+TriasDev.Tabular.AlternativeGroupReport.IgnoredInvalidValues.get -> int
+TriasDev.Tabular.AlternativeGroupReport.IgnoredInvalidValues.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Incomplete.get -> int
+TriasDev.Tabular.AlternativeGroupReport.Incomplete.init -> void
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRows.get -> System.Collections.Generic.IReadOnlyList<int>!
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRows.init -> void
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRowsComplete.get -> bool
+TriasDev.Tabular.AlternativeGroupReport.IncompleteRowsComplete.init -> void
+TriasDev.Tabular.AlternativeGroupReport.MaxReachableLevel.get -> int
+TriasDev.Tabular.AlternativeGroupReport.MaxReachableLevel.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Name.get -> string!
+TriasDev.Tabular.AlternativeGroupReport.Name.init -> void
+TriasDev.Tabular.AlternativeGroupReport.RowsAtLevel.get -> System.Collections.Generic.IReadOnlyList<int>!
+TriasDev.Tabular.AlternativeGroupReport.RowsAtLevel.init -> void
+TriasDev.Tabular.AlternativeGroupReport.RowsNeeding.get -> int
+TriasDev.Tabular.AlternativeGroupReport.RowsNeeding.init -> void
+TriasDev.Tabular.AlternativeGroupReport.Won.get -> int
+TriasDev.Tabular.AlternativeGroupReport.Won.init -> void
+TriasDev.Tabular.AlternativesReport
+TriasDev.Tabular.AlternativesReport.<Clone>$() -> TriasDev.Tabular.AlternativesReport!
+TriasDev.Tabular.AlternativesReport.AlternativesReport() -> void
+TriasDev.Tabular.AlternativesReport.Equals(TriasDev.Tabular.AlternativesReport? other) -> bool
+TriasDev.Tabular.AlternativesReport.Groups.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativeGroupReport!>!
+TriasDev.Tabular.AlternativesReport.Groups.init -> void
+TriasDev.Tabular.AlternativesReport.Name.get -> string!
+TriasDev.Tabular.AlternativesReport.Name.init -> void
+TriasDev.Tabular.AlternativesReport.RowsJudged.get -> int
+TriasDev.Tabular.AlternativesReport.RowsJudged.init -> void
+TriasDev.Tabular.AlternativesReport.Unresolved.get -> int
+TriasDev.Tabular.AlternativesReport.Unresolved.init -> void
+TriasDev.Tabular.AlternativesReport.UnresolvedRows.get -> System.Collections.Generic.IReadOnlyList<int>!
+TriasDev.Tabular.AlternativesReport.UnresolvedRows.init -> void
+TriasDev.Tabular.AlternativesReport.UnresolvedRowsComplete.get -> bool
+TriasDev.Tabular.AlternativesReport.UnresolvedRowsComplete.init -> void
+TriasDev.Tabular.ExtractionOptions.MaxReportedRows.get -> int
+TriasDev.Tabular.ExtractionOptions.MaxReportedRows.init -> void
+TriasDev.Tabular.ExtractionRun.Alternatives.get -> System.Collections.Generic.IReadOnlyList<TriasDev.Tabular.AlternativesReport!>!

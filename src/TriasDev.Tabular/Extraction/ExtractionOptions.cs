@@ -22,9 +22,24 @@ public sealed record ExtractionOptions
     /// </summary>
     public bool ValidateOnly { get; init; }
 
+    /// <summary>The most row numbers any list in a report may hold.</summary>
+    public const int ReportedRowsCeiling = 10_000;
+
+    /// <summary>
+    /// How many row numbers each list of an <see cref="AlternativesReport"/> keeps; the counts are
+    /// always complete.
+    /// </summary>
+    /// <remarks>
+    /// Fifty by default: enough for a person to look at, while a list of every row of a large file
+    /// would hold memory in proportion to it. At most <see cref="ReportedRowsCeiling"/>.
+    /// </remarks>
+    public int MaxReportedRows { get; init; } = 50;
+
     internal ExtractionOptions Checked()
     {
         OptionChecks.AtLeast(MaxErrorRows, 1, nameof(ExtractionOptions), nameof(MaxErrorRows));
+        OptionChecks.AtLeast(MaxReportedRows, 1, nameof(ExtractionOptions), nameof(MaxReportedRows));
+        OptionChecks.AtMost(MaxReportedRows, ReportedRowsCeiling, nameof(ExtractionOptions), nameof(MaxReportedRows));
         return this;
     }
 }
