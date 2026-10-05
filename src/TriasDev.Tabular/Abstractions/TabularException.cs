@@ -26,7 +26,10 @@ namespace TriasDev.Tabular;
 /// </list>
 /// <para>
 /// Mistakes in the calling code — a null argument, a negative option, a field the schema does not
-/// declare — remain <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/>.
+/// declare — remain <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/>; a
+/// format code or colour the calling code passes to <see cref="NumberFormat.Parse"/>,
+/// <see cref="DateFormat.Parse"/> or <see cref="CellColor.Parse"/> and that cannot be read is a
+/// <see cref="FormatException"/>.
 /// </para>
 /// </remarks>
 [SuppressMessage("Design", "RCS1194:Implement exception constructors", Justification = "Every instance carries a code a caller translates; a constructor without one would make an exception nobody can act on.")]
@@ -69,8 +72,9 @@ public sealed class TabularFormatException : TabularException
 /// <summary>A readable file exceeds one of the bounds its reader was given.</summary>
 /// <remarks>
 /// <para>
-/// The bounds are the <c>Max…</c> properties of <c>CsvCursorOptions</c>, <c>XlsxCursorOptions</c>,
-/// <c>OdsCursorOptions</c> and <c>ArchiveCursorOptions</c>, plus the format's own limits; the
+/// The bounds are the <c>Max…</c> properties of <see cref="CsvCursorOptions"/>,
+/// <see cref="XlsxCursorOptions"/>, <see cref="OdsCursorOptions"/> and
+/// <see cref="ArchiveCursorOptions"/>, plus the format's own limits; the
 /// documentation's bounds page lists them with their defaults.
 /// </para>
 /// <para>

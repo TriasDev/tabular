@@ -33,8 +33,9 @@ public sealed record CsvCursorOptions
     /// the characters its bytes are in the stated one.
     /// </para>
     /// <para>
-    /// When both this and <see cref="Delimiter"/> are stated, the file's head is not read to detect
-    /// anything.
+    /// Stating it, or the whole dialect, does not stop a file that is not csv at all — a legacy
+    /// workbook, an XML document, a binary file — from being refused as
+    /// <see cref="TabularFormatException.Unsupported"/>: the file's head is still read for that.
     /// </para>
     /// </remarks>
     public Encoding? Encoding { get; init; }

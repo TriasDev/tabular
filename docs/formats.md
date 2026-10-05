@@ -104,7 +104,9 @@ using ITabularCursor cursor = TabularFile.Open(stream, name, options);
 What is stated wins, and the sheet's `Dialect` reports it as `DialectSource.Specified`; the rest is
 still detected and reported as `Detected`, `ByteOrderMark` or `Fallback`. A stated encoding wins over
 a byte order mark as well: a mark of that encoding is skipped, never read as content, and the mark of
-another encoding is read as the characters its bytes are in the stated one. The same options apply to
+another encoding is read as the characters its bytes are in the stated one. Stating the dialect does not
+switch off the checks that refuse a file that is not csv at all (a legacy `.xls`, an XML document, a
+binary file): it is still refused as `format.unsupported`. The same options apply to
 every csv file in an archive and to a gzip-compressed one.
 
 ## Malformed input is repaired, and the repair is counted

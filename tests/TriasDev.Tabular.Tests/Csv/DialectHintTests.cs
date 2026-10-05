@@ -139,6 +139,49 @@ public sealed class DialectHintTests
         Assert.Equal(DialectSource.Specified, cursor.Dialect.EncodingSource);
     }
 
+    public static TheoryData<string, byte[], bool> NotCsvAtAll => new()
+    {
+        // A head that is not csv, and whether the delimiter is stated beside the encoding.
+        { "xls", [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, .. new byte[504]], false },
+        { "xls", [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, .. new byte[504]], true },
+        { "png", [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D, (byte)'I', (byte)'H', (byte)'D', (byte)'R', 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1F, 0x15, 0xC4], false },
+        { "png", [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D, (byte)'I', (byte)'H', (byte)'D', (byte)'R', 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1F, 0x15, 0xC4], true },
+        { "xml", Utf8NoBom.GetBytes("<?xml version=\"1.0\"?><office:document/>"), true },
+    };
+
+    [Theory]
+    [MemberData(nameof(NotCsvAtAll))]
+    public void AStatedDialectStillRefusesAFileThatIsNotCsv(string kind, byte[] head, bool delimiterStated)
+    {
+        CsvCursorOptions csv = new() { Encoding = Encoding.Latin1, Delimiter = delimiterStated ? ';' : null };
+
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() => Open(head, csv, "upload." + kind));
+
+        Assert.Equal(ErrorCodes.Format.Unsupported, error.Code);
+    }
+
+    [Fact]
+    public void AStatedDialectStillRefusesABinaryGzipFile()
+    {
+        byte[] gzip = GzipFile.Of([0x89, (byte)'P', (byte)'N', (byte)'G', 0, 0, 0, 0x0D, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0]);
+
+        TabularFormatException error = Assert.Throws<TabularFormatException>(
+            () => Open(gzip, new CsvCursorOptions { Encoding = Encoding.Latin1, Delimiter = ';' }, "upload.gz"));
+
+        Assert.Equal(ErrorCodes.Format.Unsupported, error.Code);
+    }
+
+    [Fact]
+    public void AStatedWideEncodingKeepsItsNulBytes()
+    {
+        // UTF-16 without its mark writes a NUL beside every ASCII character: text, not binary.
+        Encoding utf16 = new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
+
+        using ITabularCursor cursor = Open(utf16.GetBytes("name;x\na;b\nc;d\n"), new CsvCursorOptions { Encoding = utf16 });
+
+        Assert.Equal(["name", "x"], FirstRow(cursor));
+    }
+
     [Fact]
     public void OnlyAReaderMakesADialect() =>
         Assert.Empty(typeof(CsvDialect).GetConstructors());

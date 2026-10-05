@@ -132,8 +132,11 @@ internal sealed class CsvCursor : ITabularCursor
             _options.Checked();
             ArgumentException.ThrowIfNullOrEmpty(sheetName);
             cancellationToken.ThrowIfCancellationRequested();
+            // The head is read even when the options state the whole dialect: what refuses a file
+            // that is not csv at all runs on it. Only a stream that cannot be rewound — never one
+            // TabularFile.Open hands over — goes without.
             Dialect = dialect
-                ?? CsvDialectDetector.Stated(_options)
+                ?? (stream.CanSeek ? null : CsvDialectDetector.Stated(_options))
                 ?? CsvDialectDetector.Detect(stream, _options);
             _specials = SearchValues.Create($"{Dialect.Delimiter}{Dialect.Quote}\r\n");
         }

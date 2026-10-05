@@ -43,7 +43,9 @@ split by what a host does about them:
 | `TabularWriteException` | A value the chosen format cannot hold exactly, or a limit of the format the data reached, found while writing | 500 for a server's own export; discard the partial file |
 
 Mistakes in the calling code — a null argument, an option out of range, a field the schema does not
-declare — are `ArgumentException` and `InvalidOperationException`. Nothing else escapes: malformed
+declare — are `ArgumentException` and `InvalidOperationException`, and a format code or colour that
+`NumberFormat.Parse`, `DateFormat.Parse` or `CellColor.Parse` cannot read is a `FormatException`.
+Nothing else escapes: malformed
 XML and a damaged zip are reported as `TabularFormatException` with the parser's error as the inner
 exception.
 

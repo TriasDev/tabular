@@ -102,7 +102,7 @@ internal sealed class GzipCursor : ITabularCursor
 
             // A legacy workbook, an XML document or a binary file is refused here in the words used
             // for one on its own.
-            _dialect = CsvDialectDetector.Stated(_options.Csv) ?? CsvDialectDetector.Detect(head, _options.Csv);
+            _dialect = CsvDialectDetector.Detect(head, _options.Csv);
             _sheets.Add(new SheetInfo { Index = 0, Name = stored ?? WithoutGzExtension(name), Format = TabularFormat.Csv, Source = stored });
             MoveToSheet(0, cancellationToken);
         }
