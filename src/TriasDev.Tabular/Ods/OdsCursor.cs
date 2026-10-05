@@ -552,7 +552,7 @@ public sealed class OdsCursor : ITabularCursor
 
             case "time":
                 return scanner.TryGetAttribute("time-value", out ReadOnlySpan<char> time)
-                    ? FromDuration(time.ToString())
+                    ? FromDuration(time)
                     : RawCell.Empty;
 
             case "boolean":
@@ -578,27 +578,12 @@ public sealed class OdsCursor : ITabularCursor
     /// on 31 December 1899, as an xlsx time-only cell, and a longer one — LibreOffice's form for a
     /// date-time under a time-only format — on the day the serial names.
     /// </summary>
-    private static RawCell FromDuration(string duration)
-    {
-        TimeSpan span;
-
-        try
-        {
-            span = XmlConvert.ToTimeSpan(duration);
-        }
-        catch (FormatException)
-        {
-            return RawCell.Empty;
-        }
-        catch (OverflowException)
-        {
-            return RawCell.Empty;
-        }
-
-        return span >= TimeSpan.Zero && XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out DateTime date)
+    private static RawCell FromDuration(ReadOnlySpan<char> duration) =>
+        IsoDuration.TryParse(duration, out TimeSpan span)
+        && span >= TimeSpan.Zero
+        && XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out DateTime date)
             ? RawCell.FromDate(date)
             : RawCell.Empty;
-    }
 
     // The state of one cell's text assembly: how deep the reader is inside the cell, and the depth
     // of the paragraph or annotation it is in, or -1.
