@@ -53,6 +53,16 @@ internal sealed class TableNameScan
     private readonly Stream _stream;
     private readonly CancellationToken _cancellationToken;
 
+    /// <summary>The configured value ceiling, which also bounds a sheet name's length.</summary>
+    private readonly int _maxValueChars;
+
+    /// <summary>
+    /// The longest tag held whole: <see cref="MaxTagBytes"/>, or what a smaller configured value
+    /// ceiling allows with the reading's headroom for a tag's other attributes (64 K characters), at
+    /// the same three bytes a character — the reading holds a node to it too.
+    /// </summary>
+    private readonly int _maxTagBytes;
+
     /// <summary>How many tables and DDE links are open around the scan position.</summary>
     private int _depth;
 
@@ -69,19 +79,22 @@ internal sealed class TableNameScan
     private int _length;
     private bool _endOfStream;
 
-    private TableNameScan(Stream stream, CancellationToken cancellationToken)
+    private TableNameScan(Stream stream, int maxValueChars, CancellationToken cancellationToken)
     {
         _stream = stream;
         _cancellationToken = cancellationToken;
+        _maxValueChars = maxValueChars;
+        _maxTagBytes = (int)Math.Min(MaxTagBytes, 3L * (maxValueChars + (64L * 1024)));
     }
 
     /// <summary>
     /// The tables' names and visibility in document order, or null when the part is not UTF-8 and the
     /// caller has to tokenize it instead.
     /// </summary>
-    public static List<(string Name, SheetVisibility Visibility)>? TryRead(Stream content, int maxSheets, CancellationToken cancellationToken)
+    public static List<(string Name, SheetVisibility Visibility)>? TryRead(
+        Stream content, int maxSheets, int maxValueChars, CancellationToken cancellationToken)
     {
-        TableNameScan scan = new(content, cancellationToken);
+        TableNameScan scan = new(content, maxValueChars, cancellationToken);
 
         if (scan.Ensure(2) && (scan._buffer[0], scan._buffer[1]) is (0xFE, 0xFF) or (0xFF, 0xFE))
         {
@@ -191,7 +204,17 @@ internal sealed class TableNameScan
                     $"The spreadsheet declares more than the {maxSheets} sheets allowed.");
             }
 
-            names.Add(NameAttribute(tag));
+            string name = NameAttribute(tag);
+
+            // A sheet name is held for the cursor's life and shown to whoever maps the file; it is
+            // bounded as a value is.
+            if (name.Length > _maxValueChars)
+            {
+                throw new TabularLimitException(nameof(OdsCursorOptions.MaxValueChars), _maxValueChars,
+                    $"A sheet name exceeds the {_maxValueChars} characters allowed.");
+            }
+
+            names.Add(name);
             _tableStyles.Add(Attribute(tag, "style-name"u8));
         }
 
@@ -461,13 +484,15 @@ internal sealed class TableNameScan
         {
             if (count > _buffer.Length)
             {
-                if (_buffer.Length >= MaxTagBytes)
+                // Checked only when the buffer has to grow: a tag that fits the first buffer is
+                // never refused, however small the configured ceiling.
+                if (_buffer.Length >= _maxTagBytes)
                 {
-                    throw new TabularLimitException("MaxValueChars", MaxTagBytes / 3,
-                        $"A single tag in the spreadsheet exceeds the {MaxTagBytes / 3} characters allowed.");
+                    throw new TabularLimitException(nameof(OdsCursorOptions.MaxValueChars), _maxTagBytes / 3,
+                        $"A single tag in the spreadsheet exceeds the {_maxTagBytes / 3} characters allowed.");
                 }
 
-                Array.Resize(ref _buffer, Math.Min(Math.Max(count, _buffer.Length * 2), MaxTagBytes));
+                Array.Resize(ref _buffer, Math.Min(Math.Max(count, _buffer.Length * 2), _maxTagBytes));
             }
 
             if (!Refill())

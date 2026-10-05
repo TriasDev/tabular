@@ -60,6 +60,9 @@ internal sealed class SheetScanner : IDisposable
     private readonly TextReader _reader;
     private readonly bool _leaveOpen;
 
+    /// <summary>The most characters one node may occupy: <see cref="MaxBufferChars"/>, or a smaller configured value ceiling.</summary>
+    private readonly int _maxBufferChars;
+
     private char[] _buffer = new char[InitialBufferSize];
     private int _length;                    // valid characters in the buffer
     private int _position;                  // where scanning continues
@@ -94,10 +97,18 @@ internal sealed class SheetScanner : IDisposable
     /// <c>table:number-columns-repeated</c> is asked for as <c>number-columns-repeated</c>. A name
     /// listed with its prefix is kept, and asked for, whole instead. Null for a worksheet part.
     /// </param>
-    public SheetScanner(TextReader reader, bool leaveOpen = false, string[]? keptLocalNames = null)
+    /// <param name="maxValueChars">
+    /// A configured value ceiling below <see cref="MaxBufferChars"/>, which then bounds one node
+    /// instead, with <see cref="InitialBufferSize"/> of headroom: a node is a whole tag, and a value
+    /// stated in an attribute (<c>office:string-value</c>) shares its tag with the cell's other
+    /// attributes, so a value within the ceiling is never refused for its tag. The headroom is also
+    /// the first buffer, so the ceiling reported is the one in force.
+    /// </param>
+    public SheetScanner(TextReader reader, bool leaveOpen = false, string[]? keptLocalNames = null, int maxValueChars = MaxBufferChars)
     {
         _reader = reader;
         _leaveOpen = leaveOpen;
+        _maxBufferChars = (int)Math.Min(MaxBufferChars, (long)maxValueChars + InitialBufferSize);
         _keptLocalNames = keptLocalNames;
         _keptWholeNames = keptLocalNames is null ? [] : [.. keptLocalNames.Where(kept => kept.Contains(':', StringComparison.Ordinal))];
     }
@@ -470,8 +481,9 @@ internal sealed class SheetScanner : IDisposable
                 {
                     // Only a hostile element repeats these; refused rather than truncated, so a
                     // value is never read under the wrong one.
-                    throw new TabularFormatException(TabularFormatException.Corrupt,
-                        $"An element repeats its r, t or s attribute more than {MaxAttributes} times.");
+                    throw new TabularFormatException(TabularFormatException.Corrupt, _keptLocalNames is null
+                        ? $"An element repeats its r, t or s attribute more than {MaxAttributes} times."
+                        : $"An element repeats one of the attributes read from it ({string.Join(", ", _keptLocalNames)}) more than {MaxAttributes} times.");
                 }
 
                 _attributes[_attributeCount++] = (nameStart, nameLength, valueStart, i - valueStart);
@@ -660,13 +672,13 @@ internal sealed class SheetScanner : IDisposable
         }
         else if (_length == _buffer.Length)
         {
-            if (_buffer.Length >= MaxBufferChars)
+            if (_buffer.Length >= _maxBufferChars)
             {
-                throw new TabularLimitException("MaxValueChars", MaxBufferChars,
-                    $"A single value in the worksheet exceeds the {MaxBufferChars} characters allowed.");
+                throw new TabularLimitException("MaxValueChars", _maxBufferChars,
+                    $"A single value in the part exceeds the {_maxBufferChars} characters allowed.");
             }
 
-            Array.Resize(ref _buffer, Math.Min(_buffer.Length * 2, MaxBufferChars));
+            Array.Resize(ref _buffer, Math.Min(_buffer.Length * 2, _maxBufferChars));
         }
 
         if (_endOfStream)

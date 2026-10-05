@@ -241,9 +241,32 @@ public sealed class ArchiveCursorCsvTests
         }
 
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(
-            builder.Build(), new TabularOpenOptions { Xlsx = new XlsxCursorOptions { MaxSheets = 3 } }));
+            builder.Build(), new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxSheets = 3 } }));
 
-        Assert.Equal("MaxSheets", error.Limit);
+        Assert.Equal(nameof(ArchiveCursorOptions.MaxSheets), error.Limit);
+        Assert.Equal(3, error.Maximum);
+
+        // The xlsx option bounds a workbook's sheets, not csv files'; it used to bound the archive's.
+        using ArchiveCursor cursor = Open(builder.Build(), new TabularOpenOptions { Xlsx = new XlsxCursorOptions { MaxSheets = 3 } });
+        Assert.Equal(4, cursor.Sheets.Count);
+    }
+
+    [Fact]
+    public void SkipsAFileWhosePathRepeatsAnEarlierOne()
+    {
+        // Two sheets named "a" from "a.csv" used to be listed, and nothing told them apart.
+        byte[] archive = new ZipArchiveBuilder()
+            .With("a.csv", "h\nfirst\n")
+            .With("b.csv", "h\nb\n")
+            .With("a.csv", "h\nsecond\n")
+            .Build();
+        using ArchiveCursor cursor = Open(archive);
+
+        Assert.Equal(["a.csv", "b.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.Equal([["h"], ["first"]], ReadAll(cursor));
+        SkippedEntry skipped = Assert.Single(cursor.SkippedEntries);
+        Assert.Equal("a.csv", skipped.Path);
+        Assert.Equal(SkippedEntryReason.DuplicatePath, skipped.Reason);
     }
 
     [Fact]
@@ -271,6 +294,7 @@ public sealed class ArchiveCursorCsvTests
             (new ArchiveCursorOptions { MaxEntries = 0 }, nameof(ArchiveCursorOptions.MaxEntries)),
             (new ArchiveCursorOptions { MaxUncompressedBytes = 0 }, nameof(ArchiveCursorOptions.MaxUncompressedBytes)),
             (new ArchiveCursorOptions { MaxEmbeddedWorkbookBytes = 0 }, nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes)),
+            (new ArchiveCursorOptions { MaxSheets = 0 }, nameof(ArchiveCursorOptions.MaxSheets)),
         })
         {
             ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(

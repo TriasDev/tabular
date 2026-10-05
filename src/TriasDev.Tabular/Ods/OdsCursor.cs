@@ -65,6 +65,12 @@ public sealed class OdsCursor : ITabularCursor
     /// <summary>The cells repeats have handed out beyond the ones written, across the file.</summary>
     private long _repeatedCells;
 
+    /// <summary>
+    /// The day the spreadsheet counts its durations from, when it states one other than the default
+    /// 30 December 1899; null for the default, which reads as a workbook serial does.
+    /// </summary>
+    private DateTime? _nullDate;
+
     private bool _sheetEnded;
     private int _repeatsLeft;
     private bool _disposed;
@@ -130,14 +136,27 @@ public sealed class OdsCursor : ITabularCursor
         }
         catch (Exception malformed) when (malformed is XmlException or InvalidDataException or FormatException)
         {
-            _package.Dispose();
+            DisposeOpened();
             throw Corrupt(malformed);
         }
         catch
         {
-            _package.Dispose();
+            DisposeOpened();
             throw;
         }
+    }
+
+    /// <summary>
+    /// Closes what a failed constructor opened: the package, and the content part's scanner, whose
+    /// reader and inflater the package's disposal does not close. A move that fails disposes its own
+    /// scanner already, so nothing reaches this with one open today; it keeps that true for whatever
+    /// comes to fail after a move succeeded.
+    /// </summary>
+    private void DisposeOpened()
+    {
+        _scanner?.Dispose();
+        _scanner = null;
+        _package.Dispose();
     }
 
     /// <inheritdoc />
@@ -208,7 +227,7 @@ public sealed class OdsCursor : ITabularCursor
                 EnterOrLeaveScope(_scanner, index);
             }
         }
-        catch
+        catch (Exception failed)
         {
             // Part-way to the sheet: reading on would hand out rows of whichever sheet the scanner
             // stopped in, under the name of the one it left. The scanner goes too — the node it read
@@ -218,6 +237,12 @@ public sealed class OdsCursor : ITabularCursor
             _moveStopped = true;
             _scanner?.Dispose();
             _scanner = null;
+
+            if (failed is InvalidDataException broken)
+            {
+                throw Corrupt(broken);
+            }
+
             throw;
         }
 
@@ -237,6 +262,14 @@ public sealed class OdsCursor : ITabularCursor
     /// </summary>
     private void EnterOrLeaveScope(SheetScanner scanner, int index)
     {
+        // The calculation settings stand ahead of the first table, so the pass that reaches the first
+        // sheet reads them — on opening, and again, to the same answer, whenever the part is reopened.
+        if (_tablesEntered == 0 && _nesting == 0 && scanner.Kind == XmlNodeKind.Element && scanner.Name.SequenceEqual("null-date"))
+        {
+            ReadNullDate(scanner);
+            return;
+        }
+
         if (scanner.Kind == XmlNodeKind.EndElement && IsScope(scanner.Name))
         {
             _nesting = Math.Max(0, _nesting - 1);
@@ -266,6 +299,23 @@ public sealed class OdsCursor : ITabularCursor
         _nesting++;
     }
 
+    /// <summary>
+    /// Takes <c>table:null-date</c>'s <c>table:date-value</c>: LibreOffice can count days from another
+    /// day — 1 January 1904 is offered — and states it here, writing its time cells as durations since
+    /// then. A value that is no date leaves the default, as an absent one does.
+    /// </summary>
+    private void ReadNullDate(SheetScanner scanner)
+    {
+        DateTime standard = new(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
+
+        if (scanner.TryGetAttribute("date-value", out ReadOnlySpan<char> value)
+            && value.IndexOf('-') >= 4
+            && DateReading.TryParseAsWritten(value, CultureInfo.InvariantCulture, DateTimeStyles.NoCurrentDateDefault, out DateTime stated))
+        {
+            _nullDate = stated.Date == standard ? null : stated.Date;
+        }
+    }
+
     private static bool IsScope(ReadOnlySpan<char> name) => name.SequenceEqual(TableElement) || name.SequenceEqual("dde-link");
 
     private const string TableElement = "table";
@@ -288,6 +338,13 @@ public sealed class OdsCursor : ITabularCursor
         try
         {
             return ReadRowCore(cancellationToken);
+        }
+        catch (InvalidDataException broken)
+        {
+            // A part the BCL could not inflate. Hardly reachable — the name pass inflated the whole
+            // part on opening — but reported as the library's error, as the xlsx reader reports it.
+            _faulted = true;
+            throw Corrupt(broken);
         }
         catch
         {
@@ -489,7 +546,7 @@ public sealed class OdsCursor : ITabularCursor
             && extension.SequenceEqual("error");
         RawCell typed = isError || !scanner.TryGetAttribute("value-type", out ReadOnlySpan<char> type)
             ? RawCell.Empty
-            : TypedValue(scanner, type);
+            : TypedValue(scanner, type, _nullDate);
 
         if (!typed.IsEmpty)
         {
@@ -532,13 +589,17 @@ public sealed class OdsCursor : ITabularCursor
     }
 
     /// <summary>The value a cell declares in its attributes, or empty for text and for no type.</summary>
-    private static RawCell TypedValue(SheetScanner scanner, ReadOnlySpan<char> type)
+    private static RawCell TypedValue(SheetScanner scanner, ReadOnlySpan<char> type, DateTime? nullDate)
     {
         switch (type)
         {
             case "float" or "percentage" or "currency":
+                // NaN, Infinity and an overflow such as 1e400 parse, but are no number a spreadsheet
+                // holds: passed over like an unparseable value, the cell reads as its text — as the
+                // xlsx reader has it.
                 return scanner.TryGetAttribute("value", out ReadOnlySpan<char> number)
                     && double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+                    && double.IsFinite(value)
                         ? RawCell.FromNumber(value)
                         : RawCell.Empty;
 
@@ -552,7 +613,7 @@ public sealed class OdsCursor : ITabularCursor
 
             case "time":
                 return scanner.TryGetAttribute("time-value", out ReadOnlySpan<char> time)
-                    ? FromDuration(time.ToString())
+                    ? FromDuration(time, nullDate)
                     : RawCell.Empty;
 
             case "boolean":
@@ -576,28 +637,21 @@ public sealed class OdsCursor : ITabularCursor
     /// <summary>
     /// A time cell, an ISO 8601 duration, read as the workbook serial of as many days: a time of day
     /// on 31 December 1899, as an xlsx time-only cell, and a longer one — LibreOffice's form for a
-    /// date-time under a time-only format — on the day the serial names.
+    /// date-time under a time-only format — on the day the serial names. A spreadsheet that states
+    /// another null date counts the duration from that day instead, as LibreOffice does.
     /// </summary>
-    private static RawCell FromDuration(string duration)
+    private static RawCell FromDuration(ReadOnlySpan<char> duration, DateTime? nullDate)
     {
-        TimeSpan span;
-
-        try
-        {
-            span = XmlConvert.ToTimeSpan(duration);
-        }
-        catch (FormatException)
-        {
-            return RawCell.Empty;
-        }
-        catch (OverflowException)
+        if (!IsoDuration.TryParse(duration, out TimeSpan span) || span < TimeSpan.Zero)
         {
             return RawCell.Empty;
         }
 
-        return span >= TimeSpan.Zero && XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out DateTime date)
-            ? RawCell.FromDate(date)
-            : RawCell.Empty;
+        bool read = nullDate is { } day
+            ? XlsxCursor.TryFromDays(day, span.TotalDays, out DateTime date)
+            : XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out date);
+
+        return read ? RawCell.FromDate(date) : RawCell.Empty;
     }
 
     // The state of one cell's text assembly: how deep the reader is inside the cell, and the depth
@@ -667,6 +721,14 @@ public sealed class OdsCursor : ITabularCursor
         }
         else if (name.SequenceEqual("p") || name.SequenceEqual("h"))
         {
+            if (_paragraphDepth >= 0)
+            {
+                // A paragraph inside a paragraph is malformed ODF, but its text is the cell's: it
+                // breaks the line, and its end closes nothing, so the outer one's tail is kept.
+                Append("\n");
+                return;
+            }
+
             if (_anyParagraph)
             {
                 Append("\n");
@@ -856,7 +918,8 @@ public sealed class OdsCursor : ITabularCursor
     {
         using (Stream bytes = _content.Open())
         {
-            List<(string Name, SheetVisibility Visibility)>? tables = TableNameScan.TryRead(bytes, _options.MaxSheets, cancellationToken);
+            List<(string Name, SheetVisibility Visibility)>? tables =
+                TableNameScan.TryRead(bytes, _options.MaxSheets, _options.MaxValueChars, cancellationToken);
 
             if (tables is not null)
             {
@@ -877,7 +940,7 @@ public sealed class OdsCursor : ITabularCursor
         string? tableStyle = null;
 
         using SheetScanner scanner = new(
-            new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: SheetListAttributes);
+            new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: SheetListAttributes, maxValueChars: _options.MaxValueChars);
         int sinceCheck = 0;
         int depth = 0;
 
@@ -924,6 +987,14 @@ public sealed class OdsCursor : ITabularCursor
         string name = scanner.TryGetAttribute("name", out ReadOnlySpan<char> value)
             ? SheetScanner.DecodeAttribute(value)
             : string.Empty;
+
+        // Bounded as the byte pass bounds it.
+        if (name.Length > _options.MaxValueChars)
+        {
+            throw new TabularLimitException(nameof(OdsCursorOptions.MaxValueChars), _options.MaxValueChars,
+                $"A sheet name exceeds the {_options.MaxValueChars} characters allowed.");
+        }
+
         sheets.Add(new SheetInfo { Index = sheets.Count, Name = name, Format = TabularFormat.Ods });
         tableStyles.Add(scanner.TryGetAttribute("style-name", out ReadOnlySpan<char> style) ? SheetScanner.DecodeAttribute(style) : null);
     }
@@ -975,7 +1046,8 @@ public sealed class OdsCursor : ITabularCursor
     {
         _scanner?.Dispose();
         _counter = new CountingStream(_content.Open());
-        _scanner = new SheetScanner(new StreamReader(_counter, Encoding.UTF8, true, 64 * 1024), keptLocalNames: KeptAttributes);
+        _scanner = new SheetScanner(
+            new StreamReader(_counter, Encoding.UTF8, true, 64 * 1024), keptLocalNames: KeptAttributes, maxValueChars: _options.MaxValueChars);
         _tablesEntered = 0;
         _nesting = 0;
         _sheetEnded = false;

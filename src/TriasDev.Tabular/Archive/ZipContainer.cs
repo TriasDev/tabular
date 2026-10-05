@@ -9,9 +9,19 @@ internal sealed class ZipContainer : ArchiveContainer
     private readonly List<ZipArchiveEntry> _zipEntries;
     private readonly List<ArchiveEntry> _entries;
 
-    /// <param name="stream">The archive, seekable; left open.</param>
-    public ZipContainer(Stream stream)
+    /// <param name="stream">The archive; left open.</param>
+    /// <param name="maxEntries">
+    /// Checked against the count the end record declares before the directory is walked, when the
+    /// stream can seek to it; the cursor counts the entries again as it lists them.
+    /// </param>
+    public ZipContainer(Stream stream, int maxEntries)
     {
+        if (stream.CanSeek && ZipEndRecord.DeclaredEntries(stream) is { } declared && declared > maxEntries)
+        {
+            throw new TabularLimitException(nameof(ArchiveCursorOptions.MaxEntries), maxEntries,
+                $"The archive declares {declared} files, more than the {maxEntries} allowed.");
+        }
+
         try
         {
             _zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);

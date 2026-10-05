@@ -6,9 +6,12 @@ the end, [what each format holds when written](#what-each-format-holds-when-writ
 ## An OpenDocument cell says its own type
 
 A workbook guesses dates from number formats; a `.ods` cell states its type beside its value, so
-there is nothing to guess. `float`, `percentage` and `currency` read as numbers, `date` as a date,
+there is nothing to guess. `float`, `percentage` and `currency` read as numbers — a value that is no
+finite number, such as `NaN` or `1e400`, reads as the cell's text, as an xlsx one does —, `date` as a date,
 `time` as the workbook serial of as many days — a time of day on 31 December 1899, the day an xlsx
-time-only cell reads on, and a longer duration on the day that serial names — and `boolean` as a
+time-only cell reads on, and a longer duration on the day that serial names; a spreadsheet that
+states another null date in its calculation settings (LibreOffice offers 1 January 1904) has its
+durations counted from that day — and `boolean` as a
 boolean. Anything else is text: the cell's `office:string-value` when it has one, else its paragraphs
 joined by a line feed, comments left out. A formula reads as the value the writer cached. ODF has no
 error type; LibreOffice marks a failed formula in an extension attribute, and it reads as an error
@@ -40,7 +43,9 @@ file on its own is.
   and folders (`.DS_Store`, anything whose name starts with a dot, macOS `._` files) and `__MACOSX/`.
 - **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a gzip-compressed file, a nested zip or tar, another
   OpenDocument type, a legacy `.xls`, an XML document, a binary file, and a workbook that is damaged
-  or of a kind not read (`.xlsb`). Nested archives are not opened.
+  or of a kind not read (`.xlsb`). Nested archives are not opened. A file whose path repeats an
+  earlier one's is skipped too (`DuplicatePath`): its sheets could not be told apart from the first's,
+  which is read.
 - **Refused:** an archive with nothing readable in it, as `format.unsupported`.
 
 A csv file is read as a stream straight out of the archive, never unpacked, with its dialect

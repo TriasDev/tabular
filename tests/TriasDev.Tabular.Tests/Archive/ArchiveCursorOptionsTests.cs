@@ -18,6 +18,7 @@ public sealed class ArchiveCursorOptionsTests
         Assert.Equal(16_384, options.MaxEntries);
         Assert.Equal(8L * 1024 * 1024 * 1024, options.MaxUncompressedBytes);
         Assert.Equal(256L * 1024 * 1024, options.MaxEmbeddedWorkbookBytes);
+        Assert.Equal(4_096, options.MaxSheets);
         Assert.Same(ArchiveCursorOptions.Default, TabularOpenOptions.Default.Archive);
     }
 

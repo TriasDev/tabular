@@ -336,4 +336,23 @@ public sealed class XlsxCursorEdgeCaseTests
 
         Assert.Equal(expected.Ticks, date.Ticks);
     }
+
+    [Fact]
+    public void ReadsANumberThatIsNoFiniteNumberAsItsTextAsItDoesAnUnparseableOne()
+    {
+        // double.TryParse accepts NaN and Infinity, and reads 1e400 as Infinity. None of them is a
+        // number a spreadsheet holds, and as Number cells they would reach the analysis' sums. They
+        // read as an unparseable value does — as their text — and the ods reader agrees.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", "<row><c><v>NaN</v></c><c><v>Infinity</v></c><c><v>-Infinity</v></c><c><v>1e400</v></c><c><v>abc</v></c><c><v>1e300</v></c></row>")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(
+            [RawCell.FromText("NaN"), RawCell.FromText("Infinity"), RawCell.FromText("-Infinity"), RawCell.FromText("1e400"), RawCell.FromText("abc"), RawCell.FromNumber(1e300)],
+            cursor.CurrentRow.ToArray());
+    }
 }

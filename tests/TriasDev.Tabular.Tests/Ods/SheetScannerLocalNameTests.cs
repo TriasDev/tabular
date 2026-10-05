@@ -40,4 +40,20 @@ public sealed class SheetScannerLocalNameTests
         Assert.True(scanner.TryGetAttribute("t", out _));
         Assert.False(scanner.TryGetAttribute("value", out _));
     }
+
+    [Fact]
+    public void NamesTheOpenDocumentAttributesWhenOneIsRepeatedPastTheCeiling()
+    {
+        // The xlsx wording, "its r, t or s attribute", named attributes an OpenDocument part has none of.
+        string repeated = string.Concat(Enumerable.Range(0, 17).Select(i => $" p{i}:value=\"1\""));
+        using SheetScanner ods = Scan($"<table:table-cell{repeated}/>", ["value-type", "value"]);
+
+        string message = Assert.Throws<TabularFormatException>(() => ods.Read()).Message;
+
+        Assert.Contains("value-type", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("r, t or s", message, StringComparison.Ordinal);
+
+        using SheetScanner xlsx = Scan($"<c{string.Concat(Enumerable.Range(0, 17).Select(i => $" r=\"A{i}\""))}/>");
+        Assert.Contains("r, t or s", Assert.Throws<TabularFormatException>(() => xlsx.Read()).Message, StringComparison.Ordinal);
+    }
 }

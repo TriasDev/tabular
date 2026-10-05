@@ -32,7 +32,7 @@ internal abstract class ArchiveContainer : IDisposable
         // tar is read by seeking.
         if (!stream.CanSeek)
         {
-            return new ZipContainer(stream);
+            return new ZipContainer(stream, options.Archive.MaxEntries);
         }
 
         long origin = stream.Position;
@@ -48,7 +48,7 @@ internal abstract class ArchiveContainer : IDisposable
         // The gzip layer is held to the same bound as the archive's declared sizes.
         return TarHeader.IsGzippedTar(stream)
             ? new TarGzContainer(stream, options.Archive.MaxUncompressedBytes)
-            : new ZipContainer(stream);
+            : new ZipContainer(stream, options.Archive.MaxEntries);
     }
 
     public abstract IEnumerable<ArchiveEntry> Entries(CancellationToken cancellationToken);

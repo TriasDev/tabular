@@ -167,6 +167,43 @@ public sealed class OdsCursorTests
     }
 
     [Fact]
+    public void ReadsAParagraphInsideAParagraphAsALineBreakAndKeepsTheOuterTail()
+    {
+        // Malformed ODF, but text either way: the inner paragraph breaks the line, and the outer one's
+        // text after it is still the cell's.
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", "<table:table-row>"
+            + Cell("office:value-type=\"string\"", "ab<text:p>in</text:p>ef")
+            + Cell("office:value-type=\"string\"", "ab<text:p/>ef<text:h>in<text:p>ner</text:p>most</text:h>")
+            + "</table:table-row>"));
+        RawCell[] cells = Assert.Single(ReadAll(cursor));
+
+        Assert.Equal("ab\ninef", cells[0].AsText());
+        Assert.Equal("ab\nef\nin\nnermost", cells[1].AsText());
+    }
+
+    [Fact]
+    public void ReadsANumberThatIsNoFiniteNumberAsTheCellsTextAsItDoesAnUnparseableOne()
+    {
+        // double.TryParse accepts NaN and Infinity, and reads 1e400 as Infinity; none is a number a
+        // spreadsheet holds. They are passed over as an unparseable value is, so the cell reads as
+        // its text, as the xlsx reader reads them.
+        string row = "<table:table-row>"
+            + Cell("office:value-type=\"float\" office:value=\"NaN\"", "NaN shown")
+            + Cell("office:value-type=\"float\" office:value=\"Infinity\"", "inf")
+            + Cell("office:value-type=\"percentage\" office:value=\"-Infinity\"", "-inf")
+            + Cell("office:value-type=\"currency\" office:value=\"1e400\"", "huge")
+            + Cell("office:value-type=\"float\" office:value=\"abc\"", "abc shown")
+            + Cell("office:value-type=\"float\" office:value=\"1e300\"", "big")
+            + "</table:table-row>";
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", row));
+
+        Assert.Equal(
+            [RawCell.FromText("NaN shown"), RawCell.FromText("inf"), RawCell.FromText("-inf"), RawCell.FromText("huge"), RawCell.FromText("abc shown"), RawCell.FromNumber(1e300)],
+            Assert.Single(ReadAll(cursor)));
+    }
+
+    [Fact]
     public void ReadsAStringValueAttributeOverTheParagraphs()
     {
         using OdsCursor cursor = Open(new OdsPackage().WithTable("S",
@@ -246,6 +283,39 @@ public sealed class OdsCursorTests
         Assert.Equal(RawCell.FromDate(epoch.Add(new TimeSpan(0, 1, 2, 3, 457))), cells[1]);
         Assert.Equal(RawCell.FromDate(epoch.AddHours(1234).AddMinutes(5).AddSeconds(6)), cells[2]);
         Assert.Equal(RawCell.FromDate(epoch.Add(new TimeSpan(0, 10, 59, 59, 999))), cells[3]);
+    }
+
+    [Theory]
+    [InlineData("1904-01-01", "1904-01-01T12:30:00", "1904-03-01T00:00:00")]
+    [InlineData("1980-06-15", "1980-06-15T12:30:00", "1980-08-14T00:00:00")]
+    [InlineData("1899-12-30", "1899-12-31T12:30:00", "1900-02-28T00:00:00")]
+    public void CountsATimeFromTheNullDateTheSpreadsheetStates(string nullDate, string halfDay, string sixtyDays)
+    {
+        // A spreadsheet may count its days from another null date than 30 December 1899 — LibreOffice
+        // offers 1 January 1904 — and says so in its calculation settings, ahead of the tables. A
+        // duration counts from that day, on every sheet, also after moving back to one. The default,
+        // stated or not, reads as it always has: a time of day on 31 December 1899, as in an xlsx.
+        string Table(string name) => $"""<table:table table:name="{name}"><table:table-row>"""
+            + Cell("office:value-type=\"time\" office:time-value=\"PT12H30M00S\"")
+            + Cell("office:value-type=\"time\" office:time-value=\"PT1440H\"")
+            + "</table:table-row></table:table>";
+        string content = $"""<?xml version="1.0" encoding="UTF-8"?><office:document-content {OdsPackage.Namespaces}office:version="1.3"><office:body><office:spreadsheet>"""
+            + $"""<table:calculation-settings table:automatic-find-labels="false"><table:null-date table:date-value="{nullDate}"/></table:calculation-settings>"""
+            + Table("A") + Table("B")
+            + "</office:spreadsheet></office:body></office:document-content>";
+        RawCell[] expected =
+        [
+            RawCell.FromDate(DateTime.Parse(halfDay, System.Globalization.CultureInfo.InvariantCulture)),
+            RawCell.FromDate(DateTime.Parse(sixtyDays, System.Globalization.CultureInfo.InvariantCulture)),
+        ];
+
+        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(content));
+
+        Assert.Equal(expected, Assert.Single(ReadAll(cursor)));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal(expected, Assert.Single(ReadAll(cursor)));
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.Equal(expected, Assert.Single(ReadAll(cursor)));
     }
 
     [Fact]

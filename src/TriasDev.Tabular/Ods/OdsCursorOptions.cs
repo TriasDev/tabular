@@ -49,6 +49,12 @@ public sealed record OdsCursorOptions
     public int MaxRows { get; init; } = 1_048_576;
 
     /// <summary>The most characters one cell's value may assemble to.</summary>
+    /// <remarks>
+    /// Set below its default, it also bounds what the reader holds whole on the way: one tag or text
+    /// node of the content part, at this many characters plus 64 K — a value stated in
+    /// <c>office:string-value</c> shares its tag with the cell's other attributes, and is never
+    /// refused for them — and a sheet name's length.
+    /// </remarks>
     public int MaxValueChars { get; init; } = 16 * 1024 * 1024;
 
     /// <summary>How many cells, across the file, repeats may hand out beyond the ones written.</summary>
