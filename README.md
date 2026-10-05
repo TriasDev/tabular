@@ -214,6 +214,8 @@ Method, every library and every number: [docs/benchmarks.md](https://github.com/
 - **Import it through a mapping** — declare fields once with their rules (required, length, range,
   pattern, allowed values, unique, or your own — check digits such as ISIN and LEI included), get
   typed rows or errors with stable codes, row by row or in batches. A precheck judges a mapping against the profile before anything is imported.
+  Fields that stand in for one another (coordinates, or an address where a row has none) are judged per row,
+  and a review pass gives exact counts before anything is written.
 - **Survive hostile input** — malformed quoting is repaired and counted, every structure read from a
   file has a ceiling (zip expansion, shared strings, columns, field length), and every read honours
   cancellation, including inside a single long read.
@@ -289,7 +291,7 @@ foreach (ImportOutcome<Customer> outcome in run.ReadRows())
 ```
 
 The same flow, runnable, with its output: [`samples/TriasDev.Tabular.Samples.Import`](https://github.com/TriasDev/tabular/blob/main/samples/TriasDev.Tabular.Samples.Import).
-Batches, the full rule set, translated fields and every error code are in the [documentation](https://triasdev.github.io/tabular/importing/).
+Batches, the full rule set, translated fields, field alternatives, the review before import and every error code are in the [documentation](https://triasdev.github.io/tabular/importing/).
 
 ## Writing
 

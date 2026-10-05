@@ -232,6 +232,19 @@ it needs is a question about several columns at once, which no column profile an
 half-empty columns can cover each other's gaps. So the schema declares the rule and every row is
 judged by it.
 
+In short:
+
+| What | API |
+|---|---|
+| Declare a set | `new FieldAlternatives(name, [groups…], unresolvedRowFails: false)` in `ImportSchema.Alternatives` |
+| A group that needs every field | `AlternativeGroup.AllOf(name, fieldA, fieldB)` |
+| A ladder usable from level *n* | `AlternativeGroup.Ladder(name, requiredLevels: n, new AlternativeLevel(name, anyOfFields…), …)` |
+| Which group locates a row | `row.Resolution(set)` → `AlternativeResolution { Group, GroupIndex, Level, LevelName, IsResolved }` |
+| How a run covered the rows | `ImportRun<T>.Alternatives`, `ExtractionRun.Alternatives` → `AlternativesReport` per set |
+| Exact numbers before importing | `TabularExtractor.Review(cursor, plan, schema, ReviewOptions?, progress?, ct)` → `ImportReview` |
+| What the mapping alone decides | `MappingPrecheck.Check` → `group.level-unmapped`, `group.unresolved` |
+| Which column holds a code list | `ColumnFacts.RowsWithValueIn(new FieldConstraint.AllowedValues(codes, ignoreCase: true))` |
+
 ```csharp
 --8<-- "samples/TriasDev.Tabular.Samples.Import/Locations.cs:declare"
 ```

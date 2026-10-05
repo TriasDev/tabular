@@ -52,7 +52,7 @@ mapping, and import typed rows or precise errors.
 
 - [Getting started](getting-started.md) — install, profile, map, check, import; write a file
 - [How it works](concepts.md) — two independent reads of the file, facts against suggestions
-- [Importing](importing.md) — the run, batches, rules, translated fields, the precheck
+- [Importing](importing.md) — the run, batches, rules, translated fields, field alternatives, the precheck and the review
 - [Error codes](error-codes.md) — every code a row error or an exception carries
 
 ### I just need to read big files fast
