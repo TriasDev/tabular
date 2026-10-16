@@ -28,6 +28,8 @@ public sealed class PartialDateTests
     [InlineData("January 2023", "en-US")]
     [InlineData("08:30", "en-US")]
     [InlineData("1.5", "en-US")]
+    [InlineData("Mon 17 Sep", "en-US")]
+    [InlineData("17 Sep", "")]
     public void DoesNotInventTheMissingHalfOfADate(string value, string culture)
     {
         // The parser fills in whatever the text leaves out, from the clock: a bare time becomes
@@ -70,6 +72,50 @@ public sealed class PartialDateTests
 
         Assert.Equal(1, run.Summary.RowsProduced);
         Assert.Equal(1, run.Summary.RowsFailed);
+    }
+
+    // -- A date written in words names itself as completely as one written in figures ------------
+
+    [Theory]
+    [InlineData("17 SEP 1992", "")]
+    [InlineData("17 SEP 1992", "en-US")]
+    [InlineData("17 SEP 1992", "de-DE")]
+    [InlineData("17 September 1992", "en-US")]
+    [InlineData("September 17, 1992", "en-US")]
+    [InlineData("17. September 1992", "de-DE")]
+    public void ReadsADateWithTheMonthInWords(string value, string culture)
+    {
+        // Spaces were not separators to the shape test, so a day, a month name and a year was text
+        // while the same date with dots in it was a date.
+        FileProfile profile = Profile($"when\n{value}\n", new AnalysisOptions { Cultures = [culture] });
+
+        Assert.Equal(new DateTime(1992, 9, 17, 0, 0, 0, DateTimeKind.Unspecified), profile.Sheets[0].Columns[0].Facts.MinDate);
+    }
+
+    [Fact]
+    public void TheExtractorReadsADateWithTheMonthInWords()
+    {
+        ImportSchema schema = new() { Fields = [ImportField.Date("when")] };
+
+        MappingPlan plan = new()
+        {
+            Culture = "",
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "when", FieldName = "when" }],
+        };
+
+        using MemoryStream stream = new(Utf8NoBom.GetBytes("when\n17 SEP 1992\n"), writable: false);
+
+        using ImportRun<DateTime?> run = TabularImporter.Import(
+            stream,
+            "t.csv",
+            plan,
+            schema,
+            row => row[schema.Fields[0] as DateImportField ?? throw new InvalidOperationException()], cancellationToken: TestContext.Current.CancellationToken);
+
+        ImportResult<DateTime?> result = run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal([new DateTime(1992, 9, 17, 0, 0, 0, DateTimeKind.Unspecified)], result.Items);
     }
 
     [Fact]

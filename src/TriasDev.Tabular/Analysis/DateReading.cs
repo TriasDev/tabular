@@ -24,9 +24,9 @@ namespace TriasDev.Tabular;
 /// names all three parts.
 /// </para>
 /// <para>
-/// The cost is real and worth stating: <c>15 Jan 2023</c> has no separators and is refused, as is a
-/// genuine <c>0001-01-01</c>. Both are recorded in the known-issues register rather than pretended
-/// away.
+/// A month in words passes the shape test when the value ends in a four-digit year:
+/// <c>15 Jan 2023</c> is a date, <c>15 Jan 23</c> is text. A genuine <c>0001-01-01</c> is refused,
+/// and is recorded in the known-issues register rather than pretended away.
 /// </para>
 /// </remarks>
 internal static class DateReading
@@ -96,9 +96,17 @@ internal static class DateReading
     /// Whether the text is shaped like a date at all.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Two separators, because one is how a decimal and a day-and-month are written and the parser
     /// takes both. A colon admits a time of day so that the parse can happen and the year check can
     /// refuse it, which is more honest than never looking.
+    /// </para>
+    /// <para>
+    /// A month in words — <c>17 SEP 1992</c>, <c>September 17, 1992</c> — is set apart by spaces, which
+    /// the count above does not see. It cannot simply count them: <c>Mon 17 Sep</c> has two, and the
+    /// parser completes it with the current year, which the year check cannot tell from a year the
+    /// text stated. So a value in words must also end in a year of four digits.
+    /// </para>
     /// </remarks>
     public static bool LooksLikeOne(string text)
     {
@@ -110,6 +118,46 @@ internal static class DateReading
         ReadOnlySpan<char> span = text.AsSpan();
         int separators = span.Count('-') + span.Count('/') + span.Count('.');
 
-        return separators >= 2;
+        return separators >= 2 || LooksLikeOneInWords(span, separators);
+    }
+
+    /// <summary>
+    /// Whether the text could be a date with its month in words: a year of exactly four digits at its
+    /// end, a letter before it, and at least two separators once spaces count among them.
+    /// </summary>
+    /// <remarks>
+    /// The profile asks this of every value the separator count refused, which is most text, so a
+    /// value that does not end in four digits is refused by its last characters, before any scan.
+    /// The year must end the value because an address leads with its number: in a file of five million
+    /// locations, a four-digit run anywhere sent 1.4 million street names on to three failing parses
+    /// and cost the analysis 7%; at the end, thirty thousand.
+    /// </remarks>
+    private static bool LooksLikeOneInWords(ReadOnlySpan<char> text, int separators)
+    {
+        text = text.TrimEnd();
+
+        if (text.Length is < 8 or > 40
+            || !char.IsAsciiDigit(text[^1]) || !char.IsAsciiDigit(text[^2])
+            || !char.IsAsciiDigit(text[^3]) || !char.IsAsciiDigit(text[^4])
+            || char.IsAsciiDigit(text[^5]))
+        {
+            return false;
+        }
+
+        bool letter = false;
+
+        foreach (char c in text[..^4])
+        {
+            if (c == ' ')
+            {
+                separators++;
+            }
+            else
+            {
+                letter |= char.IsLetter(c);
+            }
+        }
+
+        return letter && separators >= 2;
     }
 }

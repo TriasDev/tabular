@@ -64,17 +64,25 @@ than read as csv. Matters if anyone sends one.
 
 ## Contracts looser than they read
 
-### A date must carry two separators, so `15 Jan 2023` is text
+### A date must carry two separators, or a month in words and a four-digit year at its end
 
 `DateReading.LooksLikeOne` requires two of `-`, `/`, `.`, or a colon, before a parse is attempted.
 That is what refuses a decimal (`1.5` reads as the fifth of January under en-US) and a day-and-month
-(`3/15` takes the current year), and the price is a date written with spaces and a month name.
+(`3/15` takes the current year). A date with its month in words — `17 SEP 1992`,
+`September 17, 1992` — counts its spaces as separators too, but only when it ends in a year of four
+digits, because the parser completes `Mon 17 Sep` with the current year just as it does `3/15`. So
+`17 SEP 92` and `1992 SEP 17` are text.
+
+A month and a year alone (`MAY-19`) and a day and a month alone (`8-MAR`) stay text whatever the
+spelling: the cultures disagree on what they mean — under en-US `MAY-19` is the nineteenth of May this
+year, under de-DE it is May 2019 — and a guess would import a date the file may never have held.
 
 A genuine `0001-01-01` is refused for the neighbouring reason: year one is the marker that the text
 named no year.
 
-**Matters when** a customer exports dates in a long form. The fix is a parse against the culture's
-year-bearing patterns rather than a shape test, which is more code than the case has so far earned.
+**Matters when** a customer exports dates with a two-digit year in words, or months without days. The
+fix for the first is a parse against the culture's year-bearing patterns rather than a shape test; the
+second needs a reading the caller chooses, not one the library guesses.
 
 ### Dates cannot carry a range
 `MinValue`/`MaxValue` compare numbers, so a range on a date field is refused by the validator
