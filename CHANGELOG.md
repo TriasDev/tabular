@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/TriasDev/tabular/compare/v0.7.0...v0.7.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* read a date with its month in words, such as 17 SEP 1992 ([#122](https://github.com/TriasDev/tabular/issues/122)) ([11d5be2](https://github.com/TriasDev/tabular/commit/11d5be20634a0075094c028c106ed82c0b758be0)), closes [#121](https://github.com/TriasDev/tabular/issues/121)
+
 ## [0.7.0](https://github.com/TriasDev/tabular/compare/v0.6.0...v0.7.0) (2026-10-05)
 
 
