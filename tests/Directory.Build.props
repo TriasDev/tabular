@@ -19,7 +19,7 @@
   <!-- What every test project runs on. -->
 
   <PropertyGroup>
-    <XunitV3Version>4.0.1</XunitV3Version>
+    <XunitV3Version>4.0.2</XunitV3Version>
     <!-- A test project is an executable under Microsoft.Testing.Platform. -->
     <OutputType>Exe</OutputType>
   </PropertyGroup>
