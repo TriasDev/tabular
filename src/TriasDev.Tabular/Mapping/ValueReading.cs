@@ -113,9 +113,8 @@ internal static class ValueReading
             return true;
         }
 
-        // The profiler's grouping rule, applied here too: under de-DE "1.5" parses as 15 otherwise.
-        if (NumberReading.HasWellFormedGroups(text, culture.NumberFormat)
-            && long.TryParse(text, NumberStyles.Integer | NumberStyles.AllowThousands, culture, out long whole))
+        // The profiler's reading, applied here too: under de-DE "1.5" parses as 15 otherwise.
+        if (NumberReading.TryParse(text, NumberReading.IntegerStyles, culture, out long whole))
         {
             value = MappedValue.FromInteger(whole);
             return true;
@@ -138,8 +137,7 @@ internal static class ValueReading
             return fits;
         }
 
-        if (NumberReading.HasWellFormedGroups(text, culture.NumberFormat)
-            && decimal.TryParse(text, NumberReading.DecimalStyles, culture, out decimal fraction))
+        if (NumberReading.TryParse(text, NumberReading.DecimalStyles, culture, out decimal fraction))
         {
             value = MappedValue.FromDecimal(fraction);
             return true;

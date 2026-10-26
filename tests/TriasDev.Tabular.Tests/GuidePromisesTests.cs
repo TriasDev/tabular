@@ -81,4 +81,15 @@ public sealed class GuidePromisesTests
         PrecheckFinding finding = Assert.Single(result.Findings);
         Assert.Equal((ErrorCodes.Value.NotUnique, PrecheckSeverity.Undetermined), (finding.Code, finding.Severity));
     }
+
+    [Theory]
+    [InlineData("fr-FR")]
+    [InlineData("pl-PL")]
+    public void ReadsAnOrdinarySpaceAsTheGroupOfACultureThatGroupsWithANoBreakSpace(string culture)
+    {
+        ColumnProfile column = Profile("v\n\"1 234,56\"\n\"-12 345 678,9\"\n", new AnalysisOptions { Cultures = [culture] }).Sheets[0].Columns[0];
+
+        Assert.Equal(ColumnType.Decimal, column.Hypotheses[0].Type);
+        Assert.Equal((-12345678.9m, 1234.56m), (column.Facts.MinNumeric, column.Facts.MaxNumeric));
+    }
 }
