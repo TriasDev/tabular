@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Numerics;
 
 namespace TriasDev.Tabular;
 
@@ -18,6 +19,67 @@ internal static class NumberReading
     /// even when it is whole.
     /// </remarks>
     public const NumberStyles DecimalStyles = NumberStyles.Number | NumberStyles.AllowExponent;
+
+    /// <summary>How a whole number written as text is parsed: grouped and signed, no exponent.</summary>
+    public const NumberStyles IntegerStyles = NumberStyles.Integer | NumberStyles.AllowThousands;
+
+    /// <summary>How long a value may be for its copy with the culture's own apostrophe to sit on the stack.</summary>
+    public const int StackCopyLimit = 128;
+
+    /// <summary>
+    /// Parses a number under a culture as the profile and the import both do: its groups held to three
+    /// digits, and either apostrophe taken for the culture's own.
+    /// </summary>
+    /// <remarks>
+    /// Which apostrophe <c>de-CH</c> groups with depends on the runtime's ICU data — <c>'</c> on one
+    /// system, <c>’</c> on another — and .NET matches the culture's separator only, so a file typed with
+    /// the ASCII apostrophe read on one machine and not on the next (#126). The other apostrophe is
+    /// replaced in a copy, made only for a culture that groups with one and a value that holds the other.
+    /// The profiler does the same inline, with the apostrophe looked up once per culture and the groups
+    /// checked once for both parses: it asks this of every numeric-looking value under every culture.
+    /// </remarks>
+    public static bool TryParse<T>(ReadOnlySpan<char> text, NumberStyles styles, CultureInfo culture, out T value)
+        where T : INumberBase<T>
+    {
+        char other = OtherApostropheOf(culture.NumberFormat);
+
+        if (other != '\0' && text.Contains(other))
+        {
+            Span<char> own = text.Length <= StackCopyLimit ? stackalloc char[text.Length] : new char[text.Length];
+            ToOwnApostrophe(text, other, own);
+
+            return TryParseAsWritten(own, styles, culture, out value);
+        }
+
+        return TryParseAsWritten(text, styles, culture, out value);
+    }
+
+    private static bool TryParseAsWritten<T>(ReadOnlySpan<char> text, NumberStyles styles, CultureInfo culture, out T value)
+        where T : INumberBase<T>
+    {
+        if (HasWellFormedGroups(text, culture.NumberFormat))
+        {
+            return T.TryParse(text, styles, culture, out value!);
+        }
+
+        value = T.Zero;
+        return false;
+    }
+
+    /// <summary>The apostrophe a culture that groups with one does not use — <c>’</c> for <c>'</c> and back — or <c>\0</c>.</summary>
+    public static char OtherApostropheOf(NumberFormatInfo format) => format.NumberGroupSeparator switch
+    {
+        "'" => '’',
+        "’" => '\'',
+        _ => '\0',
+    };
+
+    /// <summary>Copies a value into <paramref name="own"/>, as long as it, with the other apostrophe made the culture's own.</summary>
+    public static void ToOwnApostrophe(ReadOnlySpan<char> text, char other, Span<char> own)
+    {
+        text.CopyTo(own);
+        own.Replace(other, other == '\'' ? '’' : '\'');
+    }
 
     /// <summary>
     /// Reads a value that writes the decimal separator the other way from the culture, where that is

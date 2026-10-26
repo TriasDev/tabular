@@ -80,6 +80,11 @@ culture that read a column — the empty string for the invariant one, the same 
 a caller whose files come from elsewhere should list its own (`["", "fr-FR"]`). An unknown name is
 refused when the analyzer is created.
 
+A culture reads the thousands separator it groups with, and a few look-alikes, because the
+separator a runtime reports depends on its ICU data and files are typed by hand: a culture that groups
+with a no-break space (`fr-FR`, `pl-PL`) reads `1 234,56` with an ordinary space too, and one that
+groups with an apostrophe (`de-CH`) reads `1'234.56` and `1’234.56` alike.
+
 Under invariant globalization (`InvariantGlobalization` / `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`,
 common in slim container images) only the invariant culture exists. Analysis then leaves the named
 cultures out instead of failing — the profile's `ParseCounts` show which cultures were used — and a

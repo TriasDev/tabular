@@ -510,6 +510,11 @@ internal sealed class ColumnProfiler
             ? CultureInfo.InvariantCulture.NumberFormat
             : CultureInfo.GetCultureInfo(name).NumberFormat);
 
+        /// <summary>The apostrophe this culture does not group with, when it groups with one, looked up once rather than per value.</summary>
+        private char OtherApostrophe { get; } = NumberReading.OtherApostropheOf(name.Length == 0
+            ? CultureInfo.InvariantCulture.NumberFormat
+            : CultureInfo.GetCultureInfo(name).NumberFormat);
+
         /// <summary>This culture's date separator, when it is one character: what its own dates are written with.</summary>
         private char DateSeparator { get; } = DateSeparatorOf(name);
 
@@ -631,15 +636,40 @@ internal sealed class ColumnProfiler
         /// </param>
         public NumberRead ReadNumber(string text, bool couldBeNumeric)
         {
-            bool grouped = couldBeNumeric && NumberReading.HasWellFormedGroups(text, _culture.NumberFormat);
+            if (!couldBeNumeric)
+            {
+                return default;
+            }
 
-            if (grouped
-                && long.TryParse(text, NumberStyles.Integer | NumberStyles.AllowThousands, _culture, out long whole))
+            // NumberReading.TryParse, inlined: the apostrophe looked up once per culture, not per value.
+            return OtherApostrophe != '\0' && text.Contains(OtherApostrophe)
+                ? ReadNumberWithOwnApostrophe(text)
+                : ReadNumberAsWritten(text);
+        }
+
+        // Apart from ReadNumber so the copy's stack space is taken only by the rare value that needs it.
+        private NumberRead ReadNumberWithOwnApostrophe(string text)
+        {
+            Span<char> own = text.Length <= NumberReading.StackCopyLimit ? stackalloc char[text.Length] : new char[text.Length];
+            NumberReading.ToOwnApostrophe(text, OtherApostrophe, own);
+
+            return ReadNumberAsWritten(own);
+        }
+
+        // The groups checked once for both parses: a decimal fails the integer parse first.
+        private NumberRead ReadNumberAsWritten(ReadOnlySpan<char> text)
+        {
+            if (!NumberReading.HasWellFormedGroups(text, _culture.NumberFormat))
+            {
+                return default;
+            }
+
+            if (long.TryParse(text, NumberReading.IntegerStyles, _culture, out long whole))
             {
                 return new NumberRead(NumberKind.Integer, whole);
             }
 
-            if (grouped && decimal.TryParse(text, NumberReading.DecimalStyles, _culture, out decimal fraction))
+            if (decimal.TryParse(text, NumberReading.DecimalStyles, _culture, out decimal fraction))
             {
                 return new NumberRead(NumberKind.Decimal, fraction);
             }
@@ -730,9 +760,9 @@ internal sealed class ColumnProfiler
                     continue;
                 }
 
-                // The separators, sign and exponent the tried cultures use, and the two spaces that
-                // some of them group with.
-                if (c is '.' or ',' or '-' or '+' or 'e' or 'E' or ' ' or '\u00A0' or '\u202F')
+                // The separators, sign and exponent the tried cultures use, and the two spaces and
+                // two apostrophes that some of them group with (de-CH: 1'234.5, #126).
+                if (c is '.' or ',' or '-' or '+' or 'e' or 'E' or ' ' or '\u00A0' or '\u202F' or '\'' or '\u2019')
                 {
                     continue;
                 }
