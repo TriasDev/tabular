@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/TriasDev/tabular/compare/v0.7.1...v0.7.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* read a number grouped with an apostrophe, such as 1'239.09, under de-CH ([#127](https://github.com/TriasDev/tabular/issues/127)) ([a69a8a0](https://github.com/TriasDev/tabular/commit/a69a8a077f69cda5236db1ecfbc6df8e79391a61)), closes [#126](https://github.com/TriasDev/tabular/issues/126)
+
 ## [0.7.1](https://github.com/TriasDev/tabular/compare/v0.7.0...v0.7.1) (2026-10-16)
 
 
