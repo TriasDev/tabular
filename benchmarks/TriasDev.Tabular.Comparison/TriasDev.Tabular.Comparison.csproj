@@ -16,14 +16,14 @@
     <!-- The last LGPL release. From 5.0 EPPlus is under the Polyform Noncommercial licence. -->
     <PackageReference Include="EPPlus" Version="4.5.3.3" />
     <!-- EPPlus 4.5.3.3 brings 4.7.0, which carries a known critical vulnerability. -->
-    <PackageReference Include="System.Drawing.Common" Version="10.0.12" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.14" />
     <PackageReference Include="ExcelDataReader" Version="3.9.0" />
     <PackageReference Include="MiniExcel" Version="1.46.0" />
     <!-- Pinned below 2.8.0: from there the NuGet binary ships under a maintenance-fee agreement
          rather than Apache-2.0. -->
     <PackageReference Include="NPOI" Version="2.7.6" />
     <!-- NPOI 2.7.6 brings 8.0.2, which carries a known high-severity vulnerability. -->
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.14" />
     <PackageReference Include="Sylvan.Data.Excel" Version="0.5.8" />
   </ItemGroup>
 
