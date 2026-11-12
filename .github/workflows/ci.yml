@@ -19,8 +19,9 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  # The library and its tests target net8.0 and net10.0, so one job per operating system runs both:
-  # the SDK from global.json, plus the net8 runtime.
+  # The library targets net8.0 and net10.0, its tests those and net11.0, so one job per operating
+  # system runs all three: the SDK from global.json (which brings the .NET 11 runtime), plus the net8
+  # and net10 runtimes.
   build-and-test:
     name: Build and Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -36,7 +37,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
           global-json-file: global.json
 
       - name: Restore
@@ -53,7 +56,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libreoffice-calc
 
-      - name: Test (net8.0 and net10.0)
+      - name: Test (net8.0, net10.0 and net11.0)
         run: dotnet test --solution TriasDev.Tabular.slnx --no-build --configuration Release
         env:
           TABULAR_REQUIRE_SOFFICE: ${{ runner.os == 'Linux' && '1' || '' }}
@@ -103,7 +106,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
           global-json-file: global.json
 
       - name: Verify culture and time zone apply to .NET
@@ -146,7 +151,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
           global-json-file: global.json
 
       - name: Pack

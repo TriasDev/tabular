@@ -8,10 +8,11 @@ internal static class ValueChecks
     /// workbook's number cell is read back through.
     /// </summary>
     /// <remarks>
-    /// The import reads a workbook number into a decimal by a plain cast, which keeps 15 significant
-    /// digits. A double that survives that cast and the cast back reads back exactly; any other would
-    /// come back changed — and differently by format, since csv reads its digits as written. One rule
-    /// for every format keeps the round trip the same whichever is chosen.
+    /// The import reads a workbook number into a decimal through <see cref="WorkbookNumber.ToDecimal"/>,
+    /// which keeps 15 significant digits. A double that survives that conversion and the cast back
+    /// reads back exactly; any other would come back changed — and differently by format, since csv
+    /// reads its digits as written. One rule for every format keeps the round trip the same whichever
+    /// is chosen.
     /// </remarks>
     public static string? Double(double value)
     {
@@ -24,7 +25,7 @@ internal static class ValueChecks
 
         try
         {
-            asDecimal = (decimal)value;
+            asDecimal = WorkbookNumber.ToDecimal(value);
         }
         catch (OverflowException)
         {
@@ -52,19 +53,19 @@ internal static class ValueChecks
 
     /// <summary>
     /// Whether a decimal comes back as itself from a workbook number cell: the import reads the cell's
-    /// double back into a decimal by this same cast.
+    /// double back into a decimal by this same conversion.
     /// </summary>
     public static string? DecimalInDouble(decimal value)
     {
         try
         {
 #pragma warning disable S1244 // Comparing a double with exact values is intentional: we test round-trip fidelity through double.
-            return (decimal)(double)value == value ? null : ErrorCodes.Write.PrecisionLoss;
+            return WorkbookNumber.ToDecimal((double)value) == value ? null : ErrorCodes.Write.PrecisionLoss;
 #pragma warning restore S1244
         }
         catch (OverflowException)
         {
-            // A decimal near its maximum is beyond what the cast back from a double can hold.
+            // A decimal near its maximum is beyond what the conversion back from a double can hold.
             return ErrorCodes.Write.PrecisionLoss;
         }
     }

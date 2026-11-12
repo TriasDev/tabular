@@ -98,6 +98,7 @@ public sealed class OdsRoundTripTests
     public async Task ReadsBackADoubleAsTheDecimalItsDigitsSay()
     {
         double[] values = [0.1, -2.5, 1e20, 1e-7, 123_456_789.012345];
+        decimal?[] expected = [0.1m, -2.5m, 100_000_000_000_000_000_000m, 0.0000001m, 123_456_789.012345m];
 
         byte[] file = await WriteAsync(writer =>
         {
@@ -111,7 +112,7 @@ public sealed class OdsRoundTripTests
             }
         });
 
-        Assert.Equal(values.Select(v => (decimal?)(decimal)v), Import(file).Select(outcome => outcome.Value!.Amount));
+        Assert.Equal(expected, Import(file).Select(outcome => outcome.Value!.Amount));
     }
 
     [Fact]

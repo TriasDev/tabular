@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 using TriasDev.Tabular.Tests.Fixtures;
@@ -241,7 +242,7 @@ public sealed class CsvWriteFuzzTests
     private static object? Expected(object? value) => value switch
     {
         string text => string.IsNullOrWhiteSpace(text) ? null : text.Trim(),
-        double number => (decimal)number,
+        double number => decimal.Parse(number.ToString("R", CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture),
         _ => value,
     };
 
