@@ -1,7 +1,6 @@
 using System.Globalization;
 
 using CsvHelper;
-using CsvHelper.Configuration;
 
 using nietras.SeparatedValues;
 
@@ -75,37 +74,33 @@ internal sealed class SepCsv : IReader
     }
 }
 
-/// <summary>CsvHelper's parser, the layer beneath its record mapping.</summary>
+/// <summary>
+/// CsvHelper's <c>CsvReader</c> (rewritten in 34.0: UTF-8 and SIMD, fields as spans until asked for), every field taken
+/// as a string. Malformed quoting is recovered, its default.
+/// </summary>
 internal sealed class CsvHelperCsv : IReader
 {
     public string Name => "CsvHelper";
 
-    public Type Anchor => typeof(CsvParser);
+    public Type Anchor => typeof(CsvReader);
 
     public FileKind Kind => FileKind.Csv;
 
     public ReadCount Read(string path, char delimiter)
     {
-        CsvConfiguration configuration = new(CultureInfo.InvariantCulture)
-        {
-            Delimiter = delimiter.ToString(),
-            HasHeaderRecord = false,
-            BadDataFound = null,
-            MissingFieldFound = null,
-        };
-
-        using StreamReader text = new(path);
-        using CsvParser parser = new(text, configuration);
+        using CsvReader csv = CsvReader.FromFile(
+            path,
+            new CsvReaderOptions { Separator = delimiter, HasHeader = false });
 
         Tally tally = default;
 
-        while (parser.Read())
+        while (csv.Read())
         {
             tally.Row();
 
-            for (int i = 0; i < parser.Count; i++)
+            for (int i = 0; i < csv.FieldCount; i++)
             {
-                tally.Value(parser[i]);
+                tally.Value(csv.GetString(i));
             }
         }
 

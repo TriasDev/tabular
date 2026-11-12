@@ -15,6 +15,9 @@ SUITE=write HEAD=my-branch benchmarks/cloud/hetzner.sh benchmarks/cloud/remote/r
 
 # One commit on the .NET 10 runtime, on .NET 11, and compiled for net11.0:
 REF=main benchmarks/cloud/hetzner.sh benchmarks/cloud/remote/runtimes.sh
+
+# The figures of docs/benchmarks.md, every library on one server:
+TABULAR_RUNS=3 REF=main benchmarks/cloud/hetzner.sh benchmarks/cloud/remote/comparison.sh
 ```
 
 Results land in `artifacts/cloud-bench/<server-name>/` (git-ignored): each pass's Markdown, the
@@ -57,8 +60,9 @@ first variant. `python3 benchmarks/cloud/summarize.py <folder>` prints it again.
 | `hetzner.sh <remote-script> [results-dir]` | Creates the server, runs the script, fetches `/root/out`, deletes everything. `TYPE`, `LOCATION` (default `nbg1`) and the variables below. |
 | `remote/refs.sh` | `BASE` (default `main`) against `HEAD`. `SUITE=read` (default): `TriasDev.Tabular.Benchmarks` over the four synthetic fixtures; `SUITE=write`: `TriasDev.Tabular.WriteComparison`, TriasDev.Tabular's writers only. |
 | `remote/runtimes.sh` | `REF` as built (net10.0) on .NET 10 and on .NET 11, and compiled for net11.0 on .NET 11. Same `SUITE`. |
+| `remote/comparison.sh` | The published comparison of `REF` (`docs/benchmarks.md`): every library reading the synthetic fixtures and writing, TriasDev.Tabular with `Optimal` compression, and its own benchmark project. Run with `TABULAR_RUNS=3`; about an hour. |
 | `remote/setup.sh` | Sourced by both: .NET SDK and runtimes, the machine's description, cloning, fixtures. |
 | `summarize.py` | The summary table from a results folder. |
 
-`FIXTURE_SCALE` (below 1) shrinks the fixtures to try a script quickly; `TABULAR_FILES` picks
+`FIXTURE_SCALE` and `TABULAR_ROWS_SCALE` (below 1) shrink the fixtures and the written data to try a script quickly; `TABULAR_FILES` picks
 fixtures; `TABULAR_RUNS` sets the write comparison's runs inside each pass.

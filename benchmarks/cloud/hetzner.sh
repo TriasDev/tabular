@@ -14,7 +14,7 @@
 #   TYPE           server type (default ccx33: 8 dedicated AMD vCPU, 32 GB). Keep to the CCX line —
 #                  the shared-core types are as noisy as a busy laptop.
 #   LOCATION       default nbg1
-#   PASSES, REF, BASE, HEAD, SUITE, TABULAR_RUNS, FIXTURE_SCALE
+#   PASSES, REF, BASE, HEAD, SUITE, TABULAR_RUNS, TABULAR_ROWS_SCALE, FIXTURE_SCALE
 #                  passed to the remote script; see each script's header
 #   REPO_URL       default https://github.com/TriasDev/tabular.git
 #
@@ -67,7 +67,7 @@ for _ in $(seq 1 60); do "${SSH[@]}" true 2>/dev/null && break; sleep 5; done
 
 scp "${OPTS[@]}" "$REMOTE_SCRIPT" "root@$IP:/root/remote.sh"
 scp "${OPTS[@]}" "$(dirname "$0")/remote/setup.sh" "root@$IP:/root/setup.sh"
-VARS="PASSES=${PASSES:-5} REF=${REF:-main} BASE=${BASE:-} HEAD=${HEAD:-} SUITE=${SUITE:-read} TABULAR_RUNS=${TABULAR_RUNS:-1} FIXTURE_SCALE=${FIXTURE_SCALE:-} REPO_URL=${REPO_URL:-https://github.com/TriasDev/tabular.git}"
+VARS="PASSES=${PASSES:-5} REF=${REF:-main} BASE=${BASE:-} HEAD=${HEAD:-} SUITE=${SUITE:-read} TABULAR_RUNS=${TABULAR_RUNS:-1} TABULAR_ROWS_SCALE=${TABULAR_ROWS_SCALE:-} FIXTURE_SCALE=${FIXTURE_SCALE:-} REPO_URL=${REPO_URL:-https://github.com/TriasDev/tabular.git}"
 "${SSH[@]}" "$VARS nohup bash /root/remote.sh </dev/null >/dev/null 2>&1 &"
 echo "remote script started $(date +%T)"
 
@@ -84,4 +84,6 @@ scp -r "${OPTS[@]}" "root@$IP:/root/out/." "$RESULTS/"
 if [ -e "$RESULTS/FAILED" ]; then echo "REMOTE FAILED — $RESULTS/remote.log:"; tail -20 "$RESULTS/remote.log"; exit 1; fi
 [ -e "$RESULTS/DONE" ] || { echo "TIMED OUT after 90 minutes"; exit 1; }
 echo "results in $RESULTS"
-python3 "$(dirname "$0")/summarize.py" "$RESULTS" | tee "$RESULTS/summary.md"
+if compgen -G "$RESULTS/pass*-*.md" >/dev/null; then
+  python3 "$(dirname "$0")/summarize.py" "$RESULTS" | tee "$RESULTS/summary.md"
+fi

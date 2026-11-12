@@ -7,8 +7,8 @@
        TabularIndependenceTests checks that against its resolved graph; nothing here reaches it. -->
   <ItemGroup>
     <!-- csv -->
-    <PackageReference Include="CsvHelper" Version="33.1.0" />
-    <PackageReference Include="Sep" Version="0.17.1" />
+    <PackageReference Include="CsvHelper" Version="34.0.0" />
+    <PackageReference Include="Sep" Version="0.18.0" />
     <PackageReference Include="Sylvan.Data.Csv" Version="1.4.4" />
     <!-- xlsx -->
     <PackageReference Include="ClosedXML" Version="0.105.1" />
@@ -18,7 +18,7 @@
     <!-- EPPlus 4.5.3.3 brings 4.7.0, which carries a known critical vulnerability. -->
     <PackageReference Include="System.Drawing.Common" Version="10.0.14" />
     <PackageReference Include="ExcelDataReader" Version="3.9.0" />
-    <PackageReference Include="MiniExcel" Version="1.46.0" />
+    <PackageReference Include="MiniExcel" Version="1.47.0" />
     <!-- Pinned below 2.8.0: from there the NuGet binary ships under a maintenance-fee agreement
          rather than Apache-2.0. -->
     <PackageReference Include="NPOI" Version="2.7.6" />
