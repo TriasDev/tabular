@@ -30,7 +30,9 @@ synthetic ones of the published shape — see "Reproducing" in `docs/benchmarks.
 
 Machine too busy to measure on? `benchmarks/cloud/hetzner.sh` runs the read or write benchmark on a
 rented Hetzner Cloud server with dedicated cores — a branch against `main`, or one commit on .NET 10
-and .NET 11 — and deletes the server afterwards; see `benchmarks/cloud/README.md`.
+and .NET 11 — and deletes the server afterwards; see `benchmarks/cloud/README.md`. The published
+comparison is re-measured only for a release that may move it, not for patch or dependency updates
+("When this page is re-measured" in `docs/benchmarks.md`).
 
 `benchmarks/TriasDev.Tabular.Comparison` reads the same fixtures with Sylvan, Sep, CsvHelper,
 ExcelDataReader, MiniExcel, the Open XML SDK, ClosedXML, NPOI and EPPlus (same variables, plus

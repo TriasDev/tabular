@@ -159,45 +159,46 @@ ISO dates read the same under any culture, so none is claimed. Reproduce it with
 
 ## Why
 
-**The fastest xlsx reader we measured**, and in the same memory band as the other streaming readers:
+**The fastest xlsx reader we measured**, with the lowest peak memory of them all:
 
 | | TriasDev.Tabular | Fastest alternative | Object-model libraries |
 |---|--:|--:|--:|
-| 1M-row workbook (101 MB) | **4.3 s, 125 MB peak** | Sylvan.Data.Excel: 5.3 s, 126 MB | ClosedXML 42 s / 2.3 GB · NPOI 47 s / 11.7 GB |
-| 100k-row workbook (8.6 MB) | **0.8 s, 96 MB peak** | Sylvan.Data.Excel: 2.1 s, 95 MB | EPPlus 3.0 s / 502 MB · NPOI 5.6 s / 1.7 GB |
+| 1M-row workbook (91 MB) | **3.9 s, 63 MB peak** | Sylvan.Data.Excel: 5.9 s, 69 MB | ClosedXML 45 s / 1.3 GB · NPOI 51 s / 11.8 GB |
+| 100k-row workbook (9 MB) | **0.8 s, 61 MB peak** | Sylvan.Data.Excel: 1.5 s, 69 MB | EPPlus 2.8 s / 264 MB · NPOI 6.6 s / 1.3 GB |
 
-**Correct on dirty csv, where fast readers go quietly wrong — and the fastest there too.** On a 5M-row export with malformed
+**Correct on dirty csv, where fast readers go quietly wrong.** On a 5M-row file with malformed
 quoting — 5,127,969 lines, one record each:
 
 | | Time | Peak | Rows read |
 |---|--:|--:|---|
-| **TriasDev.Tabular** | **2.7 s** | **51 MB** | **all 5,127,969** — 49 repairs reported |
-| CsvHelper | 3.5 s | 71 MB | 39,231 records merged into others, no warning |
-| Sep | 4.6 s | 208 MB | 2,282,484 records merged into others, no warning |
+| **TriasDev.Tabular** | 3.0 s | **54 MB** | **all 5,127,969** — 320 repairs reported |
+| CsvHelper | 1.2 s | 61 MB | 35,340 records merged into others, no warning |
+| Sep | 1.2 s | 61 MB | 2,572,464 records merged into others, no warning |
 | Sylvan.Data.Csv | — | — | throws |
 
-On clean csv the field is close: Sep is fastest (1.1 s for 3M rows), TriasDev.Tabular reads the same
-file in 1.8 s with the same 50 MB peak, its own delimiter and encoding detection included — the
-comparison hands every other reader the delimiter.
+On clean csv the SIMD readers are well ahead: CsvHelper 34 reads 3M rows in 0.7 s and Sep in 1.0 s,
+TriasDev.Tabular in 1.8 s with the same 54 MB peak, its own delimiter and encoding detection included
+— the comparison hands every other reader the delimiter.
 
 **And it tells you what is in the file**, which none of them does — a full profile of every column,
 over every row, with memory that stays flat:
 
 | | Rows | Full analysis | Rows per second | Peak |
 |---|--:|--:|--:|--:|
-| 100k-row workbook (8.6 MB) | 100,000 | 1.5 s | 66,000 | 106 MB |
-| 1M-row workbook (101 MB) | 1,000,000 | 6.7 s | 149,000 | 188 MB |
-| 3M-row csv (364 MB) | 3,000,000 | 9.6 s | 313,000 | 122 MB |
-| 5M-row csv (572 MB) | 5,127,968 | 14.0 s | 366,000 | 122 MB |
+| 100k-row workbook (9 MB) | 100,000 | 1.2 s | 82,000 | 80 MB |
+| 1M-row workbook (91 MB) | 1,000,000 | 6.3 s | 160,000 | 139 MB |
+| 3M-row csv (338 MB) | 3,000,000 | 10.0 s | 301,000 | 162 MB |
+| 5M-row csv (578 MB) | 5,127,968 | 16.1 s | 320,000 | 162 MB |
 
-**Writing, in flat memory too:** 5M rows × 30 columns of csv in 9.4 s at a 57 MB peak, and a
-million-row xlsx in 4.8 s at 55 MB, styled or not — the least memory of the xlsx writers measured.
-Sylvan.Data.Csv is faster on csv, and Sep on the wide file (level on the narrow one). On the narrow
-xlsx files SpreadCheetah and LargeXlsx with cell references off are level with it or up to 6% faster,
-and on the wide one up to 27% faster. CsvHelper, MiniExcel and LargeXlsx at its default are slower.
-No other library measured writes ods or a zip of csv sheets.
+**Writing, in flat memory too:** 5M rows × 30 columns of csv in 13.1 s at a 62 MB peak, and a
+million-row xlsx in 6.0 s at 60 MB, styled or not — the least memory of the xlsx writers measured.
+CsvHelper and Sylvan.Data.Csv are faster on csv, and Sep on the wide file (level on the narrow one).
+SpreadCheetah and LargeXlsx with cell references off write xlsx 11 to 16% faster on the narrow files
+and up to 48% faster on the wide one; LargeXlsx at its default is level, MiniExcel slower. No other
+library measured writes ods or a zip of csv sheets.
 
-Method, every library and every number: [docs/benchmarks.md](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md).
+Measured on a rented server with dedicated cores, on synthetic files anyone can generate. Method, every
+library and every number: [docs/benchmarks.md](https://github.com/TriasDev/tabular/blob/main/docs/benchmarks.md).
 
 ## What it does
 

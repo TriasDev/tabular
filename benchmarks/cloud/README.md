@@ -4,7 +4,9 @@ A laptop that is also compiling, browsing and running other jobs is a poor stopw
 benchmark on it varied by over 40% between runs. These scripts rent a Hetzner Cloud server with
 dedicated cores for the length of one run, measure there, bring the results back and delete the
 server. Run them when a change may touch speed — the read or write path, a runtime or dependency
-update — not on every pull request.
+update — not on every pull request. The full comparison (`remote/comparison.sh`, an hour) is rarer
+still: only for a release that may move the published figures or a compared library's new version
+that changes its API or results — see "When this page is re-measured" in `docs/benchmarks.md`.
 
 ```bash
 # A change against main, reading the synthetic fixtures (push the branch first):
