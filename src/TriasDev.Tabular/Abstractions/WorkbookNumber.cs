@@ -20,7 +20,12 @@ internal static class WorkbookNumber
     private const int MaxScale = 28;
 
     /// <summary>The powers of ten the scaling multiplies or divides by, as doubles: 10^0 to 10^28.</summary>
-    private static ReadOnlySpan<double> DoublePowers10 =>
+    /// <remarks>
+    /// An array, not a <c>ReadOnlySpan&lt;double&gt;</c> property over constant data: on .NET 8 such a
+    /// property allocates on every call until the method is compiled with optimizations, and this runs
+    /// for every number cell — a write of a million rows allocated megabytes before tiering caught up.
+    /// </remarks>
+    private static readonly double[] DoublePowers10 =
     [
         1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17,
         1e18, 1e19, 1e20, 1e21, 1e22, 1e23, 1e24, 1e25, 1e26, 1e27, 1e28,
