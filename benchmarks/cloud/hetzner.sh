@@ -40,6 +40,9 @@ KEY="$KEYS/$NAME"
 mkdir -p "$RESULTS"
 
 cleanup() {
+  # Delete whatever happens to the output: a closed pipe must not stop the deletes below.
+  set +e
+  trap '' PIPE
   echo "cleanup: deleting server and key $NAME"
   hcloud server delete "$NAME" >/dev/null 2>&1 || true
   hcloud ssh-key delete "$NAME" >/dev/null 2>&1 || true
@@ -47,8 +50,9 @@ cleanup() {
   echo "cleanup: servers left with purpose=tabular-bench: $(hcloud server list -l purpose=tabular-bench -o noheader | wc -l | tr -d ' ')"
 }
 trap cleanup EXIT
-# A signal would otherwise end the script without the EXIT trap, leaving the server running.
-trap 'exit 130' INT TERM HUP
+# A signal would otherwise end the script without the EXIT trap, leaving the server running — SIGPIPE
+# included, which a closed output (`hetzner.sh … | grep …` with grep gone) sends on the next echo.
+trap 'exit 130' INT TERM HUP PIPE
 
 ssh-keygen -q -t ed25519 -N "" -C "$NAME" -f "$KEY"
 hcloud ssh-key create --name "$NAME" --public-key-from-file "$KEY.pub" --label purpose=tabular-bench >/dev/null
