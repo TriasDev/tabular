@@ -11,7 +11,7 @@ dotnet build TriasDev.Tabular.slnx
 dotnet test --solution TriasDev.Tabular.slnx
 dotnet test --project tests/TriasDev.Tabular.Tests --filter "FullyQualifiedName~CsvCursorTests"   # one class
 dotnet test --project tests/TriasDev.Tabular.Tests --filter-method "*CsvCursorTests.SomeTest"
-dotnet test --project tests/TriasDev.Tabular.Tests --framework net8.0                            # one target
+dotnet test --project tests/TriasDev.Tabular.Tests --framework net11.0                           # one target
 dotnet pack TriasDev.Tabular.slnx -c Release   # produces only TriasDev.Tabular.nupkg
 ```
 
@@ -45,10 +45,9 @@ There is no separate lint step: Roslynator, Sonar and the .NET analyzers run as 
 
 - root — target framework, language settings, analyzers, `IsPackable=false` by default
 - `src/` — `IsPackable=true`, XML docs, version, package metadata
-- `tests/` — xunit.v3 and test SDK references; the targets the library ships for plus `net11.0`, because a
-  consumer runs the net10 build on the newest runtime too and a runtime can change a result under an
-  unchanged library (#133). Running every target needs the SDK from `global.json` and the .NET 8 and 10
-  runtimes beside it.
+- `tests/` — xunit.v3 and test SDK references; the library's `net10.0` plus `net11.0`, because a consumer
+  runs the net10 build on the newest runtime too and a runtime can change a result under an unchanged
+  library (#133). Running both needs the SDK from `global.json` and the .NET 10 runtime beside it.
 
 A project dropped into `src/` or `tests/` needs no settings of its own.
 

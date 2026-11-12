@@ -21,9 +21,10 @@ internal static class WorkbookNumber
 
     /// <summary>The powers of ten the scaling multiplies or divides by, as doubles: 10^0 to 10^28.</summary>
     /// <remarks>
-    /// An array, not a <c>ReadOnlySpan&lt;double&gt;</c> property over constant data: on .NET 8 such a
-    /// property allocates on every call until the method is compiled with optimizations, and this runs
-    /// for every number cell — a write of a million rows allocated megabytes before tiering caught up.
+    /// An array, not a <c>ReadOnlySpan&lt;double&gt;</c> property over constant data: on .NET 8, a target
+    /// until 0.7.2, such a property allocated on every call until the method was compiled with
+    /// optimizations, and this runs for every number cell. .NET 10 and 11 no longer do; the array costs
+    /// nothing either way.
     /// </remarks>
     private static readonly double[] DoublePowers10 =
     [

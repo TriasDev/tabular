@@ -61,7 +61,7 @@ plugins:
   - llmstxt:
       full_output: llms-full.txt
       markdown_description: |
-        TriasDev.Tabular is a .NET 8/10 library (NuGet: TriasDev.Tabular, no dependencies) that reads
+        TriasDev.Tabular is a .NET 10 library (NuGet: TriasDev.Tabular, no dependencies) that reads
         csv, xlsx, ods (alone or in zip, tar or gzip archives), profiles every column over every row,
         and imports rows through a column mapping a person confirmed; and that writes csv, xlsx, ods
         and a zip of csv sheets, streaming and asynchronously, with cell styles and sheet layout.

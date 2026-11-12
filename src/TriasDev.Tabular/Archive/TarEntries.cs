@@ -10,7 +10,7 @@ internal static class TarEntries
         entry is PaxTarEntry pax && !pax.ExtendedAttributes.ContainsKey("path");
 
     /// <summary>
-    /// The entry's full path. <see cref="TarReader"/> (.NET 8 and 10) joins the ustar prefix field to the
+    /// The entry's full path. <see cref="TarReader"/> (.NET 8 to 11) joins the ustar prefix field to the
     /// name for a ustar entry, but drops it for a PAX entry whose extended header carries no path —
     /// which is how bsdtar, the tar of macOS and Windows, writes every path that fits the ustar fields.
     /// A path over 100 characters would lose its folders.
@@ -47,16 +47,6 @@ internal static class TarEntries
         int slash = path.TrimEnd('/').LastIndexOf('/');
         return new ArchiveEntry(path, slash < 0 ? path : path[(slash + 1)..], kind == ArchiveEntryKind.LeftOut ? 0 : entry.Length, kind, ordinal, dataOffset);
     }
-
-    /// <summary>Where the entry's data begins in a seekable archive stream, just after <see cref="TarReader.GetNextEntry"/> returned it.</summary>
-    public static long DataOffset(TarEntry entry, Stream archive) =>
-#if NET9_0_OR_GREATER
-        entry.DataOffset;
-#else
-        // net8 has no DataOffset, and on a seekable stream its TarReader has already sought past the
-        // data — padded to 512 bytes — when GetNextEntry returns. Goes with net8 at the .NET 11 release.
-        archive.Position - PaddedLength(entry.Length);
-#endif
 
     /// <summary>
     /// The exceptions <see cref="TarReader"/> raises for a cut, damaged or unreadable archive —

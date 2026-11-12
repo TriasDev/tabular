@@ -33,11 +33,8 @@ A zipped csv costs its decompression and nothing else. The 572 MB csv zipped to 
 against 3.0 s unpacked and analyses in 15.6 s against 14.2 s, the same 49 repairs and the same values
 to the byte, with a peak of 56 MB against 53 MB (measured 2026-09-26, best of two alternating runs).
 
-All of it is measured on .NET 10. On .NET 8 — measured before #9, so the absolute figures below are
-the older ones; the ratio is what they show — the same code reads and imports the 572 MB csv about 15%
-slower and analyses it 5–18% slower (import 6.05 s against 5.25–5.32 s; analysis 23.7–23.9 s against
-20.1–22.9 s, the widest net10 run being noise), with the same allocations — the runtime's own gains,
-not a different code path. Behaviour is identical on both; the test suite runs on each.
+All of it is measured on .NET 10, the package's target. The same build runs on .NET 11, and the test
+suite runs on both.
 
 These are reading figures. The write side's are in the [writing comparison](benchmarks.md#writing).
 
