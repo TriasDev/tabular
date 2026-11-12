@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.0](https://github.com/TriasDev/tabular/compare/v0.7.2...v0.8.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* the package no longer targets net8.0. A project on .NET 8 or 9 stays on TriasDev.Tabular 0.7.2 or moves to .NET 10. No public type or member changes.
+
+### Features
+
+* target .NET 10 only; drop net8.0 ([#137](https://github.com/TriasDev/tabular/issues/137)) ([8055969](https://github.com/TriasDev/tabular/commit/8055969bd14a357ef3d7cfe0789179572be0d063))
+
 ## [0.7.2](https://github.com/TriasDev/tabular/compare/v0.7.1...v0.7.2) (2026-11-12)
 
 
