@@ -155,7 +155,7 @@ public sealed class StyledWriterTests
     [Fact]
     public async Task CsvIgnoresStyles()
     {
-        async Task<byte[]> Write(bool styled)
+        static async Task<byte[]> Write(bool styled)
         {
             WriteTarget target = new();
 
