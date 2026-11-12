@@ -3,11 +3,11 @@ using System.Text;
 
 using CsvHelper;
 
-using CsvHelperOptions = CsvHelper.CsvWriterOptions;
-
 using nietras.SeparatedValues;
 
 using Sylvan.Data.Csv;
+
+using CsvHelperOptions = CsvHelper.CsvWriterOptions;
 
 namespace TriasDev.Tabular.WriteComparison.Writers;
 
