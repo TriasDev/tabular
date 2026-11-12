@@ -127,8 +127,8 @@ internal static class ValueReading
     private static bool TryReadDecimal(in RawCell cell, string text, CultureInfo culture, out MappedValue value)
     {
         // A value the file declares as a number can still be outside decimal's range, or not a
-        // number at all. The profiler already guards this cast; the extractor did not, so analysis
-        // survived such a file and extraction died on it.
+        // number at all. The profiler already guards this conversion; the extractor did not, so
+        // analysis survived such a file and extraction died on it.
         if (cell.Kind == RawCellKind.Number)
         {
             bool fits = TryToDecimal(cell.Number, out decimal declared);
@@ -199,13 +199,13 @@ internal static class ValueReading
 
         try
         {
-            converted = (decimal)value;
+            converted = WorkbookNumber.ToDecimal(value);
             return true;
         }
         catch (OverflowException)
         {
             // The comparisons above use the nearest double to decimal's limits, which is not exactly
-            // that limit. The edge between them belongs to the cast.
+            // that limit. The edge between them belongs to the conversion.
             return false;
         }
     }

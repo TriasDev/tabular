@@ -582,7 +582,7 @@ internal sealed class ColumnProfiler
 
             try
             {
-                converted = (decimal)value;
+                converted = WorkbookNumber.ToDecimal(value);
             }
             catch (OverflowException)
             {

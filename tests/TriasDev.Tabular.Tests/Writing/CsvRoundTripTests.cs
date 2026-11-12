@@ -105,6 +105,7 @@ public sealed class CsvRoundTripTests
     public async Task ReadsBackADoubleAsTheDecimalItsDigitsSay(string culture)
     {
         double[] values = [0.1, -2.5, 1e20, 1e-7, 123_456_789.012345];
+        decimal?[] expected = [0.1m, -2.5m, 100_000_000_000_000_000_000m, 0.0000001m, 123_456_789.012345m];
 
         byte[] file = await WriteAsync(culture, writer =>
         {
@@ -120,7 +121,7 @@ public sealed class CsvRoundTripTests
 
         (List<ImportOutcome<Row>> read, _) = Import(file, culture);
 
-        Assert.Equal(values.Select(v => (decimal?)(decimal)v), read.Select(outcome => outcome.Value!.Amount));
+        Assert.Equal(expected, read.Select(outcome => outcome.Value!.Amount));
     }
 
     [Theory]
