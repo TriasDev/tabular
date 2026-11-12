@@ -39,7 +39,10 @@ first variant. `python3 benchmarks/cloud/summarize.py <folder>` prints it again.
   far as the project's limit on dedicated cores allows (a new project's admits one ccx33; a second
   server fails with `dedicated core limit exceeded` and is cleaned up — run it after the first).
 - **The fastest pass is the figure**; the spread says how far to trust a difference. A difference
-  smaller than the spread of either side is noise.
+  smaller than the spread of either side is noise. `main` against itself (`BASE=main HEAD=main`, five
+  passes, 2026-11-12) came out between −1.9% and +2.6% on every reading measurement, with spreads up
+  to 10% on the large files and 18% on the 100k workbook, whose runs are under a second: below about
+  3% a difference is not one.
 - **Synthetic data only.** `TriasDev.Tabular.FixtureGenerator` writes the fixtures on the server, the
   same shape as the published ones. No local file leaves the machine; a final check on real files
   stays a local run.
