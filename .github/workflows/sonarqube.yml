@@ -27,8 +27,10 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          # The SDK from global.json, plus the net8 runtime the test suite also runs on.
-          dotnet-version: 8.0.x
+          # The SDK from global.json, plus the net8 and net10 runtimes the test suite also runs on.
+          dotnet-version: |
+            8.0.x
+            10.0.x
           global-json-file: global.json
 
       - name: Cache SonarQube packages
