@@ -83,7 +83,7 @@ public sealed class OdsCursorTests
         // The names are listed by a pass of their own over the part; it must see exactly the tables
         // the reading does — not one mentioned in a comment or CDATA, not a tag cut short by a '>'
         // inside an attribute — and read names with entities and non-ASCII characters as written.
-        string Row(string text) => "<table:table-row>" + Cell("office:value-type=\"string\"", text) + "</table:table-row>";
+        static string Row(string text) => "<table:table-row>" + Cell("office:value-type=\"string\"", text) + "</table:table-row>";
         OdsPackage package = new OdsPackage()
             .WithTable("R&amp;D &lt;2024&gt; &#x263A;", "<!-- <table:table table:name=\"comment\"> -->" + Row("first"))
             .WithTable("Übersicht\" table:style-name=\"a>b", "<![CDATA[<table:table table:name=\"cdata\">]]>" + Row("second"))
@@ -295,7 +295,7 @@ public sealed class OdsCursorTests
         // offers 1 January 1904 — and says so in its calculation settings, ahead of the tables. A
         // duration counts from that day, on every sheet, also after moving back to one. The default,
         // stated or not, reads as it always has: a time of day on 31 December 1899, as in an xlsx.
-        string Table(string name) => $"""<table:table table:name="{name}"><table:table-row>"""
+        static string Table(string name) => $"""<table:table table:name="{name}"><table:table-row>"""
             + Cell("office:value-type=\"time\" office:time-value=\"PT12H30M00S\"")
             + Cell("office:value-type=\"time\" office:time-value=\"PT1440H\"")
             + "</table:table-row></table:table>";
