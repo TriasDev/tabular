@@ -9,7 +9,7 @@ own type through a mapping, and writing one.
 dotnet add package TriasDev.Tabular
 ```
 
-The package targets .NET 8 and .NET 10 and references nothing but the base class library.
+The package targets .NET 10 (and runs on .NET 11) and references nothing but the base class library. Version 0.7.2 is the last that also targets .NET 8.
 
 ## Read a file
 

@@ -46,8 +46,9 @@ body:
     attributes:
       label: .NET version
       options:
+        - .NET 11
         - .NET 10
-        - .NET 8
+        - .NET 8 (TriasDev.Tabular 0.7.2 or older)
         - other
     validations:
       required: true

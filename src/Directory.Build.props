@@ -2,11 +2,12 @@
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))"/>
 
-  <!-- The two LTS releases. net8 is where many consumers still are; net10 is where the performance
-       numbers are measured. Benchmarks and samples stay on net10 alone. -->
+  <!-- One target, the current LTS release: a consumer on .NET 11 runs it too, and the tests run it on both
+       (#132). net8.0 went when .NET 8 reached the end of its support, after 0.7.2. Benchmarks and samples
+       are on net10 as well. -->
   <PropertyGroup>
     <TargetFramework/>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net10.0</TargetFrameworks>
   </PropertyGroup>
 
   <!-- Held at zero warnings. A newly published advisory stays a warning, so it cannot break a build

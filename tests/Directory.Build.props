@@ -2,12 +2,11 @@
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
-  <!-- Every target the library ships for, plus the newest runtime: a consumer runs the net10 build on
-       .NET 11 too, and a runtime can change a result under an unchanged library (#133). Benchmarks and
-       samples stay on net10 alone. -->
+  <!-- The target the library ships for, plus the newest runtime: a consumer runs the net10 build on
+       .NET 11 too, and a runtime can change a result under an unchanged library (#133). -->
   <PropertyGroup>
     <TargetFramework></TargetFramework>
-    <TargetFrameworks>net8.0;net10.0;net11.0</TargetFrameworks>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
   </PropertyGroup>
 
   <!-- Held at zero warnings. A newly published advisory stays a warning, so it cannot break a build

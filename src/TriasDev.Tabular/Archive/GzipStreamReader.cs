@@ -9,7 +9,7 @@ namespace TriasDev.Tabular.Archive;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Not <see cref="GZipStream"/>: on .NET 8 and 10 it reads a file cut off anywhere in its compressed
+/// Not <see cref="GZipStream"/>: on .NET 8 to 11 it reads a file cut off anywhere in its compressed
 /// data as a prefix of the content, and reports success — an upload cut short would be imported as
 /// a smaller file, its last row half there. Raw <see cref="DeflateStream"/> does the same, but leaves
 /// the gzip framing to us, and the trailer is where the truth is: the CRC-32 and the size of what

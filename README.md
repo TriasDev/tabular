@@ -392,7 +392,7 @@ changelog. Error codes are the exception: once published, a code keeps its meani
 
 ## Requirements
 
-.NET 8 or .NET 10 — the package targets both LTS releases. The numbers above are measured on .NET 10. No reflection and no dynamic code: it is trim-safe and works under Native AOT.
+.NET 10 or later — the package targets .NET 10, the current LTS release, and is tested on .NET 10 and 11. The numbers above are measured on .NET 10. Version 0.7.2 is the last that also targets .NET 8. No reflection and no dynamic code: it is trim-safe and works under Native AOT.
 
 ## License
 

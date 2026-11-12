@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`TriasDev.Tabular` is a .NET library (net8.0 + net10.0; benchmarks and samples net10.0 only), published open source and destined for NuGet, with two halves. It
+`TriasDev.Tabular` is a .NET library (net10.0; its tests also run on net11.0), published open source and destined for NuGet, with two halves. It
 **reads** an Excel (xlsx), OpenDocument (ods) or CSV file — alone or in a zip, tar or gzip archive — profiles every
 row of it, and imports it through a column mapping a person confirmed. It **writes** csv, xlsx, ods and a zip of csv
 sheets, streaming and asynchronously towards the target, with cell styles and sheet layout, in a form its own import

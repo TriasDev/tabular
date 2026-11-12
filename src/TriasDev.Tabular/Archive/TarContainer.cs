@@ -37,7 +37,7 @@ internal sealed class TarContainer : ArchiveContainer
                         $"The archive holds more than the {maxEntries} files allowed.");
                 }
 
-                long dataOffset = TarEntries.DataOffset(entry, file);
+                long dataOffset = entry.DataOffset;
                 string path = TarEntries.NeedsHeader(entry) ? TarEntries.PathOf(entry, HeaderBefore(dataOffset)) : entry.Name;
                 ArchiveEntry indexed = TarEntries.ToEntry(entry, path, _entries.Count, dataOffset);
 

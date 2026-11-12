@@ -25,7 +25,7 @@ fixed order. The part that decides is the zip, and `System.IO.Compression.ZipArc
 the four requirements, for reasons that were each checked rather than assumed.
 
 - **It writes synchronously.** An entry stream is a synchronous `Stream`; the asynchronous
-  `ZipArchive` API exists only from .NET 10, and the library also targets net8.0.
+  `ZipArchive` API exists only from .NET 10, and the library also targeted net8.0 when this was decided.
 - **On a seekable target it seeks back to patch each local header.** The target must stay seekable
   and nothing already written may be flushed onward or dropped, so the whole entry — a sheet of a
   million rows — stays in the buffer until it closes. That is the opposite of flat memory, and it
