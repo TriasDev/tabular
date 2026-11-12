@@ -15,9 +15,9 @@ analysis faster, and the OpenDocument ones (the same two workbooks saved by Libr
 | 364 MB csv | 3,000,001 | 51,000,017 | 2.0 s | 1,567 MB | 32 B | 53 MB |
 | 572 MB csv, malformed | 5,127,969 | 87,175,473 | 3.0 s | 2,742 MB | 33 B | 53 MB |
 
-The comparison with other libraries (docs/benchmarks.md) measures the same reads through a different
-harness and run — 4.30 s for the million-row workbook against 4.6 s here — so quote each table's
-figures together rather than mixing them.
+The comparison with other libraries ([benchmarks](benchmarks.md)) measures synthetic files of the same
+shape on another machine, a rented server — 3.86 s for its million-row workbook against 4.6 s here —
+so quote each table's figures together rather than mixing them.
 
 Peak memory stays flat as files grow: the 572 MB csv is read in 53 MB, and a workbook of a million
 rows in 129 MB. Bytes per cell rises on smaller workbooks because the shared string table is read

@@ -2,11 +2,12 @@ using System.Globalization;
 using System.Text;
 
 using CsvHelper;
-using CsvHelper.Configuration;
 
 using nietras.SeparatedValues;
 
 using Sylvan.Data.Csv;
+
+using CsvHelperOptions = CsvHelper.CsvWriterOptions;
 
 namespace TriasDev.Tabular.WriteComparison.Writers;
 
@@ -28,8 +29,9 @@ internal abstract class CsvWriterBase : IWriter
 }
 
 /// <summary>
-/// CsvHelper's <c>CsvWriter</c> writing field by field with <c>WriteField</c> and <c>NextRecord</c> (no record
-/// mapping, which is its documented way to write without a class), typed values through its converters, invariant culture.
+/// CsvHelper's <c>CsvWriter</c> writing UTF-8 straight into the target, field by field with <c>WriteField</c> and
+/// <c>EndRecord</c> (no record mapping, which is its documented way to write without a class), typed values formatted by
+/// the writer itself, invariant culture.
 /// </summary>
 internal sealed class CsvHelperWriter : CsvWriterBase
 {
@@ -39,12 +41,10 @@ internal sealed class CsvHelperWriter : CsvWriterBase
 
     public override void Write(Scenario scenario, Stream target)
     {
-        using StreamWriter text = new(target, Utf8, 64 * 1024, leaveOpen: true);
-        using CsvWriter csv = new(text, new CsvConfiguration(CultureInfo.InvariantCulture) { NewLine = "\r\n" });
-
-        // Dates as ISO text, once, in the converters' options: no per-cell format call.
-        csv.Context.TypeConverterOptionsCache.GetOptions<DateOnly>().Formats = ["yyyy-MM-dd"];
-        csv.Context.TypeConverterOptionsCache.GetOptions<DateTime>().Formats = ["yyyy-MM-dd HH:mm:ss"];
+        using CsvWriter csv = CsvWriter.Create(
+            target,
+            new CsvHelperOptions { NewLine = "\r\n", FormatProvider = CultureInfo.InvariantCulture },
+            leaveOpen: true);
 
         IDataset dataset = scenario.Dataset;
         DataColumn[] columns = dataset.Columns;
@@ -54,7 +54,7 @@ internal sealed class CsvHelperWriter : CsvWriterBase
             csv.WriteField(column.Header);
         }
 
-        csv.NextRecord();
+        csv.EndRecord();
 
         Datum[] cells = new Datum[columns.Length];
 
@@ -67,7 +67,7 @@ internal sealed class CsvHelperWriter : CsvWriterBase
                 WriteCell(csv, in cells[c]);
             }
 
-            csv.NextRecord();
+            csv.EndRecord();
         }
 
         csv.Flush();
@@ -90,10 +90,10 @@ internal sealed class CsvHelperWriter : CsvWriterBase
                 csv.WriteField(cell.Decimal);
                 break;
             case ValueKind.Date:
-                csv.WriteField(DateOnly.FromDateTime(cell.Date));
+                csv.WriteField(DateOnly.FromDateTime(cell.Date), "yyyy-MM-dd");
                 break;
             case ValueKind.DateTime:
-                csv.WriteField(cell.Date);
+                csv.WriteField(cell.Date, "yyyy-MM-dd HH:mm:ss");
                 break;
             case ValueKind.Boolean:
                 csv.WriteField(cell.Boolean);
