@@ -61,7 +61,7 @@ public sealed class PaddingColumnTests
     [Fact]
     public void LeavesOutRepeatedEmptyCellsToTheRightOfAnOpenDocumentTable()
     {
-        string Row(string a, string b) =>
+        static string Row(string a, string b) =>
             $"""<table:table-row><table:table-cell office:value-type="string"><text:p>{a}</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>{b}</text:p></table:table-cell><table:table-cell table:style-name="ce1" table:number-columns-repeated="8"/></table:table-row>""";
         byte[] file = new OdsPackage().WithTable("S", Row("id", "name") + Row("1", "a")).Build();
 
