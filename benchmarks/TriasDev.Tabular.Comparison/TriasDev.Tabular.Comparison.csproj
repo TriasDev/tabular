@@ -16,7 +16,7 @@
     <!-- The last LGPL release. From 5.0 EPPlus is under the Polyform Noncommercial licence. -->
     <PackageReference Include="EPPlus" Version="4.5.3.3" />
     <!-- EPPlus 4.5.3.3 brings 4.7.0, which carries a known critical vulnerability. -->
-    <PackageReference Include="System.Drawing.Common" Version="10.0.14" />
+    <PackageReference Include="System.Drawing.Common" Version="11.0.0" />
     <PackageReference Include="ExcelDataReader" Version="3.9.0" />
     <PackageReference Include="MiniExcel" Version="1.47.0" />
     <!-- Pinned below 2.8.0: from there the NuGet binary ships under a maintenance-fee agreement
