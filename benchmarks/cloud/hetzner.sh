@@ -14,6 +14,7 @@
 #   TYPE           server type (default ccx33: 8 dedicated AMD vCPU, 32 GB). Keep to the CCX line —
 #                  the shared-core types are as noisy as a busy laptop.
 #   LOCATION       default nbg1
+#   WAIT_MINUTES   how long to wait for the remote script (default 90)
 #   PASSES, REF, BASE, HEAD, SUITE, TABULAR_RUNS, TABULAR_ROWS_SCALE, FIXTURE_SCALE
 #                  passed to the remote script; see each script's header
 #   REPO_URL       default https://github.com/TriasDev/tabular.git
@@ -24,7 +25,7 @@ set -euo pipefail
 
 REMOTE_SCRIPT="${1:?usage: hetzner.sh <remote-script> [results-dir]}"
 ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
-NAME="tabular-bench-$(date +%Y%m%d-%H%M%S)"
+NAME="tabular-bench-$(date +%Y%m%d-%H%M%S)-$$"
 RESULTS="${2:-$ROOT/artifacts/cloud-bench/$NAME}"
 TYPE="${TYPE:-ccx33}"
 LOCATION="${LOCATION:-nbg1}"
@@ -71,18 +72,22 @@ VARS="PASSES=${PASSES:-5} REF=${REF:-main} BASE=${BASE:-} HEAD=${HEAD:-} SUITE=$
 "${SSH[@]}" "$VARS nohup bash /root/remote.sh </dev/null >/dev/null 2>&1 &"
 echo "remote script started $(date +%T)"
 
-# Wait for DONE or FAILED, at most 90 minutes, printing each new stage the script announces.
+# Wait for DONE or FAILED, at most WAIT_MINUTES, printing each new stage the script announces.
 seen=""
-for _ in $(seq 1 540); do
+for _ in $(seq 1 $(( ${WAIT_MINUTES:-90} * 6 ))); do
   sleep 10
   stage="$("${SSH[@]}" "grep '^== ' /root/out/remote.log 2>/dev/null | tail -1" 2>/dev/null || true)"
   if [ -n "$stage" ] && [ "$stage" != "$seen" ]; then echo "$stage"; seen="$stage"; fi
   if "${SSH[@]}" "test -e /root/out/DONE -o -e /root/out/FAILED" 2>/dev/null; then break; fi
 done
 
-scp -r "${OPTS[@]}" "root@$IP:/root/out/." "$RESULTS/"
+# The results exist only on the server, which cleanup deletes: a dropped connection must not lose them.
+for attempt in 1 2 3 4 5; do
+  scp -r "${OPTS[@]}" "root@$IP:/root/out/." "$RESULTS/" && break
+  echo "copying the results failed (attempt $attempt); retrying"; sleep $(( attempt * 10 ))
+done
 if [ -e "$RESULTS/FAILED" ]; then echo "REMOTE FAILED — $RESULTS/remote.log:"; tail -20 "$RESULTS/remote.log"; exit 1; fi
-[ -e "$RESULTS/DONE" ] || { echo "TIMED OUT after 90 minutes"; exit 1; }
+[ -e "$RESULTS/DONE" ] || { echo "TIMED OUT after ${WAIT_MINUTES:-90} minutes"; exit 1; }
 echo "results in $RESULTS"
 if compgen -G "$RESULTS/pass*-*.md" >/dev/null; then
   python3 "$(dirname "$0")/summarize.py" "$RESULTS" | tee "$RESULTS/summary.md"

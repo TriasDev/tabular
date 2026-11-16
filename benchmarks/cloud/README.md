@@ -59,7 +59,7 @@ first variant. `python3 benchmarks/cloud/summarize.py <folder>` prints it again.
 
 | Script | Measures |
 |---|---|
-| `hetzner.sh <remote-script> [results-dir]` | Creates the server, runs the script, fetches `/root/out`, deletes everything. `TYPE`, `LOCATION` (default `nbg1`) and the variables below. |
+| `hetzner.sh <remote-script> [results-dir]` | Creates the server, runs the script, fetches `/root/out` (retried, since the results exist only on the server), deletes everything. `TYPE`, `LOCATION` (default `nbg1`), `WAIT_MINUTES` (default 90) and the variables below. Each run names its server and key uniquely, so several runs can go in parallel. |
 | `remote/refs.sh` | `BASE` (default `main`) against `HEAD`. `SUITE=read` (default): `TriasDev.Tabular.Benchmarks` over the four synthetic fixtures; `SUITE=write`: `TriasDev.Tabular.WriteComparison`, TriasDev.Tabular's writers only. |
 | `remote/runtimes.sh` | `REF` as built (net10.0) on .NET 10 and on .NET 11, and compiled for net11.0 on .NET 11. Same `SUITE`. |
 | `remote/comparison.sh` | The published comparison of `REF` (`docs/benchmarks.md`): every library reading the synthetic fixtures and writing, TriasDev.Tabular with `Optimal` compression, and its own benchmark project. Run with `TABULAR_RUNS=3`; about an hour. |
