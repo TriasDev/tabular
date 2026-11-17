@@ -85,7 +85,11 @@ decompressing.
 
 Every gzip member's checksum and size are checked, so a file cut off or damaged anywhere is refused
 as `format.truncated` or `format.corrupt` — never read as a shorter file, which is what .NET's own
-`GZipStream` does with a cut-off one. A file of several members (`cat a.gz b.gz`, bgzip) reads as one
+`GZipStream` does with a cut-off one. The same holds for zip entries, which .NET's `ZipArchive` reads
+without checking either: a csv inside a zip, a workbook inside one, an xlsx's sheets and other parts
+and an ods's content part are held to the CRC-32 and size the zip's directory states once they are
+read to their end, and a damaged one is refused as `format.corrupt` rather than read as other
+values or another number of rows. A file of several members (`cat a.gz b.gz`, bgzip) reads as one
 file; bytes after the last member that do not start another are ignored, as the `gzip` tool does.
 
 Not read: a zip archive inside a gzip file, a file compressed twice, and a gzip file inside a zip

@@ -77,6 +77,7 @@ internal sealed class XlsxCursor : ITabularCursor
     private readonly long[] _sheetBytes = [];
     private readonly long _totalSheetBytes;
     private CountingStream? _sheetCounter;
+    private CheckedEntryStream? _sheetData;
 
     /// <summary>Whether the current sheet's cell data has been read to its end.</summary>
     private bool _sheetEnded;
@@ -383,7 +384,8 @@ internal sealed class XlsxCursor : ITabularCursor
             throw new TabularFormatException(TabularFormatException.Corrupt, $"The worksheet part {_sheetPaths[index]} is missing.");
         }
 
-        _sheetStream = _sheetCounter = new CountingStream(entry.Open());
+        _sheetData = CheckedEntryStream.Open(entry);
+        _sheetStream = _sheetCounter = new CountingStream(_sheetData);
 
         // The sheet is read by a scanner rather than by XmlReader, and only the sheet: the other
         // parts are small and read once, while this one carries every cell. XmlReader has no
@@ -457,10 +459,11 @@ internal sealed class XlsxCursor : ITabularCursor
             }
 
             // The end of the cell data is the end of the sheet; whatever follows it holds no rows,
-            // and is not read.
+            // and is not parsed — only read through, so the part can be held to its checksum.
             if (EndsSheetData(scanner))
             {
                 _sheetEnded = true;
+                _sheetData?.ReadToEnd();
                 return false;
             }
 
@@ -911,7 +914,7 @@ internal sealed class XlsxCursor : ITabularCursor
         // differently formatted runs — whether or not its producer wrote xml:space="preserve", and
         // ignoring it joined "Max" and "Mustermann". The indentation between elements is never
         // inside a <t>, so the item reader passes it over like any other node.
-        using Stream stream = part.Open();
+        using Stream stream = CheckedEntryStream.Open(part);
         using XmlReader reader = XmlReader.Create(stream);
 
         int sinceCheck = 0;
@@ -1100,7 +1103,7 @@ internal sealed class XlsxCursor : ITabularCursor
             return map;
         }
 
-        using Stream stream = part.Open();
+        using Stream stream = CheckedEntryStream.Open(part);
         using XmlReader reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
 
         while (reader.Read())
@@ -1155,7 +1158,7 @@ internal sealed class XlsxCursor : ITabularCursor
         List<string> paths = [];
         bool date1904 = false;
 
-        using Stream stream = part.Open();
+        using Stream stream = CheckedEntryStream.Open(part);
         using XmlReader reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
 
         while (reader.Read())
@@ -1317,7 +1320,7 @@ internal sealed class XlsxCursor : ITabularCursor
         List<int> cellFormats = [];
         StyleSection section = StyleSection.Other;
 
-        using Stream stream = part.Open();
+        using Stream stream = CheckedEntryStream.Open(part);
         using XmlReader reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
 
         int sinceCheck = 0;
@@ -1681,6 +1684,7 @@ internal sealed class XlsxCursor : ITabularCursor
         _sheetStream?.Dispose();
         _sheetStream = null;
         _sheetCounter = null;
+        _sheetData = null;
         _sheetEnded = false;
     }
 
