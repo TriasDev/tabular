@@ -94,31 +94,68 @@ public sealed class OdsHostileInputTests
         Assert.Equal(100_000_000, OdsCursorOptions.Default.MaxRepeatedCells);
     }
 
+    /// <summary>
+    /// One budget for every copy a repeat adds, row after row: a repeated row's copies count each of
+    /// its cells, a repeated cell its copies; the copies that use the budget up exactly are read, and
+    /// the one after them is refused.
+    /// </summary>
     [Fact]
-    public void ListsAndReadsOnlyTheSpreadsheetsOwnTables()
+    public void CountsEveryCopyAgainstOneBudgetUpToItsLastCell()
+    {
+        string rows = "<table:table-row table:number-rows-repeated=\"3\">" + Text("r1") + Text("r2") + "</table:table-row>"   // 2 copies of 2 cells
+            + Row(Cell("table:number-columns-repeated=\"7\" office:value-type=\"string\"", "c"))                                   // 6 copies: 10 in all
+            + Row(Cell("table:number-columns-repeated=\"2\" office:value-type=\"string\"", "d"));                                  // 1 more
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", rows), new OdsCursorOptions { MaxRepeatedCells = 10 });
+
+        for (int i = 0; i < 3; i++)
+        {
+            Assert.True(cursor.ReadRow(Token));
+            Assert.Equal(["r1", "r2"], cursor.CurrentRow.ToArray().Select(c => c.AsText()));
+        }
+
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal(7, cursor.CurrentRow.Length);
+        Assert.Equal(nameof(OdsCursorOptions.MaxRepeatedCells), Assert.Throws<TabularLimitException>(() => cursor.ReadRow(Token)).Limit);
+    }
+
+    /// <summary>The package of a content part, in UTF-16 when asked: then the sheets are listed by tokenizing it rather than by the byte pass.</summary>
+    private static OdsPackage Encoded(string content, bool utf16)
+    {
+        OdsPackage package = new OdsPackage().WithRawContent(content);
+        return utf16 ? package.WithContentEncoding(Encoding.Unicode) : package;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ListsAndReadsOnlyTheSpreadsheetsOwnTables(bool utf16)
     {
         // A sub-table inside a cell and the cached table of a DDE link are tables in the markup but
         // not sheets; counting them in one pass and not the other reads one sheet's rows as another's.
+        // The second sub-table stands where a count that went wrong on the first would call it a sheet.
         string sub = "<table:table-cell><table:table table:name=\"Sub\"><table:table-row>" + Text("sub") + "</table:table-row></table:table><text:p>outer</text:p></table:table-cell>";
-        string body = $"""<table:table table:name="A">{Row(sub)}{Row(Text("a2"))}</table:table>"""
+        string other = "<table:table-cell><table:table table:name=\"Other\"><table:table-row>" + Text("other") + "</table:table-row></table:table><text:p>second</text:p></table:table-cell>";
+        string body = $"""<table:table table:name="A">{Row(sub)}{Row(other)}{Row(Text("a2"))}</table:table>"""
             + $"""<table:table table:name="B">{Row(Text("b"))}</table:table>"""
             + $"""<table:dde-links><table:dde-link><office:dde-source office:dde-application="x"/><table:table table:name="Cache">{Row(Text("dde"))}</table:table></table:dde-link></table:dde-links>""";
 
-        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(Content(body)));
+        using OdsCursor cursor = Open(Encoded(Content(body), utf16));
 
         Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
-        Assert.Equal([["outer"], ["a2"]], ReadAll(cursor));
+        Assert.Equal([["outer"], ["second"], ["a2"]], ReadAll(cursor));
         Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal([["b"]], ReadAll(cursor));
 
         // The same sheet by index, whichever way the cursor got there.
-        using OdsCursor direct = Open(new OdsPackage().WithRawContent(Content(body)));
+        using OdsCursor direct = Open(Encoded(Content(body), utf16));
         Assert.True(direct.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal([["b"]], ReadAll(direct));
     }
 
-    [Fact]
-    public void ATableBetweenASheetsRowsEndsNeitherTheSheetNorAddsItsRows()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ATableBetweenASheetsRowsEndsNeitherTheSheetNorAddsItsRows(bool utf16)
     {
         // A table standing between the rows rather than inside a cell: the row reader never sees it,
         // so the sheet itself must count it — its end is not the sheet's end, its rows not the sheet's.
@@ -126,7 +163,7 @@ public sealed class OdsHostileInputTests
         string body = $"""<table:table table:name="A">{Row(Text("a1"))}{inner}{Row(Text("a2"))}</table:table>"""
             + $"""<table:table table:name="B">{Row(Text("b"))}</table:table>""";
 
-        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(Content(body)));
+        using OdsCursor cursor = Open(Encoded(Content(body), utf16));
 
         Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
         Assert.Equal([["a1"], ["a2"]], ReadAll(cursor));
@@ -191,6 +228,95 @@ public sealed class OdsHostileInputTests
         Assert.Equal([["l"]], ReadAll(cursor));
     }
 
+    /// <summary>
+    /// Tables written without a prefix, their namespace the default one: the name pass finds the
+    /// local name of a start tag and of an end tag alike, so it counts the second table as a sheet
+    /// once the first has ended, as the reading does.
+    /// </summary>
+    [Fact]
+    public void ListsTablesWrittenWithoutAPrefix()
+    {
+        static string Table(string name, string text) =>
+            $"""<table xmlns="urn:oasis:names:tc:opendocument:xmlns:table:1.0" table:name="{name}"><table-row><table-cell office:value-type="string"><text:p>{text}</text:p></table-cell></table-row></table>""";
+
+        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(Content(Table("A", "a") + Table("B", "b"))));
+
+        Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
+        Assert.Equal([["a"]], ReadAll(cursor));
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal([["b"]], ReadAll(cursor));
+    }
+
+    /// <summary>
+    /// A table inside a processing instruction, a comment or a CDATA section is no table, though a
+    /// '>' stands ahead of it there: the name pass skips each construct to its own end, as the
+    /// reading does, and a declaration to its '>' — also a comment longer than its buffer, and also
+    /// when the part arrives a byte at a time, so that every end straddles two reads. Against a
+    /// deadline, since a skip that never moves on loops for ever.
+    /// </summary>
+    [Theory]
+    [InlineData("<?pi a>b <table:table table:name=\"Ghost\"> ?>", 0, false)]
+    [InlineData("<!-- a>b <table:table table:name=\"Ghost\"> -->", 0, false)]
+    [InlineData("<![CDATA[ a>b <table:table table:name=\"Ghost\"> ]]>", 0, false)]
+    [InlineData("<!-- a>b <table:table table:name=\"Ghost\"> # -->", 100_000, false)]
+    [InlineData("<?pi a>b <table:table table:name=\"Ghost\"> ?>", 0, true)]
+    [InlineData("<!-- a>b <table:table table:name=\"Ghost\"> -->", 0, true)]
+    [InlineData("<![CDATA[ a>b <table:table table:name=\"Ghost\"> ]]>", 0, true)]
+    [InlineData("<!-- a>b <table:table table:name=\"Ghost\"> # -->", 100_000, true)]
+    public async Task ListsNoTableThatStandsInsideMarkupTheReadingSkips(string markup, int filler, bool byteAtATime)
+    {
+        string body = markup.Replace("#", new string('c', filler), StringComparison.Ordinal)
+            + $"""<table:table table:name="A">{Row(Text("a"))}</table:table><table:table table:name="B">{Row(Text("b"))}</table:table>""";
+        string content = Content(body).Replace("?><office:document-content", "?><!DOCTYPE office:document-content><office:document-content", StringComparison.Ordinal);
+        byte[] package = Stored(new OdsPackage().WithRawContent(content).Build());
+
+        (string[] sheets, string[] rows) = await WithinDeadline(token =>
+        {
+            using OdsCursor cursor = new(byteAtATime ? new Trickle(package) : new MemoryStream(package, writable: false), cancellationToken: token);
+            List<string> read = [];
+
+            for (int sheet = 0; cursor.MoveToSheet(sheet, token); sheet++)
+            {
+                while (cursor.ReadRow(token))
+                {
+                    read.Add(cursor.CurrentRow[0].AsText()!);
+                }
+            }
+
+            return (cursor.Sheets.Select(s => s.Name).ToArray(), read.ToArray());
+        });
+
+        Assert.Equal(["A", "B"], sheets);
+        Assert.Equal(["a", "b"], rows);
+    }
+
+    /// <summary>The same package with every entry stored, so a stream handed to it reaches the content part's reader unchanged.</summary>
+    private static byte[] Stored(byte[] package)
+    {
+        using MemoryStream stored = new();
+
+        using (System.IO.Compression.ZipArchive source = new(new MemoryStream(package), System.IO.Compression.ZipArchiveMode.Read))
+        using (System.IO.Compression.ZipArchive target = new(stored, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (System.IO.Compression.ZipArchiveEntry entry in source.Entries)
+            {
+                using Stream from = entry.Open();
+                using Stream to = target.CreateEntry(entry.FullName, System.IO.Compression.CompressionLevel.NoCompression).Open();
+                from.CopyTo(to);
+            }
+        }
+
+        return stored.ToArray();
+    }
+
+    /// <summary>A stream that hands out at most one byte a read, as a slow network may.</summary>
+    private sealed class Trickle(byte[] content) : MemoryStream(content, writable: false)
+    {
+        public override int Read(byte[] buffer, int offset, int count) => base.Read(buffer, offset, Math.Min(count, 1));
+
+        public override int Read(Span<byte> buffer) => base.Read(buffer[..Math.Min(buffer.Length, 1)]);
+    }
+
     [Fact]
     public void RefusesAStatedStringLongerThanTheValueCeiling()
     {
@@ -214,6 +340,31 @@ public sealed class OdsHostileInputTests
             new OdsCursorOptions { MaxValueChars = 5 });
 
         Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), Assert.Throws<TabularLimitException>(() => cursor.ReadRow(Token)).Limit);
+    }
+
+    /// <summary>
+    /// The value ceiling is the longest value read, not the first refused: a stated string, paragraph
+    /// text and stated spaces of exactly that many characters are read, one more is refused.
+    /// </summary>
+    [Theory]
+    [InlineData("office:value-type=\"string\" office:string-value=\"12345\"", "shown", "12345")]
+    [InlineData("office:value-type=\"string\"", "12345", "12345")]
+    [InlineData("office:value-type=\"string\"", "a<text:s text:c=\"3\"/>b", "a   b")]
+    [InlineData("office:value-type=\"string\" office:string-value=\"123456\"", "shown", null)]
+    [InlineData("office:value-type=\"string\"", "123456", null)]
+    [InlineData("office:value-type=\"string\"", "a<text:s text:c=\"4\"/>b", null)]
+    public void ReadsAValueOfExactlyTheValueCeilingAndRefusesOneCharacterMore(string attributes, string paragraph, string? expected)
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(Cell(attributes, paragraph))), new OdsCursorOptions { MaxValueChars = 5 });
+
+        if (expected is null)
+        {
+            Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), Assert.Throws<TabularLimitException>(() => cursor.ReadRow(Token)).Limit);
+        }
+        else
+        {
+            Assert.Equal([[expected]], ReadAll(cursor));
+        }
     }
 
     [Fact]
@@ -294,6 +445,29 @@ public sealed class OdsHostileInputTests
         TrackedStream kept = new(package);
         Assert.Throws<TabularLimitException>(() => new OdsCursor(kept, new OdsCursorOptions { MaxPackageEntries = 2 }, leaveOpen: true, Token));
         Assert.False(kept.IsDisposed);
+    }
+
+    /// <summary>A package of exactly as many entries and bytes as the budgets allow is opened; a byte more is refused.</summary>
+    [Fact]
+    public void OpensAPackageOfExactlyItsEntryAndSizeBudgets()
+    {
+        byte[] package = new OdsPackage().WithTable("S", Row(Text("v"))).Build();
+        int entries;
+        long bytes;
+
+        using (System.IO.Compression.ZipArchive zip = new(new MemoryStream(package), System.IO.Compression.ZipArchiveMode.Read))
+        {
+            entries = zip.Entries.Count;
+            bytes = zip.Entries.Sum(e => e.Length);
+        }
+
+        using (OdsCursor cursor = new(new MemoryStream(package), new OdsCursorOptions { MaxPackageEntries = entries, MaxUncompressedBytes = bytes }, cancellationToken: Token))
+        {
+            Assert.Equal([["v"]], ReadAll(cursor));
+        }
+
+        Assert.Equal(nameof(OdsCursorOptions.MaxUncompressedBytes), Assert.Throws<TabularLimitException>(
+            () => new OdsCursor(new MemoryStream(package), new OdsCursorOptions { MaxUncompressedBytes = bytes - 1 }, cancellationToken: Token)).Limit);
     }
 
     [Fact]
@@ -435,6 +609,31 @@ public sealed class OdsHostileInputTests
         Assert.Equal("a", Assert.Single(ReadAll(cursor))[0]);
     }
 
+    /// <summary>
+    /// The name pass holds a table's start tag to the configured ceiling itself, at the three bytes
+    /// UTF-8 spends on a character such as '€' — not only the reading, which on opening reaches no
+    /// further than the first sheet. A later sheet's tag past the ceiling is refused when the file is
+    /// opened; one within it is listed and read.
+    /// </summary>
+    [Fact]
+    public void HoldsALaterSheetsTableTagToTheConfiguredCeilingWhenOpening()
+    {
+        // 100,000 characters and the 64 K of headroom: 165,536 characters, 496,608 bytes.
+        OdsCursorOptions options = new() { MaxValueChars = 100_000 };
+        static OdsPackage Package(int euros) => new OdsPackage().WithRawContent(Content(
+            $"""<table:table table:name="A">{Row(Text("a"))}</table:table>"""
+            + $"""<table:table table:name="B" table:print-ranges="{new string('€', euros)}">{Row(Text("b"))}</table:table>"""));
+
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(Package(170_000), options));
+        Assert.Equal(nameof(OdsCursorOptions.MaxValueChars), error.Limit);
+        Assert.Equal(100_000 + (64 * 1024), error.Maximum);
+
+        using OdsCursor cursor = Open(Package(160_000), options);
+        Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal([["b"]], ReadAll(cursor));
+    }
+
     [Fact]
     public void HoldsATextNodeNoValueIsAssembledFromToAConfiguredValueCeiling()
     {
@@ -463,6 +662,9 @@ public sealed class OdsHostileInputTests
 
         using OdsCursor cursor = Open(new OdsPackage().WithTable(new string('n', 10), Row(Text("v"))), options);
         Assert.Equal(new string('n', 10), Assert.Single(cursor.Sheets).Name);
+
+        using OdsCursor utf16 = Open(new OdsPackage().WithTable(new string('n', 10), Row(Text("v"))).WithContentEncoding(Encoding.Unicode), options);
+        Assert.Equal(new string('n', 10), Assert.Single(utf16.Sheets).Name);
     }
 
     [Fact]
@@ -503,6 +705,24 @@ public sealed class OdsHostileInputTests
         Assert.Equal(TabularFormatException.Corrupt, error.Code);
         Assert.IsType<InvalidDataException>(error.InnerException);
         Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(Token));
+    }
+
+    /// <summary>
+    /// Any failure part-way through a row leaves the scanner inside it, so the cursor refuses to read
+    /// on rather than hand out the rest of that row as the next one — a ceiling's refusal too, which
+    /// a caller may well catch and try to continue past.
+    /// </summary>
+    [Fact]
+    public void RefusesToReadOnAfterAReadFailedPartWayThroughARow()
+    {
+        using OdsCursor cursor = Open(
+            new OdsPackage().WithTable("S", Row(Text("0123456789"), Text("rest")) + Row(Text("next"))),
+            new OdsCursorOptions { MaxValueChars = 5 });
+
+        Assert.Throws<TabularLimitException>(() => cursor.ReadRow(Token));
+
+        InvalidOperationException refused = Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(Token));
+        Assert.Contains("cannot continue", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]

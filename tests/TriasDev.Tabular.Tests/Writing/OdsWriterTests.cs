@@ -41,10 +41,12 @@ public sealed class OdsWriterTests
         return rows;
     }
 
-    private static string Content(byte[] ods)
+    private static string Content(byte[] ods) => Part(ods, "content.xml");
+
+    private static string Part(byte[] ods, string name)
     {
         using ZipArchive archive = new(new MemoryStream(ods, writable: false), ZipArchiveMode.Read);
-        using StreamReader reader = new(archive.GetEntry("content.xml")!.Open(), Encoding.UTF8);
+        using StreamReader reader = new(archive.GetEntry(name)!.Open(), Encoding.UTF8);
         return reader.ReadToEnd();
     }
 
@@ -265,6 +267,21 @@ public sealed class OdsWriterTests
         Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write("a\r" + new string('"', 2_796_200))).Code);
     }
 
+    /// <summary>
+    /// The quick check has to count the start tag's own markup, as the full count does: 2,796,032
+    /// characters at six each come to exactly the limit, so a check without the tag's overhead let
+    /// this value through uncounted, though its start tag is 79 characters past what the reader takes.
+    /// </summary>
+    [Fact]
+    public async Task RefusesQuotesWhoseStartTagOnlyItsOverheadTakesPastTheLimit()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+
+        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write("\r" + new string('"', 2_796_031))).Code);
+    }
+
     [Fact]
     public async Task AcceptsTheLongestTextTheReaderTakes()
     {
@@ -323,6 +340,57 @@ public sealed class OdsWriterTests
 
         Assert.Contains(markup, Content(ods), StringComparison.Ordinal);
         Assert.Equal(RawCell.FromText(value), Rows(ods)[1][0]);
+    }
+
+    /// <summary>
+    /// A sheet without an auto-filter and a file without frozen panes leave nothing in their place:
+    /// the content ends with the table's end and the document's, the manifest lists the three parts
+    /// written and nothing else.
+    /// </summary>
+    [Fact]
+    public async Task WritesNothingForAFilterOrSettingsTheFileDoesNotHave()
+    {
+        byte[] ods = await Spreadsheet(writer =>
+        {
+            writer.BeginSheet("data", [new("v")]);
+            writer.BeginRow();
+            writer.Write("x");
+            writer.EndRow();
+        });
+
+        Assert.EndsWith(
+            "<text:p>x</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body></office:document-content>",
+            Content(ods),
+            StringComparison.Ordinal);
+        Assert.Equal(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            + "<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.3\">"
+            + "<manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.3\" manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\"/>"
+            + "<manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/>"
+            + "<manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/>"
+            + "</manifest:manifest>",
+            Part(ods, "META-INF/manifest.xml"));
+    }
+
+    /// <summary>
+    /// The default date, date-time and boolean cell styles point at data styles named N1, N2 and N3,
+    /// declared beside them; LibreOffice shows a bare serial or 1/0 when a name does not resolve,
+    /// which our reader, reading the values from their attributes, would never notice.
+    /// </summary>
+    [Fact]
+    public async Task DeclaresTheDataStylesTheDefaultCellStylesNameForDatesAndBooleans()
+    {
+        string content = Content(await Spreadsheet(writer => writer.BeginSheet("data", [new("v")])));
+
+        Assert.Contains("<number:date-style style:name=\"N1\"><number:year number:style=\"long\"/><number:text>-</number:text><number:month number:style=\"long\"/><number:text>-</number:text><number:day number:style=\"long\"/></number:date-style>", content, StringComparison.Ordinal);
+        Assert.Contains("<number:date-style style:name=\"N2\"><number:year number:style=\"long\"/>", content, StringComparison.Ordinal);
+        Assert.Contains("<number:seconds number:style=\"long\"/></number:date-style><number:boolean-style style:name=\"N3\"><number:boolean/></number:boolean-style>", content, StringComparison.Ordinal);
+        Assert.Contains(
+            "<style:style style:name=\"ce1\" style:family=\"table-cell\" style:data-style-name=\"N1\"/>"
+            + "<style:style style:name=\"ce2\" style:family=\"table-cell\" style:data-style-name=\"N2\"/>"
+            + "<style:style style:name=\"ce3\" style:family=\"table-cell\" style:data-style-name=\"N3\"/>",
+            content,
+            StringComparison.Ordinal);
     }
 
     [Theory]
