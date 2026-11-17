@@ -344,15 +344,18 @@ public sealed class OdsHostileInputTests
 
     /// <summary>
     /// The value ceiling is the longest value read, not the first refused: a stated string, paragraph
-    /// text and stated spaces of exactly that many characters are read, one more is refused.
+    /// text and stated spaces of exactly that many characters are read, one more is refused. (Spaces
+    /// that end a value count against the ceiling as they are assembled, and are trimmed after.)
     /// </summary>
     [Theory]
     [InlineData("office:value-type=\"string\" office:string-value=\"12345\"", "shown", "12345")]
     [InlineData("office:value-type=\"string\"", "12345", "12345")]
     [InlineData("office:value-type=\"string\"", "a<text:s text:c=\"3\"/>b", "a   b")]
+    [InlineData("office:value-type=\"string\"", "ab<text:s text:c=\"3\"/>", "ab")]
     [InlineData("office:value-type=\"string\" office:string-value=\"123456\"", "shown", null)]
     [InlineData("office:value-type=\"string\"", "123456", null)]
     [InlineData("office:value-type=\"string\"", "a<text:s text:c=\"4\"/>b", null)]
+    [InlineData("office:value-type=\"string\"", "ab<text:s text:c=\"4\"/>", null)]
     public void ReadsAValueOfExactlyTheValueCeilingAndRefusesOneCharacterMore(string attributes, string paragraph, string? expected)
     {
         using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(Cell(attributes, paragraph))), new OdsCursorOptions { MaxValueChars = 5 });
@@ -365,6 +368,18 @@ public sealed class OdsHostileInputTests
         {
             Assert.Equal([[expected]], ReadAll(cursor));
         }
+    }
+
+    /// <summary>
+    /// A cell's paragraphs are joined by line feeds, and only its own: the cell before it leaves
+    /// nothing behind, so a value of exactly the ceiling after another text cell is still read.
+    /// </summary>
+    [Fact]
+    public void CountsOnlyACellsOwnParagraphsAgainstTheValueCeiling()
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(Text("x"), Text("12345"))), new OdsCursorOptions { MaxValueChars = 5 });
+
+        Assert.Equal([["x", "12345"]], ReadAll(cursor));
     }
 
     [Fact]

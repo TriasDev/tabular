@@ -685,8 +685,11 @@ public sealed class OdsCursorTests
         Assert.Equal(5, row.Length);
         Assert.Equal("v", row[4].AsText());
 
-        using OdsCursor past = Open(new OdsPackage().WithTable("S", "<table:table-row><table:table-cell table:number-columns-repeated=\"2\"/><table:table-cell table:number-columns-repeated=\"3\"/>" + Value + "</table:table-row>"), options);
-        Assert.Equal(nameof(OdsCursorOptions.MaxColumns), Assert.Throws<TabularLimitException>(() => past.ReadRow(TestContext.Current.CancellationToken)).Limit);
+        foreach (int second in (int[])[3, 4])
+        {
+            using OdsCursor past = Open(new OdsPackage().WithTable("S", $"<table:table-row><table:table-cell table:number-columns-repeated=\"2\"/><table:table-cell table:number-columns-repeated=\"{second}\"/>" + Value + "</table:table-row>"), options);
+            Assert.Equal(nameof(OdsCursorOptions.MaxColumns), Assert.Throws<TabularLimitException>(() => past.ReadRow(TestContext.Current.CancellationToken)).Limit);
+        }
     }
 
     [Fact]
