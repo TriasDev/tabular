@@ -308,6 +308,101 @@ public sealed class OdsHostileInputTests
         Assert.Equal(TabularFormatException.Truncated, Assert.Throws<TabularFormatException>(() => cursor.ReadRow(Token)).Code);
     }
 
+    /// <summary>
+    /// A part that ends inside a row — between its cells, in a cell's text, in a cell passed over or
+    /// inside a tag — is refused at the first read, never handed out as a row of the cells before
+    /// the cut.
+    /// </summary>
+    [Theory]
+    [InlineData("<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a</text:p></table:table-cell>")]
+    [InlineData("<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a")]
+    [InlineData("<table:table-row><table:table-cell office:value-type=\"float\" office:value=\"1\"><text:p>1")]
+    [InlineData("<table:table-row><table:covered-table-cell><text:p>c")]
+    [InlineData("<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a</text:p></table:table-cell><table:table-cell office:value-type=\"str")]
+    public void RefusesAContentPartThatStopsInsideARowAtTheFirstRead(string cut)
+    {
+        string content = Content($"""<table:table table:name="A">{cut}""");
+        content = content[..content.IndexOf("</office:spreadsheet>", StringComparison.Ordinal)];
+
+        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(content));
+
+        Assert.Equal(TabularFormatException.Truncated, Assert.Throws<TabularFormatException>(() => cursor.ReadRow(Token)).Code);
+    }
+
+    /// <summary>
+    /// A part that ends inside a tag behind the first sheet — in an element's name, a start or end
+    /// tag, an attribute value, a style or a comment — lists the sheets before the cut and reads
+    /// them. The name pass stops where the part does: it neither goes round the cut for ever nor
+    /// looks past its data — a name cut off after more characters than stand before it leaves the
+    /// buffer holding nothing but that name behind its end. Run against a deadline, so a pass that
+    /// never returns fails the test rather than holding up the run.
+    /// </summary>
+    [Theory]
+    [InlineData("<")]
+    [InlineData("<table:tab")]
+    [InlineData("<table:", 4000)]
+    [InlineData("<table:table")]
+    [InlineData("<table:table table:name=\"B\"")]
+    [InlineData("<table:table table:name=\"B>")]
+    [InlineData("</table:tab")]
+    [InlineData("<style:style style:name=\"ta1\" style:family=\"table\"")]
+    [InlineData("<style:style style:name=\"ta1\" style:family=\"table\"><style:table-properties table:display=\"false\"")]
+    [InlineData("<!-- <table:table table:name=\"B\">")]
+    [InlineData("<![CDATA[<table:table table:name=\"B\">")]
+    [InlineData("<?pi <table:table table:name=\"B\">")]
+    public async Task ListsAndReadsTheSheetsBeforeAContentPartThatStopsInsideATag(string cut, int nameFiller = 0)
+    {
+        string content = Content($"""<table:table table:name="A">{Row(Text("a"))}</table:table>""");
+        content = content[..content.IndexOf("</office:spreadsheet>", StringComparison.Ordinal)] + cut + new string('x', nameFiller);
+        byte[] package = new OdsPackage().WithRawContent(content).Build();
+
+        (string[] sheets, List<string> rows) = await WithinDeadline(token =>
+        {
+            using OdsCursor cursor = new(new MemoryStream(package, writable: false), cancellationToken: token);
+            List<string> read = [];
+
+            while (cursor.ReadRow(token))
+            {
+                read.Add(cursor.CurrentRow[0].AsText()!);
+            }
+
+            return (cursor.Sheets.Select(s => s.Name).ToArray(), read);
+        });
+
+        Assert.Equal(["A"], sheets);
+        Assert.Equal(["a"], rows);
+    }
+
+    /// <summary>
+    /// Runs work that must end on its own, and fails once a deadline passes rather than waiting for
+    /// it: cancelled through its token if it checks one, abandoned if it does not. The work has a
+    /// background thread of its own, so an abandoned loop neither holds a pool thread nor the process.
+    /// </summary>
+    private static async Task<T> WithinDeadline<T>(Func<CancellationToken, T> work)
+    {
+        TimeSpan deadline = TimeSpan.FromSeconds(20);
+        using CancellationTokenSource stop = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        stop.CancelAfter(deadline);
+        CancellationToken token = stop.Token;
+        TaskCompletionSource<T> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Thread thread = new(() =>
+        {
+            try
+            {
+                done.SetResult(work(token));
+            }
+            catch (Exception failed)
+            {
+                done.SetException(failed);
+            }
+        })
+        { IsBackground = true };
+        thread.Start();
+
+        return await done.Task.WaitAsync(deadline + TimeSpan.FromSeconds(5), Token);
+    }
+
     [Fact]
     public void TakesItsBoundsFromTheOpenOptions()
     {

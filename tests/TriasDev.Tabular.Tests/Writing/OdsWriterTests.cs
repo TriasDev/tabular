@@ -180,6 +180,19 @@ public sealed class OdsWriterTests
         Assert.Contains("style:name=\"co255\"", content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A column style's width is Excel's measure of so many characters — 7 pixels each and 5 of
+    /// padding, at 96 pixels to the inch — so a column is as wide in LibreOffice as in an xlsx.
+    /// </summary>
+    [Fact]
+    public async Task StatesAColumnWidthInInchesAsExcelMeasuresIt()
+    {
+        string content = Content(await Spreadsheet(writer => writer.BeginSheet("data", [new("a", 1), new("b", 19)])));
+
+        Assert.Contains("<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"0.125in\"/></style:style>", content, StringComparison.Ordinal);
+        Assert.Contains("<style:style style:name=\"co19\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"1.4375in\"/></style:style>", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task RefusesTextLongerThanTheReaderReads()
     {
@@ -287,6 +300,29 @@ public sealed class OdsWriterTests
         });
 
         Assert.Contains("a <text:s text:c=\"1\"/>b<text:tab/>c", Content(ods), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A space at the start of a paragraph, or right after a tab or a line break, is one ODF drops when
+    /// it stands as a character — LibreOffice does, and so does our reader — so it is written as
+    /// <c>text:s</c>, and the value reads back with it.
+    /// </summary>
+    [Theory]
+    [InlineData("a\t b", "a<text:tab/><text:s text:c=\"1\"/>b</text:p>")]
+    [InlineData("a\n b", "a</text:p><text:p><text:s text:c=\"1\"/>b</text:p>")]
+    [InlineData(" lead", "<text:p><text:s text:c=\"1\"/>lead</text:p>")]
+    public async Task StatesASpaceAfterATabOrLineBreakOrAtTheStartAsAnElement(string value, string markup)
+    {
+        byte[] ods = await Spreadsheet(writer =>
+        {
+            writer.BeginSheet("data", [new("v")]);
+            writer.BeginRow();
+            writer.Write(value);
+            writer.EndRow();
+        });
+
+        Assert.Contains(markup, Content(ods), StringComparison.Ordinal);
+        Assert.Equal(RawCell.FromText(value), Rows(ods)[1][0]);
     }
 
     [Theory]

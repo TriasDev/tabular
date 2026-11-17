@@ -114,6 +114,53 @@ public sealed class OdsCursorTests
         Assert.Equal("ä", Assert.Single(ReadAll(cursor))[0].AsText());
     }
 
+    /// <summary>
+    /// A table element without content, written as an empty tag, holds no rows and is no sheet: the
+    /// list leaves it out in either encoding, and moving to the sheet behind it reads that sheet's rows
+    /// rather than refusing the file because the two passes counted differently.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ListsNoSheetForATableWithoutContent(bool utf16)
+    {
+        static string Row(string text) => "<table:table-row>" + Cell("office:value-type=\"string\"", text) + "</table:table-row>";
+        OdsPackage package = new OdsPackage()
+            .WithTable("A", Row("a"))
+            .WithRawTable("<table:table table:name=\"empty\"/>")
+            .WithRawTable("<table:table table:name=\"spaced\" />")
+            .WithTable("B", Row("b"));
+
+        using OdsCursor cursor = Open(utf16 ? package.WithContentEncoding(Encoding.Unicode) : package);
+
+        Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
+        Assert.Equal("a", Assert.Single(ReadAll(cursor))[0].AsText());
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal("b", Assert.Single(ReadAll(cursor))[0].AsText());
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.Equal("a", Assert.Single(ReadAll(cursor))[0].AsText());
+    }
+
+    /// <summary>
+    /// Once a sheet has ended, reading on finds no more rows, however often it is asked: the scanner
+    /// stands before the next sheet, whose rows are that sheet's and reached only by moving to it.
+    /// </summary>
+    [Fact]
+    public void ReadsNoRowOnceTheSheetHasEndedAndNeverTheNextSheets()
+    {
+        static string Row(string text) => "<table:table-row>" + Cell("office:value-type=\"string\"", text) + "</table:table-row>";
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("A", Row("a1") + Row("a2")).WithTable("B", Row("b1")));
+
+        Assert.Equal(["a1", "a2"], ReadAll(cursor).Select(r => r[0].AsText()));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.True(cursor.CurrentRow.IsEmpty);
+        Assert.Equal(0, cursor.CurrentSheetIndex);
+
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal("b1", Assert.Single(ReadAll(cursor))[0].AsText());
+    }
+
     [Fact]
     public void MovesEmptyRepeatsAlongWithoutExpandingThem()
     {
@@ -164,6 +211,25 @@ public sealed class OdsCursorTests
         using OdsCursor cursor = Open(new OdsPackage().WithTable("S", "<table:table-row>" + cell + "</table:table-row>"));
 
         Assert.Equal("Hauptstraße   1\tA\nHinterhaus\n2. OG links", Assert.Single(ReadAll(cursor))[0].AsText());
+    }
+
+    /// <summary>
+    /// A comment is not the cell's text wherever it stands among the paragraphs, empty or not: its
+    /// paragraphs add no line, and its spaces, tabs and line breaks add nothing, while the paragraphs
+    /// around it, and the rest of a paragraph it stands in, are read in full.
+    /// </summary>
+    [Theory]
+    [InlineData("<text:p>a</text:p><office:annotation><dc:creator>x</dc:creator><text:p>note<text:s/>1<text:tab/>2<text:line-break/>3</text:p><text:p>more</text:p></office:annotation><text:p>b</text:p>", "a\nb")]
+    [InlineData("<text:p>a</text:p><office:annotation/><text:p>b</text:p>", "a\nb")]
+    [InlineData("<office:annotation/><text:p>a</text:p><text:p>b</text:p>", "a\nb")]
+    [InlineData("<text:p>a<office:annotation><text:p>note</text:p></office:annotation>b</text:p>", "ab")]
+    public void LeavesACommentAmongTheParagraphsOutOfTheText(string paragraphs, string expected)
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", "<table:table-row>"
+            + $"<table:table-cell office:value-type=\"string\">{paragraphs}</table:table-cell>"
+            + "</table:table-row>"));
+
+        Assert.Equal(RawCell.FromText(expected), Assert.Single(ReadAll(cursor))[0]);
     }
 
     /// <summary>
@@ -409,15 +475,49 @@ public sealed class OdsCursorTests
     [Fact]
     public void ReadsTheCoveredPartOfAMergeAsEmpty()
     {
+        // A covered cell may still hold the value it had before the merge, as LibreOffice keeps it;
+        // the sheet shows the merged cell over it, so it reads as empty, repeats included, and the
+        // cell after it keeps its column.
         string row = "<table:table-row>"
-            + "<table:table-cell table:number-columns-spanned=\"2\" office:value-type=\"string\"><text:p>merged</text:p></table:table-cell>"
+            + "<table:table-cell table:number-columns-spanned=\"5\" office:value-type=\"string\"><text:p>merged</text:p></table:table-cell>"
             + "<table:covered-table-cell/>"
+            + "<table:covered-table-cell office:value-type=\"float\" office:value=\"5\"><text:p>5</text:p></table:covered-table-cell>"
+            + "<table:covered-table-cell table:number-columns-repeated=\"2\" office:value-type=\"string\"><text:p>hidden</text:p></table:covered-table-cell>"
             + Cell("office:value-type=\"string\"", "next")
             + "</table:table-row>";
 
         using OdsCursor cursor = Open(new OdsPackage().WithTable("S", row));
 
-        Assert.Equal([RawCell.FromText("merged"), RawCell.Empty, RawCell.FromText("next")], Assert.Single(ReadAll(cursor)));
+        Assert.Equal(
+            [RawCell.FromText("merged"), RawCell.Empty, RawCell.Empty, RawCell.Empty, RawCell.Empty, RawCell.FromText("next")],
+            Assert.Single(ReadAll(cursor)));
+    }
+
+    /// <summary>
+    /// A cell whose value stands in its attributes is passed over to its own end tag, and no further
+    /// nor less: past the empty elements in its paragraph and past a table nested in it, whose cells
+    /// and row end are not the row's. The cell after it, and the next row, read as written.
+    /// </summary>
+    [Fact]
+    public void PassesOverExactlyTheCellWhoseValueStandsInItsAttributes()
+    {
+        const string SubTable = "<table:table><table:table-row><table:table-cell office:value-type=\"string\"><text:p>inner</text:p></table:table-cell></table:table-row></table:table>";
+        string rows = "<table:table-row>"
+            + "<table:table-cell office:value-type=\"float\" office:value=\"1\"><text:p>1<text:s/><text:s/>0</text:p></table:table-cell>"
+            + $"<table:table-cell office:value-type=\"float\" office:value=\"2\">{SubTable}<text:p>2</text:p></table:table-cell>"
+            + $"<table:table-cell office:value-type=\"string\" office:string-value=\"stated\">{SubTable}<text:p>shown</text:p></table:table-cell>"
+            + Cell("office:value-type=\"string\"", "next")
+            + "</table:table-row>"
+            + "<table:table-row>" + Cell("office:value-type=\"string\"", "row2") + "</table:table-row>";
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", rows));
+
+        Assert.Equal(
+            [
+                [RawCell.FromNumber(1), RawCell.FromNumber(2), RawCell.FromText("stated"), RawCell.FromText("next")],
+                [RawCell.FromText("row2")],
+            ],
+            ReadAll(cursor));
     }
 
     [Fact]
