@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
@@ -655,15 +656,21 @@ internal sealed class OdsCursor : ITabularCursor
     }
 
     // The state of one cell's text assembly: how deep the reader is inside the cell, and the depth
-    // of the paragraph or annotation it is in, or -1.
+    // of the paragraph or annotation it is in, or -1; and whether a white-space character written in
+    // the text would now be dropped (see AppendText).
     private int _textDepth;
     private int _paragraphDepth;
     private int _annotationDepth;
     private bool _anyParagraph;
+    private bool _dropWhiteSpace;
+
+    /// <summary>The characters ODF folds into one space when they stand in a paragraph's text.</summary>
+    private static readonly SearchValues<char> FoldedWhiteSpace = SearchValues.Create(" \t\r\n");
 
     /// <summary>
-    /// Assembles a cell's text into the reused builder: paragraphs joined by a line feed, spaces,
-    /// tabs and line breaks as written, annotations left out.
+    /// Assembles a cell's text into the reused builder: paragraphs joined by a line feed, the white
+    /// space written as characters folded as ODF folds it, text:s, text:tab and text:line-break kept
+    /// as stated, annotations left out.
     /// </summary>
     private void ReadText(SheetScanner scanner, CancellationToken cancellationToken)
     {
@@ -672,6 +679,7 @@ internal sealed class OdsCursor : ITabularCursor
         _paragraphDepth = -1;
         _annotationDepth = -1;
         _anyParagraph = false;
+        _dropWhiteSpace = true;
         int sinceCheck = 0;
 
         while (scanner.Read())
@@ -694,7 +702,7 @@ internal sealed class OdsCursor : ITabularCursor
                     break;
 
                 case XmlNodeKind.Text when _paragraphDepth >= 0 && _annotationDepth < 0:
-                    Append(scanner.Value);
+                    AppendText(scanner.Value);
                     break;
             }
         }
@@ -726,6 +734,7 @@ internal sealed class OdsCursor : ITabularCursor
                 // A paragraph inside a paragraph is malformed ODF, but its text is the cell's: it
                 // breaks the line, and its end closes nothing, so the outer one's tail is kept.
                 Append("\n");
+                _dropWhiteSpace = true;
                 return;
             }
 
@@ -735,6 +744,7 @@ internal sealed class OdsCursor : ITabularCursor
             }
 
             _anyParagraph = true;
+            _dropWhiteSpace = true;
             _paragraphDepth = scanner.IsEmptyElement ? -1 : depth;
         }
         else if (_paragraphDepth >= 0)
@@ -759,14 +769,108 @@ internal sealed class OdsCursor : ITabularCursor
             }
 
             _text.Append(' ', count);
+            _dropWhiteSpace = false;
         }
         else if (name.SequenceEqual("tab"))
         {
             Append("\t");
+            _dropWhiteSpace = true;
         }
         else if (name.SequenceEqual("line-break"))
         {
             Append("\n");
+            _dropWhiteSpace = true;
+        }
+    }
+
+    /// <summary>
+    /// Appends a paragraph's text as ODF reads it (1.3, part 3, 6.1.2): a space, tab, carriage return
+    /// or line feed written as a character is a space, a run of them is one, and none counts at the
+    /// start of a paragraph or after a tab or line break.
+    /// </summary>
+    /// <remarks>
+    /// White space that is the value's own is written as text:s, text:tab and text:line-break, which
+    /// is how this library's writer, LibreOffice and Excel write it. The characters are the markup's:
+    /// a producer's doubled space, or indentation inside a paragraph, which LibreOffice shows as one
+    /// space or none — read as written, they became part of the value and set it apart from the same
+    /// text typed by hand. The run is tracked across text nodes, so a space ending one span and one
+    /// starting the next are still one.
+    ///
+    /// Almost all text needs none of this — single spaces between words, no tab or line end — and
+    /// goes into the builder in one piece after two vectorised searches; folding character by run
+    /// cost 8 % of a million-row read when it was applied to every node.
+    /// </remarks>
+    private void AppendText(ReadOnlySpan<char> text)
+    {
+        if (text.IsEmpty)
+        {
+            return;
+        }
+
+        if (!_dropWhiteSpace || text[0] != ' ')
+        {
+            int fold = FirstToFold(text);
+
+            if (fold < 0)
+            {
+                Append(text);
+                _dropWhiteSpace = text[^1] == ' ';
+                return;
+            }
+
+            if (fold > 0)
+            {
+                Append(text[..fold]);
+                _dropWhiteSpace = text[fold - 1] == ' ';
+                text = text[fold..];
+            }
+        }
+
+        AppendFolded(text);
+    }
+
+    /// <summary>Where the first white space that does not stand as written is: a tab, a line end, or a second space; -1 for none.</summary>
+    private static int FirstToFold(ReadOnlySpan<char> text)
+    {
+        int other = text.IndexOfAny('\t', '\r', '\n');
+        int doubled = text.IndexOf("  ", StringComparison.Ordinal);
+
+        if (other < 0 || doubled < 0)
+        {
+            return Math.Max(other, doubled);
+        }
+
+        return Math.Min(other, doubled);
+    }
+
+    /// <summary>The run-by-run folding, for text that holds something to fold.</summary>
+    private void AppendFolded(ReadOnlySpan<char> text)
+    {
+        while (!text.IsEmpty)
+        {
+            int at = text.IndexOfAny(FoldedWhiteSpace);
+
+            if (at < 0)
+            {
+                Append(text);
+                _dropWhiteSpace = false;
+                return;
+            }
+
+            if (at > 0)
+            {
+                Append(text[..at]);
+                _dropWhiteSpace = false;
+            }
+
+            if (!_dropWhiteSpace)
+            {
+                Append(" ");
+                _dropWhiteSpace = true;
+            }
+
+            int end = text[at..].IndexOfAnyExcept(FoldedWhiteSpace);
+            text = end < 0 ? [] : text[(at + end)..];
         }
     }
 

@@ -166,6 +166,33 @@ public sealed class OdsCursorTests
         Assert.Equal("Hauptstraße   1\tA\nHinterhaus\n2. OG links", Assert.Single(ReadAll(cursor))[0].AsText());
     }
 
+    /// <summary>
+    /// ODF's white-space rule for paragraph text: a space, tab, carriage return or line feed written
+    /// as a character is one space, a run of them collapses to one, and none counts at the start of a
+    /// paragraph or right after a tab or line break. Only text:s, text:tab and text:line-break state
+    /// white space that is the value's. LibreOffice and Excel show the cell that way; read literally,
+    /// a producer's doubled space or indented markup became part of the value.
+    /// </summary>
+    [Theory]
+    [InlineData("<text:p>Max  Mustermann</text:p>", "Max Mustermann")]
+    [InlineData("<text:p>Hauptstr.\n      12</text:p>", "Hauptstr. 12")]
+    [InlineData("<text:p>a\tb\r\nc</text:p>", "a b c")]
+    [InlineData("<text:p>a<text:span> </text:span> b</text:p>", "a b")]
+    [InlineData("<text:p>a <text:s text:c=\"2\"/>b</text:p>", "a   b")]
+    [InlineData("<text:p>a<text:s/> b</text:p>", "a  b")]
+    [InlineData("<text:p>a<text:tab/> b</text:p>", "a\tb")]
+    [InlineData("<text:p>a<text:line-break/>  b</text:p>", "a\nb")]
+    [InlineData("<text:p>a</text:p>\n  <text:p>\n    b\n  </text:p>", "a\nb")]
+    [InlineData("<text:p>a\u00A0\u00A0b</text:p>", "a\u00A0\u00A0b")]
+    public void ReadsTheWhiteSpaceOfParagraphTextAsOdfDoes(string paragraphs, string expected)
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", "<table:table-row>"
+            + $"<table:table-cell office:value-type=\"string\">{paragraphs}</table:table-cell>"
+            + "</table:table-row>"));
+
+        Assert.Equal(expected, Assert.Single(ReadAll(cursor))[0].AsText());
+    }
+
     [Fact]
     public void ReadsAParagraphInsideAParagraphAsALineBreakAndKeepsTheOuterTail()
     {

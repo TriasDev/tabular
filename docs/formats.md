@@ -13,7 +13,10 @@ time-only cell reads on, and a longer duration on the day that serial names; a s
 states another null date in its calculation settings (LibreOffice offers 1 January 1904) has its
 durations counted from that day — and `boolean` as a
 boolean. Anything else is text: the cell's `office:string-value` when it has one, else its paragraphs
-joined by a line feed, comments left out. A formula reads as the value the writer cached. ODF has no
+joined by a line feed, comments left out. Paragraph text is read with ODF's white-space rule, as
+LibreOffice shows it: a space, tab or line end written as a character is one space, a run of them
+folds to one, and none counts at a paragraph's start or after a tab or line break — only
+`text:s`, `text:tab` and `text:line-break` state white space that is the value's. A formula reads as the value the writer cached. ODF has no
 error type; LibreOffice marks a failed formula in an extension attribute, and it reads as an error
 carrying the text the cell shows — `#N/A`, `#REF!`, or LibreOffice's own `Err:502`.
 
