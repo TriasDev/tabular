@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.3](https://github.com/TriasDev/tabular/compare/v0.8.2...v0.8.3) (2026-11-17)
+
+
+### Bug Fixes
+
+* count dates written with a multi-character date separator as the culture's own ([#186](https://github.com/TriasDev/tabular/issues/186)) ([fc8b11f](https://github.com/TriasDev/tabular/commit/fc8b11f7109e6afff448b4870cd65c238557ffbc))
+* count each ods sheet's repeats once against MaxRepeatedCells, so reading a sheet again is not refused ([#187](https://github.com/TriasDev/tabular/issues/187)) ([b450d4a](https://github.com/TriasDev/tabular/commit/b450d4a236e011ff0b12ed209a9d62776d2e29a9))
+* locate a workbook cell that does not fit a reading among its outliers ([#194](https://github.com/TriasDev/tabular/issues/194)) ([7ebcfbc](https://github.com/TriasDev/tabular/commit/7ebcfbc08295fc006603030a7fee422b28bbfa52))
+* read an ods duration of one to fifty-nine days on the day LibreOffice shows, not a day later ([#193](https://github.com/TriasDev/tabular/issues/193)) ([a7145d3](https://github.com/TriasDev/tabular/commit/a7145d3867b4a4f1f0f2c9ae02178c6c13bce62b))
+* read Excel's phantom 29 February 1900 as no date, a cell without a style as style 0, and character references of any length ([#189](https://github.com/TriasDev/tabular/issues/189)) ([e4008fa](https://github.com/TriasDev/tabular/commit/e4008fa2ccde49d03b0ffeb75b4cd1953a926bea))
+
 ## [0.8.2](https://github.com/TriasDev/tabular/compare/v0.8.1...v0.8.2) (2026-11-17)
 
 
