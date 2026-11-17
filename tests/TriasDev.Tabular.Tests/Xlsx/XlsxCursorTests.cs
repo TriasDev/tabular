@@ -230,10 +230,55 @@ public sealed class XlsxCursorTests
     [InlineData("&#x41;", "A")]
     [InlineData("&#X41;", "A")]
     [InlineData("&#x1F600;", "\U0001F600")]
-    [InlineData("&#x00001F600;", "\U0001F600")]       // eleven characters between & and ;, the longest looked for
+    [InlineData("&#x00001F600;", "\U0001F600")]
     public void ResolvesCharacterReferencesInDecimalAndHex(string raw, string meant)
     {
         Assert.Equal($"a{meant}b", InlineText(raw));
+    }
+
+    /// <summary>The text of a one-cell <c>str</c> cell, its value written raw between <c>a</c> and <c>b</c>.</summary>
+    private static string? ValueText(string raw)
+    {
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", $"""<row r="1"><c r="A1" t="str"><v>a{raw}b</v></c></row>""")
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        return cursor.CurrentRow[0].Text;
+    }
+
+    [Theory]
+    [MemberData(nameof(CharacterReferences.Resolved), MemberType = typeof(CharacterReferences))]
+    public void ResolvesACharacterReferenceOfAnyLengthAsTheSharedStringTableDoes(string raw, string meant)
+    {
+        // Leading zeros are allowed and dropped; the semicolon used to be looked for only within
+        // twelve characters, so a longer reference was kept as written here and decoded in the
+        // shared-string table (#184).
+        Assert.Equal($"a{meant}b", InlineText(raw));
+        Assert.Equal($"a{meant}b", ValueText(raw));
+    }
+
+    [Theory]
+    [MemberData(nameof(CharacterReferences.KeptAsWritten), MemberType = typeof(CharacterReferences))]
+    public void KeepsWhatIsNoCharacterReferenceAsWrittenHoweverLong(string raw)
+    {
+        Assert.Equal($"a{raw}b", InlineText(raw));
+        Assert.Equal($"a{raw}b", ValueText(raw));
+    }
+
+    [Fact]
+    public void ReadsANumberWrittenWithLongCharacterReferences()
+    {
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1"><v>&#x00000034;&#0000000050;</v></c></row>""")
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(RawCell.FromNumber(42), cursor.CurrentRow[0]);
     }
 
     [Theory]

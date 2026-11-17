@@ -640,4 +640,82 @@ public sealed class XlsxCursorEdgeCaseTests
         Assert.Equal(DateTime.MinValue, date);
         Assert.False(XlsxCursor.TryFromSerial(first - 0.001, date1904: false, out _));
     }
+
+    [Fact]
+    public void KeepsTheNumberOfExcelsPhantomLeapDayAndReadsTheDaysAroundItAsDates()
+    {
+        // Serial 60 is 29 February 1900, which never was; any time of that day is no date either, and
+        // keeps its number, as a serial outside the calendar does. It used to read as 28 February,
+        // the same day as 59 (#184).
+        byte[] content = new XlsxPackage()
+            .WithStyles(DateStyleAtZero)
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="0"><v>59</v></c><c r="B1" s="0"><v>59.5</v></c><c r="C1" s="0"><v>60</v></c><c r="D1" s="0"><v>60.5</v></c><c r="E1" s="0"><v>60.999</v></c><c r="F1" s="0"><v>61</v></c></row>""")
+            .Build();
+
+        Assert.Equal(
+            [
+                RawCell.FromDate(new DateTime(1900, 2, 28, 0, 0, 0, DateTimeKind.Unspecified)),
+                RawCell.FromDate(new DateTime(1900, 2, 28, 12, 0, 0, DateTimeKind.Unspecified)),
+                RawCell.FromNumber(60),
+                RawCell.FromNumber(60.5),
+                RawCell.FromNumber(60.999),
+                RawCell.FromDate(new DateTime(1900, 3, 1, 0, 0, 0, DateTimeKind.Unspecified)),
+            ],
+            Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsSerialSixtyAsADateInA1904Workbook()
+    {
+        // The 1904 system counts from a real calendar: sixty days after 1 January 1904, a leap year,
+        // is 1 March.
+        byte[] content = new XlsxPackage()
+            .WithDate1904()
+            .WithStyles(DateStyleAtZero)
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="0"><v>60</v></c><c r="B1" s="0"><v>60.5</v></c></row>""")
+            .Build();
+
+        Assert.Equal(
+            [
+                RawCell.FromDate(new DateTime(1904, 3, 1, 0, 0, 0, DateTimeKind.Unspecified)),
+                RawCell.FromDate(new DateTime(1904, 3, 1, 12, 0, 0, DateTimeKind.Unspecified)),
+            ],
+            Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsACellWithoutAStyleAsStyleZero()
+    {
+        // The specification's default for a missing s is 0, so where cell format 0 is a date, a number
+        // that names no style is a date too (#184). It used to read as unstyled. Text and booleans
+        // are not numbers and are untouched.
+        byte[] content = new XlsxPackage()
+            .WithStyles(DateStyleAtZero)
+            .WithSheet("Sheet1", """<row r="1"><c r="A1"><v>45000</v></c><c r="B1" t="n"><v>45000</v></c><c r="C1" s="1"><v>45000</v></c><c r="D1" t="str"><v>45000</v></c><c r="E1" t="b"><v>1</v></c></row>""")
+            .Build();
+
+        Assert.Equal(
+            [
+                RawCell.FromDate(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Unspecified)),
+                RawCell.FromDate(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Unspecified)),
+                RawCell.FromNumber(45000),
+                RawCell.FromText("45000"),
+                RawCell.FromBoolean(true),
+            ],
+            Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsACellWithoutAStyleAsANumberWhereStyleZeroIsGeneral()
+    {
+        // Excel's own files: format 0 is General, so nothing changes for them.
+        byte[] content = new XlsxPackage()
+            .WithStyles("""<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14" applyNumberFormat="1"/></cellXfs></styleSheet>""")
+            .WithSheet("Sheet1", """<row r="1"><c r="A1"><v>45000</v></c><c r="B1" s="1"><v>45000</v></c></row>""")
+            .Build();
+
+        Assert.Equal(
+            [RawCell.FromNumber(45000), RawCell.FromDate(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Unspecified))],
+            Assert.Single(Cells(content)));
+    }
 }

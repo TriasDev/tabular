@@ -1,5 +1,5 @@
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Text;
 
 namespace TriasDev.Tabular.Xlsx;
@@ -744,27 +744,42 @@ internal sealed class SheetScanner : IDisposable
     /// <summary>Writes the entity that starts at <paramref name="at"/>, and says where the text goes on.</summary>
     private int ResolveEntity(int at, int end, ref int written)
     {
-        int semicolon = -1;
+        int length = EntityLength(_buffer.AsSpan(at + 1, end - at - 1));
 
-        for (int j = at + 1; j < end && j <= at + 12; j++)
-        {
-            if (_buffer[j] == ';')
-            {
-                semicolon = j;
-                break;
-            }
-        }
-
-        if (semicolon < 0)
+        if (length < 0)
         {
             _decoded[written++] = '&';      // a stray ampersand, which is not our problem to reject
             return at + 1;
         }
 
-        ReadOnlySpan<char> entity = _buffer.AsSpan(at + 1, semicolon - at - 1);
-        written += WriteEntity(entity, _decoded.AsSpan(written));
-        return semicolon + 1;
+        written += WriteEntity(_buffer.AsSpan(at + 1, length), _decoded.AsSpan(written));
+        return at + length + 2;
     }
+
+    /// <summary>
+    /// The length of the entity or character reference that opens <paramref name="rest"/>, the text
+    /// after an ampersand, up to its semicolon; -1 when the ampersand opens none.
+    /// </summary>
+    /// <remarks>
+    /// No fixed length (#184). This used to look for the semicolon within twelve characters, so
+    /// <c>&amp;#x000001F600;</c> — leading zeros, which XML allows — was kept as written here while
+    /// the shared-string table, read with <see cref="System.Xml.XmlReader"/>, decoded it: the same
+    /// value read two ways by where the producer put it. A reference is read on while its characters
+    /// can belong to one — ASCII letters, digits, <c>#</c> — and ends at the semicolon; any other
+    /// character, a space or the next ampersand, makes the ampersand a stray one, as a missing
+    /// semicolon always did. So the scan never runs past the word it starts, and text with many
+    /// ampersands is still read in one pass. The few entities resolved are never longer than written,
+    /// so a decoded value still fits the raw one's length.
+    /// </remarks>
+    private static int EntityLength(ReadOnlySpan<char> rest)
+    {
+        int stop = rest.IndexOfAnyExcept(EntityCharacters);
+
+        return stop >= 0 && rest[stop] == ';' ? stop : -1;
+    }
+
+    private static readonly SearchValues<char> EntityCharacters =
+        SearchValues.Create("#0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
 
     /// <summary>
     /// An attribute value with its entities resolved, for the few that carry free text — an
@@ -788,16 +803,16 @@ internal sealed class SheetScanner : IDisposable
 
         while (i < raw.Length)
         {
-            int semicolon = raw[i] == '&' ? raw[(i + 1)..Math.Min(raw.Length, i + 13)].IndexOf(';') : -1;
+            int length = raw[i] == '&' ? EntityLength(raw[(i + 1)..]) : -1;
 
-            if (semicolon < 0)
+            if (length < 0)
             {
                 decoded[written++] = raw[i++];
                 continue;
             }
 
-            written += WriteEntity(raw.Slice(i + 1, semicolon), decoded[written..]);
-            i += semicolon + 2;
+            written += WriteEntity(raw.Slice(i + 1, length), decoded[written..]);
+            i += length + 2;
         }
 
         return decoded[..written].ToString();
@@ -856,20 +871,58 @@ internal sealed class SheetScanner : IDisposable
         return entity.Length + 2;
     }
 
+    /// <summary>The code point a character reference names, or -1 when it names none.</summary>
+    /// <remarks>
+    /// Read digit by digit and given up past the last code point, so neither many leading zeros —
+    /// which are dropped, as XML reads them — nor many digits can overflow into a character the
+    /// reference does not name: a value out of range is no character, and the reference is kept as
+    /// written. <c>x</c> introduces hex in either case, as it always has here.
+    /// </remarks>
     private static int ParseCharacterReference(ReadOnlySpan<char> entity)
     {
         ReadOnlySpan<char> digits = entity[1..];
-        bool hex = digits.Length > 0 && (digits[0] == 'x' || digits[0] == 'X');
+        bool hex = digits is ['x' or 'X', ..];
 
         if (hex)
         {
             digits = digits[1..];
         }
 
-        NumberStyles styles = hex ? NumberStyles.HexNumber : NumberStyles.Integer;
+        if (digits.IsEmpty)
+        {
+            return -1;
+        }
 
-        return int.TryParse(digits, styles, CultureInfo.InvariantCulture, out int value) ? value : -1;
+        int radix = hex ? 16 : 10;
+        int value = 0;
+
+        foreach (char c in digits)
+        {
+            int digit = c switch
+            {
+                >= '0' and <= '9' => c - '0',
+                >= 'a' and <= 'f' when hex => c - 'a' + 10,
+                >= 'A' and <= 'F' when hex => c - 'A' + 10,
+                _ => -1,
+            };
+
+            if (digit < 0)
+            {
+                return -1;
+            }
+
+            value = (value * radix) + digit;
+
+            if (value > LastCodePoint)
+            {
+                return -1;
+            }
+        }
+
+        return value;
     }
+
+    private const int LastCodePoint = 0x10FFFF;
 
     public void Dispose()
     {

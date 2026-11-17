@@ -71,6 +71,13 @@ internal sealed class XlsxCursor : ITabularCursor
     private readonly string _stylesPath = string.Empty;
     private readonly bool _date1904;
     private readonly bool[] _styleIsDate;
+
+    /// <summary>
+    /// Whether a cell that names no style is a date: one without <c>s</c> has cell format 0, as the
+    /// specification says, so it is a date when that format is (#184). Excel writes format 0 as
+    /// General, so its files read as before. Looked up once here, not per cell.
+    /// </summary>
+    private readonly bool _unstyledIsDate;
     private readonly string[] _sheetPaths;
 
     /// <summary>Each worksheet's uncompressed size, from the package directory, for the read fraction.</summary>
@@ -195,6 +202,7 @@ internal sealed class XlsxCursor : ITabularCursor
             _totalSheetBytes = _sheetBytes.Sum();
             _date1904 = date1904;
             _styleIsDate = ReadDateStyles(cancellationToken);
+            _unstyledIsDate = _styleIsDate is [true, ..];
 
             MoveToSheet(0, cancellationToken);
         }
@@ -566,10 +574,11 @@ internal sealed class XlsxCursor : ITabularCursor
             : CellValueType.Number;
 
         bool dateStyle = scanner.TryGetAttribute("s", out ReadOnlySpan<char> style)
-            && int.TryParse(style, NumberStyles.Integer, CultureInfo.InvariantCulture, out int styleIndex)
-            && styleIndex >= 0
-            && styleIndex < _styleIsDate.Length
-            && _styleIsDate[styleIndex];
+            ? int.TryParse(style, NumberStyles.Integer, CultureInfo.InvariantCulture, out int styleIndex)
+                && styleIndex >= 0
+                && styleIndex < _styleIsDate.Length
+                && _styleIsDate[styleIndex]
+            : _unstyledIsDate;
 
         if (index < 0)
         {
@@ -1497,25 +1506,6 @@ internal sealed class XlsxCursor : ITabularCursor
     }
 
     /// <summary>
-    /// Converts a serial number to a date, or reports that it is not one.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Under the 1900 system the epoch is 1 January 1900, and the format treats the non-existent
-    /// 29 February 1900 as a real day. Serial 60 <em>is</em> that non-day; serials above it are one
-    /// further from the epoch than arithmetic suggests, and serials below it are not. So the two
-    /// cases need different bases — 30 December 1899 above, 31 December 1899 below — and an earlier
-    /// version of this method wrote two branches that were arithmetically identical, which is to say
-    /// it wrote a comment rather than a correction. Serials under 60 came out a day early, and
-    /// time-only cells, whose serial is less than one, came out a day early with them.
-    /// </para>
-    /// <para>
-    /// The value comes from the file, so it can be anything a double can hold, including infinity and
-    /// not-a-number. A serial outside the calendar is not a date; the cell keeps its number rather
-    /// than failing the file, which is close to what a spreadsheet program shows for it.
-    /// </para>
-    /// </remarks>
-    /// <summary>
     /// Whether a <c>d</c> cell states a time and no date — <c>12:00:00.000</c>, perhaps with AM or PM
     /// and a zone — which the parser puts on year one, or on today when zoned. Judged by the whole
     /// text: a time, then nothing but a twelve-hour designator and a zone, so a time followed by a
@@ -1565,25 +1555,68 @@ internal sealed class XlsxCursor : ITabularCursor
         return day.Add(parsed.TimeOfDay);
     }
 
+    /// <summary>
+    /// Converts a serial number to a date, or reports that it is not one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Under the 1900 system the epoch is 1 January 1900, and the format treats the non-existent
+    /// 29 February 1900 as a real day. Serial 60 <em>is</em> that non-day; serials above it are one
+    /// further from the epoch than arithmetic suggests, and serials below it are not. So the two
+    /// cases need different bases — 30 December 1899 above, 31 December 1899 below — and an earlier
+    /// version of this method wrote two branches that were arithmetically identical, which is to say
+    /// it wrote a comment rather than a correction. Serials under 60 came out a day early, and
+    /// time-only cells, whose serial is less than one, came out a day early with them.
+    /// </para>
+    /// <para>
+    /// Serial 60 itself, with any time of that day, names no date at all, so it is not read as one
+    /// (#184). It used to come out as 28 February, the same day as serial 59, so two cells a day apart
+    /// in the file read as one day — and 1 March, the other neighbour, would have been just as wrong.
+    /// A date field met with it reports a type mismatch at its cell, where a person can see it,
+    /// rather than taking a day the file never named. The 1904 system has no such day.
+    /// </para>
+    /// <para>
+    /// The value comes from the file, so it can be anything a double can hold, including infinity and
+    /// not-a-number. A serial outside the calendar is not a date either; in both cases the cell keeps
+    /// its number rather than failing the file, which is close to what a spreadsheet program shows for
+    /// it.
+    /// </para>
+    /// </remarks>
     internal static bool TryFromSerial(double serial, bool date1904, out DateTime date)
     {
-        DateTime epoch;
-
         if (date1904)
         {
-            epoch = new DateTime(1904, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
-        }
-        else if (serial >= 60)
-        {
-            epoch = new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
-        }
-        else
-        {
-            epoch = new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified);
+            return TryFromDays(new DateTime(1904, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), serial, out date);
         }
 
-        return TryFromDays(epoch, serial, out date);
+        if (serial is >= PhantomLeapDay and < PhantomLeapDay + 1)
+        {
+            date = default;
+            return false;
+        }
+
+        return TryFromWorkbookDays(serial, out date);
     }
+
+    /// <summary>The 1900 system's serial for 29 February 1900, a day the calendar does not have.</summary>
+    private const double PhantomLeapDay = 60;
+
+    /// <summary>
+    /// A count of days read as a 1900-system serial is read, but with nothing refused for the phantom
+    /// leap day: 60 days and more count from 30 December 1899, fewer from 31 December.
+    /// </summary>
+    /// <remarks>
+    /// For an OpenDocument time cell, a duration since LibreOffice's null date. LibreOffice's calendar
+    /// has no 29 February 1900, so sixty days from 30 December 1899 is 28 February, a real day, and is
+    /// read as one; a time of day, under one day, reads on 31 December as a workbook's does.
+    /// </remarks>
+    internal static bool TryFromWorkbookDays(double days, out DateTime date) =>
+        TryFromDays(
+            days >= PhantomLeapDay
+                ? new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified)
+                : new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified),
+            days,
+            out date);
 
     /// <summary>
     /// The day and time as many days after <paramref name="epoch"/> as <paramref name="days"/> says,
