@@ -57,6 +57,26 @@ public sealed class HostileInputTests
     private static byte[] Workbook(string rowsXml) =>
         new XlsxPackage().WithSheet("Sheet1", rowsXml).Build();
 
+    /// <summary>
+    /// The first bytes of an ods, cut off right after the 30-byte header of its first entry: the
+    /// header states an eight-character name, <c>mimetype</c>, that the file no longer holds.
+    /// </summary>
+    [Theory]
+    [InlineData(30)]
+    [InlineData(31)]
+    [InlineData(37)]
+    [InlineData(38)]
+    [InlineData(50)]
+    public void RefusesAZipCutOffInsideItsFirstEntrysNameAsADamagedFile(int length)
+    {
+        byte[] ods = new OdsPackage().WithTable("S", "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a</text:p></table:table-cell></table:table-row>").Build();
+        Assert.Equal(8, ods[26] | (ods[27] << 8));
+
+        using MemoryStream stream = new(ods[..length], writable: false);
+        Assert.Equal(TabularFormat.Xlsx, TabularFile.Detect(stream));
+        Assert.ThrowsAny<TabularFormatException>(() => TabularFile.Open(stream, "upload", cancellationToken: TestContext.Current.CancellationToken).Dispose());
+    }
+
     [Theory]
     [InlineData("AAAAA1")]
     [InlineData("AAAAAA1")]
