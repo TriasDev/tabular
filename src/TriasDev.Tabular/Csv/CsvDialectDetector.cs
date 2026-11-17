@@ -295,11 +295,15 @@ internal static class CsvDialectDetector
                 continue;                       // a continuation byte; the lead is further back
             }
 
+            // Only C2–F4 start a character of more than one byte. C0, C1 and F5–FF start none — FE
+            // and FF are a UTF-16 byte order mark, which a file holding only its mark ends with — so
+            // they are left for the encoding detection to judge rather than cut off as a partial one.
             int expected = b switch
             {
-                >= 0b1111_0000 => 4,
-                >= 0b1110_0000 => 3,
-                >= 0b1100_0000 => 2,
+                >= 0xF5 => 1,
+                >= 0xF0 => 4,
+                >= 0xE0 => 3,
+                >= 0xC2 => 2,
                 _ => 1,
             };
 
