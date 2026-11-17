@@ -147,6 +147,130 @@ public sealed class ZipWriterTests
         Assert.Equal(content, entries["big"]);
     }
 
+    /// <summary>The offsets of every record with the signature, in file order.</summary>
+    private static List<int> Records(byte[] file, uint signature)
+    {
+        Span<byte> pattern = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32LittleEndian(pattern, signature);
+        List<int> found = [];
+
+        for (int at = file.AsSpan().IndexOf(pattern); at >= 0; at = file.AsSpan(at + 1).IndexOf(pattern) is var next and >= 0 ? at + 1 + next : -1)
+        {
+            found.Add(at);
+        }
+
+        return found;
+    }
+
+    private const uint CentralHeader = 0x02014B50;
+    private const uint Descriptor = 0x08074B50;
+    private const uint EndOfDirectory = 0x06054B50;
+
+    [Fact]
+    public async Task WritesALargeEntryThatCompressesBelowTheThresholdAsZip64()
+    {
+        // Its size, not its compressed size, decides: 100,000 zeros deflate to a few hundred bytes.
+        byte[] content = new byte[100_000];
+        byte[] file = await Build(zip => { Deflated(zip, "big", content); zip.Complete(); }, zip64Threshold: 1_000);
+
+        int descriptor = Assert.Single(Records(file, Descriptor));
+        long compressed = BinaryPrimitives.ReadInt64LittleEndian(file.AsSpan(descriptor + 8));
+        Assert.True(compressed is > 0 and < 1_000);
+        Assert.Equal(content.Length, BinaryPrimitives.ReadInt64LittleEndian(file.AsSpan(descriptor + 16)));
+        Assert.Equal(CentralHeader, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(descriptor + 24)));
+
+        int central = Assert.Single(Records(file, CentralHeader));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central + 20)));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central + 24)));
+        Assert.True(BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(central + 30)) > 0, "a zip64 extra field");
+        Assert.Equal(content, Read(file)["big"]);
+    }
+
+    [Fact]
+    public async Task StatesTheCompressedSizeInTheDescriptorAsTheDirectoryDoes()
+    {
+        byte[] content = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 5_000).Select(i => $"<row r=\"{i}\"/>")));
+        byte[] file = await Build(zip => { Deflated(zip, "sheet.xml", content); zip.Complete(); });
+
+        int descriptor = Assert.Single(Records(file, Descriptor));
+        int central = Assert.Single(Records(file, CentralHeader));
+        int data = 30 + BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(26)) + BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(28));
+        uint compressed = BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(descriptor + 8));
+
+        Assert.Equal((uint)(descriptor - data), compressed);
+        Assert.Equal(compressed, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central + 20)));
+        Assert.Equal((uint)content.Length, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central + 24)));
+    }
+
+    [Fact]
+    public async Task FlagsEveryEntryInTheDirectoryAsItsLocalHeaderDoes()
+    {
+        // The UTF-8 flag only on a name that needs it; the descriptor flag only on a deflated entry.
+        byte[] file = await Build(zip =>
+        {
+            zip.AddStored("mimetype", "application/vnd.oasis.opendocument.spreadsheet"u8);
+            zip.AddStored("größe.txt", "1"u8);
+            Deflated(zip, "Übersicht.xml", Encoding.UTF8.GetBytes("<x/>"));
+            Deflated(zip, "content.xml", Encoding.UTF8.GetBytes("<x/>"));
+            zip.Complete();
+        });
+
+        List<int> local = Records(file, 0x04034B50);
+        List<int> central = Records(file, CentralHeader);
+        ushort[] expected = [0x0000, 0x0800, 0x0808, 0x0008];
+
+        Assert.Equal(expected, local.Select(at => BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 6))));
+        Assert.Equal(expected, central.Select(at => BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 8))));
+        Assert.Equal(["mimetype", "größe.txt", "Übersicht.xml", "content.xml"], Read(file).Keys);
+    }
+
+    [Fact]
+    public async Task KeepsASmallFilePlainZip()
+    {
+        byte[] file = await Build(zip =>
+        {
+            zip.AddStored("a", "1"u8);
+            Deflated(zip, "b", Encoding.ASCII.GetBytes("<x/>"));
+            zip.Complete();
+        });
+
+        Assert.Empty(Records(file, 0x06064B50));
+        Assert.Empty(Records(file, 0x07064B50));
+        Assert.All(Records(file, CentralHeader), at => Assert.Equal(0, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 30))));
+
+        int end = Assert.Single(Records(file, EndOfDirectory));
+        int firstCentral = Records(file, CentralHeader)[0];
+        Assert.Equal(2, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(end + 8)));
+        Assert.Equal(2, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(end + 10)));
+        Assert.Equal((uint)(end - firstCentral), BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(end + 12)));
+        Assert.Equal((uint)firstCentral, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(end + 16)));
+    }
+
+    [Fact]
+    public async Task StatesAnEntryOffsetPastTheThresholdInZip64()
+    {
+        // b's local header starts at 30 + 1 + 100 = 131, past the threshold of 125.
+        byte[] file = await Build(
+            zip =>
+            {
+                zip.AddStored("a", new byte[100]);
+                zip.AddStored("b", "2"u8);
+                zip.Complete();
+            },
+            zip64Threshold: 125);
+
+        List<int> central = Records(file, CentralHeader);
+        Assert.Equal(0u, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central[0] + 42)));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central[1] + 42)));
+        Assert.True(BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(central[1] + 30)) > 0, "a zip64 extra field with the offset");
+        Assert.NotEmpty(Records(file, 0x06064B50));
+        Assert.NotEmpty(Records(file, 0x07064B50));
+
+        Dictionary<string, byte[]> entries = Read(file);
+        Assert.Equal(new byte[100], entries["a"]);
+        Assert.Equal("2"u8.ToArray(), entries["b"]);
+    }
+
     [Fact]
     public async Task IsReproducibleByteForByte()
     {

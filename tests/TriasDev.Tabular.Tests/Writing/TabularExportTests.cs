@@ -399,4 +399,23 @@ public sealed class TabularExportTests
 
         Assert.Equal("client went away", surfaced.Message);
     }
+
+    [Fact]
+    public async Task ASourceThatFailsFaultsTheCallersWriter()
+    {
+        static async IAsyncEnumerable<IReadOnlyList<Item>> Failing([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            yield return Items(2);
+            await Task.Delay(1, cancellationToken);
+            throw new IOException("the database went away");
+        }
+
+        WriteTarget target = new();
+        await using TabularWriter writer = TabularWriter.Create(target, TabularFormat.Csv, NoBom);
+
+        await Assert.ThrowsAsync<IOException>(async () => await Export.WriteSheetAsync(writer, "data", Failing(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken));
+
+        InvalidOperationException refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await writer.CompleteAsync(TestContext.Current.CancellationToken));
+        Assert.Contains("failed earlier", refused.Message, StringComparison.Ordinal);
+    }
 }

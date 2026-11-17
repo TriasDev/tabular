@@ -27,6 +27,17 @@ public sealed class TextRulesTests
     public void RefusesAPairInTheWrongOrder() =>
         Assert.Equal(ErrorCodes.Write.InvalidCharacter, TextRules.Check(string.Concat("reversed ", "\uDE00", "\uD83D")));
 
+    [Theory]
+    [InlineData(0xD83D, "")]
+    [InlineData(0xDE00, "x")]
+    [InlineData(0x0001, "x")]
+    public void RefusesAForbiddenCharacterAtTheStart(int forbidden, string rest) =>
+        Assert.Equal(ErrorCodes.Write.InvalidCharacter, TextRules.Check(((char)forbidden).ToString() + rest));
+
+    [Fact]
+    public void RefusesAPairInTheWrongOrderAtTheEnd() =>
+        Assert.Equal(ErrorCodes.Write.InvalidCharacter, TextRules.Check(string.Concat("reversed ", "\uDE00", "\uD83D")));
+
     [Fact]
     public void AllocatesNothingPerCall()
     {
