@@ -441,4 +441,82 @@ public sealed class ColumnBatchTests
         Assert.Contains("still covers rows below", refused.Message, StringComparison.Ordinal);
         await AssertFaulted(writer);
     }
+
+    [Fact]
+    public async Task ABatchRightAfterTheLastRowAMergeCoversIsWritten()
+    {
+        // The range covers rows 2 and 3; the batch begins at row 4, the first row it leaves free.
+        static void Merged(TabularWriter writer)
+        {
+            writer.BeginSheet("data", [new("a"), new("b")]);
+            writer.BeginRow();
+            writer.Merge(2, 1);
+            writer.Write("x");
+            writer.Write("y");
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Write("z");
+            writer.EndRow();
+        }
+
+        WriteTarget batched = new();
+
+        await using (TabularWriter writer = TabularWriter.Create(batched, TabularFormat.Csv))
+        {
+            Merged(writer);
+            ColumnBatch batch = new();
+            batch.Reset(1);
+            batch.Add(new[] { 1L });
+            batch.Add(new[] { 2L });
+            await writer.WriteBatchAsync(batch, Token);
+            await writer.CompleteAsync(Token);
+        }
+
+        WriteTarget rows = new();
+
+        await using (TabularWriter writer = TabularWriter.Create(rows, TabularFormat.Csv))
+        {
+            Merged(writer);
+            writer.BeginRow();
+            writer.Write(1L);
+            writer.Write(2L);
+            writer.EndRow();
+            await writer.CompleteAsync(Token);
+        }
+
+        Assert.Equal(rows.ToArray(), batched.ToArray());
+    }
+
+    [Fact]
+    public void ANegativeRowCountIsRefused()
+    {
+        ColumnBatch batch = new();
+
+        Assert.Equal("rowCount", Assert.Throws<ArgumentOutOfRangeException>(() => batch.Reset(-1)).ParamName);
+    }
+
+    [Fact]
+    public void AnUnsupportedTypeIsRefusedWhenAddedThroughASelector()
+    {
+        ColumnBatch batch = new();
+        batch.Reset(1);
+
+        ArgumentException refused = Assert.Throws<ArgumentException>(() => batch.Add(new[] { 1 }, _ => Guid.Empty));
+        Assert.Equal("items", refused.ParamName);
+        Assert.Contains("Guid", refused.Message, StringComparison.Ordinal);
+        Assert.Equal(0, batch.ColumnCount);
+    }
+
+    [Fact]
+    public void AListOfTheWrongLengthIsRefusedNamingIt()
+    {
+        ColumnBatch batch = new();
+        batch.Reset(3);
+
+        Assert.Equal("values", Assert.Throws<ArgumentException>(() => batch.Add(new long[] { 1, 2 })).ParamName);
+        Assert.Equal("items", Assert.Throws<ArgumentException>(() => batch.Add(new[] { 1, 2 }, i => (long)i)).ParamName);
+        Assert.Equal("styles", Assert.Throws<ArgumentException>(() => batch.Add(new long[] { 1, 2, 3 }, new StyleId[2])).ParamName);
+        Assert.Equal("styles", Assert.Throws<ArgumentException>(() => batch.Add(new[] { 1, 2, 3 }, i => (long)i, new StyleId[4])).ParamName);
+        Assert.Equal(0, batch.ColumnCount);
+    }
 }

@@ -108,6 +108,21 @@ public sealed class StyledWriterTests
     }
 
     [Fact]
+    public async Task AStyleRuleReturningAnUndefinedAlignmentIsRefusedAsAnArgumentAndFaultsTheWriter()
+    {
+        // A bad style is the code's mistake, not the data's: it must not turn into the rule's
+        // write.too-many-styles, which is all that is left to throw once the table has refused it.
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("n")]);
+        ColumnBatch batch = new();
+        batch.Reset(1);
+        batch.Add(new long[] { 1 }, _ => new CellStyle { Horizontal = (CellHorizontalAlignment)9 });
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteBatch(batch));
+        Assert.Contains("failed earlier", Assert.Throws<InvalidOperationException>(() => writer.BeginRow()).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AStyleIdFromAnotherWriterIsRefused()
     {
         await using TabularWriter other = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);

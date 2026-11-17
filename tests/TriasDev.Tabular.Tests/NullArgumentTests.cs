@@ -89,6 +89,56 @@ public sealed class NullArgumentTests
         { "ErrorCodes.IsReserved", "code", () => ErrorCodes.IsReserved(null!) },
         { "TabularWriter.Create", "stream", () => TabularWriter.Create(null!, TabularFormat.Csv) },
         { "TabularWriter.BeginSheet", "name", () => TabularWriter.Create(new MemoryStream(), TabularFormat.Csv).BeginSheet(null!, [new("a")]) },
+        { "TabularWriter.RegisterStyle", "style", () => TabularWriter.Create(new MemoryStream(), TabularFormat.Xlsx).RegisterStyle(null!) },
+        { "TabularWriter.WriteBatch", "batch", () => InSheet().WriteBatch(null!) },
+        { "CellColor.Parse", "text", () => CellColor.Parse(null!) },
+        { "DateFormat.Parse", "code", () => DateFormat.Parse(null!) },
+        { "NumberFormat.Parse", "code", () => NumberFormat.Parse(null!) },
+        { "TabularExportBuilder.Sheet", "options", () => TabularExport.For<string>().Sheet(null!) },
+        { "ColumnBatch.Add(values)", "values", () => OneRow().Add((IReadOnlyList<long>)null!) },
+        { "ColumnBatch.Add(values, styles)", "styles", () => OneRow().Add(new[] { 1L }, (IReadOnlyList<StyleId>)null!) },
+        { "ColumnBatch.Add(values, rule)", "style", () => OneRow().Add(new[] { 1L }, (Func<long, CellStyle?>)null!) },
+        { "ColumnBatch.Add(items, value)", "items", () => OneRow().Add((IReadOnlyList<int>)null!, i => (long)i) },
+        { "ColumnBatch.Add(items, value)", "value", () => OneRow().Add(new[] { 1 }, (Func<int, long>)null!) },
+        { "ColumnBatch.Add(items, value, styles)", "styles", () => OneRow().Add(new[] { 1 }, i => (long)i, (IReadOnlyList<StyleId>)null!) },
+        { "ColumnBatch.Add(items, value, rule)", "style", () => OneRow().Add(new[] { 1 }, i => (long)i, (Func<long, CellStyle?>)null!) },
+    };
+
+    private static readonly TabularExport<string> Export = TabularExport.For<string>().Column("a", s => s).Build();
+
+    private static TabularWriter InSheet()
+    {
+        TabularWriter writer = TabularWriter.Create(new MemoryStream(), TabularFormat.Csv);
+        writer.BeginSheet("data", [new("a")]);
+        return writer;
+    }
+
+    private static ColumnBatch OneRow()
+    {
+        ColumnBatch batch = new();
+        batch.Reset(1);
+        return batch;
+    }
+
+    private static async IAsyncEnumerable<T> Async<T>(T item)
+    {
+        await Task.Yield();
+        yield return item;
+    }
+
+    /// <summary>The asynchronous entry points: a null they refuse arrives with the task, not as a throw from the call.</summary>
+    public static TheoryData<string, string, Func<Task>> AsyncCalls => new()
+    {
+        { "TabularWriter.WriteBatchAsync", "batch", async () => await InSheet().WriteBatchAsync(null!, CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(chunks)", "writer", async () => await Export.WriteSheetAsync(null!, "data", Async<IReadOnlyList<string>>(["x"]), CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(chunks)", "chunks", async () => await Export.WriteSheetAsync(InSheet(), "data", (IAsyncEnumerable<IReadOnlyList<string>>)null!, CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(messages)", "writer", async () => await Export.WriteSheetAsync(null!, "data", Async(1), _ => ["x"], CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(messages)", "chunks", async () => await Export.WriteSheetAsync(InSheet(), "data", (IAsyncEnumerable<int>)null!, _ => ["x"], CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(messages)", "itemsOf", async () => await Export.WriteSheetAsync(InSheet(), "data", Async(1), (Func<int, IReadOnlyList<string>>)null!, CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(async items)", "writer", async () => await Export.WriteSheetAsync(null!, "data", Async("x"), CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(async items)", "items", async () => await Export.WriteSheetAsync(InSheet(), "data", (IAsyncEnumerable<string>)null!, CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(items)", "writer", async () => await Export.WriteSheetAsync(null!, "data", new[] { "x" }, CancellationToken.None) },
+        { "TabularExport.WriteSheetAsync(items)", "items", async () => await Export.WriteSheetAsync(InSheet(), "data", (IEnumerable<string>)null!, CancellationToken.None) },
     };
 
     [Theory]
@@ -96,6 +146,15 @@ public sealed class NullArgumentTests
     public void RefusesANullItTakesNone(string call, string parameter, Action invoke)
     {
         ArgumentException error = Assert.ThrowsAny<ArgumentException>(invoke);
+
+        Assert.True(parameter == error.ParamName, $"{call}: refused {error.ParamName ?? "(unnamed)"} for {parameter}");
+    }
+
+    [Theory]
+    [MemberData(nameof(AsyncCalls))]
+    public async Task RefusesANullItTakesNoneAsynchronouslyToo(string call, string parameter, Func<Task> invoke)
+    {
+        ArgumentException error = await Assert.ThrowsAnyAsync<ArgumentException>(invoke);
 
         Assert.True(parameter == error.ParamName, $"{call}: refused {error.ParamName ?? "(unnamed)"} for {parameter}");
     }
