@@ -80,6 +80,15 @@ public sealed class SheetLayoutTests
     }
 
     [Fact]
+    public async Task XlsxFreezesColumnsAlone()
+    {
+        byte[] xlsx = await Write(TabularFormat.Xlsx, writer => writer.BeginSheet("data", [new("a"), new("b"), new("c")], new SheetOptions { FreezeColumns = 2 }));
+
+        Assert.Contains("<pane xSplit=\"2\" topLeftCell=\"C1\" activePane=\"topRight\" state=\"frozen\"/><selection pane=\"topRight\"/>", Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    [Fact]
     public async Task OdsFreezesEachSheetInItsSettings()
     {
         byte[] ods = await Write(TabularFormat.Ods, Frozen);
