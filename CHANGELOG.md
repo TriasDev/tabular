@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.2](https://github.com/TriasDev/tabular/compare/v0.8.1...v0.8.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* count the start tag's overhead in the ods writer's quick token check, and pin the ods reader's and writer's remaining gaps ([#182](https://github.com/TriasDev/tabular/issues/182)) ([0423659](https://github.com/TriasDev/tabular/commit/0423659dde4dec3206d4d0566e2037b3884a58fc))
+* profile a decimal with control white space before its trailing sign as a number, as the import reads it ([#178](https://github.com/TriasDev/tabular/issues/178)) ([2de12ec](https://github.com/TriasDev/tabular/commit/2de12ec0721ed88c610d5792a42a3ba083973197))
+* refuse a damaged zip entry instead of reading its wrong values, by checking every entry's CRC-32 ([#164](https://github.com/TriasDev/tabular/issues/164)) ([c51d10b](https://github.com/TriasDev/tabular/commit/c51d10b42ddd47644303c214d6153e77e37b6eb7))
+* refuse a field declared with a ColumnType that does not exist, and pin the model layer's S3 edges ([#180](https://github.com/TriasDev/tabular/issues/180)) ([031b922](https://github.com/TriasDev/tabular/commit/031b922a2ebd758afbeff2899456e1e6f28eb5ae))
+* report a csv file holding only a UTF-16 byte order mark as UTF-16 ([#174](https://github.com/TriasDev/tabular/issues/174)) ([cab3f68](https://github.com/TriasDev/tabular/commit/cab3f6804abb7b148d4aaf2ea3e687c7d978cb9e))
+
 ## [0.8.1](https://github.com/TriasDev/tabular/compare/v0.8.0...v0.8.1) (2026-11-17)
 
 
