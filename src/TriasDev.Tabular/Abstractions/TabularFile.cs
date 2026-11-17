@@ -81,7 +81,9 @@ public static class TabularFile
     /// </remarks>
     private static bool IsOpenDocumentSpreadsheet(ReadOnlySpan<byte> head)
     {
-        if (head.Length < 30)
+        // The 30-byte local header and the eight-byte name it states, both present before either is
+        // read: a file cut off inside the name is a damaged zip, not an exception out of Slice.
+        if (head.Length < 38)
         {
             return false;
         }
