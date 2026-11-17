@@ -1,3 +1,6 @@
+using System.Text;
+
+using TriasDev.Tabular.Csv;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 
@@ -70,5 +73,17 @@ public sealed class HeaderRowNumberingTests
         SheetProfile sheet = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { HeaderRowIndex = 1 }, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
 
         Assert.Equal("name", Assert.Single(sheet.Columns).Facts.Header);
+    }
+
+    [Fact]
+    public void LeavesATitleLineAboveTheHeaderOutOfTheProfile()
+    {
+        // A csv writes every line, so the rows above the header are present and must be skipped.
+        using CsvCursor cursor = new(new MemoryStream(Encoding.UTF8.GetBytes("Report title\nname;n\nfirst;1\nsecond;2\n"), writable: false), "t.csv");
+
+        SheetProfile sheet = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { HeaderRowIndex = 1 }, cancellationToken: TestContext.Current.CancellationToken).Sheets[0];
+
+        Assert.Equal(["name", "n"], sheet.Columns.Select(c => c.Facts.Header));
+        Assert.Equal(2, sheet.RowCount);
     }
 }

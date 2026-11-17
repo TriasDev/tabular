@@ -38,6 +38,13 @@ public sealed class ValueEqualityTests
     }
 
     [Fact]
+    public void ARawDateCellReadsAsIsoTextWithItsTimeOfDay()
+    {
+        Assert.Equal("2024-01-02T10:00:00", RawCell.FromDate(new DateTime(2024, 1, 2, 10, 0, 0, DateTimeKind.Unspecified)).AsText());
+        Assert.Equal("2024-01-02", RawCell.FromDate(new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Unspecified)).AsText());
+    }
+
+    [Fact]
     public void MappedNumbersCompareByValueNotByHowTheyWereWritten()
     {
         // 1.0 and 1.00 are one amount. Comparing the rendered text as well made them two, and a

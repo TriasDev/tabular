@@ -274,4 +274,33 @@ public sealed class HypothesisBuilderTests
         Assert.Equal(ColumnType.Date, hypotheses[0].Type);
         Assert.Null(hypotheses[0].Culture);
     }
+
+    [Fact]
+    public void ProposesBooleansForDeclaredBooleans()
+    {
+        IReadOnlyList<TypeHypothesis> hypotheses = HypothesisBuilder.Build(
+            ProfileCells([RawCell.FromBoolean(true), RawCell.FromBoolean(false)]));
+
+        Assert.Equal(ColumnType.Boolean, hypotheses[0].Type);
+        Assert.Null(hypotheses[0].Culture);
+    }
+
+    [Fact]
+    public void ProposesIntegersForDeclaredWholeNumbers()
+    {
+        IReadOnlyList<TypeHypothesis> hypotheses = HypothesisBuilder.Build(
+            ProfileCells([RawCell.FromNumber(1), RawCell.FromNumber(2)]));
+
+        Assert.Equal(ColumnType.Integer, hypotheses[0].Type);
+        Assert.Null(hypotheses[0].Culture);
+    }
+
+    [Fact]
+    public void NamesNoCultureForAMixOfDeclaredNumbersAndBooleans()
+    {
+        IReadOnlyList<TypeHypothesis> hypotheses = HypothesisBuilder.Build(
+            ProfileCells([RawCell.FromNumber(1), RawCell.FromBoolean(true)]));
+
+        Assert.All(hypotheses, h => Assert.Null(h.Culture));
+    }
 }

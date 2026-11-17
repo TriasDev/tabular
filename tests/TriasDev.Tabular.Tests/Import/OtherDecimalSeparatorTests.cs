@@ -26,18 +26,26 @@ public sealed class OtherDecimalSeparatorTests
     private static CsvCursor Csv(IEnumerable<string> values) =>
         new(new MemoryStream(Encoding.UTF8.GetBytes("id;lat\n" + string.Concat(values.Select((v, i) => $"{i + 1};{v}\n")))), "t.csv");
 
-    private static MappingPlan Plan(bool accept) => new()
+    private static MappingPlan Plan(bool accept, string culture = "de-DE") => new()
     {
-        Culture = "de-DE",
+        Culture = culture,
         Bindings = [new ColumnBinding { ColumnIndex = 1, FieldName = "lat", Header = "lat", AcceptOtherDecimalSeparator = accept }],
     };
 
     private static ImportSchema Schema => new() { Fields = [Lat] };
 
-    private static FileProfile Profile(IEnumerable<string> values)
+    private static FileProfile Profile(IEnumerable<string> values, string[]? cultures = null)
     {
         using CsvCursor cursor = Csv(values);
-        return TabularAnalyzer.Analyze(cursor, new AnalysisOptions { Cultures = ["de-DE", "en-US"] }, cancellationToken: Token);
+        return TabularAnalyzer.Analyze(cursor, new AnalysisOptions { Cultures = cultures ?? ["de-DE", "en-US"] }, cancellationToken: Token);
+    }
+
+    private static ImportResult<decimal?> ImportAccepting(string culture, string value)
+    {
+        using CsvCursor cursor = Csv([value]);
+        using ImportRun<decimal?> run = TabularImporter.Import(cursor, Plan(accept: true, culture), Schema, row => row[Lat], cancellationToken: Token);
+
+        return run.ReadAll(cancellationToken: Token);
     }
 
     [Fact]
@@ -100,5 +108,37 @@ public sealed class OtherDecimalSeparatorTests
 
         Assert.DoesNotContain(MappingPrecheck.Check(Plan(accept: true), Schema, profile).Findings, f => f.Code == ErrorCodes.Value.TypeMismatch);
         Assert.Contains(MappingPrecheck.Check(Plan(accept: false), Schema, profile).Findings, f => f.Code == ErrorCodes.Value.TypeMismatch);
+    }
+
+    [Theory]
+    [InlineData("fr-FR", "1.234")]
+    [InlineData("en-US", "5,")]
+    [InlineData("en-US", ",5")]
+    public void RefusesAValueTheOtherSeparatorWouldReadOnAGuessEvenWhenAccepted(string culture, string value)
+    {
+        // Three digits after the separator are a group as much as a fraction, and a separator without
+        // digits on both sides is no decimal at all: neither may be read the other way.
+        ImportResult<decimal?> result = ImportAccepting(culture, value);
+
+        Assert.Equal(ErrorCodes.Value.TypeMismatch, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, result.Summary.OtherSeparatorDecimals);
+    }
+
+    [Fact]
+    public void ImportsAOneDigitFractionWrittenTheOtherWay()
+    {
+        ImportResult<decimal?> result = ImportAccepting("en-US", "1,5");
+
+        Assert.Empty(result.Errors);
+        Assert.Equal([1.5m], result.Items);
+        Assert.Equal(1, result.Summary.OtherSeparatorDecimals);
+    }
+
+    [Fact]
+    public void DoesNotCountAThreeDigitFractionWrittenTheOtherWay()
+    {
+        ColumnFacts facts = Profile(["1.234"], ["fr-FR"]).Sheets[0].Columns[1].Facts;
+
+        Assert.Equal(0, facts.ParseCounts.Single(c => c.Culture == "fr-FR").OtherSeparatorDecimals);
     }
 }

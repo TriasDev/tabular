@@ -35,6 +35,16 @@ public sealed class FieldAlternativesExtractionTests
     }
 
     [Fact]
+    public void CoordinatesStayTheWinnerWhereAUsableAddressFollows()
+    {
+        // The address locates this row too, but a later group never takes over from one that won.
+        AlternativeResolution resolution = Single("1;48.1;11.5;DEU;Munich;;\n").Resolution;
+
+        Assert.Equal("coordinates", resolution.Group);
+        Assert.Equal(0, resolution.GroupIndex);
+    }
+
+    [Fact]
     public void FallsBackToTheAddressWhereACoordinateIsMissing()
     {
         AlternativeResolution resolution = Single("1;48.1;;DEU;Munich;;\n").Resolution;

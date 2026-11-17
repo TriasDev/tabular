@@ -105,6 +105,16 @@ public sealed class AlternativesReportTests
     }
 
     [Fact]
+    public void JudgesEachRowOnItsOwnValuesNotOnTheRowBefore()
+    {
+        // Row 2's latitude is invalid; row 3's is not, and its coordinates must locate it.
+        AlternativesReport report = Report("1;abc;11.5;;;\n2;48.1;11.5;;;\n");
+
+        Assert.Equal(1, report.Groups[0].Won);
+        Assert.Equal(0, report.Unresolved);
+    }
+
+    [Fact]
     public void CapsTheRowNumbersItKeeps()
     {
         // Five rows with a city and nothing else, at spreadsheet rows 2 to 6.

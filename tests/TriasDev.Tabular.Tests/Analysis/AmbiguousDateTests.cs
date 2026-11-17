@@ -63,4 +63,14 @@ public sealed class AmbiguousDateTests
     {
         Assert.False(Profile(values).Facts.DateReadingsDisagree);
     }
+
+    [Fact]
+    public void PublishesTheEarliestAndLatestDateOfTheReadingThatTakesThemAll()
+    {
+        // The later date comes first in the column: the minimum is the earlier one, not the first read.
+        ColumnFacts facts = Profile("25.12.2018", "24.12.2018").Facts;
+
+        Assert.Equal(new DateTime(2018, 12, 24, 0, 0, 0, DateTimeKind.Unspecified), facts.MinDate);
+        Assert.Equal(new DateTime(2018, 12, 25, 0, 0, 0, DateTimeKind.Unspecified), facts.MaxDate);
+    }
 }

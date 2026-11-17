@@ -286,4 +286,18 @@ public sealed class ColumnProfilerTests
 
         Assert.Equal(["x", "y", "z"], facts.Samples);
     }
+
+    [Fact]
+    public void ReportsTheRangeOfAWorkbooksOwnDates()
+    {
+        ColumnFacts facts = ProfileCells(
+        [
+            RawCell.FromDate(new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Unspecified)),
+            RawCell.FromDate(new DateTime(2021, 6, 30, 0, 0, 0, DateTimeKind.Unspecified)),
+        ]);
+
+        Assert.Equal(new DateTime(2021, 6, 30, 0, 0, 0, DateTimeKind.Unspecified), facts.MinDate);
+        Assert.Equal(new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), facts.MaxDate);
+        Assert.All(facts.ParseCounts, c => Assert.Equal(2, c.Date));
+    }
 }

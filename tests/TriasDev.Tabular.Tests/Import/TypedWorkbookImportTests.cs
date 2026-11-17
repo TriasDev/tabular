@@ -123,6 +123,33 @@ public sealed class TypedWorkbookImportTests
         Assert.Equal("amount", Assert.Single(row.Errors).FieldName);
     }
 
+    [Theory]
+    [InlineData("7.922816251426434E+28")]
+    [InlineData("-7.922816251426434E+28")]
+    public void RefusesANumberAtTheEdgeOfDecimalsRangeForADecimalField(string number)
+    {
+        // 2^96: decimal.MaxValue as a double rounds up to it, so the range check lets it through and
+        // only the conversion finds it does not fit. It must be refused, never imported as 0.
+        ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
+            $"""<row r="2"><c r="B2"><v>{number}</v></c></row>"""));
+
+        RowError error = Assert.Single(row.Errors);
+        Assert.Equal((ErrorCodes.Value.TypeMismatch, "amount"), (error.Code, error.FieldName));
+    }
+
+    [Theory]
+    [InlineData("2026-09-25T14:30:00", "2026-09-25T14:30:00")]
+    [InlineData("2026-09-25T00:00:00", "2026-09-25")]
+    public void ReadsADateCellIntoATextFieldAsItsIsoText(string written, string expected)
+    {
+        // The time of day is kept, and written the same on every server, whatever its culture.
+        ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
+            $"""<row r="2"><c r="E2" t="d"><v>{written}</v></c></row>"""));
+
+        Assert.False(row.HasErrors);
+        Assert.Equal(expected, row.Value.Item5);
+    }
+
     [Fact]
     public void RefusesAnErrorCellForATypedField()
     {
