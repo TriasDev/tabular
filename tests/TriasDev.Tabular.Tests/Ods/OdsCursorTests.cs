@@ -560,7 +560,9 @@ public sealed class OdsCursorTests
 
     /// <summary>
     /// How far the reading is through the content part, which holds every sheet: little of it once
-    /// opened, about half after the first of two equal sheets, all of it after the second.
+    /// opened, about half after the first of two equal sheets, all of it after the second. Moving back
+    /// to the first sheet reopens the part, so the fraction drops to where that sheet starts: it is
+    /// where the reader stands, as for every format, not everything read so far (#184).
     /// </summary>
     [Fact]
     public void ReportsHowFarThroughTheContentPartTheReadingIs()
@@ -579,7 +581,14 @@ public sealed class OdsCursorTests
         Assert.InRange(cursor.ReadFraction.GetValueOrDefault(-1), 0.4, 0.6);
         Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal(4_000, ReadAll(cursor).Count);
-        Assert.InRange(cursor.ReadFraction.GetValueOrDefault(-1), 0.95, 1);
+        double atTheEnd = cursor.ReadFraction.GetValueOrDefault(-1);
+        Assert.InRange(atTheEnd, 0.95, 1);
+
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadFraction < atTheEnd);
+        Assert.InRange(cursor.ReadFraction.GetValueOrDefault(-1), 0, 0.2);
+        Assert.Equal(4_000, ReadAll(cursor).Count);
+        Assert.InRange(cursor.ReadFraction.GetValueOrDefault(-1), 0.4, 0.6);
     }
 
     [Fact]

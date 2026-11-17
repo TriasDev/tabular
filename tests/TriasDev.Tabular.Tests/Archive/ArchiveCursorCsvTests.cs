@@ -256,11 +256,16 @@ public sealed class ArchiveCursorCsvTests
     public void ReadsAFileWhosePathClimbsOutOfTheArchive()
     {
         // ".." is a path segment, not a hidden name. Nothing is written to disk, so the path is only
-        // the sheet's source.
-        using ArchiveCursor cursor = Open(new ZipArchiveBuilder().With("../up.csv", "a;b\n1;2\n").Build());
+        // the sheet's source — kept as stored, not normalised (#184), so "up.csv" beside it is
+        // another file rather than a duplicate of it.
+        using ArchiveCursor cursor = Open(new ZipArchiveBuilder().With("../up.csv", "a;b\n1;2\n").With("up.csv", "a;b\n3;4\n").Build());
 
-        Assert.Equal(("up", "../up.csv"), (Assert.Single(cursor.Sheets).Name, cursor.Sheets[0].Source));
+        Assert.Equal(["../up.csv", "up.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.Equal(["up", "up"], cursor.Sheets.Select(s => s.Name));
+        Assert.Empty(cursor.SkippedEntries);
         Assert.Equal([["a", "b"], ["1", "2"]], ReadAll(cursor));
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal([["a", "b"], ["3", "4"]], ReadAll(cursor));
     }
 
     [Fact]

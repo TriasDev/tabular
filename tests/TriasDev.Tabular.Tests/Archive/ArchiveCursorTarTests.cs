@@ -227,11 +227,17 @@ public sealed class ArchiveCursorTarTests
     [InlineData(true)]
     public void NamesTheSheetOfAnEntryStoredWithAnAbsolutePath(bool compressed)
     {
-        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("/a.csv", "a\n1\n"));
+        // The source is the path as stored, not normalised (#184): "/a.csv" and "a.csv" are two files
+        // of the archive, which normalising would merge into a duplicate. Nothing is written to disk.
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("/a.csv", "a\n1\n"), ("a.csv", "a\n2\n"));
         using ArchiveCursor cursor = Open(compressed ? GzipFile.Of(tar) : tar);
 
-        Assert.Equal("a", Assert.Single(cursor.Sheets).Name);
+        Assert.Equal(["/a.csv", "a.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.Equal(["a", "a"], cursor.Sheets.Select(s => s.Name));
+        Assert.Empty(cursor.SkippedEntries);
         Assert.Equal([["a"], ["1"]], ReadAll(cursor));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal([["a"], ["2"]], ReadAll(cursor));
     }
 
     [Fact]
