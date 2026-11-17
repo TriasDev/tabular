@@ -132,17 +132,27 @@ internal sealed class ColumnProfiler
         }
 
         // A workbook says what a cell is; a csv file does not. Where the file has already decided,
-        // every culture agrees with it, and no parsing is attempted or needed.
+        // every culture agrees with it, and no parsing is attempted or needed. A cell of one kind is
+        // still located as an outlier of the readings it does not fit — a number in a date column —
+        // or the profile would count a value that does not fit without being able to say where.
         switch (cell.Kind)
         {
             case RawCellKind.Boolean:
                 _booleanCount++;
+
+                foreach (CultureAccumulator culture in _cultures)
+                {
+                    culture.NoteNoNumber(rowNumber, text);
+                    culture.NoteNoDate(rowNumber, text);
+                }
+
                 return;
 
             case RawCellKind.Number:
                 foreach (CultureAccumulator culture in _cultures)
                 {
                     culture.AcceptNativeNumber(cell.Number);
+                    culture.NoteNoDate(rowNumber, text);
                 }
 
                 return;
@@ -151,6 +161,7 @@ internal sealed class ColumnProfiler
                 foreach (CultureAccumulator culture in _cultures)
                 {
                     culture.AcceptNativeDate(cell.Date);
+                    culture.NoteNoNumber(rowNumber, text);
                 }
 
                 return;
@@ -608,6 +619,26 @@ internal sealed class ColumnProfiler
         {
             _date++;
             Widen(value);
+        }
+
+        /// <summary>Locates a value the file stated as something other than a number.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void NoteNoNumber(int rowNumber, string text)
+        {
+            if (_numericOutliers.Count < outlierLimit)
+            {
+                _numericOutliers.Add(new ValueLocation { RowNumber = rowNumber, RawValue = text });
+            }
+        }
+
+        /// <summary>Locates a value the file stated as something other than a date.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void NoteNoDate(int rowNumber, string text)
+        {
+            if (_dateOutliers.Count < outlierLimit)
+            {
+                _dateOutliers.Add(new ValueLocation { RowNumber = rowNumber, RawValue = text });
+            }
         }
 
         /// <summary>Whether this culture reads numbers exactly as <paramref name="other"/> does.</summary>
