@@ -760,9 +760,12 @@ internal sealed class ColumnProfiler
                     continue;
                 }
 
-                // The separators, sign and exponent the tried cultures use, and the two spaces and
-                // two apostrophes that some of them group with (de-CH: 1'234.5, #126).
-                if (c is '.' or ',' or '-' or '+' or 'e' or 'E' or ' ' or '\u00A0' or '\u202F' or '\'' or '\u2019')
+                // The separators, sign and exponent the tried cultures use, the two spaces and two
+                // apostrophes that some of them group with (de-CH: 1'234.5, #126), and the control
+                // white space (tab to carriage return) that number parsing takes before a trailing
+                // sign, as the import does: 12<TAB>- is -12 there.
+                if (c is '.' or ',' or '-' or '+' or 'e' or 'E' or ' ' or '\u00A0' or '\u202F' or '\'' or '\u2019'
+                    or (>= '\t' and <= '\r'))
                 {
                     continue;
                 }
