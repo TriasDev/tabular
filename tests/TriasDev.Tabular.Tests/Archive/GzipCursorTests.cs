@@ -135,6 +135,59 @@ public sealed class GzipCursorTests
     }
 
     [Fact]
+    public void ReportsProgressFromWhereTheFileStartsInItsStream()
+    {
+        // The gzip file starts part-way into the stream: the bytes before it are neither read nor counted.
+        byte[] file = GzipFile.Of(Lines(20_000));
+        MemoryStream stream = new([.. new byte[file.Length], .. file], writable: false) { Position = file.Length };
+        using GzipCursor cursor = new(stream, "data.csv.gz", null, Token);
+
+        Assert.InRange(cursor.ReadFraction!.Value, 0, 0.1);
+        ReadAll(cursor);
+        Assert.Equal(1d, cursor.ReadFraction);
+    }
+
+    [Fact]
+    public void ReportsTheProgressOfACompressedWorkbookAsItsOwnCursorWould()
+    {
+        byte[] xlsx = Workbook(("Orders", string.Concat(Enumerable.Range(1, 500).Select(r => InlineRow(r, $"x{r}")))), ("Notes", InlineRow(1, "y")));
+        using GzipCursor cursor = Open(GzipFile.Of(xlsx), "report.xlsx.gz");
+        using XlsxCursor plain = new(new MemoryStream(xlsx));
+
+        Assert.Equal(plain.ReadFraction, cursor.ReadFraction);
+        Assert.Equal(ReadAll(plain), ReadAll(cursor));
+        Assert.Equal(plain.ReadFraction, cursor.ReadFraction);
+        Assert.NotNull(cursor.ReadFraction);
+    }
+
+    [Fact]
+    public void SaysWhichSheetOfACompressedWorkbookItIsOn()
+    {
+        using GzipCursor cursor = Open(GzipFile.Of(Workbook(("Orders", InlineRow(1, "x")), ("Notes", InlineRow(1, "y")))), "report.xlsx.gz");
+
+        Assert.Equal(0, cursor.CurrentSheetIndex);
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal(1, cursor.CurrentSheetIndex);
+        Assert.True(cursor.MoveToSheet(0, Token));
+        Assert.Equal(0, cursor.CurrentSheetIndex);
+    }
+
+    [Fact]
+    public void CountsTheRepairsOfTheSheetAgainWhenItIsReadAgain()
+    {
+        // A stray quote, then a quote left open at the end of the file: one repair of each kind.
+        using GzipCursor cursor = Open(GzipFile.Of(ArchiveCursorCsvTests.StrayQuote + "5;n5;s;c;\"open"));
+
+        ReadAll(cursor);
+        Assert.Equal((1, 1), (cursor.Diagnostics.RecoveredUnterminatedQuotes, cursor.Diagnostics.RecoveredStrayQuotes));
+
+        Assert.True(cursor.MoveToSheet(0, Token));
+        Assert.Equal((1, 1), (cursor.Diagnostics.RecoveredUnterminatedQuotes, cursor.Diagnostics.RecoveredStrayQuotes));
+        ReadAll(cursor);
+        Assert.Equal((2, 2), (cursor.Diagnostics.RecoveredUnterminatedQuotes, cursor.Diagnostics.RecoveredStrayQuotes));
+    }
+
+    [Fact]
     public void ReadsACompressedWorkbookWithItsOwnSheetNames()
     {
         byte[] xlsx = Workbook(("Orders", InlineRow(1, "x")), ("Notes", InlineRow(1, "y") + InlineRow(2, "z")));

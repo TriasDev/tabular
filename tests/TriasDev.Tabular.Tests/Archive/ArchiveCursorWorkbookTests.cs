@@ -225,6 +225,27 @@ public sealed class ArchiveCursorWorkbookTests
     }
 
     [Fact]
+    public void ReportsProgressThroughAWorkbookSheetAfterTheFilesBeforeIt()
+    {
+        // A workbook's own cursor says how far it is; the archive weighs that by the workbook's size
+        // and adds the files before it.
+        string rows = string.Concat(Enumerable.Range(1, 2000).Select(r => InlineRow(r, $"value {r}")));
+        using ArchiveCursor cursor = Open(new ZipArchiveBuilder()
+            .With("a.csv", "h\n" + string.Concat(Enumerable.Range(0, 2000).Select(i => $"{i}\n")))
+            .With("b.xlsx", Workbook(("S", rows)))
+            .Build());
+
+        ReadAll(cursor);
+        double csvShare = cursor.ReadFraction!.Value;
+        Assert.InRange(csvShare, 0.01, 0.99);
+
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.InRange(cursor.ReadFraction.GetValueOrDefault(), csvShare, 0.99);
+        ReadAll(cursor);
+        Assert.Equal(1d, cursor.ReadFraction.GetValueOrDefault(), 3);
+    }
+
+    [Fact]
     public void MovesBetweenTheSheetsOfOneWorkbookAndAwayAndBack()
     {
         byte[] xlsx = Workbook(("S1", InlineRow(1, "a") + InlineRow(2, "b")), ("S2", InlineRow(1, "c")));

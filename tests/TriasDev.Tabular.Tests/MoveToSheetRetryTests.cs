@@ -108,6 +108,53 @@ public sealed class MoveToSheetRetryTests
     }
 
     [Fact]
+    public void HoldsNoSheetAfterAMoveInsideAWorkbookOfAnArchiveFailedAndMovesWithinItAgain()
+    {
+        // The failed move closed the workbook. Until the next move the cursor has no row and no
+        // progress to report, and the next move into the same workbook opens it afresh.
+        byte[] workbook = Without(
+            new XlsxPackage()
+                .WithSheet("One", """<row r="1"><c t="inlineStr"><is><t>one</t></is></c></row>""")
+                .WithSheet("Two", """<row r="1"><c t="inlineStr"><is><t>two</t></is></c></row>""")
+                .Build(),
+            "xl/worksheets/sheet2.xml");
+
+        using ArchiveCursor cursor = new(new MemoryStream(new ZipArchiveBuilder().With("a.csv", "h\n1\n").With("b.xlsx", workbook).Build()), null, Token);
+        Assert.True(cursor.ReadRow(Token));
+
+        Assert.Throws<TabularFormatException>(() => cursor.MoveToSheet(2, Token));
+
+        Assert.True(cursor.CurrentRow.IsEmpty);
+        Assert.Equal(0, cursor.CurrentRowNumber);
+        Assert.Null(cursor.ReadFraction);
+        Assert.Null(cursor.Dialect);
+
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal(1, cursor.CurrentSheetIndex);
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal("one", cursor.CurrentRow[0].AsText());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadsOnWhereItWasAfterAnArchiveMoveStoppedBeforeItBegan(bool tarGz)
+    {
+        // A token already cancelled stops the move before it closes the file being read.
+        byte[] archive = tarGz
+            ? GzipFile.Of(TarArchive.Of(System.Formats.Tar.TarEntryFormat.Pax, ("a.csv", "h\n1\n"), ("b.csv", "g\n2\n")))
+            : new ZipArchiveBuilder().With("a.csv", "h\n1\n").With("b.csv", "g\n2\n").Build();
+        using ArchiveCursor cursor = new(new MemoryStream(archive), null, Token);
+        Assert.True(cursor.ReadRow(Token));
+
+        Assert.ThrowsAny<OperationCanceledException>(() => cursor.MoveToSheet(1, new CancellationToken(canceled: true)));
+
+        Assert.Equal(0, cursor.CurrentSheetIndex);
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal("1", cursor.CurrentRow[0].AsText());
+    }
+
+    [Fact]
     public void SaysAMoveWasStoppedWhenRefusingToReadAfterIt()
     {
         byte[] package = new OdsPackage().WithTable("A", Row("a")).WithTable("B", Row("b")).Build();

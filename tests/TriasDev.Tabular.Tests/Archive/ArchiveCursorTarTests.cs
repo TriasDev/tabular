@@ -164,6 +164,76 @@ public sealed class ArchiveCursorTarTests
         Assert.Equal("items", cursor.Sheets[0].Name);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void JoinsTheUstarPrefixToTheNameOnlyWhereThePathNeedsIt(bool compressed)
+    {
+        // Read from the entry's own header for a PAX entry without a path record, in a plain tar and in
+        // a tar.gz: an empty prefix adds nothing, a prefix filling all 155 bytes has no terminator to
+        // stop at, and a prefix that only begins the name ("data" before "data.csv") is still a folder.
+        string full = "export/" + new string('a', 148);
+        Assert.Equal(155, full.Length);
+        (string Prefix, string Name, string Path)[] cases =
+            [("", "items.csv", "items.csv"), (full, "items.csv", full + "/items.csv"), ("data", "data.csv", "data/data.csv")];
+
+        foreach ((string prefix, string name, string path) in cases)
+        {
+            byte[] tar = BsdtarStyle(prefix, name, "sku,count\nA,1\n");
+            using ArchiveCursor cursor = Open(compressed ? GzipFile.Of(tar) : tar);
+
+            Assert.Equal(path, Assert.Single(cursor.Sheets).Source);
+            Assert.Equal([["sku", "count"], ["A", "1"]], ReadAll(cursor));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TakesThePathOfAPaxEntryWithAPathRecordFromTheRecordAlone(bool compressed)
+    {
+        // The record is the whole path; whatever the ustar prefix field holds is not read at all.
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("export/a.csv", "a\n1\n"));
+        int header = Enumerable.Range(0, tar.Length / 512).Select(b => b * 512)
+            .First(at => tar.AsSpan(at, 12).SequenceEqual("export/a.csv"u8));
+        byte[] prefixed = TarArchive.Patched(tar, header, block => "elsewhere"u8.CopyTo(block.AsSpan(345)));
+        using ArchiveCursor cursor = Open(compressed ? GzipFile.Of(prefixed) : prefixed);
+
+        Assert.Equal("export/a.csv", Assert.Single(cursor.Sheets).Source);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TakesTheNameOfAGnuEntryWhoseHeaderStoresItsAccessAndChangeTimes(bool compressed)
+    {
+        // A GNU header keeps atime and ctime where a ustar header keeps its prefix; they are times,
+        // never a folder.
+        GnuTarEntry entry = new(TarEntryType.RegularFile, "a.csv")
+        {
+            AccessTime = new DateTimeOffset(2025, 3, 1, 12, 0, 0, TimeSpan.Zero),
+            ChangeTime = new DateTimeOffset(2025, 3, 2, 12, 0, 0, TimeSpan.Zero),
+            DataStream = new MemoryStream("a\n1\n"u8.ToArray()),
+        };
+        byte[] tar = TarArchive.Of(TarEntryFormat.Gnu, entry);
+        Assert.NotEqual(0, tar[345]);
+        using ArchiveCursor cursor = Open(compressed ? GzipFile.Of(tar) : tar);
+
+        Assert.Equal("a.csv", Assert.Single(cursor.Sheets).Source);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NamesTheSheetOfAnEntryStoredWithAnAbsolutePath(bool compressed)
+    {
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("/a.csv", "a\n1\n"));
+        using ArchiveCursor cursor = Open(compressed ? GzipFile.Of(tar) : tar);
+
+        Assert.Equal("a", Assert.Single(cursor.Sheets).Name);
+        Assert.Equal([["a"], ["1"]], ReadAll(cursor));
+    }
+
     [Fact]
     public void SkipsATarInsideAnArchiveAsANestedArchive()
     {
