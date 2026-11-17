@@ -48,6 +48,18 @@ public sealed class ProducerSpellingsTests
         Assert.Equal(["_x12_ _xZZZZ_ _x0041 x0041_ _A_"], row);
     }
 
+    [Fact]
+    public void KeepsTextWhoseOnlyEscapeLookalikeIsNoneOrRunsOffTheEnd()
+    {
+        // One value per cell: text with "_x" and no real escape anywhere comes back as the same
+        // string, and an "_x" too close to the end to hold one is never read past. An escape that
+        // ends exactly at the end of the text is still one.
+        string?[] row = Texts(new XlsxPackage()
+            .WithSheet("S", """<row r="1"><c r="A1" t="inlineStr"><is><t>my_xZZZZ_</t></is></c><c r="B1" t="inlineStr"><is><t>ends_x1</t></is></c><c r="C1" t="inlineStr"><is><t>ends_x</t></is></c><c r="D1" t="inlineStr"><is><t>ends_x0041_</t></is></c></row>"""));
+
+        Assert.Equal(["my_xZZZZ_", "ends_x1", "ends_x", "endsA"], row);
+    }
+
     [Theory]
     [InlineData("1", true)]
     [InlineData("0", false)]

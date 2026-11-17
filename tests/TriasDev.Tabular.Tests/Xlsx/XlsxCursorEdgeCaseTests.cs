@@ -333,6 +333,61 @@ public sealed class XlsxCursorEdgeCaseTests
     }
 
     [Fact]
+    public void ReadsAnIndentedInlineStringWithoutItsIndentation()
+    {
+        // As in the shared string table: the whitespace before, between and after the runs is the markup's.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", "<row r=\"1\"><c r=\"A1\" t=\"inlineStr\">\n  <is>\n    <r>\n      <rPr><b/></rPr>\n      <t>a</t>\n    </r>\n    <r>\n      <t>b</t>\n    </r>\n  </is>\n</c><c r=\"B1\" t=\"inlineStr\"><is>\n  <t>c</t>\n</is></c></row>")
+            .Build();
+
+        Assert.Equal(new string?[] { "ab", "c" }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
+    public void ReadsAnInlineStringCellWhoseValueStandsInAV()
+    {
+        // t="inlineStr" with <v> instead of <is>, as some exporters write it: still text, never the number it looks like.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="inlineStr"><v>007</v></c><c r="B1" t="inlineStr"><v>a_x0042_</v></c></row>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(RawCell.FromText("007"), cursor.CurrentRow[0]);
+        Assert.Equal(RawCell.FromText("aB"), cursor.CurrentRow[1]);
+    }
+
+    [Fact]
+    public void ReadsClosingTagsWithWhitespaceBeforeTheBracket()
+    {
+        // XML allows whitespace between a closing tag's name and its '>'; the name is the name without it.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", "<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>a</t ></is\t></c\n><c r=\"B1\"><v>2</v  ></c \r\n></row ><row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>b</t></is></c></row>")
+            .Build();
+
+        List<string?[]> rows = ReadAll(content);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(new string?[] { "a", "2" }, rows[0]);
+        Assert.Equal(new string?[] { "b" }, rows[1]);
+    }
+
+    [Fact]
+    public void ReadsALongTextWithAnEntityPastTwiceTheDecodeBuffer()
+    {
+        // A text node with an entity is decoded into a scratch buffer, which grows to the text's length
+        // even when that is more than double what it held.
+        string text = new string('x', 1_000) + "&amp;" + new string('y', 1_000);
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", $"""<row r="1"><c r="A1" t="inlineStr"><is><t>{text}</t></is></c></row>""")
+            .Build();
+
+        Assert.Equal(new string?[] { new string('x', 1_000) + "&" + new string('y', 1_000) }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
     public void ReadsARowSplitAcrossSeveralRowElements()
     {
         // One logical row written as two elements carrying the same number. Produced by at least one
