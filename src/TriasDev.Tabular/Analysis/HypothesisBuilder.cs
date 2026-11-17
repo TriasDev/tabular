@@ -98,7 +98,7 @@ internal static class HypothesisBuilder
         CultureParseCounts counts = facts.ParseCounts[0];
 
         Add(hypotheses, ColumnType.Boolean, null, Native(facts, RawCellKind.Boolean), facts.NonEmptyCount, []);
-        Add(hypotheses, ColumnType.Date, null, Native(facts, RawCellKind.Date), facts.NonEmptyCount, []);
+        Add(hypotheses, ColumnType.Date, null, Native(facts, RawCellKind.Date), facts.NonEmptyCount, counts.DateOutliers);
 
         int numbers = Native(facts, RawCellKind.Number);
 
@@ -106,11 +106,11 @@ internal static class HypothesisBuilder
         {
             // A whole number is also a decimal, so the narrower reading is offered only when every
             // value bears it.
-            Add(hypotheses, ColumnType.Decimal, null, numbers, facts.NonEmptyCount, []);
+            Add(hypotheses, ColumnType.Decimal, null, numbers, facts.NonEmptyCount, counts.NumericOutliers);
 
             if (counts.Integer == numbers)
             {
-                Add(hypotheses, ColumnType.Integer, null, numbers, facts.NonEmptyCount, []);
+                Add(hypotheses, ColumnType.Integer, null, numbers, facts.NonEmptyCount, counts.NumericOutliers);
             }
         }
     }

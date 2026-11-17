@@ -320,4 +320,40 @@ public sealed class ColumnProfilerTests
         Assert.Equal(new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), facts.MaxDate);
         Assert.All(facts.ParseCounts, c => Assert.Equal(2, c.Date));
     }
+
+    /// <summary>
+    /// A workbook cell of one kind in a column of another — a number among dates, as Excel's phantom
+    /// 29 February 1900 reads — is located as an outlier of the readings it does not fit, as a text
+    /// cell is; it used to be counted as unmatched with no row to show for it.
+    /// </summary>
+    [Fact]
+    public void LocatesAWorkbookCellThatDoesNotFitAReading()
+    {
+        static RawCell Day(int day) => RawCell.FromDate(new DateTime(2024, 1, day, 0, 0, 0, DateTimeKind.Unspecified));
+
+        ColumnFacts facts = ProfileCells([Day(1), RawCell.FromNumber(60), Day(3), RawCell.FromBoolean(true), Day(5)]);
+
+        Assert.All(facts.ParseCounts, c =>
+        {
+            Assert.Equal([2, 4], c.DateOutliers.Select(o => o.RowNumber));
+            Assert.Equal([1, 3, 4, 5], c.NumericOutliers.Select(o => o.RowNumber));
+        });
+        Assert.Equal("60", For(facts, "de-DE").DateOutliers[0].RawValue);
+
+        TypeHypothesis date = HypothesisBuilder.Build(facts).Single(h => h.Type == ColumnType.Date);
+        Assert.Equal(2, date.UnmatchedCount);
+        Assert.Equal([2, 4], date.Outliers.Select(o => o.RowNumber));
+    }
+
+    [Fact]
+    public void LocatesWorkbookCellsThatDoNotFitOnlyUpToTheOutlierLimit()
+    {
+        AnalysisOptions options = AnalysisOptions.Default with { OutlierSampleSize = 3 };
+        RawCell[] cells = [RawCell.FromNumber(1), .. Enumerable.Range(0, 10).Select(i => RawCell.FromDate(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Unspecified)))];
+
+        ColumnFacts facts = ProfileCells(cells, options);
+
+        Assert.Equal([2, 3, 4], For(facts, "de-DE").NumericOutliers.Select(o => o.RowNumber));
+        Assert.Equal([1], For(facts, "de-DE").DateOutliers.Select(o => o.RowNumber));
+    }
 }
