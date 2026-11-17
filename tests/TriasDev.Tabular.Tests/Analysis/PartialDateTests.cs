@@ -92,8 +92,24 @@ public sealed class PartialDateTests
         Assert.Equal(new DateTime(1992, 9, 17, 0, 0, 0, DateTimeKind.Unspecified), profile.Sheets[0].Columns[0].Facts.MinDate);
     }
 
-    [Fact]
-    public void TheExtractorReadsADateWithTheMonthInWords()
+    [Theory]
+    [InlineData("17 June 1992", "")]
+    [InlineData("17 June 1992", "en-US")]
+    [InlineData("17 JUNE 1992", "")]
+    public void ReadsAMonthWhoseNameHasAnEvenNumberOfLetters(string value, string culture)
+    {
+        // SEP and September have an odd number of letters; June has an even one, and is a word too.
+        FileProfile profile = Profile($"when\n{value}\n", new AnalysisOptions { Cultures = [culture] });
+        ColumnFacts facts = profile.Sheets[0].Columns[0].Facts;
+
+        Assert.Equal(new DateTime(1992, 6, 17, 0, 0, 0, DateTimeKind.Unspecified), facts.MinDate);
+        Assert.Equal(1, Assert.Single(facts.ParseCounts).Date);
+    }
+
+    [Theory]
+    [InlineData("17 SEP 1992", 9)]
+    [InlineData("17 June 1992", 6)]
+    public void TheExtractorReadsADateWithTheMonthInWords(string value, int month)
     {
         ImportSchema schema = new() { Fields = [ImportField.Date("when")] };
 
@@ -103,7 +119,7 @@ public sealed class PartialDateTests
             Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "when", FieldName = "when" }],
         };
 
-        using MemoryStream stream = new(Utf8NoBom.GetBytes("when\n17 SEP 1992\n"), writable: false);
+        using MemoryStream stream = new(Utf8NoBom.GetBytes($"when\n{value}\n"), writable: false);
 
         using ImportRun<DateTime?> run = TabularImporter.Import(
             stream,
@@ -115,7 +131,7 @@ public sealed class PartialDateTests
         ImportResult<DateTime?> result = run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(result.Errors);
-        Assert.Equal([new DateTime(1992, 9, 17, 0, 0, 0, DateTimeKind.Unspecified)], result.Items);
+        Assert.Equal([new DateTime(1992, month, 17, 0, 0, 0, DateTimeKind.Unspecified)], result.Items);
     }
 
     [Fact]

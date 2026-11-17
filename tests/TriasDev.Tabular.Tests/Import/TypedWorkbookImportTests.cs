@@ -104,9 +104,12 @@ public sealed class TypedWorkbookImportTests
     [Theory]
     [InlineData("9223372036854774784", 9223372036854774784L)]
     [InlineData("-9223372036854775808", long.MinValue)]
+    [InlineData("100000000000000000", 100000000000000000L)]
     public void ReadsTheWholeNumbersAtTheEdgesOfAnIntegerField(string number, long expected)
     {
-        // The largest double below 2^63, and -2^63, which a long holds exactly.
+        // The largest double below 2^63, and -2^63, which a long holds exactly. And 10^17, whose
+        // invariant text is in exponent form ("1E+17"): only the number itself can fill an integer
+        // field with it, since that text does not parse as an integer.
         ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
             $"""<row r="2"><c r="A2"><v>{number}</v></c></row>"""));
 

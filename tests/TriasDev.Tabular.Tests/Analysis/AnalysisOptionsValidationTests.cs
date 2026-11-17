@@ -36,10 +36,12 @@ public sealed class AnalysisOptionsValidationTests
     [InlineData("HeaderRowIndex")]
     [InlineData("ProgressInterval")]
     [InlineData("OutlierSampleSize")]
+    [InlineData("ReportedSampleSize")]
     public void RefusesANegativeCountOrBound(string property)
     {
         AnalysisOptions options = property switch
         {
+            "ReportedSampleSize" => new AnalysisOptions { ReportedSampleSize = -1 },
             "DistinctTrackingBudget" => new AnalysisOptions { DistinctTrackingBudget = -1 },
             "RetainedDistinctValues" => new AnalysisOptions { RetainedDistinctValues = -1 },
             "HeaderRowIndex" => new AnalysisOptions { HeaderRowIndex = -1 },
@@ -57,6 +59,15 @@ public sealed class AnalysisOptionsValidationTests
     {
         Assert.ThrowsAny<ArgumentException>(() => Analyze(new AnalysisOptions { MinimumHypothesisConfidence = value }));
         Assert.ThrowsAny<ArgumentException>(() => Analyze(new AnalysisOptions { ProgressStep = value }));
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(1.0)]
+    public void AcceptsAConfidenceOrStepAtEitherEndOfZeroToOne(double value)
+    {
+        Assert.NotNull(Analyze(new AnalysisOptions { MinimumHypothesisConfidence = value }));
+        Assert.NotNull(Analyze(new AnalysisOptions { ProgressStep = value }));
     }
 
     [Fact]

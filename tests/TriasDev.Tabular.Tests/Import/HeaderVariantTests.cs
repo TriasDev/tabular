@@ -16,6 +16,7 @@ public sealed class HeaderVariantTests
     [InlineData("Title (de)", "Title", "de")]
     [InlineData("Title [FR]", "Title", "fr")]
     [InlineData("LinkTitle#en", "LinkTitle", "en")]
+    [InlineData("Title@en", "Title", "en")]
     public void ReadsTheMarksFilesActuallyCarry(string header, string name, string variant)
     {
         Assert.True(HeaderVariant.TryParse(header, Languages, out string parsedName, out string parsedVariant));
@@ -31,11 +32,24 @@ public sealed class HeaderVariantTests
     [InlineData("Title")]
     [InlineData("Name#es")]       // a real mark, for a variant this group does not have
     [InlineData("de")]            // nothing but the mark names no field
+    [InlineData("(de)")]
+    [InlineData("_de")]
+    [InlineData("Garden")]        // ends in "en" with no separator: a word, not a mark
+    [InlineData("Golden")]
     [InlineData("")]
     [InlineData(null)]
     public void InventsNoMarkThatIsNotThere(string? header)
     {
         Assert.False(HeaderVariant.TryParse(header, Languages, out _, out _));
+    }
+
+    [Fact]
+    public void HandsBackAnEmptyNameForNoHeader()
+    {
+        Assert.False(HeaderVariant.TryParse(null, Languages, out string name, out string variant));
+
+        Assert.Equal(string.Empty, name);
+        Assert.Equal(string.Empty, variant);
     }
 
     [Fact]

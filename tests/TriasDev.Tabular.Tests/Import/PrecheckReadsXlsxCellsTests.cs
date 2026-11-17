@@ -91,6 +91,17 @@ public sealed class PrecheckReadsXlsxCellsTests
     }
 
     [Fact]
+    public void LetsAWorkbooksOwnBooleansFillABooleanField()
+    {
+        ImportSchema schema = new() { Fields = [ImportField.Boolean("active")] };
+
+        PrecheckResult result = MappingPrecheck.Check(Plan("active"), schema, Profile("b:1", "b:0", "b:1"));
+
+        Assert.True(result.CanImport);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
     public void WarnsAboutAWorkbooksOwnFractionsMappedToAWholeNumberField()
     {
         ImportSchema schema = new() { Fields = [ImportField.Integer("count")] };
@@ -126,8 +137,8 @@ public sealed class PrecheckReadsXlsxCellsTests
 
     /// <summary>A one-column workbook whose header is text and whose cells are as given.</summary>
     /// <param name="cells">
-    /// Each entry is a cell's value. Prefix it with <c>d:</c> for a cell the file types as a date;
-    /// anything else is a bare value, which in a workbook means a number.
+    /// Each entry is a cell's value. Prefix it with <c>d:</c> for a cell the file types as a date, or
+    /// <c>b:</c> for a boolean; anything else is a bare value, which in a workbook means a number.
     /// </param>
     private static FileProfile Profile(params string[] cells)
     {
@@ -137,9 +148,12 @@ public sealed class PrecheckReadsXlsxCellsTests
         {
             rows.Append("<row>");
 
-            rows.Append(cell.StartsWith("d:", StringComparison.Ordinal)
-                ? $"<c t=\"d\"><v>{cell[2..]}</v></c>"
-                : $"<c><v>{cell}</v></c>");
+            rows.Append(cell[..Math.Min(2, cell.Length)] switch
+            {
+                "d:" => $"<c t=\"d\"><v>{cell[2..]}</v></c>",
+                "b:" => $"<c t=\"b\"><v>{cell[2..]}</v></c>",
+                _ => $"<c><v>{cell}</v></c>",
+            });
 
             rows.Append("</row>");
         }

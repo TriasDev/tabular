@@ -62,6 +62,45 @@ public sealed class AlternativesPrecheckTests
     }
 
     [Fact]
+    public void ASetLocatesRowsWhenAGroupReachesExactlyTheLevelsItRequires()
+    {
+        // Coordinates require both their levels, and both are mapped: rows can be located, so nothing
+        // blocks even though the set fails the rows it cannot locate.
+        ImportSchema schema = new()
+        {
+            Fields = [Lat, Lon, Country, City, House],
+            Alternatives = [new FieldAlternatives("location", [AlternativeGroup.AllOf("coordinates", Lat, Lon)], unresolvedRowFails: true)],
+        };
+
+        PrecheckResult result = Check(schema, "lat", "lon");
+
+        Assert.DoesNotContain(result.Findings, f => f.Code.StartsWith("group.", StringComparison.Ordinal));
+        Assert.True(result.CanImport);
+    }
+
+    [Fact]
+    public void ALevelIsReachedThroughAnyOfItsFields()
+    {
+        // The second level takes a city or a house number; the house number is mapped, so the ladder
+        // reaches its end.
+        ImportSchema schema = new()
+        {
+            Fields = [Lat, Lon, Country, City, House],
+            Alternatives =
+            [
+                new FieldAlternatives(
+                    "location",
+                    [
+                        AlternativeGroup.AllOf("coordinates", Lat, Lon),
+                        AlternativeGroup.Ladder("address", 1, new AlternativeLevel("country", Country), new AlternativeLevel("place", City, House)),
+                    ]),
+            ],
+        };
+
+        Assert.DoesNotContain(Check(schema, "lat", "lon", "country", "house").Findings, f => f.Code == "group.level-unmapped");
+    }
+
+    [Fact]
     public void NeverBlocksOnAFieldOfALaterGroup()
     {
         // Every country is wrong — which blocks a plain field — but only rows without coordinates need

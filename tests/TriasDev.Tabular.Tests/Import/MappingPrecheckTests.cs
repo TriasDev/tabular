@@ -248,6 +248,63 @@ public sealed class MappingPrecheckTests
     }
 
     [Fact]
+    public void LetsACleanFileThroughWhenTheTargetSaysAllOrNothing()
+    {
+        PrecheckResult result = MappingPrecheck.Check(
+            Plan(),
+            Schema(ImportPolicy.AllOrNothing),
+            Profile("cid;country;amount\nA1;DE;1,50\nA2;AT;2,50\n"));
+
+        Assert.Empty(result.Findings);
+        Assert.True(result.CanImport);
+    }
+
+    [Fact]
+    public void RefusesAWarningUnderAllOrNothingWhateverElseIsFound()
+    {
+        // One row breaks the length rule (a warning: rows fail), and the amount column cannot be
+        // judged under a culture the profile was not measured in (undetermined). The warning alone
+        // decides: under this policy a failing row is a failed import.
+        ImportSchema schema = new()
+        {
+            Fields = [ImportField.Text("countryCode").ExactLength(2), ImportField.Decimal("amount")],
+            Policy = ImportPolicy.AllOrNothing,
+        };
+        MappingPlan plan = new()
+        {
+            Culture = "fr-FR",
+            Bindings =
+            [
+                new ColumnBinding { ColumnIndex = 1, Header = "country", FieldName = "countryCode" },
+                new ColumnBinding { ColumnIndex = 2, Header = "amount", FieldName = "amount" },
+            ],
+        };
+
+        PrecheckResult result = MappingPrecheck.Check(plan, schema, Profile("cid;country;amount\nA1;DE;1,50\nA2;AUT;2,50\n"));
+
+        Assert.Equal(
+            [PrecheckSeverity.Warning, PrecheckSeverity.Undetermined],
+            result.Findings.Select(f => f.Severity));
+        Assert.False(result.CanImport);
+    }
+
+    [Fact]
+    public void RefusesAUniqueColumnThatSpellsNothingInAnyOfTheBindingsWays()
+    {
+        // The second spelling is the one the column uses; the first matching is enough.
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Unique()] };
+        MappingPlan plan = new()
+        {
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "iso", FieldName = "iso", TreatAsEmpty = ["n/a", "k.A."] }],
+        };
+
+        PrecheckFinding finding = Assert.Single(MappingPrecheck.Check(plan, schema, Profile("iso\nA\nk.A.\nB\n")).Findings);
+
+        Assert.Equal((ErrorCodes.Value.NotUnique, PrecheckSeverity.Blocking), (finding.Code, finding.Severity));
+        Assert.Equal(PrecheckReasons.SpelledAsNothing, finding.Arguments[PrecheckArguments.Reason]);
+    }
+
+    [Fact]
     public void JudgesAllowedValuesNowThatTheProfileKeepsThem()
     {
         // This case used to answer Undetermined, because the profile counted distinct values without

@@ -1,3 +1,5 @@
+using System.Text;
+
 using Xunit;
 
 namespace TriasDev.Tabular.Tests.Mapping;
@@ -37,5 +39,29 @@ public sealed class RangeRuleTests
         Assert.False(new FieldConstraint.MinValue(18).IsSatisfiedBy(MappedValue.FromInteger(17)));
         Assert.True(new FieldConstraint.MaxValue(100).IsSatisfiedBy(MappedValue.FromDecimal(99.5m)));
         Assert.False(new FieldConstraint.MaxValue(100).IsSatisfiedBy(MappedValue.FromDecimal(100.5m)));
+    }
+
+    [Fact]
+    public void ARangeRuleAcceptsAValueEqualToItsBound()
+    {
+        // "At least 18" includes 18, and "at most 100" includes 100.
+        Assert.True(new FieldConstraint.MinValue(18).IsSatisfiedBy(MappedValue.FromInteger(18)));
+        Assert.True(new FieldConstraint.MaxValue(100).IsSatisfiedBy(MappedValue.FromInteger(100)));
+
+        IntegerImportField age = ImportField.Integer("age").AtLeast(18);
+        MappingPlan plan = new() { Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "age", FieldName = "age" }] };
+
+        using ImportRun<long?> run = TabularImporter.Import(
+            new MemoryStream(Encoding.UTF8.GetBytes("age\n18\n"), writable: false),
+            "test.csv",
+            plan,
+            new ImportSchema { Fields = [age] },
+            row => row[age],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        ImportResult<long?> result = run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal([18L], result.Items);
     }
 }

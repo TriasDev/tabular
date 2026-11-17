@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 using TriasDev.Tabular.Csv;
@@ -69,6 +70,7 @@ public sealed class OtherDecimalSeparatorTests
     [InlineData("1.234,5")]
     [InlineData("12. 5")]
     [InlineData(".")]
+    [InlineData(".1.25")]
     public void DoesNotCountAValueThatIsNotUnambiguous(string value)
     {
         CultureParseCounts german = Profile(["1,5", value]).Sheets[0].Columns[1].Facts.ParseCounts.Single(c => c.Culture == "de-DE");
@@ -131,6 +133,22 @@ public sealed class OtherDecimalSeparatorTests
 
         Assert.Empty(result.Errors);
         Assert.Equal([1.5m], result.Items);
+        Assert.Equal(1, result.Summary.OtherSeparatorDecimals);
+    }
+
+    [Theory]
+    [InlineData("48,183604", "48.183604")]
+    [InlineData("-48,183604", "-48.183604")]
+    [InlineData("+48,183604", "48.183604")]
+    [InlineData("5,5", "5.5")]
+    public void ImportsADecimalWrittenWithACommaUnderACultureOfPoints(string value, string expected)
+    {
+        // The other way round from the German files: a comma read as the point en-US writes, with a
+        // sign and with a single digit before it.
+        ImportResult<decimal?> result = ImportAccepting("en-US", value);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal([decimal.Parse(expected, CultureInfo.InvariantCulture)], result.Items);
         Assert.Equal(1, result.Summary.OtherSeparatorDecimals);
     }
 

@@ -115,6 +115,52 @@ public sealed class AlternativesReportTests
     }
 
     [Fact]
+    public void CountsALevelReachedThroughOneOfItsTwoFields()
+    {
+        // A level is reached when any of its fields is mapped: here the street, not the city.
+        ImportSchema schema = new()
+        {
+            Fields = [Id, Lat, Lon, Country, City, Street],
+            Alternatives =
+            [
+                new FieldAlternatives(
+                    "location",
+                    [
+                        AlternativeGroup.AllOf("coordinates", Lat, Lon),
+                        AlternativeGroup.Ladder("address", 1, new AlternativeLevel("country", Country), new AlternativeLevel("place", City, Street)),
+                    ]),
+            ],
+        };
+        MappingPlan plan = Plan() with { Bindings = [.. Plan().Bindings.Where(b => b.FieldName != "city")] };
+
+        AlternativesReport report = Report("1;;;DEU;;Main\n", schema: schema, plan: plan);
+
+        Assert.Equal(2, report.Groups[1].MaxReachableLevel);
+        Assert.Equal(0, report.Groups[1].Incomplete);
+    }
+
+    [Fact]
+    public void PointsAnUnresolvedRowAtNoColumnWhenTheSetHasNoneMapped()
+    {
+        // The validator allows a set none of whose fields is mapped. Every row is then unresolved, and
+        // its error has no column to point at.
+        ImportSchema schema = new()
+        {
+            Fields = [Id, Lat, Lon],
+            Alternatives = [new FieldAlternatives("location", [AlternativeGroup.AllOf("coordinates", Lat, Lon)], unresolvedRowFails: true)],
+        };
+        MappingPlan plan = new() { Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "id", FieldName = "id" }] };
+
+        using ITabularCursor cursor = Open("id\n1\n");
+        ExtractionRun run = TabularExtractor.Extract(cursor, plan, schema, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(run.ReadRow(TestContext.Current.CancellationToken));
+
+        RowError error = Assert.Single([.. run.CurrentErrors]);
+        Assert.Equal(("group.unresolved", "location", -1), (error.Code, error.FieldName, error.ColumnIndex));
+    }
+
+    [Fact]
     public void CapsTheRowNumbersItKeeps()
     {
         // Five rows with a city and nothing else, at spreadsheet rows 2 to 6.
@@ -152,10 +198,10 @@ public sealed class AlternativesReportTests
             TabularExtractor.Extract(cursor, Plan(), Schema, new ExtractionOptions { MaxReportedRows = cap }, TestContext.Current.CancellationToken));
     }
 
-    private static AlternativesReport Report(string data, ExtractionOptions? options = null, ImportSchema? schema = null)
+    private static AlternativesReport Report(string data, ExtractionOptions? options = null, ImportSchema? schema = null, MappingPlan? plan = null)
     {
         using ITabularCursor cursor = Open(Header + data);
-        ExtractionRun run = TabularExtractor.Extract(cursor, Plan(), schema ?? Schema, options, TestContext.Current.CancellationToken);
+        ExtractionRun run = TabularExtractor.Extract(cursor, plan ?? Plan(), schema ?? Schema, options, TestContext.Current.CancellationToken);
 
         Drain(run);
 
