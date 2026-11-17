@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.1](https://github.com/TriasDev/tabular/compare/v0.8.0...v0.8.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* detect the csv delimiter in files with blank lines or a short unterminated last line ([#159](https://github.com/TriasDev/tabular/issues/159)) ([3743024](https://github.com/TriasDev/tabular/commit/3743024bdf1fbe1b13b3054d10b487f4e4c5e0f4))
+* keep a space between shared-string runs, and read an AM/PM time on the same day as any bare time ([#158](https://github.com/TriasDev/tabular/issues/158)) ([6262a58](https://github.com/TriasDev/tabular/commit/6262a5854ac0328350e7faf3c6dd7105f2fa2b6a))
+* read ods paragraph text the way ODF and LibreOffice do, folding white space written as characters ([#161](https://github.com/TriasDev/tabular/issues/161)) ([469de54](https://github.com/TriasDev/tabular/commit/469de54e469ed6b3c329bc069332ffada516f91d))
+* refuse a workbook integer of exactly 2^63 instead of importing long.MaxValue ([#155](https://github.com/TriasDev/tabular/issues/155)) ([2b01214](https://github.com/TriasDev/tabular/commit/2b012146eaf8b88b0a54a697c8a453406808e199))
+* refuse a zip cut off inside its first entry's name instead of throwing ArgumentOutOfRangeException ([#156](https://github.com/TriasDev/tabular/issues/156)) ([9e3a238](https://github.com/TriasDev/tabular/commit/9e3a238fa6cf6f833def4159d9ac6a051f436e76))
+
 ## [0.8.0](https://github.com/TriasDev/tabular/compare/v0.7.2...v0.8.0) (2026-11-12)
 
 
