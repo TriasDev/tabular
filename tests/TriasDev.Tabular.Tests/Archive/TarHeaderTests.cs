@@ -22,6 +22,30 @@ public sealed class TarHeaderTests
         Assert.True(TarHeader.IsHeader(tar.AsSpan(0, 512)));
     }
 
+    [Theory]
+    [InlineData(TarEntryFormat.Ustar)]
+    [InlineData(TarEntryFormat.Gnu)]
+    public void KnowsAHeaderWhoseNameHoldsBytesAbove127(TarEntryFormat format)
+    {
+        // The checksum sums bytes, and a name in UTF-8 brings bytes the signed and unsigned sums
+        // disagree on. Unsigned is the standard; some old writers summed signed bytes, so both count.
+        // (A pax archive opens with its extended header, whose own name is ASCII.)
+        byte[] tar = TarArchive.Of(format, ("Grüße.csv", "a;b\n"));
+        Assert.True(TarHeader.IsHeader(tar.AsSpan(0, 512)));
+
+        byte[] signed = (byte[])tar.Clone();
+        long sum = 0;
+
+        for (int i = 0; i < 512; i++)
+        {
+            sum += i is >= 148 and < 156 ? ' ' : (sbyte)signed[i];
+        }
+
+        Encoding.ASCII.GetBytes(Convert.ToString(sum, 8).PadLeft(6, '0') + "\0 ").CopyTo(signed, 148);
+        Assert.NotEqual(tar[148..156], signed[148..156]);
+        Assert.True(TarHeader.IsHeader(signed.AsSpan(0, 512)));
+    }
+
     [Fact]
     public void DoesNotKnowAV7HeaderWhichHasNoMagic()
     {
