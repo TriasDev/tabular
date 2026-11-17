@@ -187,6 +187,23 @@ public sealed class ExtractionRunTests
     }
 
     [Fact]
+    public void SkipsABlankRowThatEndsJustBeforeAMappedColumn()
+    {
+        // The middle row holds two empty cells; the third binding points at the first cell it lacks.
+        MappingPlan plan = new()
+        {
+            Bindings = [.. new[] { "a", "b", "c" }.Select((name, i) => new ColumnBinding { ColumnIndex = i, Header = name, FieldName = name })],
+        };
+        ImportSchema schema = new() { Fields = [ImportField.Text("a"), ImportField.Text("b"), ImportField.Text("c")] };
+
+        Run run = Extract("a;b;c\n;\nx;y;z\n", plan, schema);
+
+        Assert.Empty(run.Errors);
+        Assert.Equal(["x", "y", "z"], Assert.Single(run.Values));
+        Assert.Equal(1, run.Summary.RowsSkipped);
+    }
+
+    [Fact]
     public void TreatsAMissingCellAsEmptyAndFailsOnlyWhereTheFieldIsRequired()
     {
         Run run = Extract("Land;Betrag\nDEU\n");

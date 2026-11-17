@@ -121,6 +121,25 @@ public sealed class TabularImporterTests
     }
 
     [Fact]
+    public void HandsOutAnyFieldAsTextAndSaysWhetherItHasAValue()
+    {
+        // AsText is how a mapper reads a field whatever its type, and a boolean's text is what
+        // AllowedValues and Pattern judge it by: the invariant spelling, not the file's.
+        using MemoryStream stream = new(
+            Utf8NoBom.GetBytes($"{Headers}\nDEU;Acme;1;2023-01-15;7;TRUE\nAUT;Beta;2;2024-01-01;;false\n"),
+            writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+        using ImportRun<(string?, bool)> run = TabularImporter.Import(
+            cursor,
+            Plan("code", "name", "amount", "signed", "count", "active"),
+            Schema,
+            row => (row.AsText(Fields.Active), row.Has(Fields.Count)),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal([("true", true), ("false", false)], run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);
+    }
+
+    [Fact]
     public void RefusesAFieldTheSchemaDoesNotDeclare()
     {
         // A field belonging to another target, or one removed from the schema, is a defect in the
@@ -254,6 +273,54 @@ public sealed class TabularImporterTests
             InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => run.ReadAll(limit: 10, cancellationToken: TestContext.Current.CancellationToken));
 
             Assert.Contains("ReadChunks", error.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void HoldsExactlyAsManyItemsAsTheCallerAllowed()
+    {
+        const string Csv = $"{Headers}\nDEU;A;1;2023-01-15;1;true\nDEU;B;1;2023-01-15;1;true\nDEU;C;1;2023-01-15;1;true\n";
+
+        using (ImportRun<Company> run = Run(Csv, out CsvCursor cursor))
+        using (cursor)
+        {
+            Assert.Equal(3, run.ReadAll(limit: 3, cancellationToken: TestContext.Current.CancellationToken).Items.Count);
+        }
+
+        using (ImportRun<Company> run = Run(Csv, out CsvCursor cursor))
+        using (cursor)
+        {
+            Assert.Throws<InvalidOperationException>(() => run.ReadAll(limit: 2, cancellationToken: TestContext.Current.CancellationToken));
+        }
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(2, 1)]
+    [InlineData(3, 2)]
+    public void HandsOutNoBatchBeyondTheLastRow(int rows, int batches)
+    {
+        // A file of exactly one batch is one batch, not one and an empty one; a file of none is none.
+        string csv = Headers + "\n" + string.Concat(Enumerable.Range(1, rows).Select(i => $"DEU;Firm {i};1;2023-01-15;1;true\n"));
+
+        using ImportRun<Company> run = Run(csv, out CsvCursor cursor);
+
+        using (cursor)
+        {
+            Assert.Equal(batches, run.ReadChunks(2, TestContext.Current.CancellationToken).Count());
+        }
+    }
+
+    [Fact]
+    public void CallsTheShareOfAFieldZeroWhenNoRowWasProduced()
+    {
+        using ImportRun<Company> run = Run($"{Headers}\nDEUX;Acme;1;2023-01-15;1;true\n", out CsvCursor cursor);
+
+        using (cursor)
+        {
+            run.ReadAll(cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.All(run.Coverage, c => Assert.Equal(0, c.Share));
         }
     }
 

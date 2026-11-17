@@ -127,6 +127,22 @@ public sealed class XlsxCursorEdgeCaseTests
     }
 
     [Fact]
+    public void ReadsADateCellHoldingOnlyWhitespaceAsEmpty()
+    {
+        // The zone check looks at the last character of the trimmed value, of which there is none.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="d"><v> </v></c><c r="B1"><v>1</v></c></row>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.True(cursor.CurrentRow[0].IsEmpty);
+        Assert.Equal(1, cursor.CurrentRow[1].Number);
+    }
+
+    [Fact]
     public void ReadsATimeDeclaredAsAnIso8601StringOnTheDateABareTimeHas()
     {
         // A time with no date, written out: the same instant as the serial 0.5, so it reads on the

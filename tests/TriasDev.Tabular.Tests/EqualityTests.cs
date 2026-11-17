@@ -42,6 +42,35 @@ public sealed class EqualityTests
     }
 
     [Fact]
+    public void TellsAPlanApartFromOneWithABindingMore()
+    {
+        // The shorter list is a prefix of the longer: element by element they agree as far as both go.
+        MappingPlan plan = Plan();
+        MappingPlan shorter = plan with { Bindings = [plan.Bindings[0]] };
+
+        Assert.NotEqual(shorter, plan);
+        Assert.NotEqual(plan, shorter);
+    }
+
+    [Fact]
+    public void TellsDictionariesApartByAnExtraKeyOrADifferentValue()
+    {
+        ImportPreviewRow row = Preview(("a", "1"));
+
+        Assert.Equal(row, Preview(("a", "1")));
+        Assert.NotEqual(row, Preview(("a", "1"), ("b", "2")));
+        Assert.NotEqual(Preview(("a", "1"), ("b", "2")), row);
+        Assert.NotEqual(row, Preview(("a", "2")));
+        Assert.NotEqual(row, Preview(("b", "1")));
+    }
+
+    private static ImportPreviewRow Preview(params (string Field, string? Value)[] values) => new()
+    {
+        RowNumber = 2,
+        Values = values.ToDictionary(v => v.Field, v => v.Value),
+    };
+
+    [Fact]
     public void ComparesOptionsByTheCulturesTheyList()
     {
         Assert.Equal(new AnalysisOptions { Cultures = ["de-DE", "en-US"] }, new AnalysisOptions { Cultures = ["de-DE", "en-US"] });

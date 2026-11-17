@@ -579,4 +579,21 @@ public sealed class OdsCursorTests
 
         Assert.Equal(TabularFormatException.Unsupported, error.Code);
     }
+
+    [Theory]
+    [InlineData("application/vnd.oasis.opendocument.spreadsheet-template")]
+    [InlineData("application/vnd.oasis.opendocument.text")]
+    [InlineData("application/vnd.oasis.opendocument.graphics")]
+    public void DoesNotDetectAnotherOpenDocumentTypeStoredFirstAsASpreadsheet(string mimetype)
+    {
+        // The fast path reads the stored mimetype from the first local header. A template shares the
+        // spreadsheet's type as its prefix; a reading that stopped there would detect it as one.
+        byte[] content = new OdsPackage().WithMimetype(mimetype).Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        Assert.NotEqual(TabularFormat.Ods, TabularFile.Detect(stream));
+
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() => TabularFile.Open(stream, "upload", cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(TabularFormatException.Unsupported, error.Code);
+    }
 }

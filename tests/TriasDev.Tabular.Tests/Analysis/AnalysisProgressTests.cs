@@ -131,6 +131,7 @@ public sealed class AnalysisProgressTests
         // The header row of each sheet is not a data row: 20 + 10.
         Assert.Equal([10, 20, 30, 30], recorder.Reports.Select(r => r.RowsRead));
         Assert.Equal(["First", "First", "Second", "Second"], recorder.Reports.Select(r => r.SheetName));
+        Assert.Equal([0, 0, 1, 1], recorder.Reports.Select(r => r.SheetIndex));
         Assert.All(recorder.Reports, r => Assert.Equal(2, r.SheetCount));
 
         List<double> fractions = [.. recorder.Reports.Select(r => r.Fraction ?? -1)];

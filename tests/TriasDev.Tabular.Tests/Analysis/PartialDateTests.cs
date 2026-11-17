@@ -92,6 +92,18 @@ public sealed class PartialDateTests
         Assert.Equal(new DateTime(1992, 9, 17, 0, 0, 0, DateTimeKind.Unspecified), profile.Sheets[0].Columns[0].Facts.MinDate);
     }
 
+    [Fact]
+    public void ReadsADateInWordsAsLongAsTheShapeTestAllows()
+    {
+        // Forty characters, the most a value in words may have before the shape test refuses it unread.
+        string value = $"Thursday 17 September{new string(' ', 15)}1992";
+        Assert.Equal(40, value.Length);
+
+        FileProfile profile = Profile($"when\n{value}\n", new AnalysisOptions { Cultures = [""] });
+
+        Assert.Equal(new DateTime(1992, 9, 17, 0, 0, 0, DateTimeKind.Unspecified), profile.Sheets[0].Columns[0].Facts.MinDate);
+    }
+
     [Theory]
     [InlineData("17 June 1992", "")]
     [InlineData("17 June 1992", "en-US")]

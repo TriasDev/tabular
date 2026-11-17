@@ -24,6 +24,24 @@ public sealed class TypedFieldTypeTests
         Assert.Contains("d", error.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RefusesAFieldDeclaredWithATypeThatDoesNotExist()
+    {
+        // It used to pass the validator, the precheck judged the column as text and found nothing,
+        // and then the import refused every row as a type mismatch: the programmer's mistake reported
+        // as the file's, after the one check meant to catch it had said yes.
+        ImportField undefined = new() { Name = "n", Type = (ColumnType)42 };
+        ImportSchema schema = new() { Fields = [undefined] };
+        MappingPlan plan = new() { Culture = "", Bindings = [new ColumnBinding { ColumnIndex = 0, FieldName = "n", Header = "n" }] };
+
+        ArgumentException error = Assert.Throws<ArgumentException>(() => MappingPlanValidator.Validate(plan, schema));
+        Assert.Contains("'n'", error.Message, StringComparison.Ordinal);
+
+        Assert.Throws<ArgumentException>(() => MappingPrecheck.Check(plan, schema, Profile("n\n1\n")));
+        Assert.Throws<ArgumentException>(() => TabularImporter.Import(
+            new MemoryStream(Encoding.UTF8.GetBytes("n\n1\n")), "t.csv", plan, schema, row => row.AsText(undefined), cancellationToken: Token));
+    }
+
     /// <summary>Each typed field's declarations, by the field's kind, with a value of that kind spelt in csv.</summary>
     private static ImportField Declared(string kind, string declaration) => (kind, declaration) switch
     {

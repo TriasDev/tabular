@@ -92,6 +92,9 @@ public sealed class CustomRuleTests
     [InlineData("mapping.custom")]
     [InlineData("group.custom")]
     [InlineData("structure.custom")]
+    [InlineData("format.x")]
+    [InlineData("limit.x")]
+    [InlineData("write.x")]
     [InlineData("")]
     public void RefusesACodeThatCouldBeMistakenForOneOfTheLibrarys(string code)
     {
@@ -139,6 +142,8 @@ public sealed class CustomRuleTests
     [InlineData("US0378331006", false)]
     [InlineData("", false)]
     [InlineData("US03783310-5", false)]
+    [InlineData("ZA123456787", true)]       // Z is the last letter, and A (10) the smallest two-digit value
+    [InlineData("453957876362-486", false)] // a valid number with a hyphen inside: refused, not skipped
     public void ChecksALuhnDigit(string value, bool valid) => Assert.Equal(valid, CheckDigits.Luhn(value));
 
     [Theory]
@@ -146,6 +151,9 @@ public sealed class CustomRuleTests
     [InlineData("5493001KJTIIGC8Y1R12", true)]
     [InlineData("WEST12345698765432GB82", true)] // an IBAN, its first four characters moved to the end
     [InlineData("529900T8BM49AURSDO56", false)]
+    [InlineData("ZZ1234567890123456728", true)] // Z is the last letter
+    [InlineData("5493001KJTIIGC8Y-R12", false)]  // a hyphen in place of a digit
+    [InlineData("529900t8bm49aursdo55", false)]  // lower case is refused, as documented
     [InlineData("", false)]
     public void ChecksAnIso7064Mod97Pair(string value, bool valid) => Assert.Equal(valid, CheckDigits.Mod97(value));
 }

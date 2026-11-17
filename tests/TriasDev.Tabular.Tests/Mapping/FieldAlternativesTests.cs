@@ -111,4 +111,16 @@ public sealed class FieldAlternativesTests
         Assert.Throws<ArgumentException>(() => new AlternativeLevel("country"));
         Assert.Throws<ArgumentException>(() => new FieldAlternatives("location", [AlternativeGroup.AllOf("a", Lat), AlternativeGroup.AllOf("a", Lon)]));
     }
+
+    [Fact]
+    public void RefusesABlankName()
+    {
+        // A name is what reports and row errors carry; a blank one would point at nothing.
+        AlternativeGroup group = AlternativeGroup.AllOf("coordinates", Lat, Lon);
+
+        Assert.Throws<ArgumentException>(() => new FieldAlternatives(" ", [group]));
+        Assert.Throws<ArgumentException>(() => AlternativeGroup.AllOf(" ", Lat));
+        Assert.Throws<ArgumentException>(() => AlternativeGroup.Ladder("", 1, new AlternativeLevel("country", Country)));
+        Assert.Throws<ArgumentException>(() => new AlternativeLevel("", Lat));
+    }
 }

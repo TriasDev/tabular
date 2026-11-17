@@ -151,6 +151,20 @@ public sealed class FieldAlternativesExtractionTests
         Assert.Equal("coordinates", row.Resolution.Group);
     }
 
+    [Fact]
+    public void HandsOutNoResolutionForAFailingRow()
+    {
+        // A failing row produces nothing, its resolution included: a caller reading the resolution
+        // of a row it is about to report would otherwise store where an unimported row lies.
+        using ITabularCursor cursor = TabularFile.Open(new MemoryStream(Utf8NoBom.GetBytes(Header + "1;abc;11.5;DEU;Munich;;\n"), writable: false), "test.csv", cancellationToken: TestContext.Current.CancellationToken);
+        ExtractionRun run = TabularExtractor.Extract(cursor, Plan(), Schema(), cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(run.ReadRow(TestContext.Current.CancellationToken));
+
+        Assert.True(run.CurrentRowHasErrors);
+        Assert.True(run.CurrentResolutions.IsEmpty);
+    }
+
     private static ImportSchema Schema(bool unresolvedRowFails = false) => new()
     {
         Fields = [Id, Lat, Lon, Country, City, Street, StreetAndHouse],

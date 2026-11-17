@@ -153,6 +153,21 @@ public sealed class OtherDecimalSeparatorTests
     }
 
     [Fact]
+    public void ImportsAsManyDigitsWrittenTheOtherWayAsADecimalHoldsAndRefusesOneMore()
+    {
+        // 28 digits with a sign, 30 characters: the most the shape admits. One digit more is refused
+        // as unreadable, never rounded.
+        string widest = "-" + new string('1', 27) + ",5";
+
+        ImportResult<decimal?> read = ImportAccepting("en-US", widest);
+        Assert.Empty(read.Errors);
+        Assert.Equal([decimal.Parse("-" + new string('1', 27) + ".5", CultureInfo.InvariantCulture)], read.Items);
+
+        ImportResult<decimal?> refused = ImportAccepting("en-US", "-" + new string('1', 28) + ",5");
+        Assert.Equal(ErrorCodes.Value.TypeMismatch, Assert.Single(refused.Errors).Code);
+    }
+
+    [Fact]
     public void DoesNotCountAThreeDigitFractionWrittenTheOtherWay()
     {
         ColumnFacts facts = Profile(["1.234"], ["fr-FR"]).Sheets[0].Columns[1].Facts;

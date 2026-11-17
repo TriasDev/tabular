@@ -33,6 +33,14 @@ public sealed class RangeRuleTests
     }
 
     [Fact]
+    public void AValueThatIsNotANumberHoldsNoNumber()
+    {
+        // Number is public: a date's ticks or a boolean's 1 handed out through it would pass for a figure.
+        Assert.Equal(0m, MappedValue.FromDate(new DateTime(2023, 1, 15, 0, 0, 0, DateTimeKind.Unspecified)).Number);
+        Assert.Equal(0m, MappedValue.FromBoolean(true).Number);
+    }
+
+    [Fact]
     public void ARangeRuleStillJudgesNumbers()
     {
         Assert.True(new FieldConstraint.MinValue(18).IsSatisfiedBy(MappedValue.FromInteger(21)));

@@ -57,6 +57,7 @@ public sealed class AlternativesReportTests
         Assert.Equal(3, address.MaxReachableLevel);
         Assert.Equal([1, 1, 0, 1], address.RowsAtLevel);   // row 5 at 0, row 4 at 1, row 3 at 3
         Assert.Equal(2, address.Incomplete);
+        Assert.Equal(0, address.Empty);                   // row 5 has a city, row 4 a country
         Assert.Equal([4, 5], address.IncompleteRows);
 
         Assert.Equal(1, report.Unresolved);
@@ -71,6 +72,15 @@ public sealed class AlternativesReportTests
 
         Assert.Equal(1, report.Groups[1].IgnoredInvalidValues);
         Assert.Equal(0, report.Groups[1].RowsNeeding);
+    }
+
+    [Fact]
+    public void CountsAnIgnoredValueInTheRowThatHoldsItOnly()
+    {
+        // Row 3 has nothing to ignore; it must not count row 2's again.
+        AlternativesReport report = Report("1;48.1;11.5;XX;;\n2;48.1;11.5;;;\n");
+
+        Assert.Equal(1, report.Groups[1].IgnoredInvalidValues);
     }
 
     [Fact]

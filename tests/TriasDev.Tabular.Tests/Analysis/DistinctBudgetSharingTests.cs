@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Tests.Fixtures;
 
 using Xunit;
 
@@ -78,6 +79,67 @@ public sealed class DistinctBudgetSharingTests
         SheetProfile sheet = Analyze(i => i == 5 ? "5;;x" : $"{N(i)};R{N(i * 7)};x{N(i * 13)}", budget: 10);
 
         Assert.False(sheet.Columns[1].Facts.IsUnique);
+    }
+
+    [Fact]
+    public void GivesUpTheColumnThatRepeatsRatherThanTheRightmostOneThatDoesNot()
+    {
+        // 800 + 300 + 800 distinct values against 1,700. The middle column repeats from row 301 on,
+        // so its answer is settled and its room goes first; the rightmost keeps counting to the end.
+        SheetProfile sheet = Analyze(i => $"{N(i)};c{N(i % 300)};r{N(i)}", budget: 1_700);
+
+        Assert.True(sheet.Columns[2].Facts.IsUnique);
+        Assert.True(sheet.Columns[2].Facts.DistinctCountIsExact);
+        Assert.False(sheet.Columns[1].Facts.DistinctCountIsExact);
+        Assert.True(sheet.Columns[0].Facts.IsUnique);
+    }
+
+    [Fact]
+    public void AmongTheColumnsThatRepeatGivesUpTheOneHoldingMost()
+    {
+        // 300 names and 50 notes, both repeating; the budget runs dry with 50 rows to go. Giving up
+        // the 300 frees enough for them, and the 50 keep their exact count.
+        SheetProfile sheet = Analyze(i => $"{N(i)};name{N(i % 300)};note{N(i % 50)}", budget: 1_100);
+
+        Assert.True(sheet.Columns[2].Facts.DistinctCountIsExact);
+        Assert.Equal(50, sheet.Columns[2].Facts.DistinctCount);
+        Assert.False(sheet.Columns[1].Facts.DistinctCountIsExact);
+        Assert.True(sheet.Columns[0].Facts.IsUnique);
+    }
+
+    [Fact]
+    public void HandsASheetsBudgetBackForTheNextSheet()
+    {
+        // Two sheets of 600 identifiers each, and room for 1,000: each fits alone, not both together.
+        // On the second the identifier stands right of a constant column, so a first sheet's column
+        // still held in the budget would not be the one made to give up.
+        static string Ids(int from, bool besideAConstant)
+        {
+            string lead = besideAConstant ? "<c t=\"inlineStr\"><is><t>x</t></is></c>" : string.Empty;
+            StringBuilder rows = new($"<row>{(besideAConstant ? "<c t=\"inlineStr\"><is><t>kind</t></is></c>" : string.Empty)}<c t=\"inlineStr\"><is><t>id</t></is></c></row>");
+
+            for (int i = from; i < from + 600; i++)
+            {
+                rows.Append(CultureInfo.InvariantCulture, $"<row>{lead}<c><v>{i}</v></c></row>");
+            }
+
+            return rows.ToString();
+        }
+
+        byte[] workbook = new XlsxPackage().WithSheet("First", Ids(1, besideAConstant: false)).WithSheet("Second", Ids(1_001, besideAConstant: true)).Build();
+
+        using ITabularCursor cursor = TabularFile.Open(new MemoryStream(workbook, writable: false), "t.xlsx", cancellationToken: Token);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, new AnalysisOptions { DistinctTrackingBudget = 1_000 }, cancellationToken: Token);
+
+        ColumnFacts first = profile.Sheets[0].Columns[0].Facts;
+        ColumnFacts second = profile.Sheets[1].Columns[1].Facts;
+
+        Assert.Equal("id", second.Header);
+        Assert.All(new[] { first, second }, id =>
+        {
+            Assert.True(id.IsUnique);
+            Assert.True(id.DistinctCountIsExact);
+        });
     }
 
     [Fact]

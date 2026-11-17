@@ -28,6 +28,36 @@ public sealed class TranslatedFieldTests
         Assert.Equal(["title.en", "title.de"], Title.Fields.Select(f => f.Name));
         Assert.Equal(["en", "de"], Title.Fields.Select(f => f.Variant));
         Assert.All(Title.Fields, f => Assert.Equal("title", f.Group));
+
+        // Enumerated, as a schema spreads it, in the same order: the schema's, the coverage's and the
+        // preview's order all follow it.
+        Assert.Equal(["title.en", "title.de"], ((IEnumerable<ImportField>)Title).Select(f => f.Name));
+    }
+
+    [Fact]
+    public void ImportsAPlainFieldThatCarriesAVariantButNoGroup()
+    {
+        // Only a field with both is a language of a group; a variant alone names no group to file it under.
+        ImportField note = new() { Name = "note", Type = ColumnType.Text, Variant = "en" };
+        ImportSchema schema = new() { Fields = [Id, note] };
+        MappingPlan plan = new()
+        {
+            Bindings =
+            [
+                new ColumnBinding { ColumnIndex = 0, Header = "id", FieldName = "id" },
+                new ColumnBinding { ColumnIndex = 1, Header = "note", FieldName = "note" },
+            ],
+        };
+
+        using ImportRun<string?> run = TabularImporter.Import(
+            new MemoryStream(Utf8NoBom.GetBytes("id;note\nS1;hello\n"), writable: false),
+            "test.csv",
+            plan,
+            schema,
+            row => row.AsText(note),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(["hello"], run.ReadAll(cancellationToken: TestContext.Current.CancellationToken).Items);
     }
 
     [Fact]
