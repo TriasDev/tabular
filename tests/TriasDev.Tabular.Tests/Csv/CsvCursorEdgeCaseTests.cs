@@ -154,6 +154,40 @@ public sealed class CsvCursorEdgeCaseTests
         Assert.Equal(expected, cursor.Dialect.Delimiter);
     }
 
+    [Theory]
+    [InlineData("\na,b,c", ',')]
+    [InlineData("\n\na;b;c", ';')]
+    [InlineData("\r\na\tb", '\t')]
+    [InlineData("\na|b|c", '|')]
+    [InlineData("a,b\n1,2\n\n\n\n", ',')]
+    [InlineData("a,b\n\n\n1,2\n", ',')]
+    [InlineData("a|b\r\n\r\n\r\n1|2\r\n", '|')]
+    [InlineData("\t\n\t\n", '\t')]
+    public void JudgesTheDelimiterByEveryLineThatHoldsSomething(string text, char expected)
+    {
+        // Two ways the lines worth judging went missing. The probe is cut to its last line break in
+        // case it ended mid-line, but a file shorter than the probe did not, and cutting off its
+        // unterminated last line left nothing but a blank one. And a blank line, counted as a line
+        // without the delimiter, outvoted the rows that had it — three of them two rows, one of them a
+        // single row — and the file fell back to a guess. A line of tabs is not blank: it is a row of
+        // empty fields.
+        using MemoryStream stream = new(Utf8NoBom.GetBytes(text), writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+
+        Assert.Equal((expected, DialectSource.Detected), (cursor.Dialect.Delimiter, cursor.Dialect.DelimiterSource));
+    }
+
+    [Fact]
+    public void JudgesAFileLongerThanTheProbeOnlyByTheLinesTheProbeHoldsWhole()
+    {
+        // Twelve bytes reach into the third line; judged with it, "xx,y" would break the semicolon's
+        // run of equal counts.
+        using MemoryStream stream = new(Utf8NoBom.GetBytes("a;b\n1;2\nxx,yy,zz;ww\n"), writable: false);
+        using CsvCursor cursor = new(stream, "test.csv", new CsvCursorOptions { DialectProbeBytes = 12 });
+
+        Assert.Equal((';', DialectSource.Detected), (cursor.Dialect.Delimiter, cursor.Dialect.DelimiterSource));
+    }
+
     [Fact]
     public void PrefersTheDelimiterPresentOnEveryLineOverTheMoreFrequentOne()
     {

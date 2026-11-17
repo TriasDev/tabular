@@ -95,13 +95,15 @@ internal static class CsvDialectDetector
             return new CsvDialect(encoding, encodingSource, delimiterStated, DialectSource.Specified, quote);
         }
 
-        // The probe may end mid-character, and decoding a partial one would fail on the tail rather
-        // than on real content. Trimming to the last line ending removes that risk for nothing: the
-        // delimiter is decided from whole lines anyway.
+        // A full probe may end mid-character or mid-line, and decoding a partial one would fail on the
+        // tail rather than on real content. Trimming to the last line ending removes that risk for
+        // nothing: the delimiter is decided from whole lines anyway. A probe shorter than asked for is
+        // the whole file, whose last line is whole even without a line ending; cutting it off left
+        // "\na,b,c" nothing to judge and read it as one column under the fallback.
         string text = encoding.GetString(head).TrimStart('﻿');
         int lastBreak = text.LastIndexOf('\n');
 
-        if (lastBreak >= 0)
+        if (lastBreak >= 0 && probe.Length >= options.DialectProbeBytes)
         {
             text = text[..lastBreak];
         }
@@ -405,9 +407,15 @@ internal static class CsvDialectDetector
     }
 
     /// <summary>
-    /// The first lines of the text — records, when quotes are honoured. <paramref name="keepOpenTail"/>
-    /// false drops a last record still inside an open quote: the probe's end cut it off.
+    /// The first lines of the text that hold anything — records, when quotes are honoured.
+    /// <paramref name="keepOpenTail"/> false drops a last record still inside an open quote: the
+    /// probe's end cut it off.
     /// </summary>
+    /// <remarks>
+    /// A blank line is left out: it says nothing about the delimiter, and counted as a line without
+    /// one it outvoted the rows that had it — a file ending in three blank lines after two rows fell
+    /// back to a guess. A line of tabs or spaces is kept; it may be a row of empty fields.
+    /// </remarks>
     private static List<string> FirstLines(string text, char quote, bool honourQuotes, bool keepOpenTail)
     {
         List<string> lines = [];
@@ -424,17 +432,27 @@ internal static class CsvDialectDetector
             }
             else if (c == '\n' && !inQuotes)
             {
-                lines.Add(text[start..i].TrimEnd('\r'));
+                AddUnlessBlank(lines, text[start..i]);
                 start = i + 1;
             }
         }
 
         if (start < text.Length && lines.Count < LinesInspected && (keepOpenTail || !inQuotes))
         {
-            lines.Add(text[start..].TrimEnd('\r'));
+            AddUnlessBlank(lines, text[start..]);
         }
 
         return lines;
+    }
+
+    private static void AddUnlessBlank(List<string> lines, string line)
+    {
+        string record = line.TrimEnd('\r');
+
+        if (record.Length > 0)
+        {
+            lines.Add(record);
+        }
     }
 
     /// <summary>
