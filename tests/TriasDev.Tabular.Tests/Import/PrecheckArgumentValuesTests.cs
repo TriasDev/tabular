@@ -72,6 +72,7 @@ public sealed class PrecheckArgumentValuesTests
         PrecheckFinding unknown = Assert.Single(MappingPrecheck.Check(plan with { Culture = "xx-NOPE" }, schema, profile).Findings);
         Assert.Equal(ErrorCodes.Mapping.UnknownCulture, unknown.Code);
         Assert.Equal("xx-NOPE", unknown.Arguments[PrecheckArguments.Culture]);
+        Assert.False(MappingPrecheck.Check(plan with { Culture = "xx-NOPE" }, schema, profile).CanImport);
 
         PrecheckFinding unprofiled = Assert.Single(MappingPrecheck.Check(plan with { Culture = "fr-FR" }, schema, profile).Findings);
         Assert.Equal(PrecheckReasons.NotProfiled, unprofiled.Arguments[PrecheckArguments.Reason]);

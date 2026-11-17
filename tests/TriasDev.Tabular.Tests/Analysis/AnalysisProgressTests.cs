@@ -47,6 +47,32 @@ public sealed class AnalysisProgressTests
     }
 
     [Fact]
+    public void ReportsEveryRowWhenTheIntervalIsOne()
+    {
+        // An interval below ten still looks at every row past it, never at none.
+        using MemoryStream stream = new(Csv(5), writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+        Recorder recorder = new();
+
+        TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 1, ProgressStep = 0 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal([1, 2, 3, 4, 5, 5], recorder.Reports.Select(r => r.RowsRead));
+    }
+
+    [Fact]
+    public void ReportsTheEndOfAFileWithNoSheets()
+    {
+        using NoSheets cursor = new();
+        Recorder recorder = new();
+
+        TabularAnalyzer.Analyze(cursor, new AnalysisOptions { ProgressInterval = 1 }, progress: recorder, cancellationToken: TestContext.Current.CancellationToken);
+
+        AnalysisProgress report = Assert.Single(recorder.Reports);
+        Assert.True(report.IsComplete);
+        Assert.Equal((0, "", 0, 0), (report.SheetIndex, report.SheetName, report.SheetCount, report.RowsRead));
+    }
+
+    [Fact]
     public void GivesAFractionThatRisesToOneWithoutReadingTheFileTwice()
     {
         // The point of taking the fraction from the stream: a caller no longer counts lines first to
@@ -163,6 +189,30 @@ public sealed class AnalysisProgressTests
         Assert.Equal(
             without.Sheets[0].Columns.Select(c => c.Facts.DistinctCount),
             with.Sheets[0].Columns.Select(c => c.Facts.DistinctCount));
+    }
+
+    /// <summary>A cursor over a file that holds no sheet at all.</summary>
+    private sealed class NoSheets : ITabularCursor
+    {
+        public TabularFormat Format => TabularFormat.Zip;
+
+        public IReadOnlyList<SheetInfo> Sheets => [];
+
+        public int CurrentSheetIndex => -1;
+
+        public ReadOnlySpan<RawCell> CurrentRow => [];
+
+        public int CurrentRowNumber => 0;
+
+        public CursorDiagnostics Diagnostics { get; } = new();
+
+        public bool MoveToSheet(int index, CancellationToken cancellationToken = default) => false;
+
+        public bool ReadRow(CancellationToken cancellationToken = default) => false;
+
+        public void Dispose()
+        {
+        }
     }
 
     /// <summary>A stream that can be read forward and nothing else, like one arriving over a network.</summary>

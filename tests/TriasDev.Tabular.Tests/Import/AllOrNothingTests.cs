@@ -89,6 +89,20 @@ public sealed class AllOrNothingTests
     }
 
     [Fact]
+    public void HandsEachChunkOnlyItsOwnErrorsUnderBestEffort()
+    {
+        using ImportRun<long> run = Run(ImportPolicy.BestEffort, "count;x\nbad;a\n1;a\n2;a\n3;a\n");
+
+        List<ImportChunk<long>> chunks = [.. run.ReadChunks(2, TestContext.Current.CancellationToken)];
+
+        Assert.Equal(2, chunks.Count);
+        Assert.Equal([1L, 2L], chunks[0].Items);
+        Assert.Equal(2, Assert.Single(chunks[0].Errors).RowNumber);
+        Assert.Equal([3L], chunks[1].Items);
+        Assert.Empty(chunks[1].Errors);
+    }
+
+    [Fact]
     public void KeepsImportingPastAFailureUnderBestEffort()
     {
         using ImportRun<long> run = Run(ImportPolicy.BestEffort, OneBadRow);

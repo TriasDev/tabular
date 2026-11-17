@@ -61,6 +61,23 @@ public sealed class SheetProfileSourceTests
         Assert.Equal(1, profile.Diagnostics.RecoveredUnterminatedQuotes);
     }
 
+    [Theory]
+    [InlineData("x\n\"open\n", 1, 0)]
+    [InlineData(Archive.ArchiveCursorCsvTests.StrayQuote, 0, 1)]
+    public void ASheetAfterARepairedOneReportsOnlyItsOwnRepairs(string repaired, int unterminated, int stray)
+    {
+        // The cursor counts across the whole archive; each sheet's share is what it counted while that
+        // sheet was read. The clean sheet comes second, so the repairs before it must be taken away.
+        byte[] archive = new ZipArchiveBuilder().With("a.csv", repaired).With("b.csv", "x\n1\n").Build();
+
+        using ITabularCursor cursor = TabularFile.Open(new MemoryStream(archive, writable: false), "upload.zip", cancellationToken: TestContext.Current.CancellationToken);
+        FileProfile profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal((unterminated, stray), (profile.Sheets[0].Diagnostics.RecoveredUnterminatedQuotes, profile.Sheets[0].Diagnostics.RecoveredStrayQuotes));
+        Assert.True(profile.Sheets[1].Diagnostics.IsClean);
+        Assert.Equal((unterminated, stray), (profile.Diagnostics.RecoveredUnterminatedQuotes, profile.Diagnostics.RecoveredStrayQuotes));
+    }
+
     [Fact]
     public void AStoredProfileDoesNotChangeWhenTheCursorReadsOn()
     {

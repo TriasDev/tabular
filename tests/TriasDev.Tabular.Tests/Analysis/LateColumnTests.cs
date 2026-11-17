@@ -70,4 +70,19 @@ public sealed class LateColumnTests
         Assert.Equal(2, late.EmptyCount);
         Assert.Equal(profile.Sheets[0].RowCount, late.NonEmptyCount + late.EmptyCount);
     }
+
+    [Fact]
+    public void ProfilesAColumnThatAppearsOnTheFirstDataRow()
+    {
+        // No rows were missed, so nothing is given back to it; its empty cell below counts once.
+        FileProfile profile = Profile("a\n1;x\n2\n");
+
+        ColumnFacts late = profile.Sheets[0].Columns[1].Facts;
+
+        Assert.Equal(1, late.NonEmptyCount);
+        Assert.Equal(1, late.EmptyCount);
+        Assert.Equal(1, late.NativeKinds[RawCellKind.Text]);
+        Assert.Equal(1, late.NativeKinds[RawCellKind.Empty]);
+        Assert.Equal(2, late.NativeKinds.Count);
+    }
 }

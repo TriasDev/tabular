@@ -247,6 +247,35 @@ public sealed class ExtractionRunTests
     }
 
     [Fact]
+    public void RefusesABindingPastTheEndOfTheHeaderRowAsAChangedHeader()
+    {
+        // The header row is shorter than the data rows: the column the binding names has no header
+        // now, which is a changed file, not an index out of range.
+        using MemoryStream stream = new(Utf8NoBom.GetBytes("a;b\n1;2;3\n"), writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+        MappingPlan plan = new() { Bindings = [new ColumnBinding { ColumnIndex = 2, Header = "c", FieldName = "amount" }] };
+        ImportSchema schema = new() { Fields = [new ImportField { Name = "amount", Type = ColumnType.Text }] };
+
+        TabularStructureException error = Assert.Throws<TabularStructureException>(
+            () => TabularExtractor.Extract(cursor, plan, schema, cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(TabularStructureException.HeaderChanged, error.Code);
+        Assert.Equal(("c", ""), (error.ExpectedHeader, error.ActualHeader));
+    }
+
+    [Fact]
+    public void AcceptsABindingRecordedOverAnEmptyHeaderCell()
+    {
+        // A column without a header is still a column; its binding recorded the empty header it saw.
+        Run run = Extract(
+            "a;;c\n1;2;3\n",
+            new MappingPlan { Bindings = [new ColumnBinding { ColumnIndex = 1, Header = "", FieldName = "amount" }] },
+            new ImportSchema { Fields = [new ImportField { Name = "amount", Type = ColumnType.Text }] });
+
+        Assert.Equal("2", Assert.Single(run.Values)[0]);
+    }
+
+    [Fact]
     public void RefusesASheetThatIsNotThere()
     {
         using MemoryStream stream = new(Utf8NoBom.GetBytes("Land;Betrag\nDEU;1,00\n"), writable: false);

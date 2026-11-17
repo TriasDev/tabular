@@ -182,6 +182,14 @@ public sealed class ColumnProfilerTests
     }
 
     [Fact]
+    public void CountsAWorkbooksOwnBooleans()
+    {
+        ColumnFacts facts = ProfileCells([RawCell.FromBoolean(true), RawCell.FromBoolean(false), RawCell.FromText("x")]);
+
+        Assert.Equal(2, facts.BooleanCount);
+    }
+
+    [Fact]
     public void RecordsWhatTheFileItselfDeclaredEachCellToBe()
     {
         ColumnFacts facts = ProfileCells(

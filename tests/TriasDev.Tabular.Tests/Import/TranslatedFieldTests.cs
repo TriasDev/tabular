@@ -94,6 +94,9 @@ public sealed class TranslatedFieldTests
         // it, and a subscription with ten languages would otherwise get ten errors saying so.
         Assert.Equal("group.required", error.Code);
         Assert.Equal("title", error.FieldName);
+
+        // The group has no column of its own; the error points at its first mapped member, title_en.
+        Assert.Equal(1, error.ColumnIndex);
     }
 
     [Fact]
@@ -147,6 +150,47 @@ public sealed class TranslatedFieldTests
         FileProfile profile = Profile("id;title_en;title_de\nS1;English;\nS2;;Deutsch\n");
 
         Assert.Empty(MappingPrecheck.Check(Plan(), Schema, profile).Findings);
+    }
+
+    [Fact]
+    public void SaysNothingWhenOneLanguageIsFilledAndAnotherIsEmptyThroughout()
+    {
+        // A language nobody wrote is no fault while another one carries every row.
+        PrecheckResult result = MappingPrecheck.Check(Plan(), Schema, Profile("id;title_en;title_de\nS1;English;\nS2;Other;\n"));
+
+        Assert.DoesNotContain(result.Findings, f => f.Code == "group.required");
+        Assert.True(result.CanImport);
+    }
+
+    [Fact]
+    public void AsksNothingOfAGroupThatIsNotRequired()
+    {
+        // Only a required group must be carried by a row; an optional one may be empty throughout.
+        TranslatedImportField optional = ImportField.Translated("title", ["en", "de"]);
+        ImportSchema schema = new() { Fields = [Id, .. optional] };
+
+        PrecheckResult result = MappingPrecheck.Check(Plan(), schema, Profile("id;title_en;title_de\nS1;;\nS2;;\n"));
+
+        Assert.DoesNotContain(result.Findings, f => f.Code == "group.required");
+        Assert.True(result.CanImport);
+    }
+
+    [Fact]
+    public void ReportsALanguageBoundToAColumnTheFileDoesNotHave()
+    {
+        // The bound column is not in the profile: that is the binding's fault, reported as such, and
+        // the group's check must not trip over the missing column.
+        MappingPlan plan = Plan() with
+        {
+            Bindings = [.. Plan().Bindings.Take(2), new ColumnBinding { ColumnIndex = 9, Header = "title_de", FieldName = "title.de" }],
+        };
+
+        PrecheckResult result = MappingPrecheck.Check(plan, Schema, Profile("id;title_en;title_de\nS1;;\nS2;;\n"));
+
+        PrecheckFinding finding = Assert.Single(result.Findings, f => f.Code == "mapping.invalid-column");
+        Assert.Equal("title.de", finding.FieldName);
+        Assert.Equal(9, finding.ColumnIndex);
+        Assert.False(result.CanImport);
     }
 
     [Fact]

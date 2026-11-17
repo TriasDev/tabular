@@ -141,6 +141,29 @@ public sealed class ArchiveDetectionTests
     }
 
     [Fact]
+    public void ThePrecheckJudgesAPlanByTheFileItRecorded()
+    {
+        byte[] archive = new ZipArchiveBuilder().With("a.csv", "name\nx\n").With("b.csv", "name\ny\n").Build();
+
+        FileProfile profile;
+
+        using (ITabularCursor cursor = Open(archive))
+        {
+            profile = TabularAnalyzer.Analyze(cursor, cancellationToken: Token);
+        }
+
+        MappingPlan plan = MappingPlan.ByHeader(profile.Sheets[1], Schema);
+
+        Assert.True(MappingPrecheck.Check(plan, Schema, profile).CanImport);
+
+        // The same sheet index and name, but the plan was made from another file of the archive.
+        PrecheckResult moved = MappingPrecheck.Check(plan with { SheetSource = "a.csv" }, Schema, profile);
+
+        Assert.False(moved.CanImport);
+        Assert.Equal(ErrorCodes.Structure.SheetChanged, Assert.Single(moved.Findings).Code);
+    }
+
+    [Fact]
     public void RefusesAPlanWhenAnotherFileNowStandsAtItsSheet()
     {
         // The plan was made for the sheet at index 0; a file sorting before it was added since.

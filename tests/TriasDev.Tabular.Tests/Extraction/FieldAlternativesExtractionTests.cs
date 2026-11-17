@@ -132,6 +132,23 @@ public sealed class FieldAlternativesExtractionTests
 
         Assert.Equal("group.unresolved", error.Code);
         Assert.Equal("location", error.FieldName);
+
+        // The set has no column of its own; the error points at its first mapped member, the latitude.
+        Assert.Equal(1, error.ColumnIndex);
+    }
+
+    [Fact]
+    public void DefersALaterGroupsFieldWhereverTheSchemaDeclaresIt()
+    {
+        // The country declared first: a later group's field at schema position 0 still waits for a
+        // row that needs the address, and this row's coordinates won.
+        ImportSchema schema = Schema();
+        ImportSchema countryFirst = new() { Fields = [Country, Id, Lat, Lon, City, Street, StreetAndHouse], Alternatives = schema.Alternatives };
+
+        Row row = Single("1;48.1;11.5;XX;;;\n", schema: countryFirst);
+
+        Assert.Empty(row.Errors);
+        Assert.Equal("coordinates", row.Resolution.Group);
     }
 
     private static ImportSchema Schema(bool unresolvedRowFails = false) => new()
@@ -164,10 +181,10 @@ public sealed class FieldAlternativesExtractionTests
         ],
     };
 
-    private static Row Single(string data, bool unresolvedRowFails = false)
+    private static Row Single(string data, bool unresolvedRowFails = false, ImportSchema? schema = null)
     {
         using ITabularCursor cursor = TabularFile.Open(new MemoryStream(Utf8NoBom.GetBytes(Header + data), writable: false), "test.csv");
-        ExtractionRun run = TabularExtractor.Extract(cursor, Plan(), Schema(unresolvedRowFails));
+        ExtractionRun run = TabularExtractor.Extract(cursor, Plan(), schema ?? Schema(unresolvedRowFails));
 
         Assert.True(run.ReadRow(TestContext.Current.CancellationToken));
 

@@ -95,6 +95,18 @@ public sealed class MappingPlanValidatorTests
     }
 
     [Fact]
+    public void SaysNothingMoreAboutABindingToAFieldTheSchemaDoesNotDeclare()
+    {
+        // A binding to no field has one fault. Reporting it twice as "duplicate" and "invalid column"
+        // too sends the person to fix a column for a field that does not exist.
+        MappingPlan plan = new() { Bindings = [Bind(0, "countryIso3"), Bind(-1, "nope"), Bind(-1, "nope")] };
+
+        IReadOnlyList<MappingFault> faults = MappingPlanValidator.Validate(plan, Schema);
+
+        Assert.Equal(["mapping.unknown-field", "mapping.unknown-field"], faults.Select(f => f.Code));
+    }
+
+    [Fact]
     public void RejectsANegativeColumnIndex()
     {
         MappingPlan plan = new() { Bindings = [Bind(-1, "countryIso3")] };

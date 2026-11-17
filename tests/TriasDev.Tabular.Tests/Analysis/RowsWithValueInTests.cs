@@ -28,6 +28,15 @@ public sealed class RowsWithValueInTests
         Assert.Null(facts.RowsWithValueIn(Countries));
     }
 
+    [Fact]
+    public void RefusesNoRule()
+    {
+        // Asked of an empty column and of one with too many values, where it has an answer without
+        // looking at the rule: a missing rule is the caller's mistake either way.
+        Assert.Throws<ArgumentNullException>("allowed", () => Facts("code;other\n;1\n").RowsWithValueIn(null!));
+        Assert.Throws<ArgumentNullException>("allowed", () => Facts("code\n" + string.Concat(Enumerable.Range(0, 30).Select(i => $"V{i}\n")), new AnalysisOptions { RetainedDistinctValues = 10 }).RowsWithValueIn(null!));
+    }
+
     private static ColumnFacts Facts(string csv, AnalysisOptions? options = null)
     {
         using ITabularCursor cursor = TabularFile.Open(new MemoryStream(Utf8NoBom.GetBytes(csv), writable: false), "test.csv");
