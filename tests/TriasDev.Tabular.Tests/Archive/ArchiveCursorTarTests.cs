@@ -297,10 +297,14 @@ public sealed class ArchiveCursorTarTests
         Assert.Equal(TabularFormatException.Truncated, Assert.Throws<TabularFormatException>(() => Open(cut)).Code);
     }
 
-    [Fact]
-    public void AcceptsASingleZeroBlockAsTheEnd()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(508)]   // data of 511 bytes: one byte short of a block
+    [InlineData(509)]   // data of exactly one block: no padding
+    public void AcceptsASingleZeroBlockAsTheEnd(int digits)
     {
-        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "a\n1\n"));
+        // The end marker is looked for right after the last entry's data, padded to whole blocks.
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "a\n" + new string('1', digits) + "\n"));
 
         using ArchiveCursor cursor = Open(tar[..^512]);
 
@@ -363,6 +367,81 @@ public sealed class ArchiveCursorTarTests
 
         Assert.Equal(nameof(ArchiveCursorOptions.MaxEntries), entries.Limit);
         Assert.Equal(nameof(ArchiveCursorOptions.MaxUncompressedBytes), size.Limit);
+    }
+
+    [Fact]
+    public void AllowsATarExactlyAtItsBounds()
+    {
+        // Three files of four bytes each, one sheet each: every bound at exactly that is enough, and
+        // one less is not.
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "a\n1\n"), ("b.csv", "b\n2\n"), ("c.csv", "c\n3\n"));
+        ArchiveCursorOptions exact = new() { MaxEntries = 3, MaxUncompressedBytes = 12, MaxSheets = 3 };
+
+        using (ArchiveCursor cursor = Open(tar, new TabularOpenOptions { Archive = exact }))
+        {
+            Assert.Equal(3, cursor.Sheets.Count);
+        }
+
+        Assert.Equal(nameof(ArchiveCursorOptions.MaxUncompressedBytes), Assert.Throws<TabularLimitException>(() =>
+            Open(tar, new TabularOpenOptions { Archive = exact with { MaxUncompressedBytes = 11 } })).Limit);
+        Assert.Equal(nameof(ArchiveCursorOptions.MaxSheets), Assert.Throws<TabularLimitException>(() =>
+            Open(tar, new TabularOpenOptions { Archive = exact with { MaxSheets = 2 } })).Limit);
+    }
+
+    [Fact]
+    public void CountsNothingOfAGlobalHeaderTowardsTheArchivesSize()
+    {
+        // git archive starts a tar with a PAX global header carrying the commit. It is no file, and its
+        // bytes are not content the archive expands to.
+        PaxGlobalExtendedAttributesTarEntry global = new(new Dictionary<string, string> { ["comment"] = new string('c', 300) });
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, global, TarArchive.File(TarEntryFormat.Pax, "a.csv", "a\n1\n"));
+
+        using ArchiveCursor cursor = Open(tar, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxUncompressedBytes = 4 } });
+
+        Assert.Equal("a.csv", Assert.Single(cursor.Sheets).Source);
+    }
+
+    [Fact]
+    public void AllowsAWorkbookReadInPlaceOfExactlyTheWorkbookBound()
+    {
+        byte[] workbook = Workbook("S", "x");
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, TarArchive.File(TarEntryFormat.Pax, "r.xlsx", workbook));
+
+        using ArchiveCursor cursor = Open(tar, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxEmbeddedWorkbookBytes = workbook.Length } });
+
+        Assert.Equal("S", Assert.Single(cursor.Sheets).Name);
+    }
+
+    [Fact]
+    public void RefusesAWorkbookPastTheBoundWhenTheArchiveIsOpenedNotWhenItsSheetIsReached()
+    {
+        // The csv sorts first, so opening the archive never moves to the workbook; the bound must
+        // still refuse it while the files are listed.
+        byte[] tar = TarArchive.Of(
+            TarEntryFormat.Pax,
+            TarArchive.File(TarEntryFormat.Pax, "a.csv", "a\n1\n"),
+            TarArchive.File(TarEntryFormat.Pax, "r.xlsx", Workbook("S", "x")));
+
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() =>
+            Open(tar, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxEmbeddedWorkbookBytes = 200 } }));
+
+        Assert.Equal(nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes), error.Limit);
+    }
+
+    [Fact]
+    public void RefusesToMoveOrReadOnceDisposedThoughTheStreamWasLeftOpen()
+    {
+        // A tar's files are windows onto the stream, and the stream was left open: nothing below the
+        // cursor stops a move from opening a file afresh after the cursor was disposed.
+        MemoryStream kept = new(TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "a\n1\n"), ("b.csv", "b\n2\n")), writable: false);
+        ArchiveCursor cursor = new(kept, new TabularOpenOptions { LeaveOpen = true }, Token);
+
+        cursor.Dispose();
+        cursor.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => cursor.MoveToSheet(1, Token));
+        Assert.Throws<ObjectDisposedException>(() => cursor.ReadRow(Token));
+        Assert.True(kept.CanRead);
     }
 
     [Fact]

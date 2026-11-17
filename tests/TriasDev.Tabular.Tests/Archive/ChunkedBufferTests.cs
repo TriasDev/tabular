@@ -77,6 +77,25 @@ public sealed class ChunkedBufferTests
     }
 
     [Fact]
+    public void StopsACopyWhoseTokenIsCancelled()
+    {
+        using CancellationTokenSource source = new();
+        source.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => ChunkedBuffer.CopyOf(new MemoryStream(new byte[10]), 10, long.MaxValue, source.Token));
+    }
+
+    [Fact]
+    public void RefusesANegativePositionAndStaysWhereItWas()
+    {
+        using ChunkedBuffer buffer = Copy(10);
+        buffer.Position = 5;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Position = -1);
+        Assert.Equal(5, buffer.Position);
+    }
+
+    [Fact]
     public void RefusesToBeReadOrSoughtAfterItWasDisposed()
     {
         ChunkedBuffer buffer = Copy(10);

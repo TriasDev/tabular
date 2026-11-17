@@ -48,6 +48,16 @@ public sealed class StreamWindowTests
     }
 
     [Fact]
+    public void RefusesANegativePositionAndStaysWhereItWas()
+    {
+        using StreamWindow window = new(new MemoryStream(Bytes), 100, 50);
+        window.Position = 5;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => window.Position = -1);
+        Assert.Equal(5, window.Position);
+    }
+
+    [Fact]
     public void TwoWindowsOverOneStreamDoNotDisturbEachOther()
     {
         MemoryStream file = new(Bytes);
@@ -92,5 +102,23 @@ public sealed class StreamWindowTests
 
         Assert.Equal(Bytes, all.ToArray());
         Assert.True(rest.CanRead);
+    }
+
+    [Fact]
+    public void PutsTheHeadBackInFrontOfTheRestInReadsShorterThanTheHead()
+    {
+        // CopyTo rents a buffer larger than the head and takes it in one read; three bytes at a time
+        // reach the head's end part-way through a read.
+        using HeadedStream stream = new(Bytes[..10], new MemoryStream(Bytes[10..]));
+        using MemoryStream all = new();
+        byte[] piece = new byte[3];
+        int read;
+
+        while ((read = stream.Read(piece, 0, piece.Length)) > 0)
+        {
+            all.Write(piece, 0, read);
+        }
+
+        Assert.Equal(Bytes, all.ToArray());
     }
 }

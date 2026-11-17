@@ -124,6 +124,72 @@ public sealed class UnsupportedFormatTests
     }
 
     [Theory]
+    [InlineData(3, 3000, false)]  // three are tolerated however short the file
+    [InlineData(4, 4000, true)]   // four, one in every thousand bytes: binary
+    [InlineData(4, 4001, false)]  // four in a file one byte longer: fewer than one in a thousand
+    public void TakesAFileForBinaryFromFourNulBytesAndOneInEveryThousand(int nuls, int length, bool refused)
+    {
+        // Text, with the NUL bytes far apart, so they cannot stand where UTF-16 would put them.
+        byte[] content = Encoding.ASCII.GetBytes("a;b\n" + new string('x', length - 5) + "\n");
+
+        for (int i = 0; i < nuls; i++)
+        {
+            content[10 + (i * 100)] = 0;
+        }
+
+        if (refused)
+        {
+            Assert.Contains("not text", Refusal(content).Message, StringComparison.Ordinal);
+            return;
+        }
+
+        using CsvCursor cursor = new(new MemoryStream(content, writable: false), "t.csv");
+
+        Assert.Equal(65001, cursor.Dialect.Encoding.CodePage);
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadsUtf16WithoutAByteOrderMarkWhenHalfItsCharactersAreAscii(bool bigEndian)
+    {
+        // Only the ASCII half puts a NUL beside itself; half is enough.
+        Encoding encoding = new UnicodeEncoding(bigEndian, byteOrderMark: false);
+        using CsvCursor cursor = new(new MemoryStream(encoding.GetBytes("a€;€€\nb€;€€\n"), writable: false), "t.csv");
+
+        Assert.Equal(bigEndian ? 1201 : 1200, cursor.Dialect.Encoding.CodePage);
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(["a€", "€€"], cursor.CurrentRow.ToArray().Select(c => c.AsText()));
+    }
+
+    [Theory]
+    [InlineData(false, 20, true)]
+    [InlineData(false, 21, false)]
+    [InlineData(true, 20, true)]
+    [InlineData(true, 21, false)]
+    public void TakesNulBytesForUtf16OnlyWhileFewerThanOneUnitInTwentyHasOneOnItsOtherSide(bool bigEndian, int characters, bool refused)
+    {
+        // 'Ā' (U+0100) puts its NUL on the side where ASCII has its letter. One such unit in twenty is
+        // already too many to call the NUL bytes UTF-16, and the file is binary.
+        Encoding encoding = new UnicodeEncoding(bigEndian, byteOrderMark: false);
+        byte[] content = encoding.GetBytes("Ā;" + new string('x', characters - 4) + "\n" + "\n");
+
+        if (refused)
+        {
+            Assert.Contains("not text", Refusal(content).Message, StringComparison.Ordinal);
+            return;
+        }
+
+        using CsvCursor cursor = new(new MemoryStream(content, writable: false), "t.csv");
+
+        Assert.Equal(bigEndian ? 1201 : 1200, cursor.Dialect.Encoding.CodePage);
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("Ā", cursor.CurrentRow[0].AsText());
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void ReadsUtf16WithoutAByteOrderMark(bool bigEndian)

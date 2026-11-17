@@ -48,6 +48,29 @@ public sealed class GzipHeaderTests
     }
 
     [Fact]
+    public void SkipsAnExtraFieldLongerThanItsLowByteCounts()
+    {
+        // XLEN is little-endian: 0x012C is 300 bytes, of which the low byte alone counts 44.
+        byte[] header = [0x1F, 0x8B, 0x08, 0x0C, 0, 0, 0, 0, 0, 3, 0x2C, 0x01, .. new byte[300], .. "n.csv"u8, 0];
+        MemoryStream stream = new(header);
+
+        Assert.Equal("n.csv", GzipHeader.Read(stream));
+        Assert.Equal(header.Length, stream.Position);
+    }
+
+    [Fact]
+    public void ReadsNoNameFromANameFieldThatIsEmpty()
+    {
+        // The name flag set and the field nothing but its terminator: no name, as though unset, so the
+        // sheet is named after the file instead of being named nothing.
+        byte[] header = [0x1F, 0x8B, 0x08, 0x08, 0, 0, 0, 0, 0, 3, 0];
+        MemoryStream stream = new(header);
+
+        Assert.Null(GzipHeader.Read(stream));
+        Assert.Equal(header.Length, stream.Position);
+    }
+
+    [Fact]
     public void ReadsTheNameAsLatin1AsTheFormatSays()
     {
         MemoryStream stream = new(GzipFile.Of("a\n", "Übersicht.csv"));

@@ -199,6 +199,25 @@ public sealed class ArchiveCursorTarGzTests
     }
 
     [Fact]
+    public void KeepsThePathInTheUstarPrefixWhenTheHeaderArrivesInPieces()
+    {
+        // The decompressor hands out no more than a gzip member holds, so a file of many small members
+        // reaches the tar reader in pieces, and the header the prefix is read from is gathered from
+        // them. The first entry's data, one member of its own, arrives in a single read that ends off
+        // a block boundary, so the last block is gathered across the end of the ring as well.
+        string prefix = "export/" + new string('a', 120);
+        byte[] first = TarArchive.Of(TarEntryFormat.Ustar, ("first.csv", "n\n" + new string('1', 597) + "\n"))[..^1024];
+        byte[] tar = [.. first, .. ArchiveCursorTarTests.BsdtarStyle(prefix, "items.csv", "sku,count\nA,1\n")];
+        int whole = 512 + 600;
+        byte[] archive = [.. GzipFile.Of(tar[..whole]), .. tar[whole..].Chunk(97).SelectMany(piece => GzipFile.Of(piece))];
+
+        using ArchiveCursor cursor = Open(archive);
+
+        Assert.Equal([prefix + "/items.csv", "first.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.Equal([["sku", "count"], ["A", "1"]], ReadAll(cursor));
+    }
+
+    [Fact]
     public void RefusesEveryCutOfAGzippedTar()
     {
         byte[] archive = GzipFile.Of(TarArchive.Of(TarEntryFormat.Pax, ("a.csv", "id\n" + string.Concat(Enumerable.Range(0, 500).Select(i => $"{i}\n"))), ("b.csv", "x\n1\n")));
