@@ -103,11 +103,13 @@ internal static class ValueReading
     private static bool TryReadInteger(in RawCell cell, string text, CultureInfo culture, out MappedValue value)
     {
         // The range check is not decoration: `(long)1e30` does not throw, it saturates, and the row
-        // would then be written out carrying long.MaxValue as though the file had said so.
+        // would then be written out carrying long.MaxValue as though the file had said so. The upper
+        // bound is exclusive because long.MaxValue is no double: compared with one it becomes 2^63,
+        // which a long cannot hold. -2^63 can, so the lower bound stays inclusive.
         if (cell.Kind == RawCellKind.Number
             && double.IsInteger(cell.Number)
             && cell.Number >= long.MinValue
-            && cell.Number <= long.MaxValue)
+            && cell.Number < long.MaxValue)
         {
             value = MappedValue.FromInteger((long)cell.Number);
             return true;
