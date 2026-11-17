@@ -96,6 +96,41 @@ public sealed class OptionsValidationTests
         Assert.Contains(option, error.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// For each kind of file an archive or a gzip file may hold, an option that file would never be
+    /// read with: a csv's options when it holds a workbook, a workbook's when it holds a csv, the
+    /// workbook size bound when it holds no workbook.
+    /// </summary>
+    public static TheoryData<bool, bool, TabularOpenOptions, string> OptionsTheContentNeverUses => new()
+    {
+        { false, false, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxEmbeddedWorkbookBytes = 0 } }, nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes) },
+        { false, false, new TabularOpenOptions { Xlsx = new XlsxCursorOptions { MaxSharedStrings = -1 } }, nameof(XlsxCursorOptions.MaxSharedStrings) },
+        { false, false, new TabularOpenOptions { Ods = new OdsCursorOptions { MaxRows = 0 } }, nameof(OdsCursorOptions.MaxRows) },
+        { false, true, new TabularOpenOptions { Csv = new CsvCursorOptions { MaxQuotedFieldLines = -1 } }, nameof(CsvCursorOptions.MaxQuotedFieldLines) },
+        { true, false, new TabularOpenOptions { Archive = new ArchiveCursorOptions { MaxEmbeddedWorkbookBytes = 0 } }, nameof(ArchiveCursorOptions.MaxEmbeddedWorkbookBytes) },
+        { true, false, new TabularOpenOptions { Xlsx = new XlsxCursorOptions { MaxSharedStrings = -1 } }, nameof(XlsxCursorOptions.MaxSharedStrings) },
+        { true, false, new TabularOpenOptions { Ods = new OdsCursorOptions { MaxRows = 0 } }, nameof(OdsCursorOptions.MaxRows) },
+        { true, true, new TabularOpenOptions { Csv = new CsvCursorOptions { MaxQuotedFieldLines = -1 } }, nameof(CsvCursorOptions.MaxQuotedFieldLines) },
+    };
+
+    [Theory]
+    [MemberData(nameof(OptionsTheContentNeverUses))]
+    public void RefusesAnOptionThatCannotWorkWhenAnArchiveOrGzipFileIsOpenedWhateverItHolds(bool gzip, bool workbook, TabularOpenOptions options, string option)
+    {
+        // Checked where they are handed over, all of them: otherwise a bad option passes for as long as
+        // the uploads happen to hold no file of its kind.
+        byte[] content = workbook
+            ? new XlsxPackage().WithSheet("S", """<row r="1"><c r="A1" t="inlineStr"><is><t>a</t></is></c></row>""").Build()
+            : Encoding.UTF8.GetBytes("name;x\na;b\n");
+        string entry = workbook ? "t.xlsx" : "t.csv";
+        byte[] file = gzip ? GzipFile.Of(content) : new ZipArchiveBuilder().With(entry, content).Build();
+
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(
+            () => TabularFile.Open(new MemoryStream(file, writable: false), gzip ? "t.gz" : "t.zip", options, TestContext.Current.CancellationToken));
+
+        Assert.Contains(option, error.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void RefusesAnErrorCeilingOfNothing()
     {

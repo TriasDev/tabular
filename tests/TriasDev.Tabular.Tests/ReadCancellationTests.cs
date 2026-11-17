@@ -86,6 +86,35 @@ public sealed class ReadCancellationTests
     }
 
     [Fact]
+    public void StopsInTheMiddleOfReadingALongQuotedField()
+    {
+        // Inside quotes the text is taken a buffer at a time; what it takes counts towards the stride
+        // as it does outside them, or a single quoted value of any length is never interrupted.
+        using CancellationTokenSource source = new();
+        using MemoryStream inner = new(Utf8NoBom.GetBytes("\"" + new string('x', 2_000_000) + "\"\n"), writable: false);
+        using CancellingStream stream = new(inner, source);
+        using CsvCursor cursor = new(stream, "long.csv");
+
+        stream.CancelAfter(4_096);
+
+        Assert.Throws<OperationCanceledException>(() => cursor.ReadRow(source.Token));
+    }
+
+    [Fact]
+    public void StopsInsideAQuotedFieldOfDoubledQuotes()
+    {
+        // Every character here is one the state machine decides on, one at a time.
+        using CancellationTokenSource source = new();
+        using MemoryStream inner = new(Utf8NoBom.GetBytes("\"" + string.Concat(Enumerable.Repeat("\"\"", 300_000)) + "\"\n"), writable: false);
+        using CancellingStream stream = new(inner, source);
+        using CsvCursor cursor = new(stream, "quotes.csv");
+
+        stream.CancelAfter(4_096);
+
+        Assert.Throws<OperationCanceledException>(() => cursor.ReadRow(source.Token));
+    }
+
+    [Fact]
     public void StopsInTheMiddleOfLoadingASharedStringTable()
     {
         // The longest thing the cursor ever does, and it happens inside a row read rather than at

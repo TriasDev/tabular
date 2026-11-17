@@ -250,6 +250,22 @@ public sealed class GzipCursorTests
     }
 
     [Fact]
+    public void RefusesToMoveOrReadOnceDisposedThoughTheStreamWasLeftOpen()
+    {
+        // A csv is decompressed afresh from the stream on every move, and the stream was left open:
+        // nothing below the cursor stops a move after the cursor was disposed.
+        MemoryStream kept = new(GzipFile.Of(Lines(3)), writable: false);
+        GzipCursor cursor = new(kept, "data.csv.gz", new TabularOpenOptions { LeaveOpen = true }, Token);
+
+        cursor.Dispose();
+        cursor.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => cursor.MoveToSheet(0, Token));
+        Assert.Throws<ObjectDisposedException>(() => cursor.ReadRow(Token));
+        Assert.True(kept.CanRead);
+    }
+
+    [Fact]
     public void TreatsACompressedEmptyFileAsTheEmptyFileItself()
     {
         Exception? plain = Record.Exception(() => new CsvCursor(new MemoryStream([]), "data.csv").Dispose());

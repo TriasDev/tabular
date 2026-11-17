@@ -37,6 +37,20 @@ public sealed class ArchiveCursorCsvTests
     }
 
     [Fact]
+    public void JudgesAZippedCsvsDialectFromAsMuchOfItsHeadAsTheFileItself()
+    {
+        // Within the probe the file is comma-separated; past it, semicolons take over. A zipped file is
+        // judged on the same head as the file on its own, not on everything it holds.
+        string csv = "a,b\n1,2\n" + string.Concat(Enumerable.Repeat("x;y;z\n", 30));
+        CsvCursorOptions options = new() { DialectProbeBytes = 8 };
+        using ArchiveCursor cursor = Open(new ZipArchiveBuilder().With("t.csv", csv).Build(), new TabularOpenOptions { Csv = options });
+        using CsvCursor plain = new(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "t", options);
+
+        Assert.Equal(',', plain.Dialect.Delimiter);
+        Assert.Equal((plain.Dialect.Delimiter, plain.Dialect.DelimiterSource), (cursor.Dialect!.Delimiter, cursor.Dialect.DelimiterSource));
+    }
+
+    [Fact]
     public void ReadsOneZippedCsvAsTheSameRowsAsTheFileItself()
     {
         const string Csv = "id;city\n1;Köln\n2;\"Bonn; am Rhein\"\n";

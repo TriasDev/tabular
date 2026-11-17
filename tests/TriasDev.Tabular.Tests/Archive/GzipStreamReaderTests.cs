@@ -54,6 +54,18 @@ public sealed class GzipStreamReaderTests
     }
 
     [Fact]
+    public void RefusesToBeReadOnceDisposedEvenAtItsEnd()
+    {
+        // At its end it would answer 0 without asking the decompressor, which would have refused.
+        using GzipStreamReader reader = new(new MemoryStream(GzipFile.Of("a;b\n"), writable: false), long.MaxValue);
+        reader.CopyTo(Stream.Null);
+
+        reader.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => reader.Read(new byte[4], 0, 4));
+    }
+
+    [Fact]
     public void ReadsTheNameOfTheFirstMember()
     {
         using GzipStreamReader reader = new(new MemoryStream(GzipFile.Of("a\n", "orders.csv")), long.MaxValue);

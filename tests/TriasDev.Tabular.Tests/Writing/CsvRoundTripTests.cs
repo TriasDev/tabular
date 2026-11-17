@@ -394,6 +394,53 @@ public sealed class CsvRoundTripTests
     }
 
     [Fact]
+    public async Task WritesAHeaderWithTheSameTextAndReadsItBack()
+    {
+        // The reader learns the record's width from the header, so a header is never read as a stray
+        // quote and never judged as one: the text refused in a row's first column is a header's to keep.
+        TextImportField[] fields = [ImportField.Text(AddressNote), .. TextFields(5).Skip(1)];
+        string[] written = ["v0", "v1", "v2", "v3", "v4"];
+
+        byte[] file = await CsvRoundTrip.WriteAsync("", fields.Select(f => f.Name), writer =>
+        {
+            writer.BeginRow();
+
+            foreach (string value in written)
+            {
+                writer.Write(value);
+            }
+
+            writer.EndRow();
+        }, Token);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, "", fields, Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(written, Assert.Single(rows));
+    }
+
+    [Fact]
+    public async Task WritesTextOfExactlyTheReadersLimitAndReadsItBack()
+    {
+        // The reader refuses a field only past MaxFieldChars, so one of exactly that length is the
+        // longest the writer must take.
+        TextImportField field = ImportField.Text("v");
+        string text = new('x', CsvCursorOptions.Default.MaxFieldChars);
+
+        byte[] file = await CsvRoundTrip.WriteAsync("", [field.Name], writer =>
+        {
+            writer.BeginRow();
+            writer.Write(text);
+            writer.EndRow();
+        }, Token);
+
+        (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, "", [field], Token);
+
+        Assert.Empty(errors);
+        Assert.Equal(text, Assert.Single(Assert.Single(rows)));
+    }
+
+    [Fact]
     public async Task RefusesTheSameTextInAColumnWhereItsLineWouldStillFitARecord()
     {
         // Two cells before it plus one comma make three fields of five: read as stray, the line fits.

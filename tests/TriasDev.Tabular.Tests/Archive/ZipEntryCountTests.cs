@@ -108,6 +108,77 @@ public sealed class ZipEntryCountTests
     }
 
     [Fact]
+    public void FindsTheEndRecordBehindTheLongestCommentAZipCanHave()
+    {
+        // A comment of 65,535 bytes puts the record at the very start of the tail searched for it.
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(WithComment(Claiming(Zip(1), 60_000), ushort.MaxValue)));
+
+        Assert.Equal(16_384, error.Maximum);
+    }
+
+    private static long? Declared(byte[] zip) => ZipEndRecord.DeclaredEntries(new MemoryStream(zip, writable: false));
+
+    /// <summary>The zip's end record with its entry counts set, and nothing else changed.</summary>
+    private static byte[] Counting(byte[] zip, ushort entries)
+    {
+        byte[] patched = (byte[])zip.Clone();
+        BinaryPrimitives.WriteUInt16LittleEndian(patched.AsSpan(patched.Length - EndLength + 8), entries);
+        BinaryPrimitives.WriteUInt16LittleEndian(patched.AsSpan(patched.Length - EndLength + 10), entries);
+        return patched;
+    }
+
+    [Fact]
+    public void TakesTheLargerCountWhenAPlainCountContradictsTheZip64Record()
+    {
+        Assert.Equal(100_000, Declared(Counting(WithZip64Count(Zip(1), 100_000), 2)));
+        Assert.Equal(7, Declared(Counting(WithZip64Count(Zip(1), 2), 7)));
+    }
+
+    [Fact]
+    public void SaturatesAZip64CountPastTheLargestLong()
+    {
+        Assert.Equal(long.MaxValue, Declared(WithZip64Count(Zip(1), ulong.MaxValue)));
+    }
+
+    [Fact]
+    public void IgnoresAZip64LocatorThatPointsPastTheLargestLong()
+    {
+        // Room enough before the end record for a zip64 record, and a locator whose offset, read as a
+        // signed position, is negative: the plain count stands.
+        byte[] zip = Counting(WithZip64Count(Zip(1), 5), 1);
+        BinaryPrimitives.WriteUInt64LittleEndian(zip.AsSpan(zip.Length - EndLength - 20 + 8), 0x8000000000000010UL);
+
+        Assert.Equal(1, Declared(zip));
+    }
+
+    [Fact]
+    public void IgnoresALocatorThatPointsAtNoZip64Record()
+    {
+        byte[] zip = Counting(WithZip64Count(Zip(1), 1_000_000), 1);
+        zip[zip.Length - EndLength - 20 - 56] = 0;
+
+        Assert.Equal(1, Declared(zip));
+    }
+
+    [Fact]
+    public void IgnoresAZip64RecordThatWouldOverlapItsLocator()
+    {
+        // A forged record 40 bytes before the end record: its count would be read from the locator's
+        // own bytes. A record and its locator take 76 bytes, so a record that starts later is no record.
+        const int End = 200;
+        byte[] file = new byte[End + EndLength];
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(End - 40), 0x06064b50);
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(End - 20), 0x07064b50);
+        BinaryPrimitives.WriteUInt64LittleEndian(file.AsSpan(End - 20 + 8), End - 40);
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(End - 20 + 16), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(End), 0x06054b50);
+        BinaryPrimitives.WriteUInt16LittleEndian(file.AsSpan(End + 8), 3);
+        BinaryPrimitives.WriteUInt16LittleEndian(file.AsSpan(End + 10), 3);
+
+        Assert.Equal(3, Declared(file));
+    }
+
+    [Fact]
     public void ReadsTheCountOfAZip64EndRecord()
     {
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(WithZip64Count(Zip(1), 1_000_000)));

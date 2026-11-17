@@ -118,6 +118,64 @@ public sealed class CsvCursorEdgeCaseTests
     }
 
     [Theory]
+    [InlineData("utf-8")]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    public void ReportsTheEncodingOfAFileWithAByteOrderMarkFromTheMark(string encoding)
+    {
+        // Without its mark the same file is still recognised — UTF-8 as valid, UTF-16 by where its NUL
+        // bytes stand — so only the reported source tells whether the mark was read at all.
+        Encoding written = Encoding.GetEncoding(encoding);
+        using MemoryStream stream = new([.. written.GetPreamble(), .. written.GetBytes("a;b\n1;2\n")], writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+
+        Assert.Equal(encoding, cursor.Dialect.Encoding.WebName);
+        Assert.Equal(DialectSource.ByteOrderMark, cursor.Dialect.EncodingSource);
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(["a", "b"], cursor.CurrentRow.ToArray().Select(c => c.AsText()));
+    }
+
+    [Fact]
+    public void KeepsANulByteAfterALoneCarriageReturnInItsPlace()
+    {
+        // A lone carriage return ends a line only if no line feed follows, so the character after it
+        // has been looked at — and held — before the next record begins. A NUL held there is a
+        // character like any other: it was neither the end of the file nor lost behind the text that
+        // followed it.
+        List<string?[]> rows = ReadAll("a;b\r\0x;y\r");
+
+        Assert.Equal([["a", "b"], ["\0x", "y"]], rows);
+    }
+
+    [Fact]
+    public void KeepsANulByteAfterALoneCarriageReturnInsideQuotesInItsPlace()
+    {
+        List<string?[]> rows = ReadAll("a\r\"x\r\0y\"\r");
+
+        Assert.Equal([["a"], ["x\r\0y"]], rows);
+    }
+
+    [Fact]
+    public void ReadsAQuoteBeforeANulByteAsTextOnceTheFieldHasCrossedALine()
+    {
+        // Past a line ending, a quote closes the field only where a field can end; a NUL is not where
+        // one can.
+        List<string?[]> rows = ReadAll("a;b\n\"l1\nsize 5\"\0x\";2\n");
+
+        Assert.Equal([["a", "b"], ["l1\nsize 5\"\0x", "2"]], rows);
+    }
+
+    [Fact]
+    public void ReplaysANulByteHeldWhenTheLineBoundTripsAfterTheReplayedText()
+    {
+        // With lone carriage returns the character after the line ending is held when the bound trips;
+        // it is a NUL here, and it goes back behind the replayed text, not in front of it.
+        List<string?[]> rows = ReadAll(Utf8NoBom.GetBytes("a\r\"x\ry\r\0z\r"), new CsvCursorOptions { MaxQuotedFieldLines = 1 });
+
+        Assert.Equal([["a"], ["\"x"], ["y"], ["\0z"]], rows);
+    }
+
+    [Theory]
     [InlineData(0xC0)]
     [InlineData(0xC1)]
     [InlineData(0xF5)]
