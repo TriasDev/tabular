@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 
 using TriasDev.Tabular.Archive;
@@ -155,6 +156,43 @@ public sealed class ArchiveCursorCsvTests
 
         Assert.Equal(["a.pdf", "z.pdf"], cursor.SkippedEntries.Select(s => s.Path));
         Assert.Equal("b.csv", Assert.Single(cursor.Sheets).Source);
+    }
+
+    /// <summary>
+    /// A csv entry damaged far past the head read for its dialect: reading must fail as a damaged
+    /// archive when it reaches the damage, never end early as though the sheet were shorter.
+    /// </summary>
+    [Theory]
+    [InlineData(CompressionLevel.NoCompression)]
+    [InlineData(CompressionLevel.Optimal)]
+    public void RefusesACsvEntryDamagedPastItsHeadInsteadOfReadingItShorter(CompressionLevel level)
+    {
+        Random random = new(7);
+        StringBuilder csv = new("id;value\n");
+
+        while (csv.Length < 300_000)
+        {
+            csv.Append(random.Next()).Append(';').Append(random.NextInt64()).Append('\n');
+        }
+
+        byte[] zip = new ZipArchiveBuilder().With("data.csv", csv.ToString(), level).Build();
+        int data = 30 + BitConverter.ToUInt16(zip, 26) + BitConverter.ToUInt16(zip, 28);
+        int compressed = BitConverter.ToInt32(zip, 18);
+
+        // Stored: one digit changed, which only the CRC can tell. Deflated: 16 bytes overwritten.
+        if (level == CompressionLevel.NoCompression)
+        {
+            zip[data + 250_000] = zip[data + 250_000] == (byte)'1' ? (byte)'2' : (byte)'1';
+        }
+        else
+        {
+            Array.Fill(zip, (byte)0x5A, data + (compressed * 3 / 4), 16);
+        }
+
+        using ArchiveCursor cursor = Open(zip);
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() => ReadAll(cursor));
+
+        Assert.Equal(TabularFormatException.Corrupt, error.Code);
     }
 
     [Fact]
