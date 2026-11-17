@@ -285,6 +285,32 @@ public sealed class HostileInputTests
     }
 
     [Theory]
+    [InlineData("xxxx", "xxxxx")]                          // one run, kept as a slice of the buffer
+    [InlineData("\"xxxx\"", "\"xxxxx\"")]                  // one run inside quotes
+    [InlineData("\"\"\"\"\"\"\"\"\"\"", "\"\"\"\"\"\"\"\"\"\"\"\"")]  // character by character: four, then five doubled quotes
+    [InlineData("\"xy;;\"", "\"xy;;;\"")]                  // a run, then single characters
+    public void ReadsACsvFieldOfExactlyTheCeilingAndRefusesOneCharacterMore(string atCeiling, string overCeiling)
+    {
+        // Every way a field is built — a run taken whole, a run appended, a character at a time —
+        // has to allow exactly the ceiling and refuse the character after it. The ceiling is the
+        // writer's too, so one that refused a field at its length would refuse what the writer wrote.
+        CsvCursorOptions options = new() { Delimiter = ';', MaxFieldChars = 4 };
+
+        Assert.Equal(4, ReadOneField(atCeiling).Length);
+        Assert.Throws<TabularLimitException>(() => ReadOneField(overCeiling));
+
+        string ReadOneField(string field)
+        {
+            using MemoryStream stream = new(Utf8NoBom.GetBytes($"a;b\n{field};1\n"), writable: false);
+            using CsvCursor cursor = new(stream, "ceiling.csv", options);
+
+            Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+            Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+            return cursor.CurrentRow[0].AsText()!;
+        }
+    }
+
+    [Theory]
     [InlineData("ü")]
     [InlineData("€")]
     [InlineData("ก")]

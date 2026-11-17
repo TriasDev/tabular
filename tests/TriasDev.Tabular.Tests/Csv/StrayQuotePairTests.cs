@@ -162,6 +162,62 @@ public sealed class StrayQuotePairTests
         Assert.Equal(1, diagnostics.RecoveredUnterminatedQuotes);
     }
 
+    [Fact]
+    public void ReplaysADoubledQuoteInsideAnUnclosedQuoteAsTheTwoCharactersItWas()
+    {
+        // Inside the quote, "" was read as one quote character; the replay reads the raw text again,
+        // where it was two.
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read("a;b\n1;\"x\"\"y\n2;z\n");
+
+        Assert.Equal([["a", "b"], ["1", "\"x\"\"y"], ["2", "z"]], rows);
+        Assert.Equal(1, diagnostics.RecoveredUnterminatedQuotes);
+    }
+
+    [Fact]
+    public void ReplaysAStrayQuoteFoundInsideTextAlreadyBeingReplayed()
+    {
+        // The first quote is never closed, so everything after it is replayed. Inside that replay, a
+        // second quote opens a field on the next line and swallows a record's worth of delimiters
+        // before the replayed text runs out: its own replay has to come first, and the replayed text
+        // it has not reached yet — "y" and its line ending — has to follow it, not be lost.
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read(
+            "a;b;c;d;e\n" +
+            "1;\"p;q;r;s;t\n" +
+            "2;\"u\n" +
+            "3;v;w;x;y\n");
+
+        Assert.Equal(
+            [["a", "b", "c", "d", "e"], ["1", "\"p", "q", "r", "s", "t"], ["2", "\"u"], ["3", "v", "w", "x", "y"]],
+            rows);
+        Assert.Equal((1, 1), (diagnostics.RecoveredUnterminatedQuotes, diagnostics.RecoveredStrayQuotes));
+    }
+
+    [Fact]
+    public void JudgesAStrayQuoteByTheFirstRecordsWidthNotByTheLatestRecords()
+    {
+        // The header says five columns, so a quote that swallows four delimiters across a line is a
+        // stray one. A short record in between does not make the table narrow: judged by its two
+        // columns, the rule would be off and the quote would run on to the "close" three lines down,
+        // joining the records between into one value.
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read(
+            "a;b;c;d;e\n" +
+            "x;y\n" +
+            "1;\"open;2;3;4\n" +
+            "5;6;7;8;9\n" +
+            "10;\"close\";12;13;14\n");
+
+        Assert.Equal(
+            [
+                ["a", "b", "c", "d", "e"],
+                ["x", "y"],
+                ["1", "\"open", "2", "3", "4"],
+                ["5", "6", "7", "8", "9"],
+                ["10", "close", "12", "13", "14"],
+            ],
+            rows);
+        Assert.Equal(1, diagnostics.RecoveredStrayQuotes);
+    }
+
     [Theory]
     [InlineData("a;b\n1;\"open", 1)]
     [InlineData("a\n\"\"", 0)]

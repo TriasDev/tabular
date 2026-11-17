@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 using TriasDev.Tabular.Csv;
@@ -93,6 +94,50 @@ public sealed class LongQuotedFieldTests
         Assert.Equal(151, rows.Count);
         Assert.Equal("\"never closed", rows[1][1]);
         Assert.Equal(1, diagnostics.RecoveredUnterminatedQuotes);
+    }
+
+    [Theory]
+    [InlineData("\r")]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    public void ReplaysAStrayQuoteTrippedAtTheLineBoundWithoutInventingACharacter(string lineEnding)
+    {
+        // A lone carriage return ends a line only when the character after it is not a line feed, so
+        // the reader has looked one character ahead when the bound trips there. That character goes
+        // back behind the replayed text; the slot it was held in must be left empty, not hold a
+        // character of its own.
+        StringBuilder text = new($"id;note{lineEnding}1;\"never closed{lineEnding}");
+
+        for (int i = 2; i <= 150; i++)
+        {
+            text.Append(i).Append(";x").Append(lineEnding);
+        }
+
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read(text.ToString());
+
+        Assert.Equal(151, rows.Count);
+        Assert.Equal(["1", "\"never closed"], rows[1]);
+
+        for (int i = 2; i <= 150; i++)
+        {
+            Assert.Equal([i.ToString(CultureInfo.InvariantCulture), "x"], rows[i]);
+        }
+
+        Assert.Equal(1, diagnostics.RecoveredUnterminatedQuotes);
+    }
+
+    [Fact]
+    public void KeepsAQuotedFieldOfExactlyTheBoundsLinesAsOneValue()
+    {
+        CsvCursorOptions options = new() { MaxQuotedFieldLines = 2 };
+
+        (List<string[]> within, CursorDiagnostics clean) = Read("a;b\n1;\"l1\nl2\nl3\";2\n", options);
+        (List<string[]> over, CursorDiagnostics repaired) = Read("a;b\n1;\"l1\nl2\nl3\nl4\";2\n", options);
+
+        Assert.Equal([["a", "b"], ["1", "l1\nl2\nl3", "2"]], within);
+        Assert.True(clean.IsClean);
+        Assert.Equal([["a", "b"], ["1", "\"l1"], ["l2"], ["l3"], ["l4\"", "2"]], over);
+        Assert.Equal(1, repaired.RecoveredUnterminatedQuotes);
     }
 
     [Fact]

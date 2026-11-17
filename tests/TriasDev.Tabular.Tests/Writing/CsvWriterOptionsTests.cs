@@ -99,4 +99,59 @@ public sealed class CsvWriterOptionsTests
     {
         Assert.NotNull(new CsvWriterOptions { Culture = culture }.Resolve());
     }
+
+    [Fact]
+    public async Task EveryCultureItAcceptsReadsBackTheValuesItsProbeWrites()
+    {
+        // The probe is what stands between a culture's formats and a file the import misreads, and no
+        // single culture shows whether it works: the ones that need it are the odd ones, and which
+        // those are depends on the ICU data of the system the tests run on. So every culture this
+        // runtime has is tried, none named: each one the options accept writes the probe's values and
+        // reads them back equal; each one they refuse is refused as a culture.
+        ImportField[] fields = [ImportField.Decimal("Amount"), ImportField.Decimal("Half"), ImportField.Integer("Count"), ImportField.Date("Moment"), ImportField.Date("Last")];
+        DateTime moment = new(1801, 2, 13, 14, 5, 6, 789, DateTimeKind.Unspecified);
+        object?[] expected = [-1_234_567.891m, -0.5m, -42L, moment, new DateTime(9999, 12, 31, 0, 0, 0, DateTimeKind.Unspecified)];
+        List<string> misread = [];
+        int accepted = 0;
+
+        foreach (CultureInfo culture in CultureInfo.GetCultures(CultureTypes.AllCultures))
+        {
+            try
+            {
+                _ = new CsvWriterOptions { Culture = culture.Name }.Resolve();
+            }
+            catch (ArgumentException refused)
+            {
+                Assert.Equal(nameof(CsvWriterOptions.Culture), refused.ParamName);
+                continue;
+            }
+
+            accepted++;
+
+            byte[] file = await CsvRoundTrip.WriteAsync(
+                culture.Name,
+                fields.Select(f => f.Name),
+                writer =>
+                {
+                    writer.BeginRow();
+                    writer.Write(-1_234_567.891m);
+                    writer.Write(-0.5d);
+                    writer.Write(-42L);
+                    writer.Write(moment);
+                    writer.Write(new DateOnly(9999, 12, 31));
+                    writer.EndRow();
+                },
+                TestContext.Current.CancellationToken);
+
+            (List<object?[]> rows, List<string> errors, _) = CsvRoundTrip.Import(file, culture.Name, fields, TestContext.Current.CancellationToken);
+
+            if (errors.Count > 0 || rows.Count != 1 || !rows[0].SequenceEqual(expected))
+            {
+                misread.Add($"'{culture.Name}': {string.Join(" | ", errors)} {string.Join(" | ", rows.SelectMany(r => r))}");
+            }
+        }
+
+        Assert.True(accepted > 0);
+        Assert.Empty(misread);
+    }
 }
