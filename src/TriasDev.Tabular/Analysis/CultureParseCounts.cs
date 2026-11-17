@@ -22,8 +22,9 @@ public sealed record CultureParseCounts
     public required int Date { get; init; }
 
     /// <summary>
-    /// How many of <see cref="Date"/> are written with this culture's own date separator — a dot for
-    /// de-DE, a slash for en-US. What breaks a tie between cultures that read every value as a date.
+    /// How many of <see cref="Date"/> are written with this culture's own date separator, matched as a
+    /// whole — a dot for de-DE, a slash for en-US, a dot and a space for hu-HU. What breaks a tie between
+    /// cultures that read every value as a date.
     /// </summary>
     public int DatesWithOwnSeparator { get; init; }
 
