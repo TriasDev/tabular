@@ -279,6 +279,77 @@ public sealed class ZipEntryCountTests
         Assert.Equal(16_384, error.Maximum);
     }
 
+    /// <summary>
+    /// While an archive is listed its own limits apply (#184): a plain zip inside it with more entries
+    /// than a workbook may hold, but within the archive's raised bound, is classified, found to be an
+    /// archive and skipped as one — not refused under a workbook's bound it never had to meet.
+    /// </summary>
+    [Fact]
+    public void ClassifiesAZipInsideAnArchiveUnderTheArchivesOwnBound()
+    {
+        byte[] archive = new ZipArchiveBuilder().With("a.csv", "h\n1\n").With("inner.zip", Zip(5)).Build();
+        TabularOpenOptions options = new()
+        {
+            Archive = new ArchiveCursorOptions { MaxEntries = 10 },
+            Xlsx = new XlsxCursorOptions { MaxPackageEntries = 3 },
+            Ods = new OdsCursorOptions { MaxPackageEntries = 3 },
+        };
+
+        using ITabularCursor cursor = Open(archive, options);
+
+        Assert.Equal(["a.csv"], cursor.Sheets.Select(s => s.Source));
+        Assert.Equal(new SkippedEntry { Path = "inner.zip", Reason = SkippedEntryReason.NestedArchive }, Assert.Single(cursor.SkippedEntries));
+        Assert.True(cursor.ReadRow(Token));
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal("1", cursor.CurrentRow[0].AsText());
+    }
+
+    /// <summary>
+    /// The other half of the same decision: a zip inside an archive that turns out a workbook is held to
+    /// its own format's <c>MaxPackageEntries</c> once it is opened, however far the archive's bound was
+    /// raised — and a bound fails the archive, never a skip.
+    /// </summary>
+    [Fact]
+    public void HoldsAWorkbookInsideAnArchiveToItsOwnPackageBoundOnceOpened()
+    {
+        byte[] xlsx = new XlsxPackage().WithSheet("S", "<row r=\"1\"><c t=\"inlineStr\"><is><t>h</t></is></c></row>").Build();
+        byte[] ods = new OdsPackage().WithTable("S", "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>h</text:p></table:table-cell></table:table-row>").Build();
+
+        foreach ((string path, byte[] workbook, string limit) in new[]
+        {
+            ("book.xlsx", xlsx, nameof(XlsxCursorOptions.MaxPackageEntries)),
+            ("table.ods", ods, nameof(OdsCursorOptions.MaxPackageEntries)),
+        })
+        {
+            int parts = EntryCount(workbook);
+            byte[] archive = new ZipArchiveBuilder().With("a.csv", "h\n1\n").With(path, workbook).Build();
+            TabularOpenOptions options = new()
+            {
+                Archive = new ArchiveCursorOptions { MaxEntries = 10 * parts },
+                Xlsx = new XlsxCursorOptions { MaxPackageEntries = parts - 1 },
+                Ods = new OdsCursorOptions { MaxPackageEntries = parts - 1 },
+            };
+
+            TabularLimitException error = Assert.Throws<TabularLimitException>(() => Open(archive, options));
+            Assert.Equal(limit, error.Limit);
+            Assert.Equal(parts - 1, error.Maximum);
+
+            // At its own bound, the same workbook is read.
+            using ITabularCursor cursor = Open(archive, options with
+            {
+                Xlsx = new XlsxCursorOptions { MaxPackageEntries = parts },
+                Ods = new OdsCursorOptions { MaxPackageEntries = parts },
+            });
+            Assert.Equal(["a.csv", path], cursor.Sheets.Select(s => s.Source));
+        }
+    }
+
+    private static int EntryCount(byte[] zip)
+    {
+        using System.IO.Compression.ZipArchive archive = new(new MemoryStream(zip, writable: false), System.IO.Compression.ZipArchiveMode.Read);
+        return archive.Entries.Count;
+    }
+
     [Fact]
     public void RefusesAZipInsideAGzipFileWhoseEndRecordDeclaresTooManyEntries()
     {

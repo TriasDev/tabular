@@ -39,14 +39,21 @@ do with them. A chart sheet, macro sheet or dialog sheet holds no cells and is n
 A zip that is not itself a workbook, a tar, or a tar compressed with gzip is read as one workbook: its sheets are the sheets of every file in it
 that can be read as a table — csv, xlsx and ods — in the order of their paths, each with its file's
 path as `SheetInfo.Source` and its own `Format`. A csv file is named after its file; a workbook's
-sheets keep their names, and `Source` tells two `Sheet1` apart. Files are judged by their bytes, as a
-file on its own is.
+sheets keep their names, and `Source` tells two `Sheet1` apart. `Source` is the path exactly as the
+archive stores it, never normalised — a tar's `/a.csv` and `a.csv` are two files, and a zip's
+`../up.csv` keeps its `..` — because normalising would merge files the archive keeps apart; nothing is
+written to disk, so a path that climbs out of the archive is only a name. Files are judged by their
+bytes, as a file on its own is.
 
 - **Left out without a word:** directories, links and other entries that are not files, hidden files
   and folders (`.DS_Store`, anything whose name starts with a dot, macOS `._` files) and `__MACOSX/`.
 - **Skipped with a reason** in `FileProfile.SkippedEntries`: an encrypted file, a gzip-compressed file, a nested zip or tar, another
   OpenDocument type, a legacy `.xls`, an XML document, a binary file, and a workbook that is damaged
-  or of a kind not read (`.xlsb`). Nested archives are not opened. A file whose path repeats an
+  or of a kind not read (`.xlsb`). Nested archives are not opened. While an archive is listed its own
+  limits apply: a zip inside it is classified with the archive's `ArchiveCursorOptions.MaxEntries` (or
+  a workbook's `MaxPackageEntries`, where that is larger), so a plain zip with more entries than a
+  workbook may hold but within the archive's bound is skipped as a nested archive, not refused; a
+  workbook's `MaxPackageEntries` applies once it is opened. A file whose path repeats an
   earlier one's is skipped too (`DuplicatePath`): its sheets could not be told apart from the first's,
   which is read.
 - **Refused:** an archive with nothing readable in it, as `format.unsupported`.

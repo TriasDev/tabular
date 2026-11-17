@@ -64,6 +64,8 @@ public sealed record OdsCursorOptions
     /// billion cells, each within both ceilings. Every cell a repeat adds — the copies, not the one
     /// written — counts against this. A hundred million is six sheets of a million rows by seventeen
     /// columns made entirely of repeats, far beyond what a spreadsheet program writes for real data.
+    /// Each sheet counts once, at the most one pass over it hands out: a sheet read again counts only
+    /// what goes past its earlier pass, so a file read once within this is read again within it.
     /// </remarks>
     public long MaxRepeatedCells { get; init; } = 100_000_000;
 

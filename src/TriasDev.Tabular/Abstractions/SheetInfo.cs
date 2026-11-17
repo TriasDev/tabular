@@ -26,8 +26,17 @@ public sealed record SheetInfo
     /// Where inside an archive the sheet's file lies, or null for a sheet of a plain file.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// What a screen groups an archive's sheets by, and — with <see cref="Name"/> — what tells two
     /// workbooks' <c>Sheet1</c> apart.
+    /// </para>
+    /// <para>
+    /// The path exactly as the archive stores it, not normalised: a leading slash or a <c>..</c>
+    /// segment stays as written, so a tar's <c>/a.csv</c> and <c>a.csv</c> are two sources,
+    /// and a zip's <c>../up.csv</c> is that, not <c>up.csv</c>. Normalising would merge files the
+    /// archive keeps apart, and a mapping plan records this path to find its sheet again. Nothing is
+    /// ever written to disk under it, so a path that climbs out of the archive is only a name here.
+    /// </para>
     /// </remarks>
     public string? Source { get; init; }
 

@@ -118,6 +118,112 @@ public sealed class OdsHostileInputTests
         Assert.Equal(nameof(OdsCursorOptions.MaxRepeatedCells), Assert.Throws<TabularLimitException>(() => cursor.ReadRow(Token)).Limit);
     }
 
+    /// <summary>A row of one text cell repeated across <paramref name="columns"/> columns: <paramref name="columns"/> − 1 copies.</summary>
+    private static string Repeated(int columns, string text) =>
+        Row(Cell($"table:number-columns-repeated=\"{columns}\" office:value-type=\"string\"", text));
+
+    private static void AssertRefusedForRepeats(OdsCursor cursor) =>
+        Assert.Equal(nameof(OdsCursorOptions.MaxRepeatedCells), Assert.Throws<TabularLimitException>(() => cursor.ReadRow(Token)).Limit);
+
+    /// <summary>
+    /// The budget is the file's, so each sheet counts once: a file read once within it is read again
+    /// within it, however often the reader moves between its sheets. It used to count every pass, and
+    /// refused on the second pass a file it had read whole on the first.
+    /// </summary>
+    [Fact]
+    public void ReadsTheSheetsAgainWithoutCountingTheirRepeatsTwice()
+    {
+        // 5 copies on A and 1 on B: six of the ten, so any sheet counted twice goes over.
+        OdsPackage package = new OdsPackage().WithTable("A", Repeated(6, "a")).WithTable("B", Repeated(2, "b"));
+        using OdsCursor cursor = Open(package, new OdsCursorOptions { MaxRepeatedCells = 10 });
+
+        for (int pass = 0; pass < 3; pass++)
+        {
+            Assert.True(cursor.MoveToSheet(0, Token));
+            Assert.Equal([Enumerable.Repeat("a", 6).ToArray()], ReadAll(cursor));
+            Assert.True(cursor.MoveToSheet(1, Token));
+            Assert.Equal([["b", "b"]], ReadAll(cursor));
+        }
+    }
+
+    /// <summary>
+    /// A sheet counts its largest pass: one that reads further than the pass before counts what lies
+    /// beyond it, and is refused once that and the other sheets together pass the budget.
+    /// </summary>
+    [Fact]
+    public void CountsWhatASecondPassReadsBeyondTheFirst()
+    {
+        // Three copies a row on A, three on B; the first pass reads A's first row only.
+        OdsPackage package = new OdsPackage()
+            .WithTable("A", Repeated(4, "a1") + Repeated(4, "a2") + Repeated(4, "a3"))
+            .WithTable("B", Repeated(4, "b"));
+        using OdsCursor cursor = Open(package, new OdsCursorOptions { MaxRepeatedCells = 10 });
+
+        Assert.True(cursor.ReadRow(Token));                     // A: 3
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Single(ReadAll(cursor));                         // B: 3, 6 in all
+        Assert.True(cursor.MoveToSheet(0, Token));
+
+        Assert.True(cursor.ReadRow(Token));                     // A's first row again: still 6
+        Assert.Equal("a1", cursor.CurrentRow[0].AsText());
+        Assert.True(cursor.ReadRow(Token));                     // past the first pass: 9
+        Assert.Equal("a2", cursor.CurrentRow[0].AsText());
+        AssertRefusedForRepeats(cursor);                         // 12
+    }
+
+    /// <summary>
+    /// One pass over the file is bounded as it always was, sheet after sheet, up to the copy that
+    /// uses the budget up exactly; reading the first sheet again on the way changes nothing about
+    /// where the second is refused.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RefusesTheCopyThatTakesTheSheetsTogetherPastTheBudget(bool readTheFirstAgain)
+    {
+        // A: 6 copies. B: 3, 1 — exactly 10 — and then 1 more.
+        OdsPackage package = new OdsPackage()
+            .WithTable("A", Repeated(7, "a"))
+            .WithTable("B", Repeated(4, "b1") + Repeated(2, "b2") + Repeated(2, "b3"));
+        using OdsCursor cursor = Open(package, new OdsCursorOptions { MaxRepeatedCells = 10 });
+
+        Assert.Single(ReadAll(cursor));
+
+        if (readTheFirstAgain)
+        {
+            Assert.True(cursor.MoveToSheet(1, Token));
+            Assert.True(cursor.ReadRow(Token));
+            Assert.True(cursor.MoveToSheet(0, Token));
+            Assert.Single(ReadAll(cursor));
+        }
+
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal("b1", cursor.CurrentRow[0].AsText());
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal("b2", cursor.CurrentRow[0].AsText());
+        AssertRefusedForRepeats(cursor);
+    }
+
+    /// <summary>
+    /// A move stopped before it began leaves the cursor on its sheet, reading on; the copies of that
+    /// pass so far still count, so the rest of it is bounded as if the move had never been asked for.
+    /// </summary>
+    [Fact]
+    public void KeepsCountingASheetsPassAfterAMoveAwayFromItWasStopped()
+    {
+        OdsPackage package = new OdsPackage()
+            .WithTable("A", Repeated(5, "a1") + Repeated(5, "a2") + Repeated(4, "a3"))
+            .WithTable("B", Row(Text("b")));
+        using OdsCursor cursor = Open(package, new OdsCursorOptions { MaxRepeatedCells = 10 });
+
+        Assert.True(cursor.ReadRow(Token));                     // 4
+        Assert.ThrowsAny<OperationCanceledException>(() => cursor.MoveToSheet(1, new CancellationToken(canceled: true)));
+        Assert.True(cursor.ReadRow(Token));                     // 8
+        Assert.Equal("a2", cursor.CurrentRow[0].AsText());
+        AssertRefusedForRepeats(cursor);                         // 11
+    }
+
     /// <summary>The package of a content part, in UTF-16 when asked: then the sheets are listed by tokenizing it rather than by the byte pass.</summary>
     private static OdsPackage Encoded(string content, bool utf16)
     {

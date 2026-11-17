@@ -63,8 +63,30 @@ internal sealed class OdsCursor : ITabularCursor
     /// <summary>How many tables and DDE links are open around the scanner, as the name pass counts them.</summary>
     private int _nesting;
 
-    /// <summary>The cells repeats have handed out beyond the ones written, across the file.</summary>
+    /// <summary>
+    /// The cells repeats have handed out beyond the ones written, per sheet: the most any one pass
+    /// over it has, which is what the sheet counts against the file's budget.
+    /// </summary>
+    /// <remarks>
+    /// The budget is the file's, not the reading's: a sheet read again is the same cells, so a second
+    /// pass counts only what goes past the first. Counting every pass refused, on the way back, a file
+    /// read whole without error. One pass over the file is still bounded by the budget — the sheets'
+    /// largest passes together never exceed it — so a repeat bomb is refused where it always was.
+    /// </remarks>
+    private readonly long[] _sheetRepeats = [];
+
+    /// <summary>The sum of <see cref="_sheetRepeats"/>; the current pass is not folded in yet.</summary>
     private long _repeatedCells;
+
+    /// <summary>What the current pass over the current sheet has counted so far.</summary>
+    private long _passRepeats;
+
+    /// <summary>
+    /// What the current pass may count: the budget less the other sheets' largest passes. Fixed when
+    /// the cursor reaches the sheet, so a repeat costs the one comparison it cost when the budget was
+    /// a single running total.
+    /// </summary>
+    private long _passAllowance;
 
     /// <summary>
     /// The day the spreadsheet counts its durations from, when it states one other than the default
@@ -133,6 +155,7 @@ internal sealed class OdsCursor : ITabularCursor
                 throw new TabularFormatException(TabularFormatException.Unsupported, "The spreadsheet holds no sheet.");
             }
 
+            _sheetRepeats = new long[Sheets.Count];
             MoveTo(0, cancellationToken);
         }
         catch (Exception malformed) when (malformed is XmlException or InvalidDataException or FormatException)
@@ -182,7 +205,9 @@ internal sealed class OdsCursor : ITabularCursor
     /// <inheritdoc />
     /// <remarks>
     /// Across the whole content part rather than per sheet, since every sheet lives in it: bytes the
-    /// reader has taken from the part against the part's declared size.
+    /// reader has taken from the part since it last opened it, against the part's declared size.
+    /// Moving back to an earlier sheet reopens the part, so the fraction drops to where that sheet
+    /// stands in it.
     /// </remarks>
     public double? ReadFraction =>
         _counter is null || _content.Length == 0 ? null : Math.Min(1d, (double)_counter.BytesRead / _content.Length);
@@ -247,6 +272,7 @@ internal sealed class OdsCursor : ITabularCursor
             throw;
         }
 
+        StartPass(index);
         CurrentSheetIndex = index;
         CurrentRowNumber = 0;
         _cellCount = 0;
@@ -485,18 +511,41 @@ internal sealed class OdsCursor : ITabularCursor
         CurrentRowNumber = (int)next;
     }
 
+    /// <summary>
+    /// Folds the pass over the sheet the cursor leaves into that sheet's count, and starts one over
+    /// the sheet it reaches, allowed what the other sheets leave of the budget.
+    /// </summary>
+    /// <remarks>
+    /// Only a move that arrives does this. One that fails leaves the pass running — after a move
+    /// stopped before it began the cursor reads on where it was — and one stopped part-way leaves it
+    /// to the next move that arrives; folding keeps the larger of two passes, so no pass counts twice
+    /// whichever way the moves went.
+    /// </remarks>
+    private void StartPass(int index)
+    {
+        if (CurrentSheetIndex >= 0 && _passRepeats > _sheetRepeats[CurrentSheetIndex])
+        {
+            _repeatedCells += _passRepeats - _sheetRepeats[CurrentSheetIndex];
+            _sheetRepeats[CurrentSheetIndex] = _passRepeats;
+        }
+
+        // Never negative: every pass was held within what the others left it, so the sheets' largest
+        // passes together stay within the budget.
+        _passAllowance = _options.MaxRepeatedCells - (_repeatedCells - _sheetRepeats[index]);
+        _passRepeats = 0;
+    }
+
     /// <summary>Counts cells a repeat adds against the file's budget for them.</summary>
     private void CountRepeated(long copies, long cellsPerCopy)
     {
-        long budget = _options.MaxRepeatedCells;
-
-        if (copies > 0 && copies > (budget - _repeatedCells) / Math.Max(1, cellsPerCopy))
+        if (copies > 0 && copies > (_passAllowance - _passRepeats) / Math.Max(1, cellsPerCopy))
         {
+            long budget = _options.MaxRepeatedCells;
             throw new TabularLimitException(nameof(OdsCursorOptions.MaxRepeatedCells), budget,
                 $"The spreadsheet's repeats hand out more than the {budget} cells allowed.");
         }
 
-        _repeatedCells += copies * cellsPerCopy;
+        _passRepeats += copies * cellsPerCopy;
     }
 
     /// <summary>Reads a row's cells up to its end, placing each at its column.</summary>

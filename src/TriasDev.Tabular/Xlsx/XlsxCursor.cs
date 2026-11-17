@@ -332,8 +332,10 @@ internal sealed class XlsxCursor : ITabularCursor
 
     /// <inheritdoc />
     /// <remarks>
-    /// The worksheets' uncompressed bytes read so far, in sheet order, against their total — sizes
-    /// the package directory states before anything is read, so nothing is counted in advance.
+    /// The worksheets' uncompressed bytes up to where the reader stands, in sheet order, against their
+    /// total — sizes the package directory states before anything is read, so nothing is counted in
+    /// advance. The sheets before the current one count whole and the current one as far as it was
+    /// read, so moving back to an earlier sheet lowers the fraction.
     /// </remarks>
     public double? ReadFraction
     {

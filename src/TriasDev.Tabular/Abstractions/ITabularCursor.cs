@@ -74,12 +74,23 @@ public interface ITabularCursor : IDisposable
     CursorDiagnostics Diagnostics { get; }
 
     /// <summary>
-    /// Roughly how much of the file has been read, from 0 to 1, or null where it cannot be known.
+    /// Roughly where in the file the reader stands, from 0 to 1, or null where it cannot be known.
     /// </summary>
     /// <remarks>
-    /// Measured from what the reader has consumed — a csv's stream position against its length, a
+    /// <para>
+    /// Measured from the reader's position — a csv's stream position against its length, a
     /// workbook's worksheet bytes against their total — so it moves in steps of a read buffer rather
     /// than per row. A cursor that cannot say leaves the default.
+    /// </para>
+    /// <para>
+    /// A position, not a tally of everything read: moving back to an earlier sheet lowers it, in every
+    /// format. An xlsx cursor counts the worksheets before the current one whole and the current one as
+    /// far as it was read; an OpenDocument cursor reopens its content part and counts from its start;
+    /// an archive counts the files before the current one and the position in it. So it is a progress
+    /// bar for the current pass through the file — one pass over every sheet in order, as analysis
+    /// makes, runs it from 0 to 1 — and a caller that reads sheets more than once and wants a total of
+    /// the work done counts that itself.
+    /// </para>
     /// </remarks>
     double? ReadFraction => null;
 
