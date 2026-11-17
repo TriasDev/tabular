@@ -349,4 +349,44 @@ public sealed class XlsxWriterTests
             TabularFormat.Xlsx,
             new TabularWriterOptions { Xlsx = new XlsxWriterOptions { CompressionLevel = (CompressionLevel)42 } }));
     }
+
+    /// <summary>
+    /// Column names past Z, up to the format's last, XFD: a cell after a gap carries its reference,
+    /// and it must read back in its own column. Only the slow wide-export tests reached past Z before.
+    /// </summary>
+    [Fact]
+    public async Task NamesTheColumnsPastZUpToTheFormatsLast()
+    {
+        const int Columns = 16_384;
+        Dictionary<int, string> named = new() { [24] = "Y", [26] = "AA", [51] = "AZ", [53] = "BB", [701] = "ZZ", [703] = "AAB", [16_383] = "XFD" };
+        byte[] xlsx = await Workbook(writer =>
+        {
+            writer.BeginSheet("data", [.. Enumerable.Range(0, Columns).Select(i => new WriteColumn($"c{i}"))]);
+            writer.BeginRow();
+
+            for (int i = 0; i < Columns; i++)
+            {
+                if (named.ContainsKey(i))
+                {
+                    writer.Write((long)i);
+                }
+                else
+                {
+                    writer.WriteEmpty();
+                }
+            }
+
+            writer.EndRow();
+        });
+
+        string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
+        RawCell[] row = Rows(xlsx)[1];
+
+        Assert.All(named, column =>
+        {
+            Assert.Contains($"<c r=\"{column.Value}2\"", sheet, StringComparison.Ordinal);
+            Assert.Equal(column.Key, row[column.Key].Number);
+        });
+        Assert.Equal(named.Count, row.Count(cell => !cell.IsEmpty));
+    }
 }
