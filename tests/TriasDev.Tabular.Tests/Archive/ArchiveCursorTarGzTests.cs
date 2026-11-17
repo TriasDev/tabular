@@ -37,6 +37,34 @@ public sealed class ArchiveCursorTarGzTests
     private static byte[] Workbook(string sheet, string text) =>
         new XlsxPackage().WithSheet(sheet, $"""<row r="1"><c t="inlineStr"><is><t>{text}</t></is></c></row>""").Build();
 
+    [Fact]
+    public void ReadsTheFirstSheetWhenTheLastEntryListedWasNeverOpened()
+    {
+        // Listing walks past every entry; a directory at the end is listed but never opened, and the
+        // container must not take the first sheet for the entry it already has open.
+        byte[] tar = TarArchive.Of(
+            TarEntryFormat.Pax,
+            TarArchive.File(TarEntryFormat.Pax, "a.csv", "a\n1\n"),
+            TarArchive.Entry(TarEntryFormat.Pax, TarEntryType.Directory, "z/"));
+        using ArchiveCursor cursor = Open(GzipFile.Of(tar));
+
+        Assert.Equal([["a"], ["1"]], ReadAll(cursor));
+    }
+
+    [Theory]
+    [InlineData(TarEntryFormat.Ustar, false)]
+    [InlineData(TarEntryFormat.Ustar, true)]
+    [InlineData(TarEntryFormat.Gnu, false)]
+    [InlineData(TarEntryFormat.Gnu, true)]
+    public void ReadsAnEntryWhoseNameIsNotAscii(TarEntryFormat format, bool compressed)
+    {
+        byte[] tar = TarArchive.Of(format, ("Übersicht.csv", "a;b\n1;2\n"));
+        using ArchiveCursor cursor = Open(compressed ? GzipFile.Of(tar) : tar);
+
+        Assert.Equal("Übersicht.csv", Assert.Single(cursor.Sheets).Source);
+        Assert.Equal([["a", "b"], ["1", "2"]], ReadAll(cursor));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

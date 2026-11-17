@@ -284,28 +284,42 @@ public sealed class HostileInputTests
         });
     }
 
-    [Fact]
-    public void KeepsAFileUtf8WhenACharacterStraddlesTheDetectionProbe()
+    [Theory]
+    [InlineData("ü")]
+    [InlineData("€")]
+    [InlineData("ก")]
+    [InlineData("😀")]
+    public void KeepsAFileUtf8WhenACharacterStraddlesTheDetectionProbe(string character)
     {
-        // Detection reads a prefix. A multi-byte character cut in half by that prefix is not invalid
-        // UTF-8 — it is an incomplete view of valid UTF-8 — and reading it as invalid demotes the
-        // whole file to Windows-1252, turning every umlaut into two characters. This is the exact
-        // defect the detector exists to prevent, reached from the other side.
+        // Detection reads a prefix. A multi-byte character cut by that prefix is not invalid UTF-8 —
+        // it is an incomplete view of valid UTF-8 — and reading it as invalid demotes the whole file
+        // to Windows-1252, turning every umlaut into two characters. This is the exact defect the
+        // detector exists to prevent, reached from the other side. Every cut of a two-, three- and
+        // four-byte character, after one, two or three of its bytes, and a whole one at the edge.
         const int probe = 64 * 1024;
 
-        for (int offset = probe - 2; offset <= probe; offset++)
+        for (int offset = probe - 4; offset <= probe; offset++)
         {
             StringBuilder text = new("Name\n");
             text.Append('x', offset - text.Length);
-            text.Append("Müller\n");
+            text.Append(character).Append("ller\n");
 
             using MemoryStream stream = new(Utf8NoBom.GetBytes(text.ToString()), writable: false);
             using CsvCursor cursor = new(stream, "boundary.csv");
 
             Assert.True(
                 cursor.Dialect.Encoding.CodePage == 65001,
-                $"a character at offset {offset} demoted the file to {cursor.Dialect.Encoding.WebName}");
+                $"{character} at offset {offset} demoted the file to {cursor.Dialect.Encoding.WebName}");
         }
+    }
+
+    [Fact]
+    public void KeepsAFileUtf8WhenTheProbeHoldsOnlyPartOfItsFirstCharacter()
+    {
+        using MemoryStream stream = new(Utf8NoBom.GetBytes("ä;b\nc;d\n"), writable: false);
+        using CsvCursor cursor = new(stream, "tiny-probe.csv", new CsvCursorOptions { DialectProbeBytes = 1 });
+
+        Assert.Equal(65001, cursor.Dialect.Encoding.CodePage);
     }
 
     [Fact]

@@ -124,6 +124,29 @@ public sealed class CsvTextTests
     }
 
     [Theory]
+    [InlineData("a\r", "\"a\r\"")]
+    [InlineData("\r", "\"\r\"")]
+    public async Task QuotesTextThatEndsInACarriageReturn(string value, string written)
+    {
+        Assert.Equal(written, await One(value));
+    }
+
+    [Fact]
+    public async Task CountsTheFormulaGuardsApostropheAgainstTheReadersLimit()
+    {
+        // At exactly the limit the text fits; guarded, it is one character longer than the reader reads.
+        string formula = "=" + new string('x', CsvCursorOptions.Default.MaxFieldChars - 1);
+        Assert.Equal(CsvCursorOptions.Default.MaxFieldChars, (await One(formula)).Length);
+
+        await using TabularWriter writer = TabularWriter.Create(
+            new WriteTarget(), TabularFormat.Csv, new TabularWriterOptions { Csv = new CsvWriterOptions { FormulaGuard = true } });
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+
+        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write(formula)).Code);
+    }
+
+    [Theory]
     [InlineData("=1+2", "'=1+2")]
     [InlineData("+1", "'+1")]
     [InlineData("-1", "'-1")]
@@ -132,6 +155,7 @@ public sealed class CsvTextTests
     [InlineData("\rcmd", "\"'\rcmd\"")]
     [InlineData("plain", "plain")]
     [InlineData("a=b", "a=b")]
+    [InlineData("", "")]
     public async Task GuardsTextASpreadsheetWouldRunWhenAsked(string value, string written)
     {
         Assert.Equal(written, await One(value, new CsvWriterOptions { FormulaGuard = true }));

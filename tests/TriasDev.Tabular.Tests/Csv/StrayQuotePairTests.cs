@@ -126,4 +126,51 @@ public sealed class StrayQuotePairTests
         Assert.Equal(["1", "2", "3", "x;y;q\nz;w;v", "5"], rows[1]);
         Assert.True(diagnostics.IsClean);
     }
+
+    [Fact]
+    public void EndsAnUnclosedQuoteAtTheLineWhoseNextRecordHasTheRightWidth()
+    {
+        // The quote opened in row 1 is never closed; the inch mark in row 2 would close it and glue
+        // the two records together. The repair goes back to the line end, reads row 2 as a record and
+        // keeps its inch mark as text.
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read(
+            "id;street;city\n1;\"Ring 1;Bonn\n2;135\"th St;Köln\n3;Main;Ulm\n");
+
+        Assert.Equal(
+            [["id", "street", "city"], ["1", "\"Ring 1", "Bonn"], ["2", "135\"th St", "Köln"], ["3", "Main", "Ulm"]],
+            rows);
+        Assert.Equal((1, 0), (diagnostics.RecoveredUnterminatedQuotes, diagnostics.RecoveredStrayQuotes));
+    }
+
+    [Fact]
+    public void KeepsAnInchMarkInsideAMultiLineQuotedField()
+    {
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read("a;b\n\"l1\nsize 5\"x\";2\n");
+
+        Assert.Equal([["a", "b"], ["l1\nsize 5\"x", "2"]], rows);
+        Assert.True(diagnostics.IsClean);
+    }
+
+    [Fact]
+    public void ReplaysAnUnclosedQuoteAfterAnEarlierQuotedFieldWithoutInventingText()
+    {
+        // The replay starts at the open quote, not at the record's start: the closed "x" before it
+        // is read once, and the open quote stays in the value as the character it was.
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read("id;a;note\n1;\"x\";\"open\n2;y;z\n");
+
+        Assert.Equal([["id", "a", "note"], ["1", "x", "\"open"], ["2", "y", "z"]], rows);
+        Assert.Equal(1, diagnostics.RecoveredUnterminatedQuotes);
+    }
+
+    [Theory]
+    [InlineData("a;b\n1;\"open", 1)]
+    [InlineData("a\n\"\"", 0)]
+    public void ReadsAQuoteTheFileEndsInsideOrRightAfterAsOneLastRecord(string text, int repaired)
+    {
+        (List<string[]> rows, CursorDiagnostics diagnostics) = Read(text);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(text.StartsWith("a;b", StringComparison.Ordinal) ? ["1", "open"] : [""], rows[1]);
+        Assert.Equal(repaired, diagnostics.RecoveredUnterminatedQuotes);
+    }
 }
