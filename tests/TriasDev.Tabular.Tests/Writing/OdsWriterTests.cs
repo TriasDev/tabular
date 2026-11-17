@@ -195,6 +195,10 @@ public sealed class OdsWriterTests
     [InlineData('<', 4)]
     [InlineData('>', 4)]
     [InlineData('\r', 5)]
+    [InlineData('x', 1)]
+    [InlineData('"', 1)]
+    [InlineData('\t', 1)]
+    [InlineData('\n', 1)]
     public async Task RefusesTextWhoseEscapedFormExceedsTheReadersTokenLimit(char c, int escaped)
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
@@ -214,6 +218,38 @@ public sealed class OdsWriterTests
         string value = "a\r" + new string('"', 2_900_000);
 
         Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write(value)).Code);
+    }
+
+    /// <summary>
+    /// A value holding a carriage return is written twice, the second time as an attribute, where
+    /// each character takes its escaped width: one more character than the reader's token limit
+    /// allows that start tag is refused, whichever character fills it.
+    /// </summary>
+    [Theory]
+    [InlineData('x', 1)]
+    [InlineData('&', 5)]
+    [InlineData('<', 4)]
+    [InlineData('\t', 4)]
+    public async Task RefusesTextWhoseAttributeFormExceedsTheReadersTokenLimit(char c, int escaped)
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+        string value = "\r" + new string(c, ((16 * 1024 * 1024 - 1024 - 85) / escaped) + 1);
+
+        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write(value)).Code);
+    }
+
+    [Fact]
+    public async Task RefusesQuotesJustPastTheQuickCheckBeforeCountingThem()
+    {
+        // Six characters a quote in the attribute: 2,796,200 of them come to just over the limit,
+        // close enough that a quick check counted wrongly would let the value through unmeasured.
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Ods);
+        writer.BeginSheet("data", [new("v")]);
+        writer.BeginRow();
+
+        Assert.Equal(ErrorCodes.Write.TextTooLong, Assert.Throws<TabularWriteException>(() => writer.Write("a\r" + new string('"', 2_796_200))).Code);
     }
 
     [Fact]

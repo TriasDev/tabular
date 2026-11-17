@@ -193,6 +193,67 @@ public sealed class OdsCursorTests
         Assert.Equal(expected, Assert.Single(ReadAll(cursor))[0].AsText());
     }
 
+    /// <summary>
+    /// A time cell's duration: zero is midnight on the day a bare time reads on; a duration the
+    /// format cannot hold, or no duration at all, leaves the cell its text rather than a wrong time.
+    /// </summary>
+    [Theory]
+    [InlineData("PT00H00M00S", "00:00", true)]
+    [InlineData("garbage", "shown", false)]
+    [InlineData("-PT1H", "shown", false)]
+    [InlineData("P10675199D", "shown", false)]
+    public void ReadsATimeCellAsADurationOrElseAsItsText(string duration, string shown, bool isTime)
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", "<table:table-row>"
+            + Cell($"office:value-type=\"time\" office:time-value=\"{duration}\"", shown)
+            + "</table:table-row>"));
+
+        RawCell cell = Assert.Single(ReadAll(cursor))[0];
+
+        if (isTime)
+        {
+            Assert.Equal(RawCell.FromDate(new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified)), cell);
+        }
+        else
+        {
+            Assert.Equal(RawCell.FromText(shown), cell);
+        }
+    }
+
+    /// <summary>
+    /// The whole content part indented, as a pretty-printing producer writes it: the indentation
+    /// between elements is markup, and the sheets, rows and cells read as the compact file's.
+    /// </summary>
+    [Fact]
+    public void ReadsAnIndentedContentPartAsTheCompactOne()
+    {
+        const string Compact =
+            "<table:table table:name=\"A\"><table:table-row>"
+            + "<table:table-cell office:value-type=\"string\"><text:p>a</text:p><text:p/><text:p>b</text:p></table:table-cell>"
+            + "<table:table-cell office:value-type=\"float\" office:value=\"1.5\"><text:p>1,5</text:p></table:table-cell>"
+            + "<table:covered-table-cell/>"
+            + "<table:table-cell office:value-type=\"string\"><text:p>c</text:p></table:table-cell>"
+            + "</table:table-row></table:table>"
+            + "<table:table table:name=\"B\"><table:table-row><table:table-cell office:value-type=\"string\"><text:p>d</text:p></table:table-cell></table:table-row></table:table>";
+        string indented = Compact.Replace("><", ">\n    <", StringComparison.Ordinal);
+
+        using OdsCursor compact = Open(new OdsPackage().WithRawContent(Content(Compact)));
+        using OdsCursor pretty = Open(new OdsPackage().WithRawContent(Content(indented)));
+
+        Assert.Equal(["A", "B"], pretty.Sheets.Select(s => s.Name));
+        Assert.Equal(["a\n\nb", "1.5", null, "c"], ReadAll(pretty)[0].Select(c => c.Kind == RawCellKind.Number ? c.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) : c.AsText()));
+
+        foreach (int sheet in (int[])[0, 1])
+        {
+            Assert.True(compact.MoveToSheet(sheet, TestContext.Current.CancellationToken));
+            Assert.True(pretty.MoveToSheet(sheet, TestContext.Current.CancellationToken));
+            Assert.Equal(ReadAll(compact).Select(r => r.ToArray()), ReadAll(pretty).Select(r => r.ToArray()));
+        }
+    }
+
+    private static string Content(string body) =>
+        $"""<?xml version="1.0" encoding="UTF-8"?><office:document-content {OdsPackage.Namespaces}office:version="1.3"><office:body><office:spreadsheet>{body}</office:spreadsheet></office:body></office:document-content>""";
+
     [Fact]
     public void ReadsAParagraphInsideAParagraphAsALineBreakAndKeepsTheOuterTail()
     {
