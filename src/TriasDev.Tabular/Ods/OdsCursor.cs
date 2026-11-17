@@ -690,6 +690,11 @@ internal sealed class OdsCursor : ITabularCursor
     /// date-time under a time-only format — on the day the serial names. A spreadsheet that states
     /// another null date counts the duration from that day instead, as LibreOffice does.
     /// </summary>
+    /// <remarks>
+    /// Not <see cref="XlsxCursor.TryFromSerial"/>, which refuses Excel's phantom 29 February 1900:
+    /// LibreOffice's calendar has no such day, so sixty days from its null date is 28 February, a
+    /// real one.
+    /// </remarks>
     private static RawCell FromDuration(ReadOnlySpan<char> duration, DateTime? nullDate)
     {
         if (!IsoDuration.TryParse(duration, out TimeSpan span) || span < TimeSpan.Zero)
@@ -699,7 +704,7 @@ internal sealed class OdsCursor : ITabularCursor
 
         bool read = nullDate is { } day
             ? XlsxCursor.TryFromDays(day, span.TotalDays, out DateTime date)
-            : XlsxCursor.TryFromSerial(span.TotalDays, date1904: false, out date);
+            : XlsxCursor.TryFromWorkbookDays(span.TotalDays, out date);
 
         return read ? RawCell.FromDate(date) : RawCell.Empty;
     }

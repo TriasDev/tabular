@@ -3,7 +3,20 @@
 Which kind of file it is comes from its bytes, never its name. What each kind reads as — and, at
 the end, [what each format holds when written](#what-each-format-holds-when-written):
 
-## An OpenDocument cell says its own type
+## An xlsx number is a date by its format
+
+An xlsx cell stores a date as a number, a serial count of days, and says it is a date only through
+its cell format: a number whose format is a date or time one — a built-in date format, or a custom
+code with day, month, year, hour or second in it — reads as a date, any other as a number. A cell
+that names no format (no `s`) has format 0, as the specification says; Excel's format 0 is General,
+so in Excel's files such a cell is a number. A cell can also state a date as ISO text (`t="d"`).
+
+Serials count from 1 January 1900, or from 1 January 1904 where the workbook says so. The 1900
+system counts a 29 February 1900 that never was, as Excel does: serial 59 is 28 February 1900, 61 is
+1 March, and 60 — that non-day, at any time of it — is no date, so the cell keeps its number, as does
+a serial outside the calendar. An import into a date field reports it as `value.type-mismatch` at
+its cell, and the profile counts it as a number in a date column.
+
 
 A workbook guesses dates from number formats; a `.ods` cell states its type beside its value, so
 there is nothing to guess. `float`, `percentage` and `currency` read as numbers — a value that is no

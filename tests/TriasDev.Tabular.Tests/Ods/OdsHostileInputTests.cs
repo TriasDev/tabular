@@ -495,11 +495,16 @@ public sealed class OdsHostileInputTests
         // The xlsx serial 45000.5 is noon on 15 March 2023, and this duration must read the same.
         using OdsCursor cursor = Open(new OdsPackage().WithTable("S", Row(
             Cell("office:value-type=\"time\" office:time-value=\"PT1080012H00M00S\""),
-            Cell("office:value-type=\"time\" office:time-value=\"PT1440H\""))));
+            Cell("office:value-type=\"time\" office:time-value=\"PT1440H\""),
+            Cell("office:value-type=\"time\" office:time-value=\"PT1452H\""))));
 
+        // Sixty days and sixty and a half are 28 February 1900 in LibreOffice's calendar, which has
+        // no 29 February that year: the phantom day an xlsx serial of 60 names, and which is no date
+        // there (#184), is not one here.
         Assert.True(cursor.ReadRow(Token));
         Assert.Equal(new DateTime(2023, 3, 15, 12, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[0].Date);
         Assert.Equal(new DateTime(1900, 2, 28, 0, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[1].Date);
+        Assert.Equal(new DateTime(1900, 2, 28, 12, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[2].Date);
     }
 
     [Fact]

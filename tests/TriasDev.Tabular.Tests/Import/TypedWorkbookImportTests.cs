@@ -153,6 +153,56 @@ public sealed class TypedWorkbookImportTests
         Assert.Equal(expected, row.Value.Item5);
     }
 
+    [Theory]
+    [InlineData("59", "1900-02-28T00:00:00")]
+    [InlineData("61", "1900-03-01T00:00:00")]
+    public void ImportsTheDaysAroundExcelsPhantomLeapDayAsDates(string serial, string expected)
+    {
+        ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
+            $"""<row r="2"><c r="C2" s="1"><v>{serial}</v></c></row>"""));
+
+        Assert.False(row.HasErrors);
+        Assert.Equal(DateTime.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), row.Value.Item3);
+    }
+
+    [Theory]
+    [InlineData("60")]
+    [InlineData("60.5")]
+    public void RefusesExcelsPhantomLeapDayForADateFieldAtItsCell(string serial)
+    {
+        // Serial 60 is 29 February 1900, a day that never was: the cell keeps its number, and a date
+        // field reports it where it stands rather than taking a neighbouring day (#184).
+        ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
+            $"""<row r="2"><c r="C2" s="1"><v>{serial}</v></c></row>"""));
+
+        RowError error = Assert.Single(row.Errors);
+        Assert.Equal((ErrorCodes.Value.TypeMismatch, "signed", 2, 2), (error.Code, error.FieldName, error.RowNumber, error.ColumnIndex));
+    }
+
+    [Fact]
+    public void ProfilesExcelsPhantomLeapDayAsANumberAndADateOutlier()
+    {
+        byte[] workbook = new XlsxPackage()
+            .WithSheet("S", """<row r="1"><c r="A1" t="inlineStr"><is><t>signed</t></is></c></row>"""
+                + """<row r="2"><c r="A2" s="1"><v>59</v></c></row><row r="3"><c r="A3" s="1"><v>60</v></c></row>"""
+                + """<row r="4"><c r="A4" s="1"><v>60.5</v></c></row><row r="5"><c r="A5" s="1"><v>61</v></c></row>""")
+            .WithStyles(Styles)
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(workbook), cancellationToken: TestContext.Current.CancellationToken);
+        ColumnProfile column = Assert.Single(TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets[0].Columns);
+
+        Assert.Equal(2, column.Facts.NativeKinds[RawCellKind.Date]);
+        Assert.Equal(2, column.Facts.NativeKinds[RawCellKind.Number]);
+        Assert.Equal(new DateTime(1900, 2, 28, 0, 0, 0, DateTimeKind.Unspecified), column.Facts.MinDate);
+        Assert.Equal(new DateTime(1900, 3, 1, 0, 0, 0, DateTimeKind.Unspecified), column.Facts.MaxDate);
+
+        // A column the file typed has its hypotheses from the declared kinds, which count what does
+        // not fit without locating it.
+        TypeHypothesis date = Assert.Single(column.Hypotheses, h => h.Type == ColumnType.Date);
+        Assert.Equal((2, 2), (date.MatchedCount, date.UnmatchedCount));
+    }
+
     [Fact]
     public void RefusesAnErrorCellForATypedField()
     {

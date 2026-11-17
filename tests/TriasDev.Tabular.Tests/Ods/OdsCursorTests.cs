@@ -393,6 +393,36 @@ public sealed class OdsCursorTests
         Assert.Equal("Q&A \"1\" ä", cells[1].AsText());
     }
 
+    /// <summary>
+    /// A row of two string cells, the first with the text in its paragraph, the second in its
+    /// <c>office:string-value</c>, each written raw between <c>a</c> and <c>b</c>.
+    /// </summary>
+    private static RawCell[] ParagraphAndAttribute(string raw)
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S",
+            "<table:table-row>"
+            + Cell("office:value-type=\"string\"", $"a{raw}b")
+            + Cell($"office:value-type=\"string\" office:string-value=\"a{raw}b\"", "shown")
+            + "</table:table-row>"));
+
+        return Assert.Single(ReadAll(cursor));
+    }
+
+    [Theory]
+    [MemberData(nameof(CharacterReferences.Resolved), MemberType = typeof(CharacterReferences))]
+    public void ResolvesACharacterReferenceOfAnyLengthInAParagraphAndAnAttribute(string raw, string meant)
+    {
+        // Leading zeros are allowed and dropped, however many (#184).
+        Assert.Equal([RawCell.FromText($"a{meant}b"), RawCell.FromText($"a{meant}b")], ParagraphAndAttribute(raw));
+    }
+
+    [Theory]
+    [MemberData(nameof(CharacterReferences.KeptAsWritten), MemberType = typeof(CharacterReferences))]
+    public void KeepsWhatIsNoCharacterReferenceAsWrittenInAParagraphAndAnAttribute(string raw)
+    {
+        Assert.Equal([RawCell.FromText($"a{raw}b"), RawCell.FromText($"a{raw}b")], ParagraphAndAttribute(raw));
+    }
+
     [Fact]
     public void ReadsAnErrorCellAsTheErrorItShows()
     {
