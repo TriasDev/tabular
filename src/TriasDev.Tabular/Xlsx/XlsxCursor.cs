@@ -1597,28 +1597,20 @@ internal sealed class XlsxCursor : ITabularCursor
             return false;
         }
 
-        return TryFromWorkbookDays(serial, out date);
+        return TryFromDays(
+            serial > PhantomLeapDay ? LibreOfficeNullDate : new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified),
+            serial,
+            out date);
     }
 
     /// <summary>The 1900 system's serial for 29 February 1900, a day the calendar does not have.</summary>
     private const double PhantomLeapDay = 60;
 
     /// <summary>
-    /// A count of days read as a 1900-system serial is read, but with nothing refused for the phantom
-    /// leap day: 60 days and more count from 30 December 1899, fewer from 31 December.
+    /// The day the 1900 system's serials past the phantom leap day count from, and the day LibreOffice
+    /// counts every serial from, as its calendar has no 29 February 1900.
     /// </summary>
-    /// <remarks>
-    /// For an OpenDocument time cell, a duration since LibreOffice's null date. LibreOffice's calendar
-    /// has no 29 February 1900, so sixty days from 30 December 1899 is 28 February, a real day, and is
-    /// read as one; a time of day, under one day, reads on 31 December as a workbook's does.
-    /// </remarks>
-    internal static bool TryFromWorkbookDays(double days, out DateTime date) =>
-        TryFromDays(
-            days >= PhantomLeapDay
-                ? new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified)
-                : new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified),
-            days,
-            out date);
+    internal static readonly DateTime LibreOfficeNullDate = new(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
 
     /// <summary>
     /// The day and time as many days after <paramref name="epoch"/> as <paramref name="days"/> says,

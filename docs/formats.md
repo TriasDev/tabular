@@ -21,10 +21,11 @@ its cell, and the profile counts it as a number in a date column.
 A workbook guesses dates from number formats; a `.ods` cell states its type beside its value, so
 there is nothing to guess. `float`, `percentage` and `currency` read as numbers — a value that is no
 finite number, such as `NaN` or `1e400`, reads as the cell's text, as an xlsx one does —, `date` as a date,
-`time` as the workbook serial of as many days — a time of day on 31 December 1899, the day an xlsx
-time-only cell reads on, and a longer duration on the day that serial names; a spreadsheet that
-states another null date in its calculation settings (LibreOffice offers 1 January 1904) has its
-durations counted from that day — and `boolean` as a
+`time` as a duration — under a day, a time of day on 31 December 1899, the day an xlsx time-only
+cell reads on; a day or longer, on the day LibreOffice shows, counted from its null date of
+30 December 1899 (its calendar has no 29 February 1900, so one day is 31 December and sixty days
+28 February); a spreadsheet that states another null date in its calculation settings (LibreOffice
+offers 1 January 1904) has all its durations counted from that day — and `boolean` as a
 boolean. Anything else is text: the cell's `office:string-value` when it has one, else its paragraphs
 joined by a line feed, comments left out. Paragraph text is read with ODF's white-space rule, as
 LibreOffice shows it: a space, tab or line end written as a character is one space, a run of them
