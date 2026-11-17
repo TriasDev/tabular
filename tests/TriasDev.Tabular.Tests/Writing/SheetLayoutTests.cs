@@ -104,6 +104,21 @@ public sealed class SheetLayoutTests
     }
 
     [Fact]
+    public async Task OdsFreezesColumnsAlone()
+    {
+        byte[] ods = await Write(TabularFormat.Ods, writer => writer.BeginSheet("data", [new("a"), new("b"), new("c")], new SheetOptions { FreezeColumns = 2 }));
+
+        Assert.Contains(
+            "<config:config-item-map-entry config:name=\"data\">"
+            + "<config:config-item config:name=\"HorizontalSplitMode\" config:type=\"short\">2</config:config-item>"
+            + "<config:config-item config:name=\"VerticalSplitMode\" config:type=\"short\">0</config:config-item>"
+            + "<config:config-item config:name=\"HorizontalSplitPosition\" config:type=\"int\">2</config:config-item>"
+            + "<config:config-item config:name=\"VerticalSplitPosition\" config:type=\"int\">0</config:config-item>",
+            Entry(ods, "settings.xml"),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task OdsWithoutFrozenPanesHasNoSettings()
     {
         byte[] ods = await Write(TabularFormat.Ods, writer => writer.BeginSheet("plain", [new("a")]));
