@@ -23,6 +23,7 @@ internal sealed class XlsxPackage
     private string _folder = "xl/";
     private Func<int, string> _sheetPart = number => $"worksheets/sheet{number}.xml";
     private string _extraSheetsXml = string.Empty;
+    private string _extraRelationshipsXml = string.Empty;
     private string _workbookTailXml = string.Empty;
     private string _relationshipNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private string?[] _states = [];
@@ -95,6 +96,16 @@ internal sealed class XlsxPackage
     }
 
     /// <summary>
+    /// Puts raw <c>&lt;Relationship&gt;</c> elements at the head of the workbook's relationships, ahead
+    /// of the ones the package writes itself — a chart sheet's, an external link's, a malformed one.
+    /// </summary>
+    public XlsxPackage WithWorkbookRelationships(string relationshipsXml)
+    {
+        _extraRelationshipsXml = relationshipsXml;
+        return this;
+    }
+
+    /// <summary>
     /// Names the worksheet parts, relative to the workbook's folder, so they can only be found
     /// through the relationships.
     /// </summary>
@@ -157,6 +168,38 @@ internal sealed class XlsxPackage
             if (_stylesXml is not null)
             {
                 Write(zip, _partNaming($"{_folder}styles.xml"), _stylesXml);
+            }
+        }
+
+        return buffer.ToArray();
+    }
+
+    /// <summary>
+    /// A built package with one part replaced or added: for packages whose parts contradict each
+    /// other, which the builder never writes.
+    /// </summary>
+    public static byte[] WithPart(byte[] package, string path, byte[] content) => Edited(package, path, content);
+
+    /// <inheritdoc cref="WithPart(byte[], string, byte[])" />
+    public static byte[] WithPart(byte[] package, string path, string content) =>
+        Edited(package, path, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content));
+
+    /// <summary>A built package with one part taken out — a part its relationships still point at.</summary>
+    public static byte[] WithoutPart(byte[] package, string path) => Edited(package, path, null);
+
+    private static byte[] Edited(byte[] package, string path, byte[]? content)
+    {
+        using MemoryStream buffer = new();
+        buffer.Write(package);
+
+        using (ZipArchive zip = new(buffer, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            zip.GetEntry(path)?.Delete();
+
+            if (content is not null)
+            {
+                using Stream entry = zip.CreateEntry(path, CompressionLevel.Optimal).Open();
+                entry.Write(content);
             }
         }
 
@@ -228,6 +271,7 @@ internal sealed class XlsxPackage
     {
         StringBuilder sb = new();
         sb.Append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">""");
+        sb.Append(_extraRelationshipsXml);
 
         for (int i = 0; i < _sheets.Count; i++)
         {

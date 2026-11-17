@@ -55,4 +55,23 @@ public sealed class OptionDefaultsTests
         Assert.False(csvWriter.FormulaGuard);
         Assert.False(TabularWriterOptions.Default.LeaveOpen);
     }
+
+    [Fact]
+    public void GivesANewWorkbookOptionsInstanceTheSameDefaults()
+    {
+        // Options built with an initialiser start from a new instance, not from Default — and Default
+        // is made once, before any test can look at how it was made.
+        XlsxCursorOptions xlsx = new();
+
+        Assert.Equal(XlsxCursorOptions.Default, xlsx);
+        Assert.Equal(2L * 1024 * 1024 * 1024, xlsx.MaxUncompressedBytes);
+        Assert.Equal(16_384, xlsx.MaxPackageEntries);
+        Assert.Equal(4_096, xlsx.MaxSheets);
+        Assert.Equal(2_048, xlsx.MaxMetadataChars);
+        Assert.Equal(8_192, xlsx.MaxRelationships);
+        Assert.Equal(1_048_576, xlsx.MaxSharedStrings);
+        Assert.Equal(64 * 1024 * 1024, xlsx.MaxSharedStringChars);
+        Assert.Equal(100_000, xlsx.MaxCellFormats);
+        Assert.Equal(16 * 1024 * 1024, xlsx.MaxValueChars);
+    }
 }

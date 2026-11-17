@@ -81,6 +81,7 @@ public sealed class HostileInputTests
     }
 
     [Theory]
+    [InlineData("XFE1")]            // one past XFD
     [InlineData("AAAAA1")]
     [InlineData("AAAAAA1")]
     [InlineData("ZZZZZZ1")]
@@ -145,15 +146,21 @@ public sealed class HostileInputTests
     [InlineData("&#x110000;")]
     [InlineData("&#0;")]
     [InlineData("&#99999999999999;")]
+    [InlineData("&#xZZ;")]
+    [InlineData("&#x;")]
+    [InlineData("&#;")]
+    [InlineData("&nbsp;")]
     public void KeepsAnImpossibleCharacterReferenceAsTextRatherThanThrowing(string entity)
     {
+        // Verbatim, as written: dropping it, or reading it as some other character, would change the
+        // value without a word.
         byte[] content = Workbook($"""<row r="1"><c r="A1" t="inlineStr"><is><t>a{entity}b</t></is></c></row>""");
 
         using MemoryStream stream = new(content, writable: false);
         using XlsxCursor cursor = new(stream);
 
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
-        Assert.NotNull(cursor.CurrentRow[0].Text);
+        Assert.Equal($"a{entity}b", cursor.CurrentRow[0].Text);
     }
 
     [Theory]

@@ -169,6 +169,49 @@ public sealed class ReadCancellationTests
     }
 
     [Fact]
+    public void RefusesToStartAWorkbookReadWithATokenAlreadyCancelledAndReadsOnAfterwards()
+    {
+        // Refused at the door, before anything of the row is consumed — so, unlike a read stopped
+        // part-way, it leaves the cursor where it was.
+        using MemoryStream stream = new(SharedStringWorkbook(entries: 1, cellIndex: 0), writable: false);
+        using XlsxCursor cursor = new(stream);
+        using CancellationTokenSource source = new();
+
+        source.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => cursor.ReadRow(source.Token));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("s0", cursor.CurrentRow[0].AsText());
+    }
+
+    [Fact]
+    public void StopsInsideOneLongSharedString()
+    {
+        // One <t> of a million characters is read in chunks, and the token is checked per chunk: no
+        // other loop turns while it is read, so a check anywhere else would come after all of it.
+        Random random = new(150);
+        StringBuilder text = new(1_100_000);
+
+        while (text.Length < 1_000_000)
+        {
+            text.Append(random.NextInt64());
+        }
+
+        byte[] package = new XlsxPackage()
+            .WithSheet("Sheet1", """<row><c t="s"><v>0</v></c></row>""")
+            .WithSharedStrings($"<si><t>{text}</t></si>")
+            .Build();
+
+        using CancellationTokenSource source = new();
+        using CancellingStream stream = new(package, source);
+        using XlsxCursor cursor = new(stream);
+
+        stream.CancelAfter(4_096);
+
+        Assert.Throws<OperationCanceledException>(() => cursor.ReadRow(source.Token));
+    }
+
+    [Fact]
     public void KeepsReadingWhenNoReadWasEverCancelled()
     {
         using MemoryStream stream = new(Utf8NoBom.GetBytes("a\n1\n2\n"), writable: false);

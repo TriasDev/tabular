@@ -384,6 +384,46 @@ public sealed class XlsxStyleTests
     }
 
     [Fact]
+    public async Task StatesEveryPartOfTheLegendInItsCellFormats()
+    {
+        // Each apply flag beside the index it applies: without them Excel shows the indices anyway,
+        // other readers do not — and nothing reads the flags back, so only the markup can say.
+        byte[] xlsx = await Workbook(writer => EveryKind(writer, writer.RegisterStyle(Legend)));
+
+        Assert.Equal(
+            [
+                "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>",
+                "<xf numFmtId=\"14\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>",
+                "<xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>",
+                "<xf numFmtId=\"1\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>",
+                "<xf numFmtId=\"0\" fontId=\"1\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" wrapText=\"1\"/></xf>",
+                "<xf numFmtId=\"165\" fontId=\"1\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" wrapText=\"1\"/></xf>",
+                "<xf numFmtId=\"166\" fontId=\"1\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" wrapText=\"1\"/></xf>",
+            ],
+            CellXfs(Part(xlsx, "xl/styles.xml")));
+    }
+
+    [Fact]
+    public async Task AStyleThatComesOutAsAFixedFormatReusesIt()
+    {
+        // A number format on a date leaves the date its built-in format and nothing else: the fixed
+        // date format already is that, so it is reused rather than written a second time.
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId amounts = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("0.00") });
+            writer.BeginSheet("data", [new("amount"), new("day")]);
+            writer.BeginRow();
+            writer.Write(1.5, amounts);
+            writer.Write(new DateOnly(2026, 11, 17), amounts);
+            writer.EndRow();
+        });
+
+        Assert.Equal(5, CellXfs(Part(xlsx, "xl/styles.xml")).Count);
+        Assert.Matches("<row r=\"2\"><c s=\"4\"><v>1.5</v></c><c s=\"1\"><v>", Part(xlsx, "xl/worksheets/sheet1.xml"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    [Fact]
     public async Task AnUnstyledWorkbookKeepsItsFourFormats()
     {
         byte[] xlsx = await Workbook(writer => EveryKind(writer, default));

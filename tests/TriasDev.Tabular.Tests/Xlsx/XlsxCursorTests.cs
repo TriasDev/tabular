@@ -211,6 +211,42 @@ public sealed class XlsxCursorTests
         Assert.Equal("a & b <c> \"d\" A", cursor.CurrentRow[0].Text);
     }
 
+    /// <summary>The text of a one-cell inline string, its value written raw between <c>a</c> and <c>b</c>.</summary>
+    private static string? InlineText(string raw)
+    {
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", $"""<row r="1"><c r="A1" t="inlineStr"><is><t>a{raw}b</t></is></c></row>""")
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        return cursor.CurrentRow[0].Text;
+    }
+
+    [Theory]
+    [InlineData("&#9;", "\t")]
+    [InlineData("&#65;", "A")]
+    [InlineData("&#x41;", "A")]
+    [InlineData("&#X41;", "A")]
+    [InlineData("&#x1F600;", "\U0001F600")]
+    [InlineData("&#x00001F600;", "\U0001F600")]       // eleven characters between & and ;, the longest looked for
+    public void ResolvesCharacterReferencesInDecimalAndHex(string raw, string meant)
+    {
+        Assert.Equal($"a{meant}b", InlineText(raw));
+    }
+
+    [Theory]
+    [InlineData(" & ")]
+    [InlineData("&")]
+    [InlineData("&amp")]
+    [InlineData("&;")]
+    public void KeepsAnAmpersandThatStartsNoEntity(string raw)
+    {
+        // Not well-formed, and not a reason to lose a character: "R&D" reads as written.
+        Assert.Equal($"a{raw}b", InlineText(raw));
+    }
+
     [Fact]
     public void IsRecognisedByItsBytesRatherThanItsName()
     {
@@ -236,5 +272,133 @@ public sealed class XlsxCursorTests
         }
 
         return new XlsxPackage().WithSheet("Sheet1", rows.ToString()).Build();
+    }
+
+    private const string PackageRelationshipsTo =
+        """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="{0}"/></Relationships>""";
+
+    /// <summary>Zips that hold no workbook part, and what the cursor says each one is instead.</summary>
+    public static TheoryData<string, byte[], string, string> ZipsWithoutAWorkbook => new()
+    {
+        {
+            "an OpenDocument text",
+            new ZipArchiveBuilder().With("mimetype", "application/vnd.oasis.opendocument.text").With("content.xml", "<office:document-content/>").Build(),
+            TabularFormatException.Unsupported,
+            "OpenDocument"
+        },
+        {
+            "another zip with a mimetype",
+            new ZipArchiveBuilder().With("mimetype", "application/epub+zip").With("content.opf", "<package/>").Build(),
+            TabularFormatException.Corrupt,
+            "xl/workbook.xml is missing"
+        },
+        {
+            "a workbook part named .bin in another case",
+            new ZipArchiveBuilder().With("_rels/.rels", string.Format(System.Globalization.CultureInfo.InvariantCulture, PackageRelationshipsTo, "xl/book.BIN")).Build(),
+            TabularFormatException.Unsupported,
+            ".xlsb"
+        },
+        {
+            "a binary workbook at its conventional path, without relationships",
+            new ZipArchiveBuilder().With("[Content_Types].xml", "<Types/>").With("xl/workbook.bin", [0x83, 0x01, 0x00]).Build(),
+            TabularFormatException.Unsupported,
+            ".xlsb"
+        },
+        {
+            "nothing a workbook has",
+            new ZipArchiveBuilder().With("readme.txt", "nothing to see").Build(),
+            TabularFormatException.Corrupt,
+            "xl/workbook.xml is missing"
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(ZipsWithoutAWorkbook))]
+    public void SaysWhatAZipWithoutAWorkbookIsInstead(string what, byte[] zip, string code, string message)
+    {
+        // Opened as a workbook directly, not through detection, which tells most of these apart
+        // before the cursor sees them: the cursor's own account has to be right as well.
+        TabularFormatException refused = Assert.Throws<TabularFormatException>(() => new XlsxCursor(new MemoryStream(zip, writable: false)));
+
+        Assert.True(code == refused.Code, $"{what}: {refused.Code}");
+        Assert.Contains(message, refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RefusesToMoveOnceDisposed()
+    {
+        XlsxCursor cursor = new(new MemoryStream(TwoSheets(), writable: false));
+        cursor.Dispose();
+
+        // As the cursor, before anything else is looked at: a sheet that is not there is as refused
+        // as one that is, and the package underneath is not what the caller disposed.
+        Assert.Equal(typeof(XlsxCursor).FullName, Assert.Throws<ObjectDisposedException>(() => cursor.MoveToSheet(1, TestContext.Current.CancellationToken)).ObjectName);
+        Assert.Equal(typeof(XlsxCursor).FullName, Assert.Throws<ObjectDisposedException>(() => cursor.MoveToSheet(5, TestContext.Current.CancellationToken)).ObjectName);
+    }
+
+    /// <summary>Each worksheet part's uncompressed size, in sheet order.</summary>
+    private static long[] SheetSizes(byte[] package, int sheets)
+    {
+        using ZipArchive zip = new(new MemoryStream(package, writable: false), ZipArchiveMode.Read);
+        return [.. Enumerable.Range(1, sheets).Select(n => zip.GetEntry($"xl/worksheets/sheet{n}.xml")?.Length ?? 0)];
+    }
+
+    [Fact]
+    public void ReportsTheShareOfTheWorksheetBytesReadInSheetOrder()
+    {
+        byte[] package = TwoSheets();
+        long[] sizes = SheetSizes(package, 2);
+        double total = sizes[0] + sizes[1];
+
+        using XlsxCursor cursor = new(new MemoryStream(package, writable: false));
+
+        Assert.Equal(0d, cursor.ReadFraction);
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            // reading the first sheet to its end
+        }
+
+        Assert.Equal(sizes[0] / total, cursor.ReadFraction);
+
+        // The sheets before the current one count whole, the current one as far as it was read.
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal(sizes[0] / total, cursor.ReadFraction);
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            // and the second
+        }
+
+        Assert.Equal(1d, cursor.ReadFraction);
+
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.Equal(0d, cursor.ReadFraction);
+    }
+
+    [Fact]
+    public void CountsAMissingWorksheetPartAsNothingToRead()
+    {
+        byte[] package = XlsxPackage.WithoutPart(TwoSheets(), "xl/worksheets/sheet2.xml");
+
+        using XlsxCursor cursor = new(new MemoryStream(package, writable: false));
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            // the only sheet there is, to its end
+        }
+
+        Assert.Equal(1d, cursor.ReadFraction);
+    }
+
+    [Fact]
+    public void ReportsNoReadFractionForWorksheetsOfNoBytes()
+    {
+        // Nothing to measure against: unknown, not zero and not not-a-number.
+        byte[] package = new XlsxPackage().WithRawSheet("Sheet1", string.Empty).Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(package, writable: false));
+
+        Assert.Null(cursor.ReadFraction);
     }
 }

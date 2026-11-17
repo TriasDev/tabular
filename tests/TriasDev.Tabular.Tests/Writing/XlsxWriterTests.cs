@@ -270,6 +270,39 @@ public sealed class XlsxWriterTests
     }
 
     [Fact]
+    public async Task EscapesOnlyTheUnderscoresThatStartAnEscape()
+    {
+        // An underscore before anything but x reads back as itself, and is written as itself: the
+        // round trip is the same either way, the file a person opens in a text editor is not.
+        byte[] xlsx = await Workbook(writer =>
+        {
+            writer.BeginSheet("data", [new("v")]);
+            writer.BeginRow();
+            writer.Write("a_b_");
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Write("my_x");
+            writer.EndRow();
+        });
+
+        string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
+        Assert.Contains("<t>a_b_</t>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<t>my_x005F_x</t>", sheet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WritesNoDefinedNamesWithoutAFilter()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            writer.BeginSheet("data", [new("v")]);
+            writer.BeginSheet("more", [new("v")], new SheetOptions { FreezeRows = 1 });
+        });
+
+        Assert.DoesNotContain("definedName", Part(xlsx, "xl/workbook.xml"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RefusesTextLongerThanACellHolds()
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);

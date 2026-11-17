@@ -486,4 +486,158 @@ public sealed class XlsxCursorEdgeCaseTests
             [RawCell.FromText("NaN"), RawCell.FromText("Infinity"), RawCell.FromText("-Infinity"), RawCell.FromText("1e400"), RawCell.FromText("abc"), RawCell.FromNumber(1e300)],
             cursor.CurrentRow.ToArray());
     }
+
+    /// <summary>Every row's cells, read under a deadline, so a reader that loops fails instead of hanging the run.</summary>
+    private static List<RawCell[]> Cells(byte[] content) =>
+        Deadline.Within(() =>
+        {
+            using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+            List<RawCell[]> rows = [];
+
+            while (cursor.ReadRow(TestContext.Current.CancellationToken))
+            {
+                rows.Add(cursor.CurrentRow.ToArray());
+            }
+
+            return rows;
+        });
+
+    private const string DateStyleAtZero =
+        """<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cellXfs count="2"><xf numFmtId="14" applyNumberFormat="1"/><xf numFmtId="0"/></cellXfs></styleSheet>""";
+
+    [Fact]
+    public void ReadsAttributesWrittenWithWhitespaceAroundTheirEqualsSign()
+    {
+        // XML allows white space on either side of '=', spaces, tabs and line ends alike. Skipping it
+        // badly took the space for the opening quote, or did not move past it at all and spun.
+        byte[] content = new XlsxPackage()
+            .WithSharedStrings("<si><t>shared</t></si>")
+            .WithStyles(DateStyleAtZero)
+            .WithSheet(
+                "Sheet1",
+                "<row r = \"1\"><c r = \"B1\" t =\"inlineStr\"><is><t>b</t></is></c><c r\t=\t'C1'\nt\n=\n's'><v>0</v></c><c r=  \"D1\"  s  =  \"0\"><v>45000</v></c></row>")
+            .Build();
+
+        RawCell[] row = Assert.Single(Cells(content));
+
+        Assert.Equal(
+            [RawCell.Empty, RawCell.FromText("b"), RawCell.FromText("shared"), RawCell.FromDate(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Unspecified))],
+            row);
+    }
+
+    [Fact]
+    public void KeepsSayingTheSheetHasEndedOnceItHas()
+    {
+        // The end of the sheet data is remembered: what follows it is not markup the cursor reads,
+        // and reading on from there found the part's end and called the sheet truncated.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1"><v>1</v></c></row>""")
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void ReadsPastElementsOfARowThatAreNotCells()
+    {
+        // An extension list inside a row, between cells and after the last one. Only <c> is a cell
+        // and only </row> ends the row: taking the list for a cell read the next row's value into
+        // this one, and taking its end for the row's lost the cells after it.
+        byte[] content = new XlsxPackage()
+            .WithSheet(
+                "Sheet1",
+                """<row r="1"><c r="A1"><v>1</v></c><extLst><ext uri="{0}"><x14:id>7</x14:id></ext></extLst><c r="B1"><v>2</v></c><extLst><ext uri="{1}"/></extLst></row><row r="2"><c r="A2"><v>3</v></c></row>""")
+            .Build();
+
+        List<RawCell[]> rows = Cells(content);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal([RawCell.FromNumber(1), RawCell.FromNumber(2)], rows[0]);
+        Assert.Equal([RawCell.FromNumber(3)], rows[1]);
+    }
+
+    [Fact]
+    public void ReadsStyleZeroAsADateWhenItsFormatIsOne()
+    {
+        // The first cell format is as much a format as any other; an index of zero is not "no style".
+        byte[] content = new XlsxPackage()
+            .WithStyles(DateStyleAtZero)
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="0"><v>45000</v></c><c r="B1" s="1"><v>45000</v></c></row>""")
+            .Build();
+
+        Assert.Equal(
+            [RawCell.FromDate(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Unspecified)), RawCell.FromNumber(45000)],
+            Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsAStyleOrSharedStringIndexJustPastItsTableAsNoneOfIt()
+    {
+        // An index equal to the table's length names nothing; it is read as a plain number and an
+        // empty cell, not looked up one past the end.
+        byte[] content = new XlsxPackage()
+            .WithStyles(DateStyleAtZero)
+            .WithSharedStrings("<si><t>a</t></si><si><t>b</t></si>")
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" s="2"><v>45000</v></c><c r="B1" t="s"><v>2</v></c><c r="C1" t="s"><v>1</v></c></row>""")
+            .Build();
+
+        Assert.Equal(
+            [RawCell.FromNumber(45000), RawCell.Empty, RawCell.FromText("b")],
+            Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsASharedStringCellAsEmptyWhenThePackageHasNoTable()
+    {
+        // A workbook that writes every string inline has no shared string table, and a cell that
+        // points into one anyway names nothing.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><t>x</t></is></c></row>""")
+            .Build();
+
+        Assert.Equal([RawCell.Empty, RawCell.FromText("x")], Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsASharedStringPastACommentOrInstructionInsideItsText()
+    {
+        // Only text nodes are the value; a comment's text, or an instruction's, is not part of it.
+        byte[] content = new XlsxPackage()
+            .WithSharedStrings("<si><t>a<!-- note -->b<?pi data?>c</t></si><si><t>d</t></si>")
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>""")
+            .Build();
+
+        Assert.Equal([RawCell.FromText("abc"), RawCell.FromText("d")], Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsARowOfMoreCellsThanTheFirstBufferHolds()
+    {
+        // Seventeen cells: one past the sixteen the row buffer starts with, so it has to grow for the
+        // last. The wide export tests cover this too, but slowly.
+        string cells = string.Concat(Enumerable.Range(0, 17).Select(i => $"""<c r="{(char)('A' + i)}1"><v>{i}</v></c>"""));
+        byte[] content = new XlsxPackage().WithSheet("Sheet1", $"""<row r="1">{cells}</row>""").Build();
+
+        Assert.Equal(
+            Enumerable.Range(0, 17).Select(i => RawCell.FromNumber(i)),
+            Assert.Single(Cells(content)));
+    }
+
+    [Fact]
+    public void ReadsTheFirstDayOfTheCalendarFromItsSerialAndLeavesTheDayBeforeANumber()
+    {
+        // The calendar's edge is the only bound on a serial: the earliest day a DateTime holds is a
+        // date, a moment before it is no date and keeps its number.
+        double first = -(new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified) - DateTime.MinValue).TotalDays;
+
+        Assert.True(XlsxCursor.TryFromSerial(first, date1904: false, out DateTime date));
+        Assert.Equal(DateTime.MinValue, date);
+        Assert.False(XlsxCursor.TryFromSerial(first - 0.001, date1904: false, out _));
+    }
 }
