@@ -515,14 +515,14 @@ internal sealed class ColumnProfiler
             ? CultureInfo.InvariantCulture.NumberFormat
             : CultureInfo.GetCultureInfo(name).NumberFormat);
 
-        /// <summary>This culture's date separator, when it is one character: what its own dates are written with.</summary>
-        private char DateSeparator { get; } = DateSeparatorOf(name);
-
-        private static char DateSeparatorOf(string name)
-        {
-            string separator = (name.Length == 0 ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo(name)).DateTimeFormat.DateSeparator;
-            return separator.Length == 1 ? separator[0] : '\0';
-        }
+        /// <summary>This culture's date separator: what its own dates are written with.</summary>
+        /// <remarks>
+        /// Kept whole, not as its first character (#184). 55 cultures separate with more than one
+        /// character — <c>". "</c> for hu-HU and ko-KR (<c>2024. 01. 15.</c>), a right-to-left mark and
+        /// a slash for the Arabic ones — and a one-character match never found their dates written their
+        /// own way, so the tie-break between cultures that read every date counted zero for them.
+        /// </remarks>
+        private string DateSeparator { get; } = (name.Length == 0 ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo(name)).DateTimeFormat.DateSeparator;
 
         private int _integer;
         private int _decimal;
@@ -720,7 +720,8 @@ internal sealed class ColumnProfiler
                 _date++;
                 Widen(date);
 
-                if (DateSeparator != '\0' && text.Contains(DateSeparator, StringComparison.Ordinal))
+                // Ordinal over the whole separator, which allocates nothing; an empty one never counts.
+                if (DateSeparator.Length > 0 && text.Contains(DateSeparator, StringComparison.Ordinal))
                 {
                     _datesWithOwnSeparator++;
                 }
