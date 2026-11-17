@@ -241,7 +241,9 @@ it to a temporary name and rename on success.
   [bounds](bounds.md). (`TabularLimitException`, which a host may answer with 413, is only ever a
   reader's: an export is never mistaken for an upload that was too large.)
 - A bad argument — a header that is empty, padded or repeated ignoring case, a sheet name the format
-  refuses, a column count outside 1 to 16,384 — throws `ArgumentException`, and a call out of order
+  refuses (xlsx and ods follow Excel's rules, a zip adds the file-name ones; csv writes no name and so
+  checks none — test code that may also write a workbook with a workbook format), a column count
+  outside 1 to 16,384 — throws `ArgumentException`, and a call out of order
   (a row inside a row, `CompleteAsync` with a row open) or a 4,097th style registered by hand throws
   `InvalidOperationException`. The same
   data fails the same way whichever format is chosen: the characters XML forbids are refused in csv
