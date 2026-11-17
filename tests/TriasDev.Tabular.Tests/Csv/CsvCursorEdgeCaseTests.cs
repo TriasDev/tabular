@@ -134,6 +134,17 @@ public sealed class CsvCursorEdgeCaseTests
     }
 
     [Fact]
+    public void KeepsADoubledQuoteInsideAnUnquotedFieldAsTwoCharacters()
+    {
+        // Doubling escapes a quote only inside a quoted field. In `12"" pipe` the first quote is an
+        // inch mark, and the second stands after it, not where a field begins — so it opens nothing,
+        // and the record after it stays a record.
+        List<string?[]> rows = ReadAll("id;size\n1;12\"\" pipe\n2;x\n");
+
+        Assert.Equal([["id", "size"], ["1", "12\"\" pipe"], ["2", "x"]], rows);
+    }
+
+    [Fact]
     public void ReadsAQuotedFieldThatEndsTheFileWithoutALineBreak()
     {
         List<string?[]> rows = ReadAll("a;b\n1;\"last\"");

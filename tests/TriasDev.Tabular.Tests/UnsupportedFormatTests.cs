@@ -65,6 +65,36 @@ public sealed class UnsupportedFormatTests
         Assert.Contains("XML", Refusal([.. encoding.GetPreamble(), .. encoding.GetBytes(" \r\n" + Document)]).Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(new byte[] { 0xFF, 0xFE })]
+    [InlineData(new byte[] { 0xFF, 0xFE, 0x20, 0x00, 0x20 })]
+    [InlineData(new byte[] { 0xFF, 0xFE, 0x20, 0x00, 0x3C, 0x00, 0x3F, 0x00, 0x78, 0x00 })]
+    public void ReadsAUtf16FileTooShortToHoldAnXmlDeclaration(byte[] content)
+    {
+        // A byte order mark alone, whitespace with half a character after it, the start of a
+        // declaration cut off: the look for an XML declaration must stop at the file's end, not read
+        // past it, and not call a file XML that never says so.
+        using MemoryStream stream = new(content, writable: false);
+        using ITabularCursor cursor = TabularFile.Open(stream, "t.csv", cancellationToken: TestContext.Current.CancellationToken);
+
+        int rows = 0;
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            rows++;
+        }
+
+        Assert.Equal(TabularFormat.Csv, cursor.Format);
+        Assert.Equal(content.Length > 2 ? 1 : 0, rows);
+    }
+
+    [Fact]
+    public void RefusesAUtf16FileThatIsAnXmlDeclarationAndNothingElse()
+    {
+        // The declaration's five characters fill the file exactly: enough to call it XML.
+        Assert.Contains("XML", Refusal([0xFF, 0xFE, .. Encoding.Unicode.GetBytes("<?xml")]).Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void RefusesABinaryFileInsteadOfProfilingItAsText()
     {
