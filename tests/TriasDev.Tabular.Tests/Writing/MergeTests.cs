@@ -356,6 +356,62 @@ public sealed class MergeTests
     }
 
     [Fact]
+    public async Task XlsxLeavesTheCoveredPositionsOfARangeWithAnUnstyledEmptyTopLeftCellOut()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            StyleId boxed = writer.RegisterStyle(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
+            writer.BeginSheet("data", Four);
+            writer.BeginRow();
+            writer.Merge(2, 2);
+            writer.Write("box", boxed);         // a2–b3
+            writer.EndRow();
+            writer.BeginRow();
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Merge(2, 2);                 // a4–b5, an unstyled empty: the boxed range's style must not leak into it
+            writer.WriteEmpty();
+            writer.Write("c4");
+            writer.EndRow();
+            writer.BeginRow();
+            writer.Write("c5");
+            writer.EndRow();
+        });
+
+        string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
+        Assert.Contains("<row r=\"4\"><c r=\"C4\" t=\"inlineStr\"><is><t>c4</t></is></c></row>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<row r=\"5\"><c r=\"C5\" t=\"inlineStr\"><is><t>c5</t></is></c></row>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<mergeCell ref=\"A4:B5\"/>", sheet, StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    [Fact]
+    public async Task XlsxKeepsTheCoveredStylesOfTwoStyledRangesSideBySide()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            StyleId boxed = writer.RegisterStyle(new CellStyle { Border = CellBorder.Thin(CellColor.FromRgb(0x000000)) });
+            writer.BeginSheet("data", Four);
+            writer.BeginRow();
+            writer.Merge(2, 2);
+            writer.Write("left", boxed);        // a2–b3
+            writer.Merge(2, 2);
+            writer.Write("right", boxed);       // c2–d3: taking its style must not forget the left range's
+            writer.EndRow();
+            writer.BeginRow();
+            writer.EndRow();
+        });
+
+        string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
+        Match top = Regex.Match(sheet, "<c s=\"(\\d+)\" t=\"inlineStr\"><is><t>left</t>");
+
+        Assert.True(top.Success);
+        string s = top.Groups[1].Value;
+        Assert.Contains($"<row r=\"3\"><c s=\"{s}\"/><c s=\"{s}\"/><c s=\"{s}\"/><c s=\"{s}\"/></row>", sheet, StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    [Fact]
     public async Task TheMergeLimitIsTheFormats()
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);

@@ -220,6 +220,36 @@ public sealed class XlsxWriterTests
     }
 
     [Fact]
+    public async Task PreservesTheSpaceOfTextThatStartsOrEndsWithOne()
+    {
+        // Excel trims a <t> without xml:space="preserve", so text that starts or ends with whitespace
+        // says so; text with a space only inside it needs nothing. Only the markup shows it: this
+        // library's reader trims every text cell either way.
+        string[] values = [" lead", "trail ", "none", "in side", "\ttab"];
+
+        byte[] xlsx = await Workbook(writer =>
+        {
+            writer.BeginSheet("data", [new("v")]);
+
+            foreach (string value in values)
+            {
+                writer.BeginRow();
+                writer.Write(value);
+                writer.EndRow();
+            }
+        });
+
+        string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<is><t xml:space=\"preserve\"> lead</t></is>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<is><t xml:space=\"preserve\">trail </t></is>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<is><t>none</t></is>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<is><t>in side</t></is>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<is><t xml:space=\"preserve\">\ttab</t></is>", sheet, StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    [Fact]
     public async Task WritesUnderscoreXTextAsWritten()
     {
         string[] values = ["_x0041_", "C:\\_x86_\\", "_x", "a_x0001_b", "__x0041__"];

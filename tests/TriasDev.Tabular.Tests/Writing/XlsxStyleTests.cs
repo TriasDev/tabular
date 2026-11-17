@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
+using System.Text.RegularExpressions;
 
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
@@ -56,6 +58,13 @@ public sealed class XlsxStyleTests
         }
 
         return rows;
+    }
+
+    /// <summary>The <c>&lt;xf&gt;</c> elements of <c>cellXfs</c>, in index order.</summary>
+    private static List<string> CellXfs(string styles)
+    {
+        string cellXfs = styles[styles.IndexOf("<cellXfs", StringComparison.Ordinal)..styles.IndexOf("</cellXfs>", StringComparison.Ordinal)];
+        return [.. Regex.Matches(cellXfs, "<xf [^>]*?(/>|>.*?</xf>)").Select(m => m.Value)];
     }
 
     /// <summary>One row of every kind, all in one style (or unstyled).</summary>
@@ -274,6 +283,104 @@ public sealed class XlsxStyleTests
 
         Assert.Contains("a&#9;b", styles, StringComparison.Ordinal);
         Assert.DoesNotContain('\t', styles);
+    }
+
+    [Fact]
+    public async Task AClosingBracketAndLineEndsInALiteralAreEscaped()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId style = writer.RegisterStyle(new CellStyle { NumberFormat = NumberFormat.Parse("\"a>b\nc\rd\"0") });
+            writer.BeginSheet("data", [new("n")]);
+            writer.BeginRow();
+            writer.Write(5L, style);
+            writer.EndRow();
+        });
+
+        string styles = Part(xlsx, "xl/styles.xml");
+
+        // An attribute's line ends are normalised to spaces unless written as references; '>' is escaped as '<' is.
+        Assert.Contains("formatCode=\"&quot;a&gt;b&#10;c&#13;d&quot;0\"", styles, StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>A styled decimal takes the number format a styled long takes, and a styled flag the format a styled text takes: neither is dropped to unstyled.</summary>
+    [Fact]
+    public async Task AStyledDecimalAndAStyledBooleanKeepTheirStyle()
+    {
+        byte[] xlsx = await Workbook(writer => EveryKind(writer, writer.RegisterStyle(Legend)));
+        string sheet = Part(xlsx, "xl/worksheets/sheet1.xml");
+
+        Match text = Regex.Match(sheet, "<c s=\"(\\d+)\" t=\"inlineStr\"><is><t>R&amp;D</t>");
+        Match numbers = Regex.Match(sheet, "<c s=\"(\\d+)\"><v>1234567</v></c><c s=\"(\\d+)\"><v>1234.5</v></c>");
+        Match flag = Regex.Match(sheet, "<c s=\"(\\d+)\" t=\"b\"><v>1</v></c>");
+
+        Assert.True(text.Success);
+        Assert.True(numbers.Success);
+        Assert.True(flag.Success);
+        Assert.Equal(numbers.Groups[1].Value, numbers.Groups[2].Value);
+        Assert.Equal(text.Groups[1].Value, flag.Groups[1].Value);
+        Assert.Contains("numFmtId=\"165\"", CellXfs(Part(xlsx, "xl/styles.xml"))[int.Parse(numbers.Groups[2].Value, CultureInfo.InvariantCulture)], StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>
+    /// A style that states no date format still shows a date as a date and a date with its time as both:
+    /// built-in 14 for the one, the fixed 164 for the other, in two cell formats that keep the fill.
+    /// </summary>
+    [Fact]
+    public async Task AStyledDateWithoutADateFormatTakesTheDefaultForItsKind()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId fill = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x00FF00) });
+            writer.BeginSheet("data", [new("date"), new("stamp")]);
+            writer.BeginRow();
+            writer.Write(new DateOnly(2026, 10, 4), fill);
+            writer.Write(new DateTime(2026, 10, 4, 9, 5, 0, DateTimeKind.Unspecified), fill);
+            writer.EndRow();
+        });
+
+        Match cells = Regex.Match(Part(xlsx, "xl/worksheets/sheet1.xml"), "<row r=\"2\"><c s=\"(\\d+)\"><v>[^<]+</v></c><c s=\"(\\d+)\"><v>[^<]+</v></c></row>");
+        Assert.True(cells.Success);
+
+        List<string> xfs = CellXfs(Part(xlsx, "xl/styles.xml"));
+        string date = xfs[int.Parse(cells.Groups[1].Value, CultureInfo.InvariantCulture)];
+        string stamp = xfs[int.Parse(cells.Groups[2].Value, CultureInfo.InvariantCulture)];
+
+        Assert.StartsWith("<xf numFmtId=\"14\" fontId=\"0\" fillId=\"2\"", date, StringComparison.Ordinal);
+        Assert.StartsWith("<xf numFmtId=\"164\" fontId=\"0\" fillId=\"2\"", stamp, StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+
+        RawCell[] row = Rows(xlsx)[1];
+        Assert.Equal(RawCell.FromDate(new DateTime(2026, 10, 4, 0, 0, 0, DateTimeKind.Unspecified)), row[0]);
+        Assert.Equal(RawCell.FromDate(new DateTime(2026, 10, 4, 9, 5, 0, DateTimeKind.Unspecified)), row[1]);
+    }
+
+    /// <summary>
+    /// A style registered after another was already resolved lies past the cache the first resolution
+    /// sized; its own resolution grows the cache rather than reading or writing past its end.
+    /// </summary>
+    [Fact]
+    public async Task AStyleRegisteredAfterTheFirstWasResolvedIsWritten()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId first = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x00FF00) });
+            writer.BeginSheet("data", [new("v")]);
+            writer.BeginRow();
+            writer.Write("a", first);
+            writer.EndRow();
+
+            StyleId second = writer.RegisterStyle(new CellStyle { Fill = CellColor.FromRgb(0x0000FF) });
+            writer.BeginRow();
+            writer.Write("b", second);
+            writer.EndRow();
+        });
+
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+        Assert.Contains("<fgColor rgb=\"FF0000FF\"/>", Part(xlsx, "xl/styles.xml"), StringComparison.Ordinal);
+        Assert.Contains("<row r=\"3\"><c s=\"5\" t=\"inlineStr\"><is><t>b</t>", Part(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
     }
 
     [Fact]
