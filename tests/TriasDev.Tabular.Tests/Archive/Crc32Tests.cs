@@ -53,6 +53,26 @@ public sealed class Crc32Tests
     }
 
     [Fact]
+    public void TheFoldingAndTheTableAgree()
+    {
+        Assert.SkipUnless(Crc32.CanFold, "This CPU has neither PCLMULQDQ nor PMULL.");
+
+        byte[] data = new byte[1 << 20];
+        Random random = new(11);
+        random.NextBytes(data);
+
+        // Every length the lanes, the single folds and the tail can split, from several registers.
+        for (int length = Crc32.FoldingMinimum; length < 400; length++)
+        {
+            uint state = (uint)random.Next();
+            Assert.Equal(Crc32.UpdateManaged(state, data.AsSpan(7, length)), Crc32.UpdateFolding(state, data.AsSpan(7, length)));
+        }
+
+        Assert.Equal(Crc32.UpdateManaged(~0u, data), Crc32.UpdateFolding(~0u, data));
+        Assert.Equal(Crc32.UpdateManaged(0u, data.AsSpan(3)), Crc32.UpdateFolding(0u, data.AsSpan(3)));
+    }
+
+    [Fact]
     public void MatchesWhatGZipStreamRecords()
     {
         byte[] data = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 5000).Select(i => $"{i};Köln\n")));

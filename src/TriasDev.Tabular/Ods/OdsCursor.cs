@@ -1020,13 +1020,16 @@ internal sealed class OdsCursor : ITabularCursor
     /// <summary>One pass over the content part for the tables' names.</summary>
     private List<SheetInfo> ReadSheetNames(CancellationToken cancellationToken)
     {
-        using (Stream bytes = _content.Open())
+        // The one pass that reads the whole part is where it is held to its checksum. The reading
+        // inflates the same bytes again later, and gets the same content.
+        using (CheckedEntryStream bytes = CheckedEntryStream.Open(_content))
         {
             List<(string Name, SheetVisibility Visibility)>? tables =
                 TableNameScan.TryRead(bytes, _options.MaxSheets, _options.MaxValueChars, cancellationToken);
 
             if (tables is not null)
             {
+                bytes.ReadToEnd();
                 return [.. tables.Select((table, index) => new SheetInfo { Index = index, Name = table.Name, Format = TabularFormat.Ods, Visibility = table.Visibility })];
             }
         }
@@ -1043,8 +1046,9 @@ internal sealed class OdsCursor : ITabularCursor
         HashSet<string> hiddenStyles = new(StringComparer.Ordinal);
         string? tableStyle = null;
 
+        CheckedEntryStream bytes = CheckedEntryStream.Open(_content);
         using SheetScanner scanner = new(
-            new StreamReader(_content.Open(), Encoding.UTF8, true, 64 * 1024), keptLocalNames: SheetListAttributes, maxValueChars: _options.MaxValueChars);
+            new StreamReader(bytes, Encoding.UTF8, true, 64 * 1024), keptLocalNames: SheetListAttributes, maxValueChars: _options.MaxValueChars);
         int sinceCheck = 0;
         int depth = 0;
 
@@ -1073,6 +1077,8 @@ internal sealed class OdsCursor : ITabularCursor
 
             AddListedTable(scanner, sheets, tableStyles);
         }
+
+        bytes.ReadToEnd();
 
         return [.. sheets.Select((sheet, i) => tableStyles[i] is { } style && hiddenStyles.Contains(style)
             ? sheet with { Visibility = SheetVisibility.Hidden }

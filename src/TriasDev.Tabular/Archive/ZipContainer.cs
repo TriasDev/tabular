@@ -43,7 +43,7 @@ internal sealed class ZipContainer : ArchiveContainer
     public override IEnumerable<ArchiveEntry> Entries(CancellationToken cancellationToken) => _entries;
 
     /// <remarks>Raises the decompressor's <see cref="InvalidDataException"/> unchanged: one damaged entry is not a damaged archive.</remarks>
-    public override Stream Open(ArchiveEntry entry, CancellationToken cancellationToken) => _zipEntries[entry.Ordinal].Open();
+    public override Stream Open(ArchiveEntry entry, CancellationToken cancellationToken) => CheckedEntryStream.Open(_zipEntries[entry.Ordinal]);
 
     protected override void Dispose(bool disposing)
     {
