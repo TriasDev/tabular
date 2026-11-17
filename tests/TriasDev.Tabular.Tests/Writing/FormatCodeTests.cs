@@ -71,6 +71,8 @@ public sealed class FormatCodeTests
     [InlineData("h \"h\" m", "h\\ \\h\\ m", "Hour,Literal,Minute")]
     [InlineData("DD/MM/YYYY", "dd\\/mm\\/yyyy", "Day,Literal,Month,Literal,Year")]
     [InlineData("yyyy\\Wdd", "yyyy\\Wdd", "Year,Literal,Day")]
+    [InlineData("dd \"\U0001F600 Uhr\" hh", "dd\\ \"\U0001F600\"\\ \\U\\h\\r\\ hh", "Day,Literal,Hour")]
+    [InlineData("hh\"ab\U0001F600\"", "hh\\a\\b\"\U0001F600\"", "Hour,Literal")]
     public void ParsesADateFormat(string code, string canonical, string kinds)
     {
         DateFormat format = DateFormat.Parse(code);

@@ -341,6 +341,34 @@ public sealed class ColumnBatchTests
     }
 
     [Fact]
+    [SuppressMessage("Sonar", "S1215", Justification = "The test is about what survives a collection.")]
+    public void ResetDropsTheItemsAndDelegatesASelectedColumnHeld()
+    {
+        ColumnBatch batch = new();
+        (WeakReference items, WeakReference selector, WeakReference rule) = Hold(batch);
+        batch.Reset(0);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        Assert.False(items.IsAlive);
+        Assert.False(selector.IsAlive);
+        Assert.False(rule.IsAlive);
+
+        static (WeakReference Items, WeakReference Selector, WeakReference Rule) Hold(ColumnBatch batch)
+        {
+            Wrapper[] items = [.. Enumerable.Range(0, 1_000).Select(i => new Wrapper(i))];
+            double bonus = items.Length;    // captured, so that each delegate is an object of its own
+            Func<Wrapper, double?> selector = w => w.Value + bonus;
+            Func<double?, CellStyle?> rule = v => v > bonus ? High : null;
+            batch.Reset(items.Length);
+            batch.Add(items, selector, rule);
+            return (new WeakReference(items), new WeakReference(selector), new WeakReference(rule));
+        }
+    }
+
+    [Fact]
     public async Task WriteBatchAsyncFlushesInsideALargeBatch()
     {
         WriteTarget target = new();

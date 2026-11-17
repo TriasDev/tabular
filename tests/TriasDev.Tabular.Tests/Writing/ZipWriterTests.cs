@@ -271,6 +271,208 @@ public sealed class ZipWriterTests
         Assert.Equal("2"u8.ToArray(), entries["b"]);
     }
 
+    private const uint LocalHeader = 0x04034B50;
+    private const uint Zip64End = 0x06064B50;
+    private const uint Zip64Locator = 0x07064B50;
+
+    /// <summary>
+    /// Asserts the zip64 end record and locator with their every field, and the end record saturated
+    /// so that a reader must look them up.
+    /// </summary>
+    private static void AssertZip64End(byte[] file, long count, long directoryStart, long directorySize)
+    {
+        int record = Assert.Single(Records(file, Zip64End));
+        ReadOnlySpan<byte> bytes = file;
+
+        Assert.Equal(directoryStart + directorySize, record);
+        Assert.Equal(44, BinaryPrimitives.ReadInt64LittleEndian(bytes[(record + 4)..]));
+        Assert.Equal(45, BinaryPrimitives.ReadUInt16LittleEndian(bytes[(record + 12)..]));
+        Assert.Equal(45, BinaryPrimitives.ReadUInt16LittleEndian(bytes[(record + 14)..]));
+        Assert.Equal(count, BinaryPrimitives.ReadInt64LittleEndian(bytes[(record + 24)..]));
+        Assert.Equal(count, BinaryPrimitives.ReadInt64LittleEndian(bytes[(record + 32)..]));
+        Assert.Equal(directorySize, BinaryPrimitives.ReadInt64LittleEndian(bytes[(record + 40)..]));
+        Assert.Equal(directoryStart, BinaryPrimitives.ReadInt64LittleEndian(bytes[(record + 48)..]));
+
+        int locator = Assert.Single(Records(file, Zip64Locator));
+        Assert.Equal(record + 56, locator);
+        Assert.Equal(record, BinaryPrimitives.ReadInt64LittleEndian(bytes[(locator + 8)..]));
+        Assert.Equal(1u, BinaryPrimitives.ReadUInt32LittleEndian(bytes[(locator + 16)..]));
+
+        int end = Assert.Single(Records(file, EndOfDirectory));
+        Assert.Equal(locator + 20, end);
+        Assert.Equal(ushort.MaxValue, BinaryPrimitives.ReadUInt16LittleEndian(bytes[(end + 8)..]));
+        Assert.Equal(ushort.MaxValue, BinaryPrimitives.ReadUInt16LittleEndian(bytes[(end + 10)..]));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(bytes[(end + 12)..]));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(bytes[(end + 16)..]));
+    }
+
+    /// <summary>Asserts a deflated entry's 24-byte zip64 descriptor and its directory header's sentinels and extra field.</summary>
+    private static void AssertZip64Entry(byte[] file, long compressed, long size)
+    {
+        int descriptor = Assert.Single(Records(file, Descriptor));
+        Assert.Equal(compressed, BinaryPrimitives.ReadInt64LittleEndian(file.AsSpan(descriptor + 8)));
+        Assert.Equal(size, BinaryPrimitives.ReadInt64LittleEndian(file.AsSpan(descriptor + 16)));
+        Assert.Equal(CentralHeader, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(descriptor + 24)));
+
+        int central = Assert.Single(Records(file, CentralHeader));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central + 20)));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central + 24)));
+        Assert.Equal(28, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(central + 30)));
+    }
+
+    [Fact]
+    public async Task TakesZip64ForAnEntryWhoseCompressedSizeIsExactlyTheThreshold()
+    {
+        // Random bytes do not deflate: the compressed size is a few bytes above the size, so a
+        // threshold set to it is reached by the compressed size alone.
+        byte[] content = new byte[1_000];
+        new Random(27).NextBytes(content);
+        static void Write(ZipWriter zip, byte[] content)
+        {
+            Deflated(zip, "noise", content);
+            zip.Complete();
+        }
+
+        byte[] plain = await Build(zip => Write(zip, content));
+        long compressed = BinaryPrimitives.ReadUInt32LittleEndian(plain.AsSpan(Assert.Single(Records(plain, Descriptor)) + 8));
+        Assert.True(compressed > content.Length);
+
+        byte[] file = await Build(zip => Write(zip, content), zip64Threshold: compressed);
+
+        AssertZip64Entry(file, compressed, content.Length);
+        Assert.Equal(content, Read(file)["noise"]);
+    }
+
+    [Fact]
+    public async Task TakesZip64ForAnEntryWhoseSizeIsExactlyTheThreshold()
+    {
+        byte[] content = new byte[1_000];
+        byte[] file = await Build(zip => { Deflated(zip, "zeros", content); zip.Complete(); }, zip64Threshold: content.Length);
+
+        int descriptor = Assert.Single(Records(file, Descriptor));
+        long compressed = BinaryPrimitives.ReadInt64LittleEndian(file.AsSpan(descriptor + 8));
+        Assert.True(compressed < content.Length);
+        AssertZip64Entry(file, compressed, content.Length);
+        Assert.Equal(content, Read(file)["zeros"]);
+    }
+
+    [Fact]
+    public async Task TakesZip64ForAnEntryThatStartsExactlyAtTheThreshold()
+    {
+        // b's local header starts at 30 + 1 + 100 = 131.
+        byte[] file = await Build(
+            zip =>
+            {
+                zip.AddStored("a", new byte[100]);
+                zip.AddStored("b", "2"u8);
+                zip.Complete();
+            },
+            zip64Threshold: 131);
+
+        Assert.Equal(131, Records(file, LocalHeader)[1]);
+        List<int> central = Records(file, CentralHeader);
+        Assert.Equal(0u, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central[0] + 42)));
+        Assert.Equal(0, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(central[0] + 30)));
+        Assert.Equal(uint.MaxValue, BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(central[1] + 42)));
+        Assert.Equal(28, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(central[1] + 30)));
+        Assert.Equal(131, BinaryPrimitives.ReadInt64LittleEndian(file.AsSpan(central[1] + 46 + 1 + 20)));
+        Assert.Equal("2"u8.ToArray(), Read(file)["b"]);
+    }
+
+    [Fact]
+    public async Task TakesZip64ForADirectoryThatStartsExactlyAtTheThreshold()
+    {
+        // The entry itself is small and starts at 0; only the directory's start, 30 + 1 + 100 = 131, reaches the threshold.
+        byte[] file = await Build(
+            zip =>
+            {
+                zip.AddStored("a", new byte[100]);
+                zip.Complete();
+            },
+            zip64Threshold: 131);
+
+        int central = Assert.Single(Records(file, CentralHeader));
+        Assert.Equal(131, central);
+        Assert.Equal(0, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(central + 30)));
+        AssertZip64End(file, count: 1, directoryStart: 131, directorySize: 46 + 1);
+        Assert.Equal(new byte[100], Read(file)["a"]);
+    }
+
+    [Fact]
+    public async Task TakesZip64ForADirectoryExactlyAsLargeAsTheThreshold()
+    {
+        // An empty entry named in ten characters: the directory starts at 30 + 10 = 40 and is 46 + 10 = 56 long.
+        byte[] file = await Build(
+            zip =>
+            {
+                zip.AddStored("0123456789", []);
+                zip.Complete();
+            },
+            zip64Threshold: 56);
+
+        AssertZip64End(file, count: 1, directoryStart: 40, directorySize: 56);
+        Assert.Empty(Read(file)["0123456789"]);
+    }
+
+    [Fact]
+    public async Task TakesZip64ForExactly65535Entries()
+    {
+        // 65,535 is the end record's sentinel for "see the zip64 record", so it cannot be a count there.
+        byte[] file = await Build(zip =>
+        {
+            for (int i = 0; i < ushort.MaxValue; i++)
+            {
+                zip.AddStored("e", []);
+            }
+
+            zip.Complete();
+        });
+
+        long directoryStart = ushort.MaxValue * 31L;
+        AssertZip64End(file, count: ushort.MaxValue, directoryStart, directorySize: ushort.MaxValue * 47L);
+
+        using ZipArchive archive = new(new MemoryStream(file, writable: false), ZipArchiveMode.Read);
+        Assert.Equal(ushort.MaxValue, archive.Entries.Count);
+    }
+
+    [Fact]
+    public async Task StatesTheVersionsDateAndChecksumOfEveryHeader()
+    {
+        // Version 2.0 for a plain entry, 4.5 for one that needs zip64 (here b, which starts past the
+        // threshold); the DOS date 1980-01-01, midnight; the checksum in the directory as in the entry.
+        byte[] deflated = Encoding.ASCII.GetBytes("<x/>");
+        byte[] file = await Build(
+            zip =>
+            {
+                zip.AddStored("a", new byte[100]);
+                Deflated(zip, "b", deflated);
+                zip.Complete();
+            },
+            zip64Threshold: 131);
+
+        List<int> local = Records(file, LocalHeader);
+        List<int> central = Records(file, CentralHeader);
+        uint[] checksums = [Crc32.Append(0, new byte[100]), Crc32.Append(0, deflated)];
+
+        Assert.All(local, at =>
+        {
+            Assert.Equal(20, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 4)));
+            Assert.Equal(0, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 10)));
+            Assert.Equal(0x0021, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 12)));
+        });
+
+        ushort[] versions = [20, 45];
+        Assert.Equal(versions, central.Select(at => BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 4))));
+        Assert.Equal(versions, central.Select(at => BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 6))));
+        Assert.All(central, at =>
+        {
+            Assert.Equal(0, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 12)));
+            Assert.Equal(0x0021, BinaryPrimitives.ReadUInt16LittleEndian(file.AsSpan(at + 14)));
+        });
+        Assert.Equal(checksums, central.Select(at => BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(at + 16))));
+        Assert.Equal(deflated, Read(file)["b"]);
+    }
+
     [Fact]
     public async Task IsReproducibleByteForByte()
     {

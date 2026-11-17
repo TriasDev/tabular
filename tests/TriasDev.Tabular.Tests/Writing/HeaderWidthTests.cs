@@ -142,6 +142,27 @@ public sealed partial class HeaderWidthTests
 
     [Theory]
     [MemberData(nameof(Workbooks))]
+    public async Task KeepsADeclaredWidthOfExactlyTheWidestColumn(TabularFormat format)
+    {
+        byte[] file = await Write(format, [new("Id", 255)]);
+
+        Assert.Equal([255], Widths(format, file));
+    }
+
+    [Theory]
+    [InlineData("~~~~~", 8)]            // '~' is the table's last character: 5 × 584 = 2,920 → 6.1 + 1 → 8, not a whole em each
+    [InlineData("Id\tId", 6)]           // a tab is as wide as a space: 889 + 278 + 889 = 2,056 → 4.3 + 1 → 6
+    [InlineData("éééé", 9)] // a lowercase letter outside ASCII is an "m": 4 × 889 = 3,556 → 7.5 + 1 → 9
+    [InlineData("ÉÉÉÉ", 10)] // any other character outside ASCII is a whole em: 4,000 → 8.4 + 1 → 10
+    public async Task MeasuresTheCharactersAtTheEdgesOfTheTable(string header, double width)
+    {
+        byte[] file = await Write(TabularFormat.Xlsx, [new(header)]);
+
+        Assert.Equal([width], Widths(TabularFormat.Xlsx, file));
+    }
+
+    [Theory]
+    [MemberData(nameof(Workbooks))]
     public async Task GivesADeclaredExportColumnWithoutAWidthItsHeadersWidth(TabularFormat format)
     {
         TabularExport<(int Id, string Name)> export = new TabularExportBuilder<(int Id, string Name)>()

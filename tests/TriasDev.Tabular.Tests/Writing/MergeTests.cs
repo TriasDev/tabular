@@ -438,6 +438,63 @@ public sealed class MergeTests
     }
 
     [Fact]
+    public async Task TheMergeLimitIsLocatedAtTheLastColumnWhenARangeCoversTheWholeRow()
+    {
+        // The last range the format allows covers both columns of the next row, so the refused merge
+        // would begin past the row's end: it is located at the last column, and the search for the
+        // next uncovered column must stop at the row's end rather than run on.
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
+        writer.BeginSheet("data", [new("a"), new("b")]);
+
+        for (int i = 0; i < 65_535; i++)
+        {
+            writer.BeginRow();
+            writer.Merge(1, 2);
+            writer.Write(i);
+            writer.EndRow();
+        }
+
+        writer.BeginRow();
+        writer.Merge(2, 2);
+        writer.Write("last");
+        writer.EndRow();
+        writer.BeginRow();
+
+        TabularWriteException refused = await WithinDeadline(() => Assert.Throws<TabularWriteException>(() => writer.Merge(1, 2)));
+
+        Assert.Equal(ErrorCodes.Write.TooManyMerges, refused.Code);
+        Assert.Equal(65_538, refused.RowNumber);
+        Assert.Equal(1, refused.ColumnIndex);
+        Assert.Equal("b", refused.Header);
+    }
+
+    /// <summary>
+    /// Runs work that must end on its own, on a background thread of its own, and fails once a
+    /// deadline passes rather than waiting for it: an endless loop neither holds a pool thread nor the
+    /// process.
+    /// </summary>
+    private static async Task<T> WithinDeadline<T>(Func<T> work)
+    {
+        TaskCompletionSource<T> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Thread thread = new(() =>
+        {
+            try
+            {
+                done.SetResult(work());
+            }
+            catch (Exception failed)
+            {
+                done.SetException(failed);
+            }
+        })
+        { IsBackground = true };
+        thread.Start();
+
+        return await done.Task.WaitAsync(TimeSpan.FromSeconds(20), Token);
+    }
+
+    [Fact]
     public async Task OdsSpansTheTopLeftCellAndCoversTheRest()
     {
         byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, Legend);
