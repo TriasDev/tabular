@@ -90,7 +90,7 @@ internal sealed class OdsCursor : ITabularCursor
 
     /// <summary>
     /// The day the spreadsheet counts its durations from, when it states one other than the default
-    /// 30 December 1899; null for the default, which reads as a workbook serial does.
+    /// 30 December 1899; null for the default (see <see cref="FromDuration"/>).
     /// </summary>
     private DateTime? _nullDate;
 
@@ -685,15 +685,24 @@ internal sealed class OdsCursor : ITabularCursor
     };
 
     /// <summary>
-    /// A time cell, an ISO 8601 duration, read as the workbook serial of as many days: a time of day
-    /// on 31 December 1899, as an xlsx time-only cell, and a longer one — LibreOffice's form for a
-    /// date-time under a time-only format — on the day the serial names. A spreadsheet that states
-    /// another null date counts the duration from that day instead, as LibreOffice does.
+    /// A time cell, an ISO 8601 duration, read as a time of day on 31 December 1899 when it is shorter
+    /// than a day — the day an xlsx time-only cell reads on — and otherwise on the day LibreOffice
+    /// shows for it: as many days after its null date, 30 December 1899 unless the spreadsheet states
+    /// another. A longer duration is LibreOffice's form for a date-time under a time-only format.
     /// </summary>
     /// <remarks>
-    /// Not <see cref="XlsxCursor.TryFromSerial"/>, which refuses Excel's phantom 29 February 1900:
-    /// LibreOffice's calendar has no such day, so sixty days from its null date is 28 February, a
-    /// real one.
+    /// <para>
+    /// LibreOffice's calendar has no 29 February 1900, so unlike an xlsx serial no day is refused and
+    /// every day from one on counts from 30 December: a duration of one day is 31 December 1899, of
+    /// sixty days 28 February 1900. They used to count from 31 December below sixty days, as an xlsx
+    /// serial does, which read the dates of January and February 1900 a day later than LibreOffice
+    /// shows them.
+    /// </para>
+    /// <para>
+    /// Under a day the reading keeps to 31 December, so that a time column reads alike from an ods and
+    /// an xlsx; the cost is that a duration just under a day reads later than one of a day exactly,
+    /// at a point no date-time of LibreOffice's ever falls on.
+    /// </para>
     /// </remarks>
     private static RawCell FromDuration(ReadOnlySpan<char> duration, DateTime? nullDate)
     {
@@ -702,9 +711,11 @@ internal sealed class OdsCursor : ITabularCursor
             return RawCell.Empty;
         }
 
-        bool read = nullDate is { } day
-            ? XlsxCursor.TryFromDays(day, span.TotalDays, out DateTime date)
-            : XlsxCursor.TryFromWorkbookDays(span.TotalDays, out date);
+        DateTime from = nullDate
+            ?? (span < TimeSpan.FromDays(1)
+                ? new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified)
+                : XlsxCursor.LibreOfficeNullDate);
+        bool read = XlsxCursor.TryFromDays(from, span.TotalDays, out DateTime date);
 
         return read ? RawCell.FromDate(date) : RawCell.Empty;
     }

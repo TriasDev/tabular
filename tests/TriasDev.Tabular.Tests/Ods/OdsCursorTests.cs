@@ -487,8 +487,32 @@ public sealed class OdsCursorTests
 
         Assert.Equal(RawCell.FromDate(epoch.AddHours(11)), cells[0]);
         Assert.Equal(RawCell.FromDate(epoch.Add(new TimeSpan(0, 1, 2, 3, 457))), cells[1]);
-        Assert.Equal(RawCell.FromDate(epoch.AddHours(1234).AddMinutes(5).AddSeconds(6)), cells[2]);
+        Assert.Equal(RawCell.FromDate(epoch.AddDays(-1).AddHours(1234).AddMinutes(5).AddSeconds(6)), cells[2]);
         Assert.Equal(RawCell.FromDate(epoch.Add(new TimeSpan(0, 10, 59, 59, 999))), cells[3]);
+    }
+
+    /// <summary>
+    /// A duration of a day or more is a date-time under a time-only format, read on the day LibreOffice
+    /// shows: counted from 30 December 1899, as its calendar has no 29 February 1900, so the dates of
+    /// January and February 1900 are not a day late. Under a day it stays a time on 31 December.
+    /// </summary>
+    [Theory]
+    [InlineData("PT23H59M59S", "1899-12-31T23:59:59")]
+    [InlineData("PT24H", "1899-12-31T00:00:00")]
+    [InlineData("P1DT12H", "1899-12-31T12:00:00")]
+    [InlineData("P2D", "1900-01-01T00:00:00")]
+    [InlineData("P59D", "1900-02-27T00:00:00")]
+    [InlineData("P60D", "1900-02-28T00:00:00")]
+    [InlineData("P61D", "1900-03-01T00:00:00")]
+    public void ReadsADurationOfADayOrMoreOnTheDayLibreOfficeShows(string duration, string expected)
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", "<table:table-row>"
+            + Cell($"office:value-type=\"time\" office:time-value=\"{duration}\"")
+            + "</table:table-row>"));
+
+        Assert.Equal(
+            RawCell.FromDate(DateTime.Parse(expected, System.Globalization.CultureInfo.InvariantCulture)),
+            Assert.Single(ReadAll(cursor))[0]);
     }
 
     [Theory]
