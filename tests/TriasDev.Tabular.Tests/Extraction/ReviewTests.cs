@@ -92,6 +92,31 @@ public sealed class ReviewTests
         Assert.Equal(2, Assert.Single(review.Alternatives).Groups[0].Won);
     }
 
+    [Fact]
+    public void KeepsAsManyRowNumbersOfTheAlternativesAsItsOptionsSay()
+    {
+        TextImportField id = ImportField.Text("id");
+        DecimalImportField lat = ImportField.Decimal("lat");
+        ImportSchema schema = new()
+        {
+            Fields = [id, lat],
+            Alternatives = [new FieldAlternatives("location", [AlternativeGroup.AllOf("coordinates", lat)])],
+        };
+        MappingPlan plan = new()
+        {
+            Bindings = [new ColumnBinding { ColumnIndex = 0, Header = "id", FieldName = "id" }, new ColumnBinding { ColumnIndex = 1, Header = "lat", FieldName = "lat" }],
+        };
+
+        // Five rows with an id and no latitude, at spreadsheet rows 2 to 6.
+        using ITabularCursor cursor = Open("id;lat\n1;\n2;\n3;\n4;\n5;\n");
+        AlternativesReport report = Assert.Single(TabularExtractor.Review(
+            cursor, plan, schema, new ReviewOptions { MaxReportedRows = 2 }, cancellationToken: TestContext.Current.CancellationToken).Alternatives);
+
+        Assert.Equal(5, report.Unresolved);
+        Assert.Equal([2, 3], report.UnresolvedRows);
+        Assert.False(report.UnresolvedRowsComplete);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(10_001)]

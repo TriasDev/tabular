@@ -51,6 +51,7 @@ public sealed class GuidePromisesTests
             TabularExtractor.Extract(cursor, OneBinding("f", headerRow: 5), schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.HeaderRowMissing, error.Code);
+        Assert.Equal(0, error.SheetIndex);
     }
 
     [Fact]

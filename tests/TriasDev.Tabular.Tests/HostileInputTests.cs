@@ -62,6 +62,9 @@ public sealed class HostileInputTests
     /// header states an eight-character name, <c>mimetype</c>, that the file no longer holds.
     /// </summary>
     [Theory]
+    [InlineData(4)]  // the zip signature alone: still a zip, not a csv
+    [InlineData(26)] // cut off before the name's length
+    [InlineData(29)] // before the extra field's
     [InlineData(30)]
     [InlineData(31)]
     [InlineData(37)]

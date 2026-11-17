@@ -167,6 +167,39 @@ public sealed class StreamOwnershipTests
     }
 
     [Fact]
+    public void AnImportFromAStreamClosesItWhenTheFileOpensAndIsThenRefused()
+    {
+        // The plan fits its schema, so the file is opened; its header is not the one the plan
+        // recorded, so the run is refused after the cursor exists.
+        TrackedStream stream = new(Csv);
+        MappingPlan otherHeader = Plan with { Bindings = [Plan.Bindings[0] with { Header = "title" }] };
+
+        TabularStructureException error = Assert.Throws<TabularStructureException>(
+            () => TabularImporter.Import(stream, "t.csv", otherHeader, Schema, row => row[Name], cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(TabularStructureException.HeaderChanged, error.Code);
+        Assert.True(stream.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnImportFromAStreamRefusesItsOptionsBeforeOpeningTheFileAndFollowsLeaveOpen(bool leaveOpen)
+    {
+        TrackedStream stream = new(Csv);
+        ImportOptions options = new() { PreviewRows = -1, Open = new TabularOpenOptions { LeaveOpen = leaveOpen } };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => TabularImporter.Import(stream, "t.csv", Plan, Schema, row => row[Name], options, TestContext.Current.CancellationToken));
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+
+        if (leaveOpen)
+        {
+            Assert.Equal(0, stream.Position);   // not a byte read
+        }
+    }
+
+    [Fact]
     public void AnExtractionRunDoesNotPretendToOwnAnything()
     {
         Assert.False(typeof(IDisposable).IsAssignableFrom(typeof(ExtractionRun)));

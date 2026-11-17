@@ -126,6 +126,22 @@ public sealed class PrecheckReadsXlsxCellsTests
         Assert.Empty(result.Findings);
     }
 
+    [Theory]
+    [InlineData("boolean")]
+    [InlineData("date")]
+    public void JudgesAWorkbooksOwnBooleansAndDatesUnderACultureThatWasNotProfiled(string kind)
+    {
+        // A column of nothing but native cells is answered by any culture's figures; booleans and
+        // dates count towards "nothing but" as numbers do.
+        ImportField field = kind == "date" ? ImportField.Date("v2") : ImportField.Boolean("v2");
+        string[] cells = kind == "date" ? ["d:2023-01-15", "d:2023-02-20"] : ["b:1", "b:0"];
+
+        PrecheckResult result = MappingPrecheck.Check(Plan("v2") with { Culture = "fr-FR" }, new ImportSchema { Fields = [field] }, Profile(cells));
+
+        Assert.True(result.CanImport);
+        Assert.Empty(result.Findings);
+    }
+
     private static MappingPlan Plan(string field) =>
         new()
         {

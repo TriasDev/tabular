@@ -217,6 +217,18 @@ public sealed class ColumnProfilerTests
     }
 
     [Fact]
+    public void CountsAWorkbooksNumberBeyondDecimalsRangeWithoutWideningTheExtremes()
+    {
+        // 1e300 is a number, and counted as one; no decimal can stand for it at either extreme.
+        ColumnFacts facts = ProfileCells([RawCell.FromNumber(1e300), RawCell.FromNumber(2)]);
+
+        Assert.Equal(1, For(facts, "").Decimal);
+        Assert.Equal(1, For(facts, "").Integer);
+        Assert.Equal(2m, facts.MinNumeric);
+        Assert.Equal(2m, facts.MaxNumeric);
+    }
+
+    [Fact]
     public void RecognisesAColumnWhoseValuesAreAllDifferent()
     {
         ColumnFacts facts = Profile(Enumerable.Range(1, 5000).Select(i => $"id-{i}"));

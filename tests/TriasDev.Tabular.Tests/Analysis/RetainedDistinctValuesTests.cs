@@ -143,6 +143,54 @@ public sealed class RetainedDistinctValuesTests
         return spent;
     }
 
+    /// <summary>
+    /// a×5, b×4, then c, d and e once: d passes the cap of three kept values, a and b are the two
+    /// most frequent so far. c's ten later repeats come after the tally became a sample of two.
+    /// </summary>
+    private static readonly string[] Skewed =
+    [
+        .. Enumerable.Repeat("a", 5), .. Enumerable.Repeat("b", 4), "c", "d", "e",
+        .. Enumerable.Repeat("a", 2), "b", .. Enumerable.Repeat("c", 10),
+    ];
+
+    private static readonly AnalysisOptions SampleOfTwo = new() { RetainedDistinctValues = 3, FrequencySampleSize = 2, ReportedSampleSize = 3 };
+
+    [Fact]
+    public void KeepsCountingTheMostFrequentValuesOnceTheTallyBecomesASample()
+    {
+        ColumnFacts facts = Profile(Skewed, SampleOfTwo);
+
+        Assert.False(facts.DistinctValuesAreComplete);
+        Assert.Equal(["a:7", "b:5"], facts.DistinctSamples.Select(s => $"{s.Value}:{s.Count}"));
+    }
+
+    [Fact]
+    public void KeepsCountingTheMostFrequentValuesOnceTheBudgetStopsTheColumn()
+    {
+        // The same tally, the values given up because the file's budget ran out at the fourth.
+        DistinctBudget budget = new(3);
+        ColumnProfiler profiler = new(0, "code", budget, SampleOfTwo with { RetainedDistinctValues = 1_000 });
+        int row = 0;
+
+        foreach (string value in Skewed)
+        {
+            profiler.Accept(RawCell.FromText(value), ++row);
+        }
+
+        ColumnFacts facts = profiler.ToFacts();
+
+        Assert.False(facts.DistinctCountIsExact);
+        Assert.Equal(["a:7", "b:5"], facts.DistinctSamples.Select(s => $"{s.Value}:{s.Count}"));
+    }
+
+    [Fact]
+    public void BreaksATieBetweenEquallyFrequentValuesByTheirOrdinalOrder()
+    {
+        ColumnFacts facts = Profile(["b", "a"], new AnalysisOptions { ReportedSampleSize = 1 });
+
+        Assert.Equal("a", Assert.Single(facts.DistinctSamples).Value);
+    }
+
     private static ColumnFacts Profile(IEnumerable<string> values, AnalysisOptions? options = null)
     {
         DistinctBudget budget = new(1_000_000);

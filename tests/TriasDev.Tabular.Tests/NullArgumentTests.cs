@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 using TriasDev.Tabular.Archive;
@@ -27,6 +28,10 @@ public sealed class NullArgumentTests
     private static readonly ImportSchema Schema = new() { Fields = [Name] };
 
     private static readonly MappingPlan Plan = new() { Bindings = [new ColumnBinding { ColumnIndex = 0, FieldName = "name", Header = "name" }] };
+
+    private static readonly AlternativeLevel Level = new("level", Name);
+
+    private static readonly AlternativeGroup Group = AlternativeGroup.AllOf("group", Name);
 
     private static MemoryStream Csv() => new(Encoding.UTF8.GetBytes("name\nx\n"));
 
@@ -67,8 +72,30 @@ public sealed class NullArgumentTests
         { "MappingPrecheck.Check", "plan", () => MappingPrecheck.Check(null!, Schema, Profile()) },
         { "MappingPrecheck.Check", "schema", () => MappingPrecheck.Check(Plan, null!, Profile()) },
         { "MappingPrecheck.Check", "profile", () => MappingPrecheck.Check(Plan, Schema, null!) },
+        { "MappingPrecheck.Check(no such sheet)", "schema", () => MappingPrecheck.Check(Plan with { SheetIndex = 9 }, null!, Profile()) },
+        { "TabularExtractor.Review", "cursor", () => TabularExtractor.Review(null!, Plan, Schema, cancellationToken: CancellationToken.None) },
+        { "TabularExtractor.Review", "plan", () => TabularExtractor.Review(Cursor(), null!, Schema, cancellationToken: CancellationToken.None) },
+        { "TabularExtractor.Review", "schema", () => TabularExtractor.Review(Cursor(), Plan, null!, cancellationToken: CancellationToken.None) },
+        { "ImportRow.AsText", "field", () => MapOneRow(row => row.AsText(null!)) },
+        { "ImportRow.Has", "field", () => MapOneRow(row => row.Has(null!)) },
+        { "ImportRow.Translations", "group", () => MapOneRow(row => row.Translations(null!)) },
+        { "ImportRow.Resolution", "alternatives", () => MapOneRow(row => row.Resolution(null!)) },
         { "MappingPlanValidator.Validate", "plan", () => MappingPlanValidator.Validate(null!, Schema) },
         { "MappingPlanValidator.Validate", "schema", () => MappingPlanValidator.Validate(Plan, null!) },
+        { "MappingPlanValidator.Validate(null set)", "schema", () => MappingPlanValidator.Validate(Plan, new ImportSchema { Fields = [Name], Alternatives = [null!] }) },
+        { "FieldAlternatives", "name", () => _ = new FieldAlternatives(null!, [Group]) },
+        { "FieldAlternatives", "groups", () => _ = new FieldAlternatives("location", null!) },
+        { "FieldAlternatives(null group)", "groups", () => _ = new FieldAlternatives("location", [null!]) },
+        { "AlternativeGroup.AllOf", "name", () => AlternativeGroup.AllOf(null!, Name) },
+        { "AlternativeGroup.AllOf", "fields", () => AlternativeGroup.AllOf("group", null!) },
+        { "AlternativeGroup.AllOf(null field)", "fields", () => AlternativeGroup.AllOf("group", Name, null!) },
+        { "AlternativeGroup.Ladder", "name", () => AlternativeGroup.Ladder(null!, 1, Level) },
+        { "AlternativeGroup.Ladder", "levels", () => AlternativeGroup.Ladder("group", 1, null!) },
+        { "AlternativeGroup.Ladder(null level)", "levels", () => AlternativeGroup.Ladder("group", 1, Level, null!) },
+        { "AlternativeLevel", "name", () => _ = new AlternativeLevel(null!, Name) },
+        { "AlternativeLevel", "anyOf", () => _ = new AlternativeLevel("level", null!) },
+        { "AlternativeLevel(null field)", "anyOf", () => _ = new AlternativeLevel("level", Name, null!) },
+        { "ImportField(original)", "original", () => _ = new CopiedField(null!) },
         { "MappingPlan.ByHeader", "sheet", () => MappingPlan.ByHeader(null!, Schema) },
         { "MappingPlan.ByHeader", "schema", () => MappingPlan.ByHeader(Profile().Sheets[0], null!) },
         { "MappingPlan.ByHeader", "matches", () => MappingPlan.ByHeader(Profile().Sheets[0], Schema, (Func<string, ImportField, bool>)null!) },
@@ -105,6 +132,23 @@ public sealed class NullArgumentTests
     };
 
     private static readonly TabularExport<string> Export = TabularExport.For<string>().Column("a", s => s).Build();
+
+    /// <summary>Imports the one data row, handing it to the mapper: where a row's accessors can be reached.</summary>
+    private static void MapOneRow(TabularRowMapper<object?> mapper)
+    {
+        using ImportRun<object?> run = TabularImporter.Import(Csv(), "t.csv", Plan, Schema, mapper, cancellationToken: CancellationToken.None);
+        run.ReadAll(cancellationToken: CancellationToken.None);
+    }
+
+    /// <summary>A field of the caller's own kind: the only way to reach the copy constructor the typed fields start from.</summary>
+    private sealed class CopiedField : ImportField
+    {
+        [SetsRequiredMembers]
+        public CopiedField(ImportField original)
+            : base(original)
+        {
+        }
+    }
 
     private static TabularWriter InSheet()
     {

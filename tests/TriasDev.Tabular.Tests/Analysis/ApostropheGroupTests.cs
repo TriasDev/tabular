@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 using TriasDev.Tabular.Csv;
@@ -115,5 +116,24 @@ public sealed class ApostropheGroupTests
 
         Assert.Equal(ColumnType.Text, column.Hypotheses[0].Type);
         Assert.All(column.Facts.ParseCounts, counts => Assert.Equal(0, counts.Integer + counts.Decimal));
+    }
+
+    [Fact]
+    public void MakesEitherApostropheTheCulturesOwn()
+    {
+        // The tests above reach only the arm for whichever apostrophe this runtime's ICU data gives
+        // de-CH, so each machine leaves the other unexercised. Both are pinned here, against formats
+        // that state their apostrophe outright.
+        Assert.Equal('’', NumberReading.OtherApostropheOf(new NumberFormatInfo { NumberGroupSeparator = "'" }));
+        Assert.Equal('\'', NumberReading.OtherApostropheOf(new NumberFormatInfo { NumberGroupSeparator = "’" }));
+        Assert.Equal('\0', NumberReading.OtherApostropheOf(new NumberFormatInfo { NumberGroupSeparator = "." }));
+
+        Span<char> own = stackalloc char[5];
+
+        NumberReading.ToOwnApostrophe("1’234", '’', own);
+        Assert.Equal("1'234", own.ToString());
+
+        NumberReading.ToOwnApostrophe("1'234", '\'', own);
+        Assert.Equal("1’234", own.ToString());
     }
 }

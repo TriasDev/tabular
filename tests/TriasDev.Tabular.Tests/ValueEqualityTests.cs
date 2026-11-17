@@ -16,6 +16,22 @@ public sealed class ValueEqualityTests
     }
 
     [Fact]
+    public void AnEmptyCellIsNeitherFalseNorZero()
+    {
+        // All three hold zero bits and no text; only the kind tells them apart.
+        Assert.NotEqual(RawCell.Empty, RawCell.FromBoolean(false));
+        Assert.NotEqual(RawCell.Empty, RawCell.FromNumber(0));
+        Assert.NotEqual(RawCell.FromBoolean(false), RawCell.FromNumber(0));
+    }
+
+    [Fact]
+    public void RawCellInequalityIsTheNegationOfEquality()
+    {
+        Assert.True(RawCell.FromNumber(1) != RawCell.FromNumber(2));
+        Assert.False(RawCell.FromNumber(1) != RawCell.FromNumber(1));
+    }
+
+    [Fact]
     public void RawCellsHoldingTheSameAreEqualAndHashAlike()
     {
         Assert.True(RawCell.FromNumber(2.5) == RawCell.FromNumber(2.5));

@@ -47,4 +47,32 @@ public sealed class PlanRefusalTests
 
         Assert.Equal(0, stream.Reads);
     }
+
+    [Fact]
+    public void LeavesABindingToAnUnknownFieldToTheValidatorInThePrecheck()
+    {
+        // The validator reports the field; the precheck has nothing of its own to say about it, and
+        // judges the rest of the plan as it would without it.
+        ImportSchema schema = new() { Fields = [ImportField.Text("iso").Require()] };
+        MappingPlan plan = new()
+        {
+            Bindings =
+            [
+                new ColumnBinding { ColumnIndex = 0, Header = "iso", FieldName = "iso" },
+                new ColumnBinding { ColumnIndex = 0, Header = "iso", FieldName = "nope" },
+            ],
+        };
+
+        FileProfile profile;
+
+        using (ITabularCursor cursor = TabularFile.Open(new MemoryStream(Utf8NoBom.GetBytes("iso\nDE\n"), writable: false), "t.csv", cancellationToken: TestContext.Current.CancellationToken))
+        {
+            profile = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken);
+        }
+
+        PrecheckResult result = MappingPrecheck.Check(plan, schema, profile);
+
+        Assert.Empty(result.Findings);
+        Assert.Equal(ErrorCodes.Mapping.UnknownField, Assert.Single(MappingPlanValidator.Validate(plan, schema)).Code);
+    }
 }

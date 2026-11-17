@@ -37,6 +37,24 @@ public sealed class ArchiveDetectionTests
     }
 
     [Fact]
+    public void OpensAZipWithAMimetypeThatIsNotOpenDocumentAsAnArchive()
+    {
+        // An EPUB-like zip names its type in a stored `mimetype` entry too. Only an OpenDocument type
+        // makes it a document to refuse; anything else is a zip of files.
+        byte[] archive = new ZipArchiveBuilder()
+            .With("mimetype", "application/epub+zip", CompressionLevel.NoCompression)
+            .With("a.csv", "name\nx\n")
+            .Build();
+
+        Assert.Equal(TabularFormat.Zip, TabularFile.Detect(new MemoryStream(archive)));
+        using ITabularCursor cursor = Open(archive, "bundle.zip");
+
+        // The mimetype entry is one line of text, and is read as the entries are: by its content.
+        Assert.IsType<ArchiveCursor>(cursor);
+        Assert.Contains("a.csv", cursor.Sheets.Select(s => s.Source));
+    }
+
+    [Fact]
     public void OpensAWorkbookAsAWorkbookWhateverItIsCalled()
     {
         using ITabularCursor cursor = Open(Workbook(), "report.zip");

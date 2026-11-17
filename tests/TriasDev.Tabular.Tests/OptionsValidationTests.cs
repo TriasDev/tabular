@@ -108,6 +108,69 @@ public sealed class OptionsValidationTests
         Assert.Contains(nameof(ExtractionOptions.MaxErrorRows), error.Message, StringComparison.Ordinal);
     }
 
+    public static TheoryData<ReviewOptions, string> BadReviewOptions => new()
+    {
+        { new ReviewOptions { MaxErrors = 0 }, nameof(ReviewOptions.MaxErrors) },
+        { new ReviewOptions { MaxErrors = ExtractionOptions.ReportedRowsCeiling + 1 }, nameof(ReviewOptions.MaxErrors) },
+        { new ReviewOptions { MaxReportedRows = 0 }, nameof(ExtractionOptions.MaxReportedRows) },
+        { new ReviewOptions { MaxReportedRows = ExtractionOptions.ReportedRowsCeiling + 1 }, nameof(ExtractionOptions.MaxReportedRows) },
+        { new ReviewOptions { ProgressInterval = 0 }, nameof(ReviewOptions.ProgressInterval) },
+        { new ReviewOptions { ProgressStep = -0.1 }, nameof(ReviewOptions.ProgressStep) },
+        { new ReviewOptions { ProgressStep = 1.5 }, nameof(ReviewOptions.ProgressStep) },
+        { new ReviewOptions { ProgressStep = double.NaN }, nameof(ReviewOptions.ProgressStep) },
+    };
+
+    [Theory]
+    [MemberData(nameof(BadReviewOptions))]
+    public void RefusesAReviewOptionThatCannotWork(ReviewOptions options, string option)
+    {
+        using CsvCursor cursor = new(Csv(), "t.csv");
+
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => TabularExtractor.Review(
+            cursor, Plan, Schema, options, cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Contains(option, error.Message, StringComparison.Ordinal);
+    }
+
+    public static TheoryData<ReviewOptions> ReviewOptionsAtTheirEdges => new()
+    {
+        new ReviewOptions { MaxErrors = ExtractionOptions.ReportedRowsCeiling },
+        new ReviewOptions { MaxReportedRows = ExtractionOptions.ReportedRowsCeiling },
+        new ReviewOptions { MaxErrors = 1, MaxReportedRows = 1, ProgressInterval = 1 },
+        new ReviewOptions { ProgressStep = 0 },
+        new ReviewOptions { ProgressStep = 1 },
+    };
+
+    [Theory]
+    [MemberData(nameof(ReviewOptionsAtTheirEdges))]
+    public void AcceptsAReviewOptionAtTheEdgeOfItsRange(ReviewOptions options)
+    {
+        using CsvCursor cursor = new(Csv(), "t.csv");
+
+        ImportReview review = TabularExtractor.Review(cursor, Plan, Schema, options, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, review.Summary.RowsProduced);
+    }
+
+    [Fact]
+    public void AcceptsAsManyReportedRowsAsTheCeilingAndNoMore()
+    {
+        using (CsvCursor cursor = new(Csv(), "t.csv"))
+        {
+            ExtractionRun run = TabularExtractor.Extract(
+                cursor, Plan, Schema, new ExtractionOptions { MaxReportedRows = ExtractionOptions.ReportedRowsCeiling }, TestContext.Current.CancellationToken);
+
+            Assert.True(run.ReadRow(TestContext.Current.CancellationToken));
+        }
+
+        using CsvCursor refused = new(Csv(), "t.csv");
+
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => TabularExtractor.Extract(
+            refused, Plan, Schema, new ExtractionOptions { MaxReportedRows = ExtractionOptions.ReportedRowsCeiling + 1 }, TestContext.Current.CancellationToken));
+
+        Assert.Contains(nameof(ExtractionOptions.MaxReportedRows), error.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void RefusesANegativePreview()
     {

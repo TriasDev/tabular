@@ -32,6 +32,15 @@ internal static class SchemaFields
         foreach (ImportField field in schema.Fields)
 #pragma warning restore S3267
         {
+            if (!Enum.IsDefined(field.Type))
+            {
+                // No reading exists for it, so every value would fail as a type mismatch — reported
+                // row by row as the file's fault, after a precheck that judged the column as text.
+                throw new ArgumentException(
+                    $"The field '{field.Name}' declares the type {field.Type}, which is not a {nameof(ColumnType)}.",
+                    nameof(schema));
+            }
+
             if (DeclaredType(field) is { } declared && declared != field.Type)
             {
                 // Its class decides how a row hands its value out, its Type how the cell is read: a

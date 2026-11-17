@@ -94,6 +94,7 @@ public sealed class SheetIdentityTests
             () => TabularExtractor.Extract(cursor, Plan("Orders", sheetIndex: 5), Schema, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(TabularStructureException.SheetMissing, error.Code);
+        Assert.Equal(5, error.SheetIndex);
     }
 
     [Fact]
