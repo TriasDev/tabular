@@ -19,7 +19,7 @@ public sealed class DamagedEntryTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     /// <summary>The same package with every entry stored, and the first <paramref name="text"/> in it changed to <paramref name="damaged"/>.</summary>
-    private static byte[] StoredAndDamaged(byte[] package, string text, string damaged)
+    internal static byte[] StoredAndDamaged(byte[] package, string text, string damaged)
     {
         using MemoryStream stored = new();
 

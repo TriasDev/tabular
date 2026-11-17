@@ -61,7 +61,30 @@ public sealed class OptionsValidationTests
         { new OdsCursorOptions { MaxColumns = 0 }, nameof(OdsCursorOptions.MaxColumns) },
         { new OdsCursorOptions { MaxRows = 0 }, nameof(OdsCursorOptions.MaxRows) },
         { new OdsCursorOptions { MaxValueChars = 0 }, nameof(OdsCursorOptions.MaxValueChars) },
+        { new OdsCursorOptions { MaxRepeatedCells = -1 }, nameof(OdsCursorOptions.MaxRepeatedCells) },
     };
+
+    /// <summary>
+    /// A repeat budget of nothing is a setting that works: a file without repeats reads, and the first
+    /// copy a repeat would add is refused.
+    /// </summary>
+    [Fact]
+    public void AcceptsAnOdsRepeatBudgetOfNothing()
+    {
+        const string Value = "<table:table-cell office:value-type=\"string\"><text:p>a</text:p></table:table-cell>";
+        OdsCursorOptions options = new() { MaxRepeatedCells = 0 };
+
+        byte[] plain = new OdsPackage().WithTable("S", $"<table:table-row>{Value}</table:table-row>").Build();
+        using (OdsCursor cursor = new(new MemoryStream(plain), options, cancellationToken: TestContext.Current.CancellationToken))
+        {
+            Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        }
+
+        byte[] repeated = new OdsPackage().WithTable("S", $"<table:table-row table:number-rows-repeated=\"2\">{Value}</table:table-row>").Build();
+        using OdsCursor refused = new(new MemoryStream(repeated), options, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(nameof(OdsCursorOptions.MaxRepeatedCells), Assert.Throws<TabularLimitException>(() => refused.ReadRow(TestContext.Current.CancellationToken)).Limit);
+    }
 
     [Theory]
     [MemberData(nameof(BadOdsOptions))]

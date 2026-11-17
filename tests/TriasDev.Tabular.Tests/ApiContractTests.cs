@@ -2,6 +2,7 @@ using System.Text;
 
 using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 
@@ -30,10 +31,15 @@ public sealed class ApiContractTests
         .WithSheet("S", """<row r="1"><c r="A1" t="inlineStr"><is><t>name</t></is></c></row>""")
         .Build(), writable: false);
 
+    private static MemoryStream Spreadsheet() => new(new OdsPackage()
+        .WithTable("S", """<table:table-row><table:table-cell office:value-type="string"><text:p>name</text:p></table:table-cell></table:table-row>""")
+        .Build(), writable: false);
+
     private static ITabularCursor[] Cursors() =>
         [
             new CsvCursor(Csv(), "t.csv"),
             new XlsxCursor(Workbook(), cancellationToken: TestContext.Current.CancellationToken),
+            new OdsCursor(Spreadsheet(), cancellationToken: TestContext.Current.CancellationToken),
             new GzipCursor(new MemoryStream(GzipFile.Of("name;x\na;b\n"), writable: false), "t.csv.gz", cancellationToken: TestContext.Current.CancellationToken),
             new ArchiveCursor(new MemoryStream(GzipFile.Of(TarArchive.Of(System.Formats.Tar.TarEntryFormat.Pax, ("t.csv", "name;x\na;b\n")))), cancellationToken: TestContext.Current.CancellationToken),
         ];

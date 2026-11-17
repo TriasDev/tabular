@@ -2,6 +2,7 @@ using System.Text;
 
 using TriasDev.Tabular.Archive;
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
 
@@ -50,6 +51,56 @@ public sealed class StreamOwnershipTests
         TrackedStream stream = new(BrokenZip);
 
         Assert.Throws<TabularFormatException>(() => new XlsxCursor(stream, leaveOpen: leaveOpen));
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnOdsCursorWhoseArchiveFailsToOpenFollowsLeaveOpen(bool leaveOpen)
+    {
+        TrackedStream stream = new(BrokenZip);
+
+        Assert.Throws<TabularFormatException>(() => new OdsCursor(stream, leaveOpen: leaveOpen, cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+    }
+
+    /// <summary>
+    /// The archive opened, and the content part's data then failed its checksum while the sheets were
+    /// listed: the archive the failed opening made is closed, and the stream with it unless left open.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnOdsCursorWhoseContentFailsItsChecksumFollowsLeaveOpen(bool leaveOpen)
+    {
+        byte[] spreadsheet = DamagedEntryTests.StoredAndDamaged(
+            new OdsPackage().WithTable("S", """<table:table-row><table:table-cell office:value-type="float" office:value="4711"/></table:table-row>""").Build(),
+            "office:value=\"4711\"",
+            "office:value=\"4712\"");
+        TrackedStream stream = new(spreadsheet);
+
+        Assert.Equal(
+            TabularFormatException.Corrupt,
+            Assert.Throws<TabularFormatException>(() => new OdsCursor(stream, leaveOpen: leaveOpen, cancellationToken: TestContext.Current.CancellationToken)).Code);
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnOdsCursorFollowsLeaveOpenWhenDisposed(bool leaveOpen)
+    {
+        TrackedStream stream = new(new OdsPackage().WithTable("S", """<table:table-row><table:table-cell office:value-type="string"><text:p>a</text:p></table:table-cell></table:table-row>""").Build());
+
+        using (OdsCursor cursor = new(stream, leaveOpen: leaveOpen, cancellationToken: TestContext.Current.CancellationToken))
+        {
+            Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+            Assert.False(stream.IsDisposed);
+        }
 
         Assert.Equal(!leaveOpen, stream.IsDisposed);
     }

@@ -313,7 +313,12 @@ internal sealed class OdsSheetWriter : ISheetWriter
 
     private string? WriteString(string value, int style)
     {
-        if (value.Length > MaxTextChars || (value.Length * 6L) + TokenMargin > SheetScanner.MaxBufferChars && LongestToken(value) > SheetScanner.MaxBufferChars - TokenMargin)
+        // The quick check bounds what LongestToken can count — six characters a quote in the
+        // attribute, plus the start tag's own markup — so only a value that could be past the limit
+        // is counted. Without the tag's overhead it let through values its count would refuse.
+        if (value.Length > MaxTextChars
+            || ((value.Length * 6L) + TagOverhead + TokenMargin > SheetScanner.MaxBufferChars
+                && LongestToken(value) > SheetScanner.MaxBufferChars - TokenMargin))
         {
             return ErrorCodes.Write.TextTooLong;
         }

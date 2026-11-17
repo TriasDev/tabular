@@ -77,8 +77,10 @@ public sealed class OdsCursorTests
         Assert.False(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
     }
 
-    [Fact]
-    public void NamesTheSheetsAsTheirMarkupMeansAndCountsOnlyRealTables()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NamesTheSheetsAsTheirMarkupMeansAndCountsOnlyRealTables(bool utf16)
     {
         // The names are listed by a pass of their own over the part; it must see exactly the tables
         // the reading does — not one mentioned in a comment or CDATA, not a tag cut short by a '>'
@@ -89,13 +91,33 @@ public sealed class OdsCursorTests
             .WithTable("Übersicht\" table:style-name=\"a>b", "<![CDATA[<table:table table:name=\"cdata\">]]>" + Row("second"))
             .WithRawTable("<table:table>" + Row("third") + "</table:table>");
 
-        using OdsCursor cursor = Open(package);
+        using OdsCursor cursor = Open(utf16 ? package.WithContentEncoding(Encoding.Unicode) : package);
 
         Assert.Equal(["R&D <2024> ☺", "Übersicht", ""], cursor.Sheets.Select(s => s.Name));
         Assert.True(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
         Assert.Equal("third", Assert.Single(ReadAll(cursor))[0].AsText());
         Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
         Assert.Equal("second", Assert.Single(ReadAll(cursor))[0].AsText());
+    }
+
+    /// <summary>
+    /// The name pass takes a table's start tag apart itself, and must find the name the reading
+    /// finds behind whatever stands ahead of it: a '>' inside an attribute's value, an empty value,
+    /// or a name in single quotes.
+    /// </summary>
+    [Theory]
+    [InlineData("<table:table table:style-name=\"a>b\" table:name=\"Real\">", "Real")]
+    [InlineData("<table:table table:style-name=\"\" table:name=\"AfterEmpty\">", "AfterEmpty")]
+    [InlineData("<table:table table:name='Single'>", "Single")]
+    public void NamesASheetWhateverTheAttributesAheadOfItsNameHold(string startTag, string name)
+    {
+        static string Row(string text) => "<table:table-row>" + Cell("office:value-type=\"string\"", text) + "</table:table-row>";
+        using OdsCursor cursor = Open(new OdsPackage().WithRawTable(startTag + Row("a") + "</table:table>").WithTable("B", Row("b")));
+
+        Assert.Equal([name, "B"], cursor.Sheets.Select(s => s.Name));
+        Assert.Equal("a", Assert.Single(ReadAll(cursor))[0].AsText());
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal("b", Assert.Single(ReadAll(cursor))[0].AsText());
     }
 
     [Fact]
@@ -472,6 +494,64 @@ public sealed class OdsCursorTests
         Assert.Equal(expected, Assert.Single(ReadAll(cursor)));
     }
 
+    /// <summary>
+    /// The null date is the spreadsheet's only where its calculation settings state it, ahead of the
+    /// sheets, and only as a date written year first: one met after a sheet or inside a DDE link,
+    /// or a value that is no ISO date, leaves the default, so every time reads on 31 December 1899.
+    /// </summary>
+    [Theory]
+    [InlineData("after the first sheet", "1904-01-01")]
+    [InlineData("in a DDE link", "1904-01-01")]
+    [InlineData("ahead", "13:45")]
+    [InlineData("ahead", "01/02/1904")]
+    public void TakesTheNullDateOnlyFromTheSettingsAheadOfTheSheetsAndOnlyAsAnIsoDate(string where, string nullDate)
+    {
+        static string Table(string name) => $"""<table:table table:name="{name}"><table:table-row>"""
+            + Cell("office:value-type=\"time\" office:time-value=\"PT12H30M00S\"")
+            + "</table:table-row></table:table>";
+        string settings = $"""<table:calculation-settings><table:null-date table:date-value="{nullDate}"/></table:calculation-settings>""";
+        string body = where switch
+        {
+            "after the first sheet" => Table("A") + settings + Table("B"),
+            "in a DDE link" => $"<table:dde-links><table:dde-link>{settings}</table:dde-link></table:dde-links>" + Table("A") + Table("B"),
+            _ => settings + Table("A") + Table("B"),
+        };
+        RawCell expected = RawCell.FromDate(new DateTime(1899, 12, 31, 12, 30, 0, DateTimeKind.Unspecified));
+
+        using OdsCursor cursor = Open(new OdsPackage().WithRawContent(Content(body)));
+
+        Assert.Equal(["A", "B"], cursor.Sheets.Select(s => s.Name));
+        Assert.Equal(expected, Assert.Single(ReadAll(cursor))[0]);
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal(expected, Assert.Single(ReadAll(cursor))[0]);
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.Equal(expected, Assert.Single(ReadAll(cursor))[0]);
+    }
+
+    /// <summary>
+    /// How far the reading is through the content part, which holds every sheet: little of it once
+    /// opened, about half after the first of two equal sheets, all of it after the second.
+    /// </summary>
+    [Fact]
+    public void ReportsHowFarThroughTheContentPartTheReadingIs()
+    {
+        StringBuilder rows = new();
+
+        for (int i = 0; i < 4_000; i++)
+        {
+            rows.Append("<table:table-row>").Append(Cell("office:value-type=\"string\"", $"row {i:D6} of a sheet long enough to measure")).Append("</table:table-row>");
+        }
+
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("A", rows.ToString()).WithTable("B", rows.ToString()));
+
+        Assert.InRange(cursor.ReadFraction.GetValueOrDefault(-1), 0.001, 0.2);
+        Assert.Equal(4_000, ReadAll(cursor).Count);
+        Assert.InRange(cursor.ReadFraction.GetValueOrDefault(-1), 0.4, 0.6);
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal(4_000, ReadAll(cursor).Count);
+        Assert.InRange(cursor.ReadFraction.GetValueOrDefault(-1), 0.95, 1);
+    }
+
     [Fact]
     public void ReadsTheCoveredPartOfAMergeAsEmpty()
     {
@@ -551,6 +631,65 @@ public sealed class OdsCursorTests
 
         TabularLimitException error = Assert.Throws<TabularLimitException>(() => ReadAll(cursor));
         Assert.Equal(nameof(OdsCursorOptions.MaxRows), error.Limit);
+    }
+
+    /// <summary>
+    /// The row ceiling is the last row a value may stand on, however the rows before it are written:
+    /// a value reached through empty rows, or the last copy of a repeated value, is read on it.
+    /// </summary>
+    [Fact]
+    public void ReadsAValueOnTheLastRowTheCeilingAllows()
+    {
+        static string Value(string text, int repeat = 1) => $"<table:table-row table:number-rows-repeated=\"{repeat}\">" + Cell("office:value-type=\"string\"", text) + "</table:table-row>";
+        OdsCursorOptions options = new() { MaxRows = 10 };
+
+        using OdsCursor afterEmpty = Open(new OdsPackage().WithTable("S", "<table:table-row table:number-rows-repeated=\"9\"><table:table-cell/></table:table-row>" + Value("last") + Value("past")), options);
+
+        Assert.True(afterEmpty.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(10, afterEmpty.CurrentRowNumber);
+        Assert.Equal("last", afterEmpty.CurrentRow[0].AsText());
+        Assert.Equal(nameof(OdsCursorOptions.MaxRows), Assert.Throws<TabularLimitException>(() => afterEmpty.ReadRow(TestContext.Current.CancellationToken)).Limit);
+
+        using OdsCursor repeated = Open(new OdsPackage().WithTable("S", Value("copy", 10)), options);
+
+        Assert.Equal(10, ReadAll(repeated).Count);
+        Assert.Equal(10, repeated.CurrentRowNumber);
+    }
+
+    /// <summary>
+    /// A value past the row ceiling is refused at the first read that meets it: a repeated value as a
+    /// whole, before a single copy is handed out, and one behind empty rows that reach the ceiling.
+    /// </summary>
+    [Theory]
+    [InlineData("<table:table-row table:number-rows-repeated=\"11\"><table:table-cell office:value-type=\"float\" office:value=\"1\"/></table:table-row>")]
+    [InlineData("<table:table-row table:number-rows-repeated=\"10\"><table:table-cell/></table:table-row><table:table-row><table:table-cell office:value-type=\"float\" office:value=\"1\"/></table:table-row>")]
+    public void RefusesAValuePastTheRowCeilingAtTheFirstReadThatMeetsIt(string rows)
+    {
+        using OdsCursor cursor = Open(new OdsPackage().WithTable("S", rows), new OdsCursorOptions { MaxRows = 10 });
+
+        Assert.Equal(nameof(OdsCursorOptions.MaxRows), Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken)).Limit);
+    }
+
+    /// <summary>
+    /// The column ceiling is the last column a value may stand in: one reached through empty cells is
+    /// read there, and one behind empty cells that reach the ceiling is refused, however they add up.
+    /// </summary>
+    [Fact]
+    public void ReadsAValueInTheLastColumnTheCeilingAllowsAndRefusesOnePast()
+    {
+        const string Value = "<table:table-cell office:value-type=\"string\"><text:p>v</text:p></table:table-cell>";
+        OdsCursorOptions options = new() { MaxColumns = 5 };
+
+        using OdsCursor last = Open(new OdsPackage().WithTable("S", "<table:table-row><table:table-cell table:number-columns-repeated=\"4\"/>" + Value + "</table:table-row>"), options);
+        RawCell[] row = Assert.Single(ReadAll(last));
+        Assert.Equal(5, row.Length);
+        Assert.Equal("v", row[4].AsText());
+
+        foreach (int second in (int[])[3, 4])
+        {
+            using OdsCursor past = Open(new OdsPackage().WithTable("S", $"<table:table-row><table:table-cell table:number-columns-repeated=\"2\"/><table:table-cell table:number-columns-repeated=\"{second}\"/>" + Value + "</table:table-row>"), options);
+            Assert.Equal(nameof(OdsCursorOptions.MaxColumns), Assert.Throws<TabularLimitException>(() => past.ReadRow(TestContext.Current.CancellationToken)).Limit);
+        }
     }
 
     [Fact]

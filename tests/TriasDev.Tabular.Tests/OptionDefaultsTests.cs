@@ -24,6 +24,19 @@ public sealed class OptionDefaultsTests
         Assert.Equal(100_000, xlsx.MaxCellFormats);
         Assert.Equal(16 * 1024 * 1024, xlsx.MaxValueChars);
 
+        // A new instance rather than the shared Default, which was built before this test ran: the
+        // property initialisers are what ships, and this way they run under the test.
+        OdsCursorOptions ods = new();
+
+        Assert.Equal(8L * 1024 * 1024 * 1024, ods.MaxUncompressedBytes);
+        Assert.Equal(16_384, ods.MaxPackageEntries);
+        Assert.Equal(4_096, ods.MaxSheets);
+        Assert.Equal(16_384, ods.MaxColumns);
+        Assert.Equal(1_048_576, ods.MaxRows);
+        Assert.Equal(16 * 1024 * 1024, ods.MaxValueChars);
+        Assert.Equal(100_000_000, ods.MaxRepeatedCells);
+        Assert.Equal(ods, OdsCursorOptions.Default);
+
         CsvCursorOptions csv = CsvCursorOptions.Default;
 
         Assert.Equal(16_384, csv.MaxColumns);

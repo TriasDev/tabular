@@ -73,6 +73,31 @@ public sealed class SheetVisibilityTests
         Assert.Equal([SheetVisibility.Visible, SheetVisibility.Hidden, SheetVisibility.Visible], cursor.Sheets.Select(s => s.Visibility));
     }
 
+    /// <summary>
+    /// Only the table properties of a table style hide its tables: not those of a style of another
+    /// family, nor properties standing after a table style has ended, or after one written as an
+    /// empty element — in either encoding, which the sheets are listed from by different passes.
+    /// </summary>
+    [Theory]
+    [InlineData("<style:style style:name=\"ta1\" style:family=\"table\"><style:table-properties table:display=\"false\"/></style:style>", SheetVisibility.Hidden)]
+    [InlineData("<style:style style:name=\"ta1\" style:family=\"table-cell\"><style:table-properties table:display=\"false\"/></style:style>", SheetVisibility.Visible)]
+    [InlineData("<style:style style:name=\"ta1\" style:family=\"table\"><style:table-properties table:display=\"true\"/></style:style><style:table-properties table:display=\"false\"/>", SheetVisibility.Visible)]
+    [InlineData("<style:style style:name=\"ta1\" style:family=\"table\"/><style:table-properties table:display=\"false\"/>", SheetVisibility.Visible)]
+    public void HidesASheetOnlyByTheTablePropertiesOfItsOwnTableStyle(string styles, SheetVisibility expected)
+    {
+        string content = $"""<?xml version="1.0" encoding="UTF-8"?><office:document-content {OdsPackage.Namespaces}xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" office:version="1.3"><office:automatic-styles>{styles}</office:automatic-styles><office:body><office:spreadsheet>"""
+            + """<table:table table:name="Styled" table:style-name="ta1"><table:table-row><table:table-cell office:value-type="float" office:value="1"/></table:table-row></table:table>"""
+            + "</office:spreadsheet></office:body></office:document-content>";
+
+        foreach (bool utf16 in (bool[])[false, true])
+        {
+            OdsPackage package = new OdsPackage().WithRawContent(content);
+            using OdsCursor cursor = new(new MemoryStream((utf16 ? package.WithContentEncoding(Encoding.Unicode) : package).Build()), cancellationToken: Token);
+
+            Assert.Equal(expected, Assert.Single(cursor.Sheets).Visibility);
+        }
+    }
+
     [Fact]
     public void CallsACsvVisible()
     {
