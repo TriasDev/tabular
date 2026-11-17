@@ -36,6 +36,18 @@ public sealed class StreamWindowTests
     }
 
     [Fact]
+    public void ReadsNoFurtherThanItsEndFromWithinItsPart()
+    {
+        using StreamWindow window = new(new MemoryStream(Bytes), 100, 50);
+        window.Position = 40;
+        byte[] read = new byte[20];
+
+        Assert.Equal(10, window.Read(read, 0, read.Length));
+        Assert.Equal(Bytes[140..150], read[..10]);
+        Assert.Equal(0, window.Read(read, 0, read.Length));
+    }
+
+    [Fact]
     public void TwoWindowsOverOneStreamDoNotDisturbEachOther()
     {
         MemoryStream file = new(Bytes);
