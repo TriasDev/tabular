@@ -221,6 +221,34 @@ public sealed class ArchiveCursorCsvTests
         Assert.False(cursor.MoveToSheet(2, TestContext.Current.CancellationToken));
     }
 
+    /// <summary>A quote opened in an unquoted table and never closed: read as text once it has swallowed a record's worth of delimiters.</summary>
+    internal const string StrayQuote = "id;name;street;city;note\n1;Acme;\"Ring 1;Bonn;a\n2;n2;s;c;x\n3;n3;s;c;x\n4;n4;s;c;x\n";
+
+    [Fact]
+    public void AddsTheStrayQuotesOfEachSheetToThoseOfTheSheetsBefore()
+    {
+        using ArchiveCursor cursor = Open(new ZipArchiveBuilder().With("one.csv", StrayQuote).With("two.csv", StrayQuote).Build());
+
+        ReadAll(cursor);
+        Assert.Equal((0, 1), (cursor.Diagnostics.RecoveredUnterminatedQuotes, cursor.Diagnostics.RecoveredStrayQuotes));
+
+        Assert.True(cursor.MoveToSheet(1, Token));
+        Assert.Equal(1, cursor.Diagnostics.RecoveredStrayQuotes);
+        ReadAll(cursor);
+        Assert.Equal((0, 2), (cursor.Diagnostics.RecoveredUnterminatedQuotes, cursor.Diagnostics.RecoveredStrayQuotes));
+    }
+
+    [Fact]
+    public void ReadsAFileWhosePathClimbsOutOfTheArchive()
+    {
+        // ".." is a path segment, not a hidden name. Nothing is written to disk, so the path is only
+        // the sheet's source.
+        using ArchiveCursor cursor = Open(new ZipArchiveBuilder().With("../up.csv", "a;b\n1;2\n").Build());
+
+        Assert.Equal(("up", "../up.csv"), (Assert.Single(cursor.Sheets).Name, cursor.Sheets[0].Source));
+        Assert.Equal([["a", "b"], ["1", "2"]], ReadAll(cursor));
+    }
+
     [Fact]
     public void RefusesMoreEntriesOrMoreBytesThanItsBudgetAndClosesTheStream()
     {

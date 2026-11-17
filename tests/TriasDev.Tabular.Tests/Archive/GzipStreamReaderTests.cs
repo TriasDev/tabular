@@ -307,6 +307,42 @@ public sealed class GzipStreamReaderTests
         Assert.Equal([.. content, .. "x\n"u8.ToArray()], ReadAll(file));
     }
 
+    [Fact]
+    public void ReadsALongOutputFreeTailFollowedByBytesThatAreNoMember()
+    {
+        // The wide search meets a trailer followed neither by the file's end nor by a member: it is
+        // the only fit, and taken.
+        byte[] content = Text(50);
+
+        Assert.Equal(content, ReadAll([.. MemberWithOutputFreeTail(content, 20_000), 0, 0, 0, 0]));
+    }
+
+    [Fact]
+    public void FindsTheTrailerWhereverItFallsAgainstTheWideSearchsChunks()
+    {
+        // The wide search reads the file in 64 KB chunks from the deflate data's third byte — offset
+        // 12, after the 10-byte header and never inside the shortest deflate stream. The trailer is
+        // moved byte by byte across the end of the first chunk and of the third: into the last bytes
+        // of one, which only its overlap with the next lets it see whole, and onto the next's first.
+        byte[] text = Text(50);
+
+        foreach (long boundary in new[] { 12 + 65_536L, 12 + (3 * 65_536L) })
+        {
+            for (long at = boundary - 20; at <= boundary + 4; at++)
+            {
+                // The member puts its trailer at 20 + content + 5 × blocks; a little padding places it exactly.
+                long free = at - 20 - text.Length;
+                int pad = (int)(free % 5);
+                byte[] content = [.. text, .. new byte[pad]];
+                byte[] member = MemberWithOutputFreeTail(content, (int)(free / 5));
+                Assert.Equal(at, member.Length - 8);
+
+                Assert.True(content.AsSpan().SequenceEqual(ReadAll(member)), $"trailer at {at}");
+                Assert.True(content.AsSpan().SequenceEqual(ReadAll([.. member, 0, 0])), $"trailer at {at}, then bytes that are no member");
+            }
+        }
+    }
+
     [Theory]
     [InlineData(50_000)]
     [InlineData(3)]
