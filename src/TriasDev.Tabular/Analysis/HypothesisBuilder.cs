@@ -66,13 +66,6 @@ internal static class HypothesisBuilder
     }
 
     /// <summary>
-    /// Whether the file stated what every value is, which a workbook does and a csv file cannot.
-    /// </summary>
-    /// <remarks>
-    /// Where it did, no culture is involved: the number was a number before anyone read it, and
-    /// offering a choice of cultures would invent a question the file already answered.
-    /// </remarks>
-    /// <summary>
     /// For a date reading, how many of its dates are written with its culture's own separator: of two
     /// readings that fit every value, <c>11.01.2018</c> goes to the one that writes dates with dots (#58).
     /// </summary>
@@ -81,6 +74,13 @@ internal static class HypothesisBuilder
             ? facts.ParseCounts.FirstOrDefault(c => c.Culture == hypothesis.Culture)?.DatesWithOwnSeparator ?? 0
             : 0;
 
+    /// <summary>
+    /// Whether the file stated what every value is, which a workbook does and a csv file cannot.
+    /// </summary>
+    /// <remarks>
+    /// Where it did, no culture is involved: the number was a number before anyone read it, and
+    /// offering a choice of cultures would invent a question the file already answered.
+    /// </remarks>
     private static bool DeclaredByTheFile(ColumnFacts facts)
     {
         int declared = Native(facts, RawCellKind.Number)
@@ -161,9 +161,6 @@ internal static class HypothesisBuilder
         });
     }
 
-    /// <summary>
-    /// How much a reading claims. Used only to order equally confident ones, narrowest first.
-    /// </summary>
     /// <summary>
     /// Where numeric readings disagree, whether this one reads numbers with the separator the evidence
     /// favours (#61). Where they agree it decides nothing, and the order stays what it was.
