@@ -907,8 +907,12 @@ internal sealed class XlsxCursor : ITabularCursor
         StringBuilder text = new();
         char[] chunk = new char[8 * 1024];
 
+        // Whitespace is not ignored here: a <t> holding only spaces is text — the space between two
+        // differently formatted runs — whether or not its producer wrote xml:space="preserve", and
+        // ignoring it joined "Max" and "Mustermann". The indentation between elements is never
+        // inside a <t>, so the item reader passes it over like any other node.
         using Stream stream = part.Open();
-        using XmlReader reader = XmlReader.Create(stream, new XmlReaderSettings { IgnoreWhitespace = true });
+        using XmlReader reader = XmlReader.Create(stream);
 
         int sinceCheck = 0;
         long characters = 0;
@@ -1509,9 +1513,10 @@ internal sealed class XlsxCursor : ITabularCursor
     /// </para>
     /// </remarks>
     /// <summary>
-    /// Whether a <c>d</c> cell states a time and no date — <c>12:00:00.000</c>, perhaps with a zone —
-    /// which the parser puts on year one, or on today when zoned. Judged by the whole text: a time,
-    /// then nothing but a zone, so a time followed by a date keeps its date.
+    /// Whether a <c>d</c> cell states a time and no date — <c>12:00:00.000</c>, perhaps with AM or PM
+    /// and a zone — which the parser puts on year one, or on today when zoned. Judged by the whole
+    /// text: a time, then nothing but a twelve-hour designator and a zone, so a time followed by a
+    /// date keeps its date.
     /// </summary>
     private static bool IsBareTime(ReadOnlySpan<char> text)
     {
@@ -1523,9 +1528,16 @@ internal sealed class XlsxCursor : ITabularCursor
             return false;
         }
 
-        // The time itself: digits, colons and a fraction; then nothing but a zone.
+        // The time itself: digits, colons and a fraction; then perhaps AM or PM, which the parser
+        // reads as well; then nothing but a zone.
         int timeEnd = rest.IndexOfAnyExcept("0123456789:.");
         ReadOnlySpan<char> zone = timeEnd < 0 ? [] : rest[timeEnd..].TrimStart();
+
+        if (zone.StartsWith("AM", StringComparison.OrdinalIgnoreCase)
+            || zone.StartsWith("PM", StringComparison.OrdinalIgnoreCase))
+        {
+            zone = zone[2..].TrimStart();
+        }
 
         return zone.IsEmpty
             || zone is "Z" or "z"
