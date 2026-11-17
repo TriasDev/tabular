@@ -72,6 +72,21 @@ public sealed class TabularExportBuilderTests
     }
 
     [Fact]
+    public void TakesTheWidthGivenForEveryKindOfDateColumn()
+    {
+        TabularExport<Portfolio> export = TabularExport.For<Portfolio>()
+            .Column("DateTime", p => p.Start, width: 30)
+            .Column("DateTime?", p => (DateTime?)p.Start, width: 31)
+            .Column("DateOnly", p => p.Settled, width: 32)
+            .Column("DateOnly?", p => (DateOnly?)p.Settled, width: 33)
+            .Column("DateTime? default", p => (DateTime?)p.Start)
+            .Column("DateOnly? default", p => (DateOnly?)p.Settled)
+            .Build();
+
+        Assert.Equal(new double?[] { 30, 31, 32, 33, 19, 10 }, export.Columns.Select(c => c.Width));
+    }
+
+    [Fact]
     public void RefusesATranslatedFieldsVariant()
     {
         ImportField variant = Assert.Single(ImportField.Translated("Title", ["en"]));

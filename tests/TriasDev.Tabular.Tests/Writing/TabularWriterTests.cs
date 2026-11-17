@@ -237,6 +237,55 @@ public sealed class TabularWriterTests
     }
 
     [Fact]
+    public async Task AFailedCompleteFaultsTheWriter()
+    {
+        WriteTarget target = new();
+        TabularWriter writer = Writer(target);
+        writer.BeginSheet("data", [new("a")]);
+        target.FailWith = new IOException("client went away");
+
+        await Assert.ThrowsAsync<IOException>(async () => await writer.CompleteAsync(Token));
+
+        InvalidOperationException again = await Assert.ThrowsAsync<InvalidOperationException>(async () => await writer.CompleteAsync(Token));
+        Assert.Contains("failed earlier", again.Message, StringComparison.Ordinal);
+        Assert.Contains("failed earlier", Assert.Throws<InvalidOperationException>(() => writer.BeginRow()).Message, StringComparison.Ordinal);
+
+        await writer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ABatchTheSheetCannotTakeIsRefusedAndFaultsTheWriter()
+    {
+        ColumnBatch wide = new();
+        wide.Reset(1);
+        wide.Add(new long[] { 1 });
+        wide.Add(new long[] { 2 });
+        wide.Add(new long[] { 3 });
+
+        await using TabularWriter early = Writer(new WriteTarget());
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await early.WriteBatchAsync(wide, Token));
+
+        await using TabularWriter writer = Writer(new WriteTarget());
+        writer.BeginSheet("data", [new("a"), new("b")]);
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(async () => await writer.WriteBatchAsync(wide, Token));
+        Assert.Contains("failed earlier", Assert.Throws<InvalidOperationException>(() => writer.BeginRow()).Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(TabularFormat.Xlsx)]
+    [InlineData(TabularFormat.Ods)]
+    [InlineData(TabularFormat.Zip)]
+    public async Task ASheetCannotBeginInsideARowOfAWorkbook(TabularFormat format)
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), format);
+        writer.BeginSheet("data", [new("a")]);
+        writer.BeginRow();
+
+        Assert.Throws<InvalidOperationException>(() => writer.BeginSheet("more", [new("a")]));
+    }
+
+    [Fact]
     public async Task ACancelledFlushFaultsTheWriter()
     {
         WriteTarget target = new();

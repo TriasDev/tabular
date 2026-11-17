@@ -41,7 +41,7 @@ public sealed class TabularExport<T>
     /// <summary>Writes a file of one sheet from chunks as they arrive — the fast source for millions of rows.</summary>
     /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
     /// <param name="format">The file's format.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="chunks">The rows, a batch at a time.</param>
     /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
     /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="chunks"/>.</param>
@@ -69,7 +69,7 @@ public sealed class TabularExport<T>
     /// <typeparam name="TChunk">The message type.</typeparam>
     /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
     /// <param name="format">The file's format.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="chunks">The messages.</param>
     /// <param name="itemsOf">Returns the items a message carries, as an <see cref="IReadOnlyList{T}"/> — a protobuf <c>RepeatedField</c> is one. It must not return <see langword="null"/>.</param>
     /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
@@ -93,7 +93,7 @@ public sealed class TabularExport<T>
     /// <summary>Writes a file of one sheet from items arriving one at a time; awaits per item, so prefer chunks for millions.</summary>
     /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
     /// <param name="format">The file's format.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="items">The rows.</param>
     /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
     /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="items"/>.</param>
@@ -114,7 +114,7 @@ public sealed class TabularExport<T>
     /// <summary>Writes a file of one sheet from items in memory or produced synchronously.</summary>
     /// <param name="stream">The stream the file is written to; closed at the end, unless <see cref="TabularWriterOptions.LeaveOpen"/>.</param>
     /// <param name="format">The file's format.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="items">The rows.</param>
     /// <param name="options">Options of the writer, or <see langword="null"/> for the defaults.</param>
     /// <param name="cancellationToken">Stops the write, observed at each flush, about every megabyte written.</param>
@@ -134,7 +134,7 @@ public sealed class TabularExport<T>
 
     /// <summary>Writes one sheet into a writer the caller owns, from chunks as they arrive.</summary>
     /// <param name="writer">The caller's writer; the caller completes it.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="chunks">The rows, a batch at a time.</param>
     /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="chunks"/>.</param>
     /// <returns>The number of data rows written.</returns>
@@ -176,7 +176,7 @@ public sealed class TabularExport<T>
     /// <summary>Writes one sheet into a writer the caller owns, from messages that each carry a chunk.</summary>
     /// <typeparam name="TChunk">The message type.</typeparam>
     /// <param name="writer">The caller's writer; the caller completes it.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="chunks">The messages.</param>
     /// <param name="itemsOf">Returns the items a message carries, as an <see cref="IReadOnlyList{T}"/> — a protobuf <c>RepeatedField</c> is one. It must not return <see langword="null"/>.</param>
     /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="chunks"/>.</param>
@@ -220,7 +220,7 @@ public sealed class TabularExport<T>
 
     /// <summary>Writes one sheet into a writer the caller owns, from items arriving one at a time.</summary>
     /// <param name="writer">The caller's writer; the caller completes it.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="items">The rows.</param>
     /// <param name="cancellationToken">Stops the write; also flows into the enumeration of <paramref name="items"/>.</param>
     /// <returns>The number of data rows written.</returns>
@@ -266,7 +266,7 @@ public sealed class TabularExport<T>
 
     /// <summary>Writes one sheet into a writer the caller owns, from items in memory or produced synchronously.</summary>
     /// <param name="writer">The caller's writer; the caller completes it.</param>
-    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, but the name must still be valid.</param>
+    /// <param name="sheetName">The sheet's name; a csv file's single sheet takes no name in the file, so its name is held to no rules.</param>
     /// <param name="items">The rows.</param>
     /// <param name="cancellationToken">Stops the write, observed at each flush, about every megabyte written.</param>
     /// <returns>The number of data rows written.</returns>

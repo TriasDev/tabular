@@ -192,6 +192,37 @@ public sealed class ColumnBatchTests
     }
 
     [Fact]
+    public async Task StylesComeFromAConstantAVectorOrARuleWithASelectorToo()
+    {
+        (double Low, double High)[] items = [(1.0, 1.0), (2.0, 9.0)];
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            StyleId low = writer.RegisterStyle(Low);
+            StyleId high = writer.RegisterStyle(High);
+            writer.BeginSheet("data", [new("constant"), new("vector"), new("rule")]);
+            ColumnBatch batch = new();
+            batch.Reset(2);
+            batch.Add(items, i => i.Low, low);
+            batch.Add(items, i => i.Low, new[] { low, high });
+            batch.Add(items, i => i.High, v => v > 5 ? High : null);
+            writer.WriteBatch(batch);
+        });
+
+        string sheet = SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml");
+        Assert.Contains("<row r=\"2\"><c s=\"4\"><v>1</v></c><c s=\"4\"><v>1</v></c><c><v>1</v></c></row>", sheet, StringComparison.Ordinal);
+        Assert.Contains("<row r=\"3\"><c s=\"4\"><v>2</v></c><c s=\"5\"><v>2</v></c><c s=\"5\"><v>9</v></c></row>", sheet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AStyleVectorOfTheWrongLengthIsRefusedWithASelectorToo()
+    {
+        ColumnBatch batch = new();
+        batch.Reset(3);
+
+        Assert.Throws<ArgumentException>(() => batch.Add(new[] { 1, 2, 3 }, i => (long)i, new StyleId[2]));
+    }
+
+    [Fact]
     public void AVectorOfTheWrongLengthIsRefusedWhenAdded()
     {
         ColumnBatch batch = new();
