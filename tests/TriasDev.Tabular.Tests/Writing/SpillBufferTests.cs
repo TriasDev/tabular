@@ -59,6 +59,17 @@ public sealed class SpillBufferTests
     }
 
     [Fact]
+    public void HandsOutAWholeSegmentForASmallHintAndMoreForALargeOne()
+    {
+        // 64 KB at a time, so a byte asked for does not cost a segment of its own; a hint past that
+        // size gets a segment as large as the hint.
+        using SpillBuffer buffer = new();
+
+        Assert.True(buffer.GetSpan(1).Length >= 64 * 1024);
+        Assert.True(buffer.GetSpan(200_000).Length >= 200_000);
+    }
+
+    [Fact]
     public async Task DiscardDropsWhatIsPending()
     {
         using SpillBuffer buffer = new();

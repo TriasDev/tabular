@@ -418,4 +418,84 @@ public sealed class TabularExportTests
         InvalidOperationException refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await writer.CompleteAsync(TestContext.Current.CancellationToken));
         Assert.Contains("failed earlier", refused.Message, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Each way to write, with rows wide enough that every flush inside a loop happens too: chunks,
+    /// chunks through a selector, async items, items, and a column batch, completed and disposed; and
+    /// a writer disposed without completing, which closes its target on the other path.
+    /// </summary>
+    public static TheoryData<string> AsyncPaths => ["chunks", "chunks of messages", "async items", "items", "batch"];
+
+    [Theory]
+    [MemberData(nameof(AsyncPaths))]
+    public async Task NoAwaitComesBackToTheCallersContext(string path)
+    {
+        PostProbe probe = new();
+
+        // The control: an await that does capture the context is caught.
+        probe.PendAt(0);
+        await probe.Start(() => Captures(probe));
+        Assert.Single(probe.Posts);
+        probe.Clear();
+
+        // Each operation in turn is the one that completes later, until a run has no operation left to pend.
+        PostProbeStream target = new(probe);
+
+        for (int pending = 0; pending < 1_000; pending++)
+        {
+            probe.PendAt(pending);
+            target = new PostProbeStream(probe);
+            await probe.Start(() => WriteThrough(path, probe, target, Token));
+
+            if (probe.Operations <= pending)
+            {
+                break;
+            }
+        }
+
+        Assert.Empty(probe.Posts);
+        Assert.True(target.Written > TabularWriter.FlushThreshold, $"{target.Written} bytes written");
+
+        static async Task Captures(PostProbe probe) => await probe.Operation();
+    }
+
+    private static async Task WriteThrough(string path, PostProbe probe, PostProbeStream target, CancellationToken token)
+    {
+        // Every row about 520 bytes: 3,000 of them pass the flush threshold inside each loop. The test's
+        // own awaits say ConfigureAwait(false) too, or they would be what the probe catches.
+        Item[] items = [.. Enumerable.Range(1, 3_000).Select(i => new Item(i, new string('x', 500), i))];
+
+        switch (path)
+        {
+            case "chunks":
+                await Export.WriteAsync(target, TabularFormat.Csv, "data", probe.Slowly<IReadOnlyList<Item>>([items, items[..10]]), NoBom, token).ConfigureAwait(false);
+                break;
+            case "chunks of messages":
+                await Export.WriteAsync(target, TabularFormat.Csv, "data", probe.Slowly([new { Items = items }]), m => m.Items, NoBom, token).ConfigureAwait(false);
+                break;
+            case "async items":
+                await Export.WriteAsync(target, TabularFormat.Csv, "data", probe.Slowly(items, every: 500), NoBom, token).ConfigureAwait(false);
+                break;
+            case "items":
+                await Export.WriteAsync(target, TabularFormat.Csv, "data", items, NoBom, token).ConfigureAwait(false);
+                break;
+            default:
+                TabularWriter writer = TabularWriter.Create(target, TabularFormat.Csv, NoBom);
+
+                await using (writer.ConfigureAwait(false))
+                {
+                    writer.BeginSheet("data", [new("Name")]);
+                    ColumnBatch batch = new();
+                    batch.Reset(items.Length);
+                    batch.Add(items, i => i.Name);
+                    await writer.WriteBatchAsync(batch, token).ConfigureAwait(false);
+                    await writer.CompleteAsync(token).ConfigureAwait(false);
+                }
+
+                TabularWriter abandoned = TabularWriter.Create(new PostProbeStream(probe), TabularFormat.Csv);
+                abandoned.BeginSheet("data", [new("Name")]);
+                await abandoned.DisposeAsync().ConfigureAwait(false);
+                break;
+        }
+    }
 }
