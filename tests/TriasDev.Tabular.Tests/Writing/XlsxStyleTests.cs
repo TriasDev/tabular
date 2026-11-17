@@ -74,6 +74,42 @@ public sealed class XlsxStyleTests
         writer.EndRow();
     }
 
+    /// <summary>Fonts and alignments other than the bold, italic, centred and wrapped legend: each part of their markup stands alone.</summary>
+    [Fact]
+    public async Task StatesEachFontAndAlignmentOnItsOwn()
+    {
+        byte[] xlsx = await Workbook(writer =>
+        {
+            StyleId[] styles =
+            [
+                writer.RegisterStyle(new CellStyle { Font = new CellFont { Color = CellColor.FromRgb(0x112233) } }),
+                writer.RegisterStyle(new CellStyle { Font = new CellFont { Bold = true } }),
+                writer.RegisterStyle(new CellStyle { Font = new CellFont { Italic = true } }),
+                writer.RegisterStyle(new CellStyle { Horizontal = CellHorizontalAlignment.Left }),
+                writer.RegisterStyle(new CellStyle { Horizontal = CellHorizontalAlignment.Right }),
+                writer.RegisterStyle(new CellStyle { Wrap = true }),
+            ];
+            writer.BeginSheet("data", [new("v")]);
+
+            foreach (StyleId style in styles)
+            {
+                writer.BeginRow();
+                writer.Write("x", style);
+                writer.EndRow();
+            }
+        });
+
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+
+        string styles = Part(xlsx, "xl/styles.xml");
+        Assert.Contains("<font><sz val=\"11\"/><color rgb=\"FF112233\"/><name val=\"Calibri\"/></font>", styles, StringComparison.Ordinal);
+        Assert.Contains("<font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font>", styles, StringComparison.Ordinal);
+        Assert.Contains("<font><i/><sz val=\"11\"/><name val=\"Calibri\"/></font>", styles, StringComparison.Ordinal);
+        Assert.Contains("<alignment horizontal=\"left\"/></xf>", styles, StringComparison.Ordinal);
+        Assert.Contains("<alignment horizontal=\"right\"/></xf>", styles, StringComparison.Ordinal);
+        Assert.Contains("<alignment wrapText=\"1\"/></xf>", styles, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task AStyledWorkbookIsValidAndStatesTheStyle()
     {

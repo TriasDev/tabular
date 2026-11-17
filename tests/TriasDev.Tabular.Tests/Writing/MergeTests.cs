@@ -161,6 +161,44 @@ public sealed class MergeTests
     }
 
     [Fact]
+    public async Task ARangeOverlappingAnotherOnItsLastRowIsRefused()
+    {
+        await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
+        writer.BeginSheet("data", Four);
+        writer.BeginRow();
+        writer.Write("a2");
+        writer.Write("b2");
+        writer.Merge(2, 1);                 // c2–c3
+        writer.Write("tall");
+        writer.EndRow();
+        writer.BeginRow();
+        writer.Merge(1, 3);                 // a3–c3 would cover c3, the tall range's last row
+
+        Assert.Throws<InvalidOperationException>(() => writer.Write("wide"));
+    }
+
+    [Fact]
+    public async Task EachSheetStatesOnlyItsOwnMerges()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            writer.BeginSheet("a", Four);
+            writer.BeginRow();
+            writer.Merge(1, 2);
+            writer.Write("x");
+            writer.EndRow();
+            writer.BeginSheet("b", Four);
+            writer.BeginRow();
+            writer.Write("y");
+            writer.EndRow();
+        });
+
+        Assert.Contains("<mergeCells", SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet1.xml"), StringComparison.Ordinal);
+        Assert.DoesNotContain("<mergeCells", SheetLayoutTests.Entry(xlsx, "xl/worksheets/sheet2.xml"), StringComparison.Ordinal);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    [Fact]
     public async Task ASheetEndedWhileARangeStillCoversRowsIsRefused()
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Xlsx);
