@@ -76,6 +76,19 @@ public sealed class AllOrNothingTests
     }
 
     [Fact]
+    public void HandsOutEveryChunkOfACleanFile()
+    {
+        using ImportRun<long> run = Run(ImportPolicy.AllOrNothing, "count;x\n1;a\n2;a\n3;a\n");
+
+        List<ImportChunk<long>> chunks = [.. run.ReadChunks(2, TestContext.Current.CancellationToken)];
+
+        Assert.Equal(2, chunks.Count);
+        Assert.Equal([1L, 2L], chunks[0].Items);
+        Assert.Equal([3L], chunks[1].Items);
+        Assert.All(chunks, chunk => Assert.Empty(chunk.Errors));
+    }
+
+    [Fact]
     public void KeepsImportingPastAFailureUnderBestEffort()
     {
         using ImportRun<long> run = Run(ImportPolicy.BestEffort, OneBadRow);

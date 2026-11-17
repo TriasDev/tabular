@@ -45,6 +45,22 @@ public sealed class ZonedDateTests
     }
 
     [Theory]
+    [InlineData("2024-01-15T10:00:00Z")]
+    [InlineData("2024-01-15T10:00:00+05:00")]
+    public void ProfilesAZonedTimestampAsTheClockTimeItStates(string written)
+    {
+        // On a host whose clock is UTC a conversion to local time leaves 10:00 as it was, so the
+        // value alone cannot tell; the kind can, as a converted value comes back Local everywhere.
+        using CsvCursor cursor = new(new MemoryStream(Utf8NoBom.GetBytes($"when;x\n{written};a\n"), writable: false), "t.csv");
+
+        ColumnFacts facts = TabularAnalyzer.Analyze(cursor, cancellationToken: TestContext.Current.CancellationToken).Sheets[0].Columns[0].Facts;
+
+        Assert.Equal(new DateTime(2024, 1, 15, 10, 0, 0, DateTimeKind.Unspecified), facts.MinDate);
+        Assert.Equal(DateTimeKind.Unspecified, facts.MinDate!.Value.Kind);
+        Assert.Equal(DateTimeKind.Unspecified, facts.MaxDate!.Value.Kind);
+    }
+
+    [Theory]
     [InlineData("2024-01-15T23:30:00Z")]
     [InlineData("2024-01-15T23:30:00+05:00")]
     public void ReadsAWorkbooksIsoDateCellAsTheClockTimeItStates(string written)

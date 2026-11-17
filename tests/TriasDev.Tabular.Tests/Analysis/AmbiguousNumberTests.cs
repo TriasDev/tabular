@@ -25,10 +25,19 @@ public sealed class AmbiguousNumberTests
 
     private static readonly AnalysisOptions Cultures = new() { Cultures = ["", "de-DE", "en-US"] };
 
-    private static SheetProfile Csv(string text)
+    private static SheetProfile Csv(string text, params string[] cultures)
     {
         using CsvCursor cursor = new(new MemoryStream(Encoding.UTF8.GetBytes(text)), "t.csv");
-        return TabularAnalyzer.Analyze(cursor, Cultures, cancellationToken: Token).Sheets[0];
+        return TabularAnalyzer.Analyze(cursor, cultures.Length == 0 ? Cultures : new AnalysisOptions { Cultures = cultures }, cancellationToken: Token).Sheets[0];
+    }
+
+    private static ColumnProfile Workbook(string[] cultures, params string[] values)
+    {
+        string rows = """<row r="1"><c r="A1" t="inlineStr"><is><t>n</t></is></c></row>"""
+            + string.Concat(values.Select((v, i) => $"""<row r="{i + 2}"><c r="A{i + 2}" t="inlineStr"><is><t>{v}</t></is></c></row>"""));
+        using XlsxCursor cursor = new(new MemoryStream(new XlsxPackage().WithSheet("S", rows).Build()), cancellationToken: Token);
+
+        return TabularAnalyzer.Analyze(cursor, new AnalysisOptions { Cultures = cultures }, cancellationToken: Token).Sheets[0].Columns[0];
     }
 
     private static string CultureOf(TypeHypothesis hypothesis) => hypothesis.Culture ?? "(none)";
@@ -100,5 +109,86 @@ public sealed class AmbiguousNumberTests
         ColumnProfile column = Csv("id;n\n1;1,5\n2;2,25\n").Columns[1];
 
         Assert.False(column.Facts.NumberReadingsDisagree);
+    }
+
+    [Fact]
+    public void PublishesTheExtremesOfTheCultureThatReadTheMostWhereNothingIsPreferred()
+    {
+        // Tab-delimited, and the two columns' votes cancel: no separator is preferred, and the
+        // extremes of q are those of the reading that takes both of its values.
+        ColumnFacts q = Csv("p\tq\n1.5\t1,5\n2.5\t2,25\n").Columns[1].Facts;
+
+        Assert.Equal(1.5m, q.MinNumeric);
+        Assert.Equal(2.25m, q.MaxNumeric);
+    }
+
+    [Fact]
+    public void KeepsThePreferredSeparatorFromPickingACultureThatReadFewerValues()
+    {
+        // The semicolon prefers the comma, but de-DE reads only one of c's values; en-US reads two
+        // and its extremes are published. Both read every date in d, but only en-US writes them with
+        // slashes, so its reading — January 2nd, not February 1st — is the one published.
+        SheetProfile sheet = Csv(
+            "a;b;c;d\n1,5;1,5;1.5;01/02/2018\n2,5;2,5;2.5;03/04/2018\n3,5;3,5;3,5;05/06/2018\n",
+            "en-US",
+            "de-DE");
+
+        Assert.Equal(1.5m, sheet.Columns[2].Facts.MinNumeric);
+        Assert.Equal(2.5m, sheet.Columns[2].Facts.MaxNumeric);
+        Assert.Equal(new DateTime(2018, 1, 2, 0, 0, 0, DateTimeKind.Unspecified), sheet.Columns[3].Facts.MinDate);
+    }
+
+    [Fact]
+    public void FollowsACommaDelimiterWhenTheInvariantCultureIsNotListedFirst()
+    {
+        ColumnProfile lat = Csv("id,lat\n1,48.137\n2,52.520\n", "de-DE", "en-US").Columns[1];
+
+        Assert.Equal("en-US", CultureOf(lat.Hypotheses[0]));
+        Assert.Equal(48.137m, lat.Facts.MinNumeric);
+    }
+
+    [Fact]
+    public void FollowsThePointOtherColumnsUseWhenTheInvariantCultureIsNotListedFirst()
+    {
+        ColumnProfile amount = Csv("price\tamount\n1.5\t1.250\n2.75\t3.500\n", "de-DE", "en-US").Columns[1];
+
+        Assert.Equal("en-US", CultureOf(amount.Hypotheses[0]));
+        Assert.Equal(1.25m, amount.Facts.MinNumeric);
+    }
+
+    [Theory]
+    [InlineData("1,5", "2.5")]
+    [InlineData("1.234.567", "1,234,567")]
+    public void SaysTheReadingsDisagreeWhenTheCulturesReadDifferentRows(string first, string second)
+    {
+        // de-DE reads only the first value and en-US only the second: as many values each, but not
+        // the same rows, so neither reading can be taken for the other.
+        Assert.True(Workbook(["de-DE", "en-US"], first, second).Facts.NumberReadingsDisagree);
+    }
+
+    [Fact]
+    public void ComparesOnlyTheCulturesThatReadTheMostValues()
+    {
+        // fr-FR reads neither value, and the two that read both still disagree.
+        Assert.True(Workbook(["de-DE", "en-US", "fr-FR"], "1.250", "3.500").Facts.NumberReadingsDisagree);
+    }
+
+    [Fact]
+    public void SaysNoReadingsDisagreeForAColumnOfText()
+    {
+        ColumnFacts facts = Workbook(["de-DE", "en-US"], "abc", "def").Facts;
+
+        Assert.False(facts.NumberReadingsDisagree);
+        Assert.False(facts.DateReadingsDisagree);
+    }
+
+    [Fact]
+    public void RanksBothDecimalReadingsAboveTheGroupedInteger()
+    {
+        ColumnProfile lat = Workbook(["de-DE", "en-US"], "48.137", "52.520");
+
+        Assert.Equal(
+            [(ColumnType.Decimal, "de-DE"), (ColumnType.Decimal, "en-US"), (ColumnType.Integer, "de-DE"), (ColumnType.Text, "(none)")],
+            lat.Hypotheses.Select(h => (h.Type, CultureOf(h))));
     }
 }

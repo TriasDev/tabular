@@ -58,4 +58,14 @@ public sealed class UniquenessTests
 
         Assert.True(facts.IsUnique);
     }
+
+    [Fact]
+    public void TellsApartValuesThatDifferOnlyAboveTheLowByteOfACharacter()
+    {
+        // b is U+0062 and Ţ is U+0162: a hash of the low bytes alone would count them as one value.
+        ColumnFacts facts = Profile("code\nb\nŢ\n").Sheets[0].Columns[0].Facts;
+
+        Assert.Equal(2, facts.DistinctCount);
+        Assert.True(facts.IsUnique);
+    }
 }
