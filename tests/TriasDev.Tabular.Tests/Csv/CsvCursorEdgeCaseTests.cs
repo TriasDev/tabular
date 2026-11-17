@@ -188,6 +188,51 @@ public sealed class CsvCursorEdgeCaseTests
         Assert.Equal((';', DialectSource.Detected), (cursor.Dialect.Delimiter, cursor.Dialect.DelimiterSource));
     }
 
+    /// <summary>
+    /// Files whose delimiter takes more than counting: a title line, decimal commas, a quote left
+    /// open in the probe, a probe that ends mid-line.
+    /// </summary>
+    [Theory]
+    [InlineData("Report, Q1, 2026\nKunde, Name;Betrag\nAcme;1,5\nBeta;2,25\nGamma;3,5\n", 0, ';')]
+    [InlineData("a;b,c\n1;2,5\n", 0, ';')]
+    [InlineData("id;amount;name\n1;1,5;x\n2;2,5;y\n3;3,5;z\n", 36, ';')]
+    [InlineData("\"a;b;c\n1,1;2,2;3,3\n4,4;5,5;6,6\n7,7;8,8;9,9\n", 0, ';')]
+    public void FindsTheDelimiterThatDividesTheRecords(string text, int probeBytes, char expected)
+    {
+        CsvCursorOptions options = probeBytes > 0 ? new CsvCursorOptions { DialectProbeBytes = probeBytes } : CsvCursorOptions.Default;
+        using MemoryStream stream = new(Utf8NoBom.GetBytes(text), writable: false);
+        using CsvCursor cursor = new(stream, "test.csv", options);
+
+        Assert.Equal((expected, DialectSource.Detected), (cursor.Dialect.Delimiter, cursor.Dialect.DelimiterSource));
+    }
+
+    [Fact]
+    public void SaysTheDelimiterOfASingleColumnFileWasGuessed()
+    {
+        using MemoryStream stream = new(Utf8NoBom.GetBytes("name\nMüller\n"), writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+
+        Assert.Equal(DialectSource.Fallback, cursor.Dialect.DelimiterSource);
+    }
+
+    [Theory]
+    [InlineData("a\n1\n2")]
+    [InlineData("a\n1\n2\n")]
+    [InlineData("a\r\n1\r\n2")]
+    public void NumbersALastRecordWithoutALineEndingAfterTheOneBeforeIt(string text)
+    {
+        using MemoryStream stream = new(Utf8NoBom.GetBytes(text), writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+        List<int> numbers = [];
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            numbers.Add(cursor.CurrentRowNumber);
+        }
+
+        Assert.Equal([1, 2, 3], numbers);
+    }
+
     [Fact]
     public void PrefersTheDelimiterPresentOnEveryLineOverTheMoreFrequentOne()
     {
