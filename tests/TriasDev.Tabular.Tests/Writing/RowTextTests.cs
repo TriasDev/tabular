@@ -93,4 +93,57 @@ public sealed class RowTextTests
 
         Assert.Equal(Encoding.UTF8.GetBytes("a\uD800b"), output.WrittenSpan.ToArray());
     }
+
+    [Fact]
+    public void AppendsACharacterWhenTheBufferIsExactlyFull()
+    {
+        RowText row = new();
+        row.Append(new string('x', 4096));
+        row.Append('"');
+
+        Assert.Equal(4097, row.Length);
+        Assert.EndsWith("x\"", row.Written.ToString(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// An output that gives exactly the size asked for, never more: a character whose UTF-8 is longer
+    /// than one byte must still fit the space the encoder asks for, or the loop asks forever.
+    /// </summary>
+    [Theory]
+    [InlineData("€")]
+    [InlineData("a😀")]
+    [InlineData("x€")]
+    [InlineData("ä€😀")]
+    public void EncodesIntoAnOutputThatGivesNoMoreThanItIsAskedFor(string text)
+    {
+        RowText row = new();
+        row.Append(text);
+        StingyWriter output = new();
+
+        row.WriteUtf8To(output);
+
+        Assert.Equal(Encoding.UTF8.GetBytes(text), output.Written);
+    }
+
+    private sealed class StingyWriter : IBufferWriter<byte>
+    {
+        private readonly List<byte> _written = [];
+        private byte[] _span = [];
+        private int _asks;
+
+        public byte[] Written => [.. _written];
+
+        public void Advance(int count) => _written.AddRange(_span.AsSpan(0, count).ToArray());
+
+        public Memory<byte> GetMemory(int sizeHint = 0) => Give(sizeHint);
+
+        public Span<byte> GetSpan(int sizeHint = 0) => Give(sizeHint).Span;
+
+        private Memory<byte> Give(int sizeHint)
+        {
+            Assert.True(++_asks < 1_000, "the encoder kept asking for room without using it");
+            _span = new byte[Math.Max(sizeHint, 1)];
+            return _span;
+        }
+    }
 }

@@ -121,4 +121,23 @@ public sealed class FormatCodeTests
 
         Assert.Equal(style, new CellStyle { NumberFormat = NumberFormat.Parse("0.00"), DateFormat = DateFormat.Parse("dd/mm/yyyy") });
     }
+
+    [Fact]
+    public async Task StatesShortAndLongDateAndTimePartsInOpenDocumentAsWritten()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, writer =>
+        {
+            StyleId shortParts = writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse("d.m.yy h:m:s") });
+            StyleId longParts = writer.RegisterStyle(new CellStyle { DateFormat = DateFormat.Parse("yyyy hh:mm:ss") });
+            writer.BeginSheet("data", [new("short"), new("long")]);
+            writer.BeginRow();
+            writer.Write(new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Unspecified), shortParts);
+            writer.Write(new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Unspecified), longParts);
+            writer.EndRow();
+        });
+        string styles = SheetLayoutTests.Entry(ods, "styles.xml");
+
+        Assert.Contains("<number:date-style style:name=\"tn1\"><number:day/><number:text>.</number:text><number:month/><number:text>.</number:text><number:year/><number:text> </number:text><number:hours/><number:text>:</number:text><number:minutes/><number:text>:</number:text><number:seconds/></number:date-style>", styles, StringComparison.Ordinal);
+        Assert.Contains("<number:date-style style:name=\"tn2\"><number:year number:style=\"long\"/><number:text> </number:text><number:hours number:style=\"long\"/><number:text>:</number:text><number:minutes number:style=\"long\"/><number:text>:</number:text><number:seconds number:style=\"long\"/></number:date-style>", styles, StringComparison.Ordinal);
+    }
 }
