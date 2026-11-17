@@ -100,6 +100,38 @@ public sealed class CsvCursorEdgeCaseTests
         Assert.Empty(ReadAll(Encoding.UTF8.GetPreamble()));
     }
 
+    [Theory]
+    [InlineData(new byte[] { 0xEF, 0xBB, 0xBF }, "utf-8")]
+    [InlineData(new byte[] { 0xFF, 0xFE }, "utf-16")]
+    [InlineData(new byte[] { 0xFE, 0xFF }, "utf-16BE")]
+    public void ReportsTheEncodingOfAFileThatHoldsOnlyAByteOrderMarkFromTheMark(byte[] mark, string encoding)
+    {
+        // The probe is cut back to a whole character before the mark is looked at, and FE and FF
+        // were taken for the lead byte of a four-byte one: a UTF-16 mark lost its last byte and the
+        // file was reported as Windows-1252 by fallback.
+        using MemoryStream stream = new(mark, writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+
+        Assert.Equal(encoding, cursor.Dialect.Encoding.WebName);
+        Assert.Equal(DialectSource.ByteOrderMark, cursor.Dialect.EncodingSource);
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(0xC0)]
+    [InlineData(0xC1)]
+    [InlineData(0xF5)]
+    [InlineData(0xFF)]
+    public void KeepsAByteThatStartsNoUtf8CharacterAtTheEndOfTheProbe(int last)
+    {
+        // A byte that can start no UTF-8 character is not a cut-off one; it stays, and it makes the
+        // file Windows-1252 as invalid UTF-8 anywhere else does.
+        using MemoryStream stream = new([.. "a;b\n1;"u8, (byte)last], writable: false);
+        using CsvCursor cursor = new(stream, "test.csv");
+
+        Assert.Equal(1252, cursor.Dialect.Encoding.CodePage);
+    }
+
     [Fact]
     public void ReadsTextAfterAClosingQuoteAsPartOfTheValue()
     {
