@@ -145,6 +145,29 @@ public sealed class XlsxCursorEdgeCaseTests
         Assert.Equal(new DateTime(1, 1, 1, 12, 0, 0, DateTimeKind.Unspecified), cursor.CurrentRow[2].Date);
     }
 
+    [Theory]
+    [InlineData("9:30 PM", "21:30")]
+    [InlineData("9:30pm", "21:30")]
+    [InlineData("12:15 AM", "00:15")]
+    [InlineData("12:00 PM", "12:00")]
+    [InlineData("09:30:15 AM", "09:30:15")]
+    [InlineData("9:30 PM +02:00", "21:30+02:00")]
+    public void ReadsATwelveHourTimeOnTheDateABareTimeHas(string twelveHour, string twentyFourHour)
+    {
+        // Not ISO 8601, but parsed all the same; read at all, it must be the same value as the time
+        // written the other way round, not that time on year one.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", $"""<row r="1"><c r="A1" t="d"><v>{twelveHour}</v></c><c r="B1" t="d"><v>{twentyFourHour}</v></c></row>""")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(1899, cursor.CurrentRow[0].Date.Year);
+        Assert.Equal(cursor.CurrentRow[1], cursor.CurrentRow[0]);
+    }
+
     [Fact]
     public void KeepsTheDateOfAWrittenOutValueThatOpensWithItsTime()
     {
@@ -270,6 +293,43 @@ public sealed class XlsxCursorEdgeCaseTests
         Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
         Assert.True(cursor.CurrentRow[0].IsEmpty);
         Assert.True(cursor.CurrentRow[1].IsEmpty);
+    }
+
+    [Theory]
+    [InlineData("<t> </t>")]
+    [InlineData("<t xml:space=\"preserve\"> </t>")]
+    public void KeepsAWhitespaceOnlyRunOfASharedStringAsTheInlineOneKeepsIt(string run)
+    {
+        // A run of formatted text that is only a space, written without xml:space by some producers:
+        // the space is the text's, not the markup's, and dropping it joined "Max" and "Mustermann".
+        string runs = $"<r><rPr><b/></rPr><t>Max</t></r><r>{run}</r><r><t>Mustermann</t></r>";
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", $"""<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is>{runs}</is></c></row>""")
+            .WithSharedStrings($"<si>{runs}</si>")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("Max Mustermann", cursor.CurrentRow[0].Text);
+        Assert.Equal(cursor.CurrentRow[1], cursor.CurrentRow[0]);
+    }
+
+    [Fact]
+    public void ReadsAnIndentedSharedStringTableWithoutItsIndentation()
+    {
+        // The whitespace between the table's elements is the markup's; only what stands in a <t> is text.
+        byte[] content = new XlsxPackage()
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>""")
+            .WithSharedStrings("\n  <si>\n    <t>a</t>\n  </si>\n  <si>\n    <r>\n      <t>b</t>\n    </r>\n    <r>\n      <t>c</t>\n    </r>\n  </si>\n")
+            .Build();
+
+        using MemoryStream stream = new(content, writable: false);
+        using XlsxCursor cursor = new(stream);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal(["a", "bc"], [cursor.CurrentRow[0].Text, cursor.CurrentRow[1].Text]);
     }
 
     [Fact]
