@@ -376,18 +376,138 @@ public sealed class TabularWriterTests
         Assert.DoesNotContain("failed earlier", second.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void ANullCsvOptionIsRefusedByName()
+    public static TheoryData<TabularFormat, string, TabularWriterOptions> NullFormatOptions => new()
+    {
+        { TabularFormat.Csv, nameof(TabularWriterOptions.Csv), new TabularWriterOptions { Csv = null! } },
+        { TabularFormat.Xlsx, nameof(TabularWriterOptions.Xlsx), new TabularWriterOptions { Xlsx = null! } },
+        { TabularFormat.Ods, nameof(TabularWriterOptions.Ods), new TabularWriterOptions { Ods = null! } },
+        { TabularFormat.Zip, nameof(TabularWriterOptions.Zip), new TabularWriterOptions { Zip = null! } },
+    };
+
+    [Theory]
+    [MemberData(nameof(NullFormatOptions))]
+    public void ANullFormatOptionIsRefusedByName(TabularFormat format, string option, TabularWriterOptions options)
     {
         MemoryStream target = new();
 
-        ArgumentNullException refused = Assert.Throws<ArgumentNullException>(() => TabularWriter.Create(
-            target,
-            TabularFormat.Csv,
-            new TabularWriterOptions { Csv = null! }));
+        ArgumentNullException refused = Assert.Throws<ArgumentNullException>(() => TabularWriter.Create(target, format, options));
 
-        Assert.Equal(nameof(TabularWriterOptions.Csv), refused.ParamName);
+        Assert.Equal(option, refused.ParamName);
         Assert.False(target.CanWrite);
+    }
+
+    /// <summary>Every public call of a writer, each given arguments it would otherwise accept.</summary>
+    public static TheoryData<string, Func<TabularWriter, Task>> EveryCall => new()
+    {
+        { "BeginSheet", w => Sync(() => w.BeginSheet("more", [new("a")])) },
+        { "BeginSheet with options", w => Sync(() => w.BeginSheet("more", [new("a")], SheetOptions.Default)) },
+        { "BeginRow", w => Sync(w.BeginRow) },
+        { "RegisterStyle", w => Sync(() => w.RegisterStyle(new CellStyle { Wrap = true })) },
+        { "Write(string)", w => Sync(() => w.Write("x")) },
+        { "Write(string, style)", w => Sync(() => w.Write("x", default)) },
+        { "Write(long)", w => Sync(() => w.Write(1L)) },
+        { "Write(long, style)", w => Sync(() => w.Write(1L, default)) },
+        { "Write(decimal)", w => Sync(() => w.Write(1m)) },
+        { "Write(decimal, style)", w => Sync(() => w.Write(1m, default)) },
+        { "Write(double)", w => Sync(() => w.Write(1.5)) },
+        { "Write(double, style)", w => Sync(() => w.Write(1.5, default)) },
+        { "Write(DateTime)", w => Sync(() => w.Write(new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Unspecified))) },
+        { "Write(DateTime, style)", w => Sync(() => w.Write(new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Unspecified), default)) },
+        { "Write(DateOnly)", w => Sync(() => w.Write(new DateOnly(2026, 1, 2))) },
+        { "Write(DateOnly, style)", w => Sync(() => w.Write(new DateOnly(2026, 1, 2), default)) },
+        { "Write(bool)", w => Sync(() => w.Write(true)) },
+        { "Write(bool, style)", w => Sync(() => w.Write(true, default)) },
+        { "WriteEmpty", w => Sync(w.WriteEmpty) },
+        { "WriteEmpty(style)", w => Sync(() => w.WriteEmpty(default)) },
+        { "Merge", w => Sync(() => w.Merge(1, 2)) },
+        { "EndRow", w => Sync(w.EndRow) },
+        { "WriteBatch", w => Sync(() => w.WriteBatch(OneCell())) },
+        { "WriteBatchAsync", w => w.WriteBatchAsync(OneCell(), Token).AsTask() },
+        { "FlushAsync", w => w.FlushAsync(Token).AsTask() },
+        { "CompleteAsync", w => w.CompleteAsync(Token).AsTask() },
+    };
+
+    private static Task Sync(Action call)
+    {
+        call();
+        return Task.CompletedTask;
+    }
+
+    private static ColumnBatch OneCell()
+    {
+        ColumnBatch batch = new();
+        batch.Reset(1);
+        batch.Add(new[] { 1L });
+        return batch;
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryCall))]
+    public async Task EveryCallAfterCompletingIsRefusedAsComplete(string call, Func<TabularWriter, Task> invoke)
+    {
+        await using TabularWriter writer = Writer(new WriteTarget());
+        writer.BeginSheet("data", [new("a")]);
+        await writer.CompleteAsync(Token);
+
+        // Refused as complete, by the same message every time — not by the call's own order check,
+        // which would fault the writer and say it "failed earlier" from then on.
+        InvalidOperationException refused = await Assert.ThrowsAsync<InvalidOperationException>(() => invoke(writer));
+        InvalidOperationException again = await Assert.ThrowsAsync<InvalidOperationException>(() => invoke(writer));
+
+        Assert.True(refused.Message.Contains("is complete", StringComparison.Ordinal), $"{call}: {refused.Message}");
+        Assert.Equal(refused.Message, again.Message);
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryCall))]
+    public async Task EveryCallAfterDisposingIsRefusedAsDisposed(string call, Func<TabularWriter, Task> invoke)
+    {
+        TabularWriter writer = Writer(new WriteTarget());
+        writer.BeginSheet("data", [new("a")]);
+        writer.BeginRow();
+        await writer.DisposeAsync();
+
+        ObjectDisposedException refused = await Assert.ThrowsAsync<ObjectDisposedException>(() => invoke(writer));
+
+        Assert.True(refused.ObjectName == typeof(TabularWriter).FullName, $"{call}: {refused.ObjectName}");
+    }
+
+    [Fact]
+    public async Task ACancelledFlushWithNothingPendingStillFaultsTheWriter()
+    {
+        WriteTarget target = new();
+        TabularWriter writer = Writer(target);
+        writer.BeginSheet("data", [new("a")]);
+        await writer.FlushAsync(Token);
+        int written = target.AsyncWrites;
+        using CancellationTokenSource cancelled = new();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await writer.FlushAsync(cancelled.Token));
+
+        Assert.Equal(written, target.AsyncWrites);
+        Assert.Contains("failed earlier", Assert.Throws<InvalidOperationException>(() => writer.BeginRow()).Message, StringComparison.Ordinal);
+        await writer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ACancelledCompleteFaultsTheWriterThoughTheTargetIgnoresTheToken()
+    {
+        // Csv has nothing left to write once flushed, and this target's FlushAsync never looks at
+        // the token: only the writer's own check can see the cancellation.
+        WriteTarget target = new();
+        TabularWriter writer = Writer(target);
+        writer.BeginSheet("data", [new("a")]);
+        await writer.FlushAsync(Token);
+        using CancellationTokenSource cancelled = new();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await writer.CompleteAsync(cancelled.Token));
+
+        Assert.Equal(0, target.AsyncFlushes);
+        InvalidOperationException again = await Assert.ThrowsAsync<InvalidOperationException>(async () => await writer.CompleteAsync(Token));
+        Assert.Contains("failed earlier", again.Message, StringComparison.Ordinal);
+        await writer.DisposeAsync();
     }
 
     [Fact]

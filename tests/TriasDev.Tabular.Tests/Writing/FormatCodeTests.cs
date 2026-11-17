@@ -16,6 +16,9 @@ public sealed class FormatCodeTests
     [InlineData("0.0%", false, 1, 1, 1, true, "", "")]
     [InlineData("\"€ \"#,##0.00", true, 1, 2, 2, false, "€ ", "")]
     [InlineData("0\" kg\"", false, 1, 0, 0, false, "", " kg")]
+    [InlineData("#0", false, 1, 0, 0, false, "", "")]
+    [InlineData("##00", false, 2, 0, 0, false, "", "")]
+    [InlineData("0.000000000000000000000000000000", false, 1, 30, 30, false, "", "")]
     public void ParsesANumberFormat(string code, bool grouping, int minInteger, int decimals, int minDecimals, bool percent, string prefix, string suffix)
     {
         NumberFormat format = NumberFormat.Parse(code);
@@ -40,10 +43,14 @@ public sealed class FormatCodeTests
     [InlineData("@", "'@'")]
     [InlineData("0#", "a # after a 0")]
     [InlineData("0.#0", "a 0 after a #")]
+    [InlineData("0.##0", "a 0 after a #")]
     [InlineData("0.", "decimal point")]
     [InlineData("0,", "comma")]
+    [InlineData("#,", "comma")]
+    [InlineData("0,.0", "comma")]
     [InlineData(",0", "comma")]
     [InlineData("\"open", "quote")]
+    [InlineData("\"kg\"", "no digit placeholder")]
     [InlineData("0.0000000000000000000000000000000", "30")]
     public void RefusesANumberFormatOutsideTheSubset(string code, string named)
     {

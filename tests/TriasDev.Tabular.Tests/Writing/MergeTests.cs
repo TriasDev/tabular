@@ -95,17 +95,18 @@ public sealed class MergeTests
     }
 
     [Theory]
-    [InlineData(0, 2)]
-    [InlineData(2, 0)]
-    [InlineData(1, 1)]
-    [InlineData(-1, 2)]
-    public async Task AnEmptyOrSingleCellRangeIsRefused(int rows, int columns)
+    [InlineData(0, 2, "rows")]
+    [InlineData(2, 0, "columns")]
+    [InlineData(1, 1, "columns")]
+    [InlineData(-1, 2, "rows")]
+    [InlineData(0, 0, "rows")]
+    public async Task AnEmptyOrSingleCellRangeIsRefusedNamingTheArgument(int rows, int columns, string parameter)
     {
         await using TabularWriter writer = TabularWriter.Create(new WriteTarget(), TabularFormat.Csv);
         writer.BeginSheet("data", Four);
         writer.BeginRow();
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => writer.Merge(rows, columns));
+        Assert.Equal(parameter, Assert.Throws<ArgumentOutOfRangeException>(() => writer.Merge(rows, columns)).ParamName);
     }
 
     [Fact]
