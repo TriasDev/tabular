@@ -88,14 +88,30 @@ public sealed class TypedWorkbookImportTests
     [Theory]
     [InlineData("42.5")]
     [InlineData("1E+30")]
+    [InlineData("9223372036854775808")]
+    [InlineData("9.2233720368547758E+18")]
     public void RefusesANumberThatIsNotAWholeOneForAnIntegerField(string number)
     {
-        // Saturating 1e30 to long.MaxValue would write a value the file never contained.
+        // Saturating 1e30 to long.MaxValue would write a value the file never contained. 2^63 is the
+        // edge of it: long.MaxValue itself is no double, so the comparison meets it rounded up to 2^63.
         ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
             $"""<row r="2"><c r="A2"><v>{number}</v></c></row>"""));
 
         RowError error = Assert.Single(row.Errors);
         Assert.Equal((ErrorCodes.Value.TypeMismatch, "count"), (error.Code, error.FieldName));
+    }
+
+    [Theory]
+    [InlineData("9223372036854774784", 9223372036854774784L)]
+    [InlineData("-9223372036854775808", long.MinValue)]
+    public void ReadsTheWholeNumbersAtTheEdgesOfAnIntegerField(string number, long expected)
+    {
+        // The largest double below 2^63, and -2^63, which a long holds exactly.
+        ImportOutcome<(long?, decimal?, DateTime?, bool?, string?)> row = Assert.Single(Import(
+            $"""<row r="2"><c r="A2"><v>{number}</v></c></row>"""));
+
+        Assert.False(row.HasErrors);
+        Assert.Equal(expected, row.Value.Item1);
     }
 
     [Fact]
