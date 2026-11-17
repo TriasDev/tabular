@@ -24,10 +24,6 @@ the delimiter test is off, and only the 100-line bound catches a stray quote.
 field boundary within one record. Neither the real-world nor the synthetic 5M-row fixture has such a
 case.
 
-### Number formats the reader does not know are dates
-`IsBuiltInDateFormat` accepts 14–22 and 45–47. The specification also reserves 27–36 and 50–58 for
-dates in East Asian locales. A cell using one reads as a number.
-
 ### `applyNumberFormat="0"` is ignored
 The attribute says the format is not applied. Honouring it would change whether a styled cell is read
 as a date.
