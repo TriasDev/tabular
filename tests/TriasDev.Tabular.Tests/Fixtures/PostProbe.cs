@@ -10,10 +10,17 @@ namespace TriasDev.Tabular.Tests.Fixtures;
 /// <para>
 /// <see cref="Start"/> runs the work under a recording context. The operations the probe hands out
 /// (<see cref="Operation"/>, and the stream and sources built on it) complete at once, except the one
-/// <see cref="PendAt"/> names, which completes a millisecond later on the pool. Up to that operation
-/// everything runs synchronously on the starting thread, so every await then waiting on it — the
-/// whole call stack, from the stream up to the export — was registered under the recording context.
-/// One that captured it posts its continuation there, and the post is recorded.
+/// <see cref="PendAt"/> names. Up to that operation everything runs synchronously on the starting
+/// thread, so when the work hands back its task, every await waiting on it — the whole call stack,
+/// from the stream up to the export — has been registered under the recording context. Only then
+/// does <see cref="Start"/> complete the pending operation, on the pool. One await that captured the
+/// context posts its continuation there, and the post is recorded.
+/// </para>
+/// <para>
+/// The pending operation is released by <see cref="Start"/>, not by a timer: one that completed after
+/// a millisecond completed before it was awaited whenever the starting thread was held up that long —
+/// on a busy machine, now and then — and an await of a finished task never posts, so the probe saw
+/// nothing to catch.
 /// </para>
 /// <para>
 /// Why one pending operation per run, at each position in turn: once an await that does say
@@ -27,6 +34,9 @@ internal sealed class PostProbe
     private readonly ConcurrentQueue<string> _posts = new();
     private int _operations;
     private int _pendingAt = -1;
+    private bool _starting;
+    private TaskCompletionSource? _pending;
+    private Action? _pendingWork;
 
     /// <summary>What was posted to the recording context: the continuation's target, where known.</summary>
     public IReadOnlyCollection<string> Posts => _posts;
@@ -43,7 +53,10 @@ internal sealed class PostProbe
         _pendingAt = operation;
     }
 
-    /// <summary>An operation that runs <paramref name="work"/>: at once, or later on the pool if it is the one to pend.</summary>
+    /// <summary>
+    /// An operation that runs <paramref name="work"/>: at once, or — the one to pend — when
+    /// <see cref="Start"/> releases it.
+    /// </summary>
     public Task Operation(Action? work = null)
     {
         if (Interlocked.Increment(ref _operations) - 1 != _pendingAt)
@@ -52,27 +65,52 @@ internal sealed class PostProbe
             return Task.CompletedTask;
         }
 
-        return Task.Delay(1).ContinueWith(
-            _ => work?.Invoke(),
-            CancellationToken.None,
-            TaskContinuationOptions.RunContinuationsAsynchronously,
-            TaskScheduler.Default);
+        if (!_starting)
+        {
+            // Asked for after the work went asynchronous: no await of it was registered under the
+            // recording context, so nothing is lost by finishing it on the pool straight away.
+            return Task.Run(() => work?.Invoke());
+        }
+
+        TaskCompletionSource pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingWork = work;
+        _pending = pending;
+        return pending.Task;
     }
 
-    /// <summary>Starts work on this thread under the recording context, and puts the thread's own back.</summary>
+    /// <summary>
+    /// Starts work on this thread under the recording context, puts the thread's own back, and then
+    /// completes the pending operation on the pool.
+    /// </summary>
     public Task Start(Func<Task> work)
     {
         SynchronizationContext? original = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(new Recording(this));
+        _starting = true;
+        Task started;
 
         try
         {
-            return work();
+            started = work();
         }
         finally
         {
+            _starting = false;
             SynchronizationContext.SetSynchronizationContext(original);
         }
+
+        if (Interlocked.Exchange(ref _pending, null) is { } pending)
+        {
+            Action? pendingWork = _pendingWork;
+            _pendingWork = null;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                pendingWork?.Invoke();
+                pending.SetResult();
+            });
+        }
+
+        return started;
     }
 
     /// <summary>The items, the first and every <paramref name="every"/>th after an operation of the probe.</summary>
