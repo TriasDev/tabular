@@ -12,6 +12,21 @@ public sealed record ArchiveCursorOptions
     public static ArchiveCursorOptions Default { get; } = new();
 
     /// <summary>How many entries the archive's directory may list.</summary>
+    /// <remarks>
+    /// <para>
+    /// While an archive is listed its own limits apply, to the zips inside it too. A zip found inside
+    /// is classified before anything knows whether it is a workbook or another archive, so its
+    /// declared entries are held to the largest bound of the readers that could take it — this one,
+    /// or the xlsx or ods <c>MaxPackageEntries</c> where that is larger — and only a zip past all of
+    /// them fails the archive. A plain zip within that bound is skipped as a nested archive, which is
+    /// never opened, however many entries it holds beyond a workbook's.
+    /// </para>
+    /// <para>
+    /// A zip that turns out a workbook is held to its own format's <c>MaxPackageEntries</c> once it is
+    /// opened, as it would be on its own: raising this bound lets more files into an archive, not
+    /// more parts into a workbook.
+    /// </para>
+    /// </remarks>
     public int MaxEntries { get; init; } = 16_384;
 
     /// <summary>How many bytes the archive's entries may declare, uncompressed, all together — or a compressed file expand to.</summary>

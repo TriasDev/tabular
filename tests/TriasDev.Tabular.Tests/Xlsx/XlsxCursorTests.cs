@@ -343,6 +343,12 @@ public sealed class XlsxCursorTests
         return [.. Enumerable.Range(1, sheets).Select(n => zip.GetEntry($"xl/worksheets/sheet{n}.xml")?.Length ?? 0)];
     }
 
+    /// <summary>
+    /// Where the reader stands in the file: the sheets before the current one whole, the current one as
+    /// far as it was read. Moving back to an earlier sheet lowers it, and reading that sheet again
+    /// raises it to where that sheet ended before — a progress bar for the current pass, not a tally of
+    /// everything ever read (#184).
+    /// </summary>
     [Fact]
     public void ReportsTheShareOfTheWorksheetBytesReadInSheetOrder()
     {
@@ -370,10 +376,19 @@ public sealed class XlsxCursorTests
             // and the second
         }
 
-        Assert.Equal(1d, cursor.ReadFraction);
+        double atTheEnd = cursor.ReadFraction.GetValueOrDefault(-1);
+        Assert.Equal(1d, atTheEnd);
 
         Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadFraction < atTheEnd);
         Assert.Equal(0d, cursor.ReadFraction);
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            // the first sheet again
+        }
+
+        Assert.Equal(sizes[0] / total, cursor.ReadFraction);
     }
 
     [Fact]

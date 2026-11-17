@@ -205,7 +205,9 @@ internal sealed class OdsCursor : ITabularCursor
     /// <inheritdoc />
     /// <remarks>
     /// Across the whole content part rather than per sheet, since every sheet lives in it: bytes the
-    /// reader has taken from the part against the part's declared size.
+    /// reader has taken from the part since it last opened it, against the part's declared size.
+    /// Moving back to an earlier sheet reopens the part, so the fraction drops to where that sheet
+    /// stands in it.
     /// </remarks>
     public double? ReadFraction =>
         _counter is null || _content.Length == 0 ? null : Math.Min(1d, (double)_counter.BytesRead / _content.Length);

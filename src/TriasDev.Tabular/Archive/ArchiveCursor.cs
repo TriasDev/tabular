@@ -148,7 +148,9 @@ internal sealed class ArchiveCursor : ITabularCursor
     /// <inheritdoc />
     /// <remarks>
     /// Bytes read against the bytes the sheets' files declare, uncompressed: the compressed position
-    /// inside an entry is not observable. A file is counted as read once the cursor has moved past it.
+    /// inside an entry is not observable. A file is counted as read once the cursor has moved past it,
+    /// and the current one as far as its reader stands, so moving back to an earlier file lowers the
+    /// fraction.
     /// </remarks>
     public double? ReadFraction
     {

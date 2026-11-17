@@ -62,6 +62,11 @@ against its length, a workbook's worksheet bytes against their total, which the 
 states up front — so nothing reads the file twice to have a denominator. It is exactly 1 in the final
 report, which has `IsComplete` set; where the stream has no length it is null until then.
 
+It comes from `ITabularCursor.ReadFraction`, which is where the reader stands in the file, not a
+tally of what it has read: a cursor moved back to an earlier sheet reports less, in every format.
+Analysis reads every sheet once, in order, so its reports only rise; a caller driving a cursor
+itself and reading sheets again gets a progress bar for the current pass.
+
 Reports go out when the fraction has moved by `AnalysisOptions.ProgressStep` (1% by default) **and**
 at least `ProgressInterval` data rows (10,000) have passed since the last one. A five-million-row
 file reports about a hundred times; a file of twenty thousand rows, read in milliseconds, once or
