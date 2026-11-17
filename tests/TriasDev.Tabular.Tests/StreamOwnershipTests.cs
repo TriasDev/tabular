@@ -54,6 +54,45 @@ public sealed class StreamOwnershipTests
         Assert.Equal(!leaveOpen, stream.IsDisposed);
     }
 
+    /// <summary>Workbooks whose zip opens and whose content then fails the cursor's constructor.</summary>
+    public static TheoryData<string, bool> WorkbooksThatFailAfterTheirZipOpened => new()
+    {
+        { "a workbook part that is not well-formed", false },
+        { "a workbook part that is not well-formed", true },
+        { "a workbook whose worksheet part is missing", false },
+        { "a workbook whose worksheet part is missing", true },
+    };
+
+    [Theory]
+    [MemberData(nameof(WorkbooksThatFailAfterTheirZipOpened))]
+    public void AnXlsxCursorThatFailsAfterOpeningItsArchiveFollowsLeaveOpen(string workbook, bool leaveOpen)
+    {
+        // The archive owns the stream by then, so it is the archive that has to be closed on the way out.
+        byte[] content = workbook.Contains("well-formed", StringComparison.Ordinal)
+            ? new XlsxPackage().WithSheet("S", string.Empty).WithWorkbookTail("<unclosed>").Build()
+            : new XlsxPackage().WithSheet("S", string.Empty).WithSheetPartNames(_ => "worksheets/gone.xml").WithPartNaming(path => path.Replace("gone", "elsewhere", StringComparison.Ordinal)).Build();
+        TrackedStream stream = new(content);
+
+        Assert.Throws<TabularFormatException>(() => new XlsxCursor(stream, leaveOpen: leaveOpen));
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnXlsxCursorFollowsLeaveOpenWhenDisposed(bool leaveOpen)
+    {
+        TrackedStream stream = new(new XlsxPackage().WithSheet("S", string.Empty).Build());
+
+        using (XlsxCursor cursor = new(stream, leaveOpen: leaveOpen))
+        {
+            Assert.False(stream.IsDisposed);
+        }
+
+        Assert.Equal(!leaveOpen, stream.IsDisposed);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

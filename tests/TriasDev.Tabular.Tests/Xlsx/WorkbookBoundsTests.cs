@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 
 using TriasDev.Tabular.Tests.Fixtures;
@@ -193,6 +194,150 @@ public sealed class WorkbookBoundsTests
 
         Assert.Throws<TabularLimitException>(
             () => new XlsxCursor(stream, new XlsxCursorOptions { MaxCellFormats = 5 }));
+    }
+
+    // -- A ceiling is reached, not undercut: exactly at it reads, one past it refuses --------------
+
+    /// <summary>The first row's text under the options, or the limit's option name if it refused.</summary>
+    private static string Read(byte[] package, XlsxCursorOptions options)
+    {
+        try
+        {
+            using XlsxCursor cursor = new(new MemoryStream(package, writable: false), options);
+            Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+            return string.Join("|", cursor.CurrentRow.ToArray().Select(c => c.AsText()));
+        }
+        catch (TabularLimitException refused)
+        {
+            return $"refused: {refused.Message}";
+        }
+    }
+
+    private static byte[] Sheet(string rowsXml) => new XlsxPackage().WithSheet("Sheet1", rowsXml).Build();
+
+    [Fact]
+    public void ReadsAValueAssembledFromTextNodesUpToItsCeiling()
+    {
+        // A value interrupted by a comment is assembled from its pieces, and the assembly is what the
+        // ceiling bounds — the pieces alone never come near it.
+        XlsxCursorOptions options = new() { MaxValueChars = 10 };
+
+        Assert.Equal("1234567890", Read(Sheet("""<row><c t="str"><v>12345<!---->67890</v></c></row>"""), options));
+        Assert.StartsWith("refused", Read(Sheet("""<row><c t="str"><v>12345<!---->678901</v></c></row>"""), options), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadsAnInlineStringOfRunsUpToItsCeiling()
+    {
+        XlsxCursorOptions options = new() { MaxValueChars = 10 };
+
+        Assert.Equal("1234567890", Read(Sheet("""<row><c t="inlineStr"><is><r><t>12345</t></r><r><t>67890</t></r></is></c></row>"""), options));
+        Assert.StartsWith("refused", Read(Sheet("""<row><c t="inlineStr"><is><r><t>12345</t></r><r><t>678901</t></r></is></c></row>"""), options), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadsASharedStringUpToTheValueCeiling()
+    {
+        XlsxCursorOptions options = new() { MaxValueChars = 10 };
+
+        Assert.Equal(new string('x', 10), Read(LongSharedStringWorkbook(entries: 1, charsEach: 10), options));
+        Assert.StartsWith("refused", Read(LongSharedStringWorkbook(entries: 1, charsEach: 11), options), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadsASharedStringTableUpToItsCharacterCeiling()
+    {
+        XlsxCursorOptions options = new() { MaxSharedStringChars = 10 };
+
+        Assert.Equal("xxxxx", Read(LongSharedStringWorkbook(entries: 2, charsEach: 5), options));
+        Assert.StartsWith("refused", Read(LongSharedStringWorkbook(entries: 1, charsEach: 11), options), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OpensAPackageOfExactlyAsManyPartsAsAllowed()
+    {
+        byte[] package = Sheet("""<row><c t="inlineStr"><is><t>a</t></is></c></row>""");
+        int parts;
+
+        using (ZipArchive zip = new(new MemoryStream(package, writable: false)))
+        {
+            parts = zip.Entries.Count;
+        }
+
+        Assert.Equal("a", Read(package, new XlsxCursorOptions { MaxPackageEntries = parts }));
+        Assert.Throws<TabularLimitException>(() => new XlsxCursor(new MemoryStream(package, writable: false), new XlsxCursorOptions { MaxPackageEntries = parts - 1 }));
+    }
+
+    [Fact]
+    public void OpensAPackageThatExpandsToExactlyItsBudget()
+    {
+        byte[] package = Sheet("""<row><c t="inlineStr"><is><t>a</t></is></c></row>""");
+        long bytes;
+
+        using (ZipArchive zip = new(new MemoryStream(package, writable: false)))
+        {
+            bytes = zip.Entries.Sum(entry => entry.Length);
+        }
+
+        Assert.Equal("a", Read(package, new XlsxCursorOptions { MaxUncompressedBytes = bytes }));
+        Assert.Throws<TabularLimitException>(() => new XlsxCursor(new MemoryStream(package, writable: false), new XlsxCursorOptions { MaxUncompressedBytes = bytes - 1 }));
+    }
+
+    [Fact]
+    public void OpensAWorkbookOfExactlyAsManyRelationshipsAsAllowed()
+    {
+        // One sheet and nothing else: one relationship in each part that has any.
+        using (XlsxCursor one = Workbook(sheets: 1, new XlsxCursorOptions { MaxRelationships = 1 }))
+        {
+            Assert.True(one.ReadRow(TestContext.Current.CancellationToken));
+        }
+
+        Assert.Throws<TabularLimitException>(() => Workbook(sheets: 2, new XlsxCursorOptions { MaxRelationships = 1 }));
+    }
+
+    [Fact]
+    public void OpensAWorkbookWhoseLongestNameIsExactlyAsLongAsAllowed()
+    {
+        // A hundred characters is above every relationship type and target this package has, so
+        // the sheet name is the longest piece of metadata in it.
+        XlsxCursorOptions options = new() { MaxMetadataChars = 100 };
+        byte[] exactly = new XlsxPackage().WithSheet(new string('n', 100), """<row><c t="inlineStr"><is><t>a</t></is></c></row>""").Build();
+        byte[] longer = new XlsxPackage().WithSheet(new string('n', 101), """<row><c t="inlineStr"><is><t>a</t></is></c></row>""").Build();
+
+        Assert.Equal("a", Read(exactly, options));
+        Assert.Throws<TabularLimitException>(() => new XlsxCursor(new MemoryStream(longer, writable: false), options));
+    }
+
+    [Fact]
+    public void OpensAStyleTableOfExactlyAsManyCellFormatsAsAllowed()
+    {
+        static byte[] Styled(int formats) =>
+            new XlsxPackage()
+                .WithSheet("Sheet1", """<row><c t="inlineStr"><is><t>a</t></is></c></row>""")
+                .WithStyles($"<cellXfs count=\"{formats}\">{string.Concat(Enumerable.Repeat("""<xf numFmtId="0"/>""", formats))}</cellXfs>")
+                .Build();
+
+        XlsxCursorOptions options = new() { MaxCellFormats = 5 };
+
+        Assert.Equal("a", Read(Styled(5), options));
+        Assert.Throws<TabularLimitException>(() => new XlsxCursor(new MemoryStream(Styled(6), writable: false), options));
+    }
+
+    [Fact]
+    public void TakesTheFormatsLastRowNumberAndCountsOnPastIt()
+    {
+        // 1,048,576 is a row number; one more is not, and the row is numbered as the next instead.
+        byte[] package = Sheet("""<row r="1"><c><v>1</v></c></row><row r="1048577"><c><v>2</v></c></row><row r="1048576"><c><v>3</v></c></row>""");
+
+        using XlsxCursor cursor = new(new MemoryStream(package, writable: false));
+        List<int> numbers = [];
+
+        while (cursor.ReadRow(TestContext.Current.CancellationToken))
+        {
+            numbers.Add(cursor.CurrentRowNumber);
+        }
+
+        Assert.Equal([1, 2, 1_048_576], numbers);
     }
 
     /// <summary>A workbook of shared strings each this many characters long.</summary>

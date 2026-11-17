@@ -68,4 +68,64 @@ public sealed class SheetMarkupTests
 
         Assert.Equal(2, rows);
     }
+
+    [Fact]
+    public void ReadsCdataWithLineEndsAndWhatLooksLikeAnEntityAsItsText()
+    {
+        // Its line ends are read as XML reads them; nothing inside it is an entity, so "&amp;" is
+        // five characters of text, not an ampersand.
+        string row = FirstRow("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t><![CDATA[a&amp;b\r\nc\rd&#65;]]></t></is></c></row>");
+
+        Assert.Equal("a&amp;b\nc\nd&#65;", row);
+    }
+
+    private const string SheetOpen =
+        """<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>""";
+
+    private const string TwoRows =
+        """<row r="1"><c r="A1"><v>1</v></c></row><row r="2"><c r="A2"><v>2</v></c></row>""";
+
+    /// <summary>How many rows a raw worksheet part reads to, under a deadline: the scanner checks no token.</summary>
+    private static int RowsOf(string worksheetXml) =>
+        Deadline.Within(() =>
+        {
+            byte[] workbook = new XlsxPackage().WithRawSheet("S", worksheetXml).Build();
+            using XlsxCursor cursor = new(new MemoryStream(workbook), cancellationToken: TestContext.Current.CancellationToken);
+
+            int rows = 0;
+
+            while (cursor.ReadRow(TestContext.Current.CancellationToken))
+            {
+                rows++;
+            }
+
+            return rows;
+        });
+
+    [Fact]
+    public void ReadsPastADocumentTypeDeclaration()
+    {
+        // A declaration the scanner neither needs nor resolves: skipped to its '>', like a comment.
+        Assert.Equal(
+            2,
+            RowsOf("""<?xml version="1.0"?><!DOCTYPE worksheet><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>""" + TwoRows + "</sheetData></worksheet>"));
+    }
+
+    [Theory]
+    [InlineData("<!-- cut off")]
+    [InlineData("<!-- cut off -")]
+    [InlineData("<![CDATA[cut off")]
+    [InlineData("<![CDATA[cut off]]")]
+    [InlineData("<!DOCTYPE cut off")]
+    [InlineData("<?pi cut off")]
+    [InlineData("""<row r="3"><c r="A3" t="str"><v><![CDATA[cut off""")]
+    [InlineData("""<row r="3"><c r="A3" t="str"><v>a<!-- cut off""")]
+    public void RefusesAWorksheetCutOffInsideMarkupThatIsNotATag(string tail)
+    {
+        // The part ends inside a comment, a CDATA section, a declaration or an instruction. That is a
+        // truncated file, not a clean end of sheet — and not a reason to look for the end forever.
+        TabularFormatException cut = Assert.Throws<TabularFormatException>(() => RowsOf(SheetOpen + TwoRows + tail));
+
+        Assert.Equal(TabularFormatException.Truncated, cut.Code);
+    }
 }

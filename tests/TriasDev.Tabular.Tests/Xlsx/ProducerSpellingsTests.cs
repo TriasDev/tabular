@@ -1,3 +1,5 @@
+using System.Text;
+
 using TriasDev.Tabular.Ods;
 using TriasDev.Tabular.Tests.Fixtures;
 using TriasDev.Tabular.Xlsx;
@@ -97,6 +99,28 @@ public sealed class ProducerSpellingsTests
             .WithSheet("S", "<row r=\"1\"><c r=\"A1\" t=\"str\"><v>a\r\nb\rc</v></c><c r=\"B1\" t=\"inlineStr\"><is><t>d\r\ne &amp; f\r</t><t><![CDATA[g\r\nh]]></t></is></c><c r=\"C1\" t=\"inlineStr\"><is><t>i&#13;&#10;j&#xD;k</t></is></c><c r=\"D1\" t=\"s\"><v>0</v></c></row>"));
 
         Assert.Equal(["a\nb\nc", "d\ne & f\ng\nh", "i\r\nj\rk", "s\nt"], row);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadsAWorksheetWrittenInUtf16ByItsByteOrderMark(bool bigEndian)
+    {
+        // XML may be stored in UTF-16, and a byte order mark says so. Read as UTF-8 regardless, every
+        // other byte was a NUL and the sheet was markup the scanner could not find its end in.
+        UnicodeEncoding utf16 = new(bigEndian, byteOrderMark: true);
+        string worksheet = """<?xml version="1.0" encoding="UTF-16"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Ärger</t></is></c><c r="B1"><v>7</v></c></row></sheetData></worksheet>""";
+
+        byte[] package = XlsxPackage.WithPart(
+            new XlsxPackage().WithSheet("S", string.Empty).Build(),
+            "xl/worksheets/sheet1.xml",
+            [.. utf16.GetPreamble(), .. utf16.GetBytes(worksheet)]);
+
+        using XlsxCursor cursor = new(new MemoryStream(package, writable: false), cancellationToken: Token);
+
+        Assert.True(cursor.ReadRow(Token));
+        Assert.Equal([RawCell.FromText("Ärger"), RawCell.FromNumber(7)], cursor.CurrentRow.ToArray());
+        Assert.False(cursor.ReadRow(Token));
     }
 
     [Fact]

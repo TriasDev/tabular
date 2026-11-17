@@ -142,6 +142,102 @@ public sealed class ProducerQuirksTests
     }
 
     [Fact]
+    public void LeavesOutAChartSheetDeclaredThroughItsRelationship()
+    {
+        // A chart sheet has a part of its own, found through a relationship like a worksheet's; only
+        // the relationship's type says it holds a chart and no cells.
+        byte[] content = XlsxPackage.WithPart(
+            new XlsxPackage()
+                .WithSheet("Data", OneCell)
+                .WithSheetDeclarations("""<sheet name="Chart" sheetId="9" r:id="rIdChart"/>""")
+                .WithWorkbookRelationships("""<Relationship Id="rIdChart" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet" Target="chartsheets/sheet1.xml"/>""")
+                .Build(),
+            "xl/chartsheets/sheet1.xml",
+            """<?xml version="1.0"?><chartsheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr/><drawing r:id="rId1" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/></chartsheet>""");
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.Equal(["Data"], cursor.Sheets.Select(s => s.Name));
+    }
+
+    [Fact]
+    public void ReadsASheetWhoseRelationshipIsMissingFromItsConventionalPart()
+    {
+        // The second sheet's r:id names no relationship. Its part is where Excel would put the second
+        // sheet, so it is read from there rather than dropped.
+        byte[] content = XlsxPackage.WithPart(
+            new XlsxPackage()
+                .WithSheet("Data", OneCell)
+                .WithSheetDeclarations("""<sheet name="Second" sheetId="2" r:id="rIdGone"/>""")
+                .Build(),
+            "xl/worksheets/sheet2.xml",
+            """<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>second</t></is></c></row></sheetData></worksheet>""");
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.Equal(["Data", "Second"], cursor.Sheets.Select(s => s.Name));
+        Assert.True(cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("second", cursor.CurrentRow[0].AsText());
+    }
+
+    [Fact]
+    public void NamesASheetDeclaredWithoutANameByItsPosition()
+    {
+        byte[] built = new XlsxPackage()
+            .WithSheet("ignored", OneCell)
+            .WithSheet("ignored too", """<row r="1"><c r="A1" t="inlineStr"><is><t>b</t></is></c></row>""")
+            .Build();
+        byte[] content = XlsxPackage.WithPart(
+            built,
+            "xl/workbook.xml",
+            """<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet sheetId="1" r:id="rId1"/><sheet sheetId="2" r:id="rId2"/></sheets></workbook>""");
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.Equal(["Sheet1", "Sheet2"], cursor.Sheets.Select(s => s.Name));
+    }
+
+    [Fact]
+    public void RefusesToReadOnAfterMovingToASheetWhosePartIsMissing()
+    {
+        // The move fails after the sheet before it was closed. Read on from there, the cursor had no
+        // sheet and reported a clean end — an empty table where the file promised one.
+        byte[] content = XlsxPackage.WithoutPart(
+            new XlsxPackage()
+                .WithSheet("First", OneCell)
+                .WithSheet("Gone", OneCell)
+                .Build(),
+            "xl/worksheets/sheet2.xml");
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        TabularFormatException missing = Assert.Throws<TabularFormatException>(() => cursor.MoveToSheet(1, TestContext.Current.CancellationToken));
+        Assert.Equal(TabularFormatException.Corrupt, missing.Code);
+        Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+
+        // A sheet opened from its start has no position to account for, so the cursor goes on there.
+        Assert.True(cursor.MoveToSheet(0, TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Equal("a", cursor.CurrentRow[0].AsText());
+    }
+
+    [Fact]
+    public void ReadsACellWhoseOtherAttributesOnlyBeginLikeTheOnesItKeeps()
+    {
+        // Only r, t and s themselves are kept. Twenty attributes whose names merely start with those
+        // letters are no reason to refuse the cell as one that repeats its own.
+        string lookalikes = string.Concat(Enumerable.Range(1, 7).Select(i => $""" r{i}="1" t{i}="1" s{i}="1" """));
+
+        byte[] content = new XlsxPackage()
+            .WithSharedStrings("""<si><t>shared</t></si>""")
+            .WithSheet("Sheet1", $"""<row r="1"><c{lookalikes}r="A1" t="s"><v>0</v></c></row>""")
+            .Build();
+
+        Assert.Equal(new string?[] { "shared" }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
     public void FollowsSheetRelationshipsDeclaredInTheStrictNamespace()
     {
         // Strict OOXML declares r:id in another namespace. Missing it sent every sheet to the
@@ -167,6 +263,7 @@ public sealed class ProducerQuirksTests
     [InlineData("../xl/sheets/data{0}.xml")]
     [InlineData("./sheets/data{0}.xml")]
     [InlineData("sheets/../sheets/./data{0}.xml")]
+    [InlineData("../../../xl/sheets/data{0}.xml")]          // above the package root, which ../ stops at
     public void ResolvesRelativeSegmentsInARelationshipTarget(string target)
     {
         // A target is resolved against the declaring part's folder, ../ and ./ included. The parts
@@ -189,7 +286,10 @@ public sealed class ProducerQuirksTests
         Assert.Equal("second", cursor.CurrentRow[0].AsText());
     }
 
-    /// <summary>A part's path in the zip, its relative segments resolved as a producer would store it.</summary>
+    /// <summary>
+    /// A part's path in the zip, its relative segments resolved as a producer would store it; a
+    /// <c>..</c> at the root stays there, as a path in a package has nowhere above it to go.
+    /// </summary>
     private static string Normalised(string path)
     {
         List<string> segments = [];
@@ -198,7 +298,10 @@ public sealed class ProducerQuirksTests
         {
             if (segment == "..")
             {
-                segments.RemoveAt(segments.Count - 1);
+                if (segments.Count > 0)
+                {
+                    segments.RemoveAt(segments.Count - 1);
+                }
             }
             else if (segment != ".")
             {
@@ -288,6 +391,20 @@ public sealed class ProducerQuirksTests
     }
 
     [Fact]
+    public void LeavesThePhoneticGuideOutWhenItIsTheLastChildOfASharedString()
+    {
+        // Skipping the guide leaves the reader on the node after it — here the item's own end. Read
+        // past that, the item ran on into the next one: 漢字 took the next item's text, and every
+        // index after it pointed one item too far.
+        byte[] content = new XlsxPackage()
+            .WithSharedStrings("""<si><t>漢字</t><rPh sb="0" eb="2"><t>かんじ</t></rPh></si><si><t>b</t></si><si><t>c</t></si>""")
+            .WithSheet("Sheet1", """<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>""")
+            .Build();
+
+        Assert.Equal(new string?[] { "漢字", "b", "c" }, Assert.Single(ReadAll(content)));
+    }
+
+    [Fact]
     public void LeavesThePhoneticGuideOutOfAnInlineString()
     {
         byte[] content = new XlsxPackage()
@@ -338,6 +455,10 @@ public sealed class ProducerQuirksTests
         using XlsxCursor cursor = new(stream);
 
         Assert.Throws<TabularFormatException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+
+        // The row it failed in is partly consumed; what remains of it is not a row, and reading on
+        // reached the end of the sheet data and reported a clean, shorter table.
+        Assert.Throws<InvalidOperationException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     private const string SheetOpen =
@@ -385,6 +506,36 @@ public sealed class ProducerQuirksTests
             .Build();
 
         Assert.Equal(2, ReadAll(content).Count);
+    }
+
+    [Fact]
+    public void EndsTheSheetAtTheWorksheetsEndWhenItsSheetDataIsNeverClosed()
+    {
+        // Not well-formed, and still unambiguous: the worksheet has ended, so its cell data has.
+        byte[] content = new XlsxPackage()
+            .WithRawSheet("Sheet1", SheetOpen + TwoRows + "</worksheet>")
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void EndsTheSheetAtAnEmptySheetDataWithoutParsingWhatFollows()
+    {
+        // What follows the cell data holds no rows and is not parsed — not even to find that the
+        // part is cut off inside it, or that it carries an element named row.
+        byte[] content = new XlsxPackage()
+            .WithRawSheet("Sheet1", """<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/><extLst><ext><row r="9"><c><v>9""")
+            .Build();
+
+        using XlsxCursor cursor = new(new MemoryStream(content, writable: false));
+
+        Assert.False(cursor.ReadRow(TestContext.Current.CancellationToken));
     }
 
     [Fact]

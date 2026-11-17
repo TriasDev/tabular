@@ -137,4 +137,29 @@ public sealed class PackageLayoutTests
         Assert.True(row[2].IsEmpty);
         Assert.True(row[3].IsEmpty);
     }
+
+    [Fact]
+    public void PassesOverRelationshipsThatPointOutsideThePackageOrAreIncomplete()
+    {
+        // Ahead of the real ones: an external target names nothing in this package, and a
+        // relationship without an id or a target cannot be followed. Taken at their word, the styles
+        // went missing — the date read as a number — or the open failed on a null.
+        byte[] package = Rewritten(
+            TextAndDate(),
+            name => name,
+            (name, text) => name == "xl/_rels/workbook.xml.rels"
+                ? text.Replace(
+                    "<Relationship ",
+                    """<Relationship Id="rIdOut" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="https://example.invalid/styles.xml" TargetMode="External"/>"""
+                    + """<Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="nowhere.xml"/>"""
+                    + """<Relationship Id="rIdNoTarget" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"/>"""
+                    + "<Relationship ",
+                    StringComparison.Ordinal)
+                : text);
+
+        RawCell[] row = FirstRow(package);
+
+        Assert.Equal("x", row[0].Text);
+        Assert.Equal(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Unspecified), row[1].Date);
+    }
 }
