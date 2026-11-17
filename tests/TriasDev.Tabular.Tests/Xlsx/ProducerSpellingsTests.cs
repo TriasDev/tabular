@@ -88,14 +88,17 @@ public sealed class ProducerSpellingsTests
     }
 
     [Fact]
-    public void ReadsLineEndsWrittenAsTheyAreInAnOpenDocumentCell()
+    public void ReadsLineEndsWrittenAsCharactersInAnOpenDocumentParagraphAsASpace()
     {
+        // Unlike a workbook's <t>, an OpenDocument paragraph states its line breaks as elements; a
+        // line end written as a character, even as a reference, is white space there, and
+        // LibreOffice shows it as one space. A stated string value keeps it as it is.
         byte[] file = new OdsPackage()
-            .WithTable("S", "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a\r\nb</text:p></table:table-cell><table:table-cell office:value-type=\"string\"><text:p>c&#13;d</text:p></table:table-cell></table:table-row>")
+            .WithTable("S", "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>a\r\nb</text:p></table:table-cell><table:table-cell office:value-type=\"string\"><text:p>c&#13;d</text:p></table:table-cell><table:table-cell office:value-type=\"string\" office:string-value=\"e&#13;&#10;f\"><text:p>e f</text:p></table:table-cell></table:table-row>")
             .Build();
         using OdsCursor cursor = new(new MemoryStream(file), cancellationToken: Token);
 
         Assert.True(cursor.ReadRow(Token));
-        Assert.Equal(["a\nb", "c\rd"], cursor.CurrentRow.ToArray().Select(c => c.AsText()));
+        Assert.Equal(["a b", "c d", "e\r\nf"], cursor.CurrentRow.ToArray().Select(c => c.AsText()));
     }
 }

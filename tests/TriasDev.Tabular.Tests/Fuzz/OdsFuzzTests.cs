@@ -176,7 +176,9 @@ public sealed class OdsFuzzTests
             ? "<office:annotation><dc:creator>someone</dc:creator><text:p>a note, not the value</text:p></office:annotation>"
             : string.Empty;
 
-        return random.Next(3) switch
+        // Paragraph text cannot hold a carriage return: ODF reads one written there, even as a
+        // character reference, as white space. Only the stated string value keeps it.
+        return (text.Contains('\r', StringComparison.Ordinal) ? 0 : random.Next(3)) switch
         {
             0 => $"""<table:table-cell office:value-type="string" office:string-value="{FuzzSheets.XmlAttribute(text)}" calcext:value-type="string">{annotation}<text:p>shown</text:p></table:table-cell>""",
             1 => $"<table:table-cell>{annotation}{Paragraphs(text, random)}</table:table-cell>",
@@ -205,16 +207,22 @@ public sealed class OdsFuzzTests
     }
 
     /// <summary>One line, its tabs and runs of spaces as the elements a writer uses for them.</summary>
+    /// <remarks>
+    /// A space written as a character counts only after text: at the start of a line and after a tab,
+    /// ODF drops it, so there every space is an element.
+    /// </remarks>
     private static string Line(string line, Random random)
     {
         StringBuilder xml = new();
         int i = 0;
+        bool afterText = false;
 
         while (i < line.Length)
         {
             if (line[i] == '\t')
             {
                 xml.Append("<text:tab/>");
+                afterText = false;
                 i++;
                 continue;
             }
@@ -228,7 +236,8 @@ public sealed class OdsFuzzTests
 
             if (end > i)
             {
-                xml.Append(Spaces(end - i, random));
+                xml.Append(Spaces(end - i, afterText, random));
+                afterText = false;
                 i = end;
                 continue;
             }
@@ -239,16 +248,18 @@ public sealed class OdsFuzzTests
             }
 
             xml.Append(FuzzSheets.XmlText(line[i..end], random));
+            afterText = true;
             i = end;
         }
 
         return xml.ToString();
     }
 
-    private static string Spaces(int count, Random random) => (count, random.Next(3)) switch
+    private static string Spaces(int count, bool afterText, Random random) => (count, afterText ? random.Next(3) : random.Pick(0, 2)) switch
     {
         (1, 0) => "<text:s/>",
-        (1, _) => " ",
+        (1, 1) => " ",
+        (1, _) => """<text:s text:c="1"/>""",
         (_, 0) => $"""<text:s text:c="{count}"/>""",
         (_, 1) => $""" <text:s text:c="{count - 1}"/>""",
         _ => string.Concat(Enumerable.Repeat("<text:s/>", count)),
