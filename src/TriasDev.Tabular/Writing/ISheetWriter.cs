@@ -27,7 +27,8 @@ internal interface ISheetWriter : IDisposable
     /// <summary>Begins a sheet. <paramref name="options"/> is never null; csv ignores it.</summary>
     void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions options);
 
-    void BeginRow();
+    /// <summary>Begins a row at <paramref name="level"/>, already checked against the sheet's outline; csv ignores it.</summary>
+    void BeginRow(int level);
 
     /// <summary>
     /// Writes a header cell, checked by <see cref="TextRules"/>: as text, but never altered — the

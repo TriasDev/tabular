@@ -116,7 +116,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         Emit();
     }
 
-    public void BeginRow()
+    public void BeginRow(int level)
     {
         _rowNumber++;
         _column = 0;

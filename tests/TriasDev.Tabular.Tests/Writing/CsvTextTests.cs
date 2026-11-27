@@ -198,7 +198,7 @@ public sealed class CsvTextTests
         CsvSheetWriter sheet = new(buffer, CsvWriterOptions.Default.Resolve());
         sheet.BeginSheet("data", [new("v")], SheetOptions.Default);
 
-        sheet.BeginRow();
+        sheet.BeginRow(0);
         Assert.Null(sheet.WriteText(new string('x', 10_000_000), 0, 0));
         sheet.EndRow();
 

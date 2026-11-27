@@ -145,6 +145,9 @@ public static class ErrorCodes
         /// <summary><c>write.not-finite</c></summary>
         public const string NotFinite = "write.not-finite";
 
+        /// <summary><c>write.outline-level</c></summary>
+        public const string OutlineLevel = "write.outline-level";
+
         /// <summary><c>write.precision-loss</c></summary>
         public const string PrecisionLoss = "write.precision-loss";
 

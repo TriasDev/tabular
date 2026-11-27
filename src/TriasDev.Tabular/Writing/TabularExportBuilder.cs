@@ -137,6 +137,13 @@ public sealed class TabularExportBuilder<T>
             throw freezeProblem;
         }
 
+        if (_sheet?.Outline is not null)
+        {
+            // Named as the freeze refusal above names it: Build has no parameter, the option came from Sheet.
+            string sheetParameter = nameof(Sheet);
+            throw new ArgumentException("An export writes every row at level 0, so a sheet outline would be empty; leave Outline null.", sheetParameter);
+        }
+
         return new TabularExport<T>(columns, declared, _sheet);
     }
 

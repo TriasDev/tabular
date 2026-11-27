@@ -52,6 +52,7 @@ public sealed class TabularWriter : IAsyncDisposable
     private WriteColumn[] _columns = [];
     private readonly HashSet<string> _sheetNames = new(StringComparer.OrdinalIgnoreCase);
     private string _sheetName = string.Empty;
+    private int _outlineLevels;
     private int _sheets;
     private int _rowNumber;
     private int _column;
@@ -210,7 +211,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
     /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
     /// <param name="options">The header style, frozen rows and columns, and filter; null for none.</param>
-    /// <exception cref="ArgumentOutOfRangeException">A freeze outside the sheet: rows from 0 to the format's row limit less one, columns from 0 to the column count.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A freeze outside the sheet: rows from 0 to the format's row limit less one, columns from 0 to the column count; or an <see cref="SheetOptions.Outline"/> of fewer than 1 or more than 7 <see cref="RowOutline.Levels"/>, <see cref="RowOutline.ShownLevels"/> outside 1 to Levels, or an undefined <see cref="RowOutline.SummaryRows"/>.</exception>
     /// <exception cref="ArgumentException">The <see cref="SheetOptions.HeaderStyle"/> has an alignment that is not a defined value, as <see cref="RegisterStyle"/> refuses.</exception>
     /// <exception cref="InvalidOperationException">The <see cref="SheetOptions.HeaderStyle"/> would be the file's 4097th distinct style, as <see cref="RegisterStyle"/> refuses; or a merged range of the previous sheet still covers rows the sheet did not write.</exception>
     public void BeginSheet(string name, ReadOnlySpan<WriteColumn> columns, SheetOptions? options)
@@ -248,10 +249,16 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Faulting(freezeProblem);
         }
 
+        if (layout.OutlineProblem(nameof(options)) is { } outlineProblem)
+        {
+            throw Faulting(outlineProblem);
+        }
+
         int headerStyle = layout.HeaderStyle is { } header ? AddStyle(header) : 0;
 
         _columns = WithHeaderWidths(columns, layout);
         _sheetName = name;
+        _outlineLevels = layout.Outline?.Levels ?? 0;
         _sheetNames.Add(name);
         _sheets++;
         _rowNumber = 0;
@@ -265,7 +272,7 @@ public sealed class TabularWriter : IAsyncDisposable
         _pendingColumns = 0;
         _sheet.BeginSheet(name, _columns, layout);
 
-        StartRow();
+        StartRow(0);
 
         foreach (string headerText in _columns.Select(column => column.Header))
         {
@@ -306,7 +313,15 @@ public sealed class TabularWriter : IAsyncDisposable
 
     /// <summary>Begins a row; its values follow, one per column, then <see cref="EndRow"/>.</summary>
     /// <exception cref="TabularWriteException">The sheet already holds as many rows as its format allows (<c>write.too-many-rows</c>, located at the last row it holds): 1,048,576 for xlsx and ods, <see cref="int.MaxValue"/> — the largest row number the reader gives — for csv and a zip of csv sheets. The writer is faulted.</exception>
-    public void BeginRow()
+    public void BeginRow() => BeginRow(0);
+
+    /// <summary>
+    /// Begins a row at <paramref name="outlineLevel"/> of the sheet's <see cref="SheetOptions.Outline"/>; its values
+    /// follow, one per column, then <see cref="EndRow"/>. Level 0 is outside every group.
+    /// </summary>
+    /// <param name="outlineLevel">0 to <see cref="RowOutline.Levels"/>; a sheet without an outline holds level 0 only.</param>
+    /// <exception cref="TabularWriteException">The sheet already holds as many rows as its format allows (<c>write.too-many-rows</c>, judged first); or the level is outside the outline (<c>write.outline-level</c>, located at the row that would have been written, column 0). The writer is faulted.</exception>
+    public void BeginRow(int outlineLevel)
     {
         ExpectWritable();
 
@@ -315,7 +330,7 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Refuse("A row begins inside a sheet, after the previous row ended.");
         }
 
-        StartRow();
+        StartRow(outlineLevel);
     }
 
     /// <summary>
@@ -945,16 +960,21 @@ public sealed class TabularWriter : IAsyncDisposable
         return TextRules.Check(header) is { } code ? $"The header \"{header}\" cannot be written: {code}." : null;
     }
 
-    private void StartRow()
+    private void StartRow(int level)
     {
         if (_rowNumber >= MaxRows)
         {
             throw Faulting(TooManyRows());
         }
 
+        if (level < 0 || level > _outlineLevels)
+        {
+            throw Faulting(OutlineLevel(level));
+        }
+
         _rowNumber++;
         _column = 0;
-        _sheet.BeginRow();
+        _sheet.BeginRow(level);
         _state = State.InRow;
     }
 
@@ -973,6 +993,24 @@ public sealed class TabularWriter : IAsyncDisposable
             0,
             header,
             $"Sheet \"{_sheetName}\" holds {_rowNumber} rows, the header included, the most a {Format} sheet holds; the row after row {_rowNumber} cannot be written.");
+    }
+
+    /// <summary>The refusal of a level outside the outline, located at the row that would have been written: the row limit was judged first, so the number fits.</summary>
+    private TabularWriteException OutlineLevel(int level)
+    {
+        string header = _columns.Length > 0 ? _columns[0].Header : string.Empty;
+        int row = _rowNumber + 1;
+        string holds = _outlineLevels > 0
+            ? $"the sheet's outline holds levels 0 to {_outlineLevels}."
+            : "the sheet has no outline (SheetOptions.Outline), so its rows are at level 0.";
+
+        return new TabularWriteException(
+            ErrorCodes.Write.OutlineLevel,
+            _sheetName,
+            row,
+            0,
+            header,
+            $"Row {row} of sheet \"{_sheetName}\" is at outline level {level}; {holds}");
     }
 
     private void FinishRow()

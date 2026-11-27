@@ -2,7 +2,7 @@ namespace TriasDev.Tabular;
 
 /// <summary>
 /// How a sheet is laid out beyond its values: a style for its header row, rows and columns frozen
-/// in view, an auto-filter on its header. Csv ignores all of it.
+/// in view, an auto-filter on its header, rows grouped into outline levels. Csv ignores all of it.
 /// </summary>
 public sealed record SheetOptions
 {
@@ -20,6 +20,37 @@ public sealed record SheetOptions
 
     /// <summary>An auto-filter on the header row, covering every row written.</summary>
     public bool AutoFilter { get; init; }
+
+    /// <summary>Groups the sheet's rows by the level each is begun at; null writes no outline.</summary>
+    public RowOutline? Outline { get; init; }
+
+    /// <summary>
+    /// What is wrong with the outline, named <paramref name="paramName"/>, or null. Shared by the writer and an export's builder, so the rules cannot drift.
+    /// </summary>
+    internal ArgumentOutOfRangeException? OutlineProblem(string paramName)
+    {
+        if (Outline is not { } outline)
+        {
+            return null;
+        }
+
+        if (outline.Levels is < 1 or > 7)
+        {
+            return new ArgumentOutOfRangeException(paramName, outline.Levels, "A sheet's outline holds 1 to 7 levels.");
+        }
+
+        if (outline.ShownLevels is { } shown && (shown < 1 || shown > outline.Levels))
+        {
+            return new ArgumentOutOfRangeException(paramName, shown, $"An outline of {outline.Levels} levels shows 1 to {outline.Levels} of them.");
+        }
+
+        if (!Enum.IsDefined(outline.SummaryRows))
+        {
+            return new ArgumentOutOfRangeException(paramName, outline.SummaryRows, "The summary rows sit above or below their group.");
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// What is wrong with the freeze for a sheet of <paramref name="columns"/> columns whose format holds

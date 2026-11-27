@@ -102,7 +102,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         Emit();
     }
 
-    public void BeginRow()
+    public void BeginRow(int level)
     {
         _rowNumber++;
         _row.Clear();
