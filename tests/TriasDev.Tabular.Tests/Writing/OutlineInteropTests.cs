@@ -47,13 +47,15 @@ public sealed class OutlineInteropTests
         string content = Content(LibreOffice.Resave(file, extension));
 
         // A level-1 group holding a level-2 group, around rows 3 to 5 (rows 1 and 2 are the header and the level-0
-        // parent): the outer group opens first, the inner closes before the outer, and rows 3 to 5 are hidden.
-        // LibreOffice's own writing does not put table:display on the groups; the collapsed rows are what it keeps.
+        // parent): the outer group opens first, the inner closes before the outer, rows 3 to 5 are hidden, and both
+        // groups are collapsed. From xlsx, LibreOffice sees a group collapsed only by the mark on the row after it,
+        // so the data ends on a level-0 row.
         Assert.Matches(
             "<table:table-row-group[^>]*>(?:(?!</table:table-row-group>).)*<table:table-row-group[^>]*>(?:(?!</table:table-row-group>).)*</table:table-row-group>(?:(?!</table:table-row-group>).)*</table:table-row-group>",
             content);
         Assert.Equal(2, Regex.Count(content, "<table:table-row-group"));
         Assert.Equal(3, Regex.Count(content, "table:visibility=\"collapse\""));
+        Assert.Equal(2, Regex.Count(content, "<table:table-row-group table:display=\"false\""));
     }
 
     [Theory]

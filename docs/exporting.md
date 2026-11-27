@@ -184,8 +184,10 @@ writer.EndRow();
 - `SummaryRows` says whether a group's summary row sits `Above` it (a parent written before its
   children, the default) or `Below` it (a subtotal written after its rows). It matters in xlsx only. An
   ods file has no such setting; LibreOffice draws a group's button on the group's first row whatever
-  is declared. In xlsx, a collapsed group that ends the sheet with `SummaryRows.Below` shows "−" over
-  its hidden rows; see [Known issues](KNOWN-ISSUES.md).
+  is declared. In xlsx, a collapsed group is marked both on the row before it and on the row after it,
+  as Excel and LibreOffice each read one of them, so the two programs agree. A collapsed group that ends
+  an xlsx sheet has no row after it and shows "−" over its hidden rows — in Excel with
+  `SummaryRows.Below`, in LibreOffice either way; see [Known issues](KNOWN-ISSUES.md).
 - A level may rise by more than one from one row to the next (0 to 2), as Excel allows.
 - Csv and a zip of csv sheets ignore the outline, as they ignore the other layout options.
 

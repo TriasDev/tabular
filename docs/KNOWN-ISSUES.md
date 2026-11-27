@@ -213,6 +213,7 @@ TabularExport picks a column type by overload resolution, and some lambdas do no
 - A merge must end inside the sheet: ending a sheet (or the file) while a range still has rows to cover is refused.
 - xlsx holds at most 65,536 merged ranges per sheet; the next is refused with `write.too-many-merges`.
 - xlsx with `SummaryRows.Below` and `ShownLevels`: a hidden group that ends the sheet has no row below it to carry its "+". Excel writes a cell-less row there, but the reader would hand that back as one more, empty row (and the import would count it as skipped), so the writer leaves it out: the group's rows open hidden, but its button shows "−" over them. End the sheet with a level-0 row, such as a grand total, and the button is right.
+- xlsx with `SummaryRows.Above` and `ShownLevels`, opened in LibreOffice: LibreOffice reads a group's collapsed state from the row after the group, not from the parent row Excel reads it from, so the writer marks both. A hidden group that ends the sheet has no row after it, and for the same reason as above none is written: Excel shows it collapsed, but LibreOffice opens its rows hidden with a "−" over them. End the sheet with a level-0 row and both programs show "+".
 
 ### Data by column
 

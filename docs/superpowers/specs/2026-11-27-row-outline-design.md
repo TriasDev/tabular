@@ -59,6 +59,13 @@ and back.
   level buttons. `collapsed="1"` belongs on the summary row of a collapsed group: with summary rows
   above, the row before the group; with summary rows below, the row after it. Excel showed the button on
   the parent row, "+" on the collapsed group, "−" on the others.
+- **xlsx in LibreOffice.** Verified by the owner on 2026-11-27 with Excel for Mac and LibreOffice:
+  LibreOffice ignores `<outlinePr summaryBelow="0"/>` and takes a group's collapsed state from
+  `collapsed="1"` on the row **after** the group; Excel, with summary rows above, takes it from the row
+  before it. With the flag on the parent only, LibreOffice opened the group's rows hidden with "−" over
+  them. With the flag on both rows (`Name`, `F1` collapsed, `D1a`/`D1b` level 1 hidden, `F2` collapsed)
+  both opened it right: Excel "+" on `F1` and nothing extra at `F2`; LibreOffice "+", opening on the
+  first click.
 - **ods.** Groups are nested `<table:table-row-group>` elements around the rows; a hidden row carries
   `table:visibility="collapse"`; a collapsed group carries `table:display="false"`. ODF has **no**
   attribute for the summary position: LibreOffice dropped `summaryBelow="0"` on the way back to xlsx and
@@ -193,7 +200,16 @@ refuses, so code that runs against one runs against all:
   `XlsxStyles` writes it.
 - **Rows**: `outlineLevel="L"` when L > 0; `hidden="1"` when `ShownLevels` is set and
   L ≥ `ShownLevels`; `collapsed="1"` on a row whose group is hidden —
-  - *above*: on row r when the next row's level is greater than r's and the next row is hidden;
+  - *above*: on row r when **either**
+    1. (Excel) the next row's level is greater than r's and the next row is hidden; **or**
+    2. (LibreOffice, which reads the mark from the row after a group) the previous row's level is
+       greater than r's and the previous row is hidden — **unless** the next row's level is greater than
+       r's and the next row is shown: r heads a shown group of its own, which the mark would collapse in
+       LibreOffice, so Excel's reading wins and rule 2 is skipped for r.
+
+    The header row has no previous row. A collapsed group that ends the sheet has no row after it:
+    nothing is written there (a cell-less row reads back as one more row, as below), and LibreOffice
+    shows that group with "−" (`docs/KNOWN-ISSUES.md`);
   - *below*: on row r when the previous row's level is greater than r's and the previous row is hidden.
 
   Nested summary rows inside a hidden group are marked the same way, so that a group expanded by hand

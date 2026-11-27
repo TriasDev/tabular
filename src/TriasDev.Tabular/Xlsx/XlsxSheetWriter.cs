@@ -81,7 +81,8 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private int _hiddenFrom;
 
     // With summary rows below, a row is the summary of the group just written: it carries "collapsed"
-    // when the row before it was deeper and hidden.
+    // when the row before it was deeper and hidden. With summary rows above, LibreOffice reads the same
+    // mark there, so a held row carries it too, unless its own group shows.
     private int _previousLevel;
     private bool _previousHidden;
 
@@ -226,15 +227,22 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     /// <summary>
     /// Encodes the held row — the row <see cref="_rowNumber"/>, its cells in <see cref="_row"/> — with its
-    /// start tag, now that the level of the row after it is known: collapsed when that row is deeper and
-    /// hidden. At the end of the sheet the next level is 0, which no row is collapsed over.
+    /// start tag, now that the level of the row after it is known. It is collapsed for Excel when that row
+    /// is deeper and hidden: it heads a hidden group. Otherwise it is collapsed for LibreOffice, which
+    /// ignores <c>summaryBelow</c> and reads a group's state from the row after it, when the row before it
+    /// was deeper and hidden — but not when it heads a shown group, which the mark would collapse in
+    /// LibreOffice. At the end of the sheet the next level is 0: the last row heads no group.
     /// </summary>
     private void WriteHeldRow(int nextLevel)
     {
         (_row, _cells) = (_cells!, _row);
         _row.Append("<row r=\"");
         _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
-        AppendOutline(_heldLevel, nextLevel > _heldLevel && nextLevel >= _hiddenFrom);
+        int level = _heldLevel;
+        bool collapsed = nextLevel > level ? nextLevel >= _hiddenFrom : _previousHidden && _previousLevel > level;
+        AppendOutline(level, collapsed);
+        _previousLevel = level;
+        _previousHidden = level >= _hiddenFrom;
         Emit();
         _cells.WriteUtf8To(_bytes);
         _cells.Clear();
@@ -245,13 +253,12 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     /// Closes the row's start tag with its outline attributes, in the order Excel writes them: hidden
     /// when its level is not shown, its level when it is in a group, and collapsed when it is the
     /// summary of a hidden group — the row after the group with summary rows below, the row before it
-    /// with summary rows above —, nested ones included, so that a group expanded by hand still shows
-    /// its own children's state.
+    /// with summary rows above, and for LibreOffice the row after it too —, nested ones included, so
+    /// that a group expanded by hand still shows its own children's state.
     /// </summary>
     /// <remarks>
-    /// A hidden group that ends the sheet with summary rows below has no row below it to carry the mark:
-    /// Excel writes a cell-less row there, which the cursor would read back as one more row, so none is
-    /// written.
+    /// A hidden group that ends the sheet has no row after it to carry the mark: Excel writes a cell-less
+    /// row there, which the cursor would read back as one more row, so none is written.
     /// </remarks>
     private void AppendOutline(int level, bool collapsed)
     {

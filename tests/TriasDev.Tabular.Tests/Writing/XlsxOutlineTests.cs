@@ -253,17 +253,62 @@ public sealed class XlsxOutlineTests
 
     /// <summary>
     /// With summary rows above, a collapsed group's "+" sits on the row before it — and on a nested
-    /// parent row inside a hidden group, so the group expanded by hand still shows its own child collapsed.
+    /// parent row inside a hidden group, so the group expanded by hand still shows its own child collapsed —,
+    /// and for LibreOffice on the row after it too (rows 5 and 6 with one level shown, row 5 with two).
     /// </summary>
     [Theory]
-    [InlineData(1, new[] { 2, 3 })]
-    [InlineData(2, new[] { 3 })]
+    [InlineData(1, new[] { 2, 3, 5, 6 })]
+    [InlineData(2, new[] { 3, 5 })]
     public async Task CollapsedAboveMarksTheParentRow(int shown, int[] collapsed)
     {
         byte[] xlsx = await Write(Outline(SummaryRows.Above, shown));
 
         Assert.Equal(collapsed.Select(row => (row, "1")), Carrying(xlsx, "collapsed"));
         Assert.Equal([(3, "1"), (4, "2"), (5, "1")], Carrying(xlsx, "outlineLevel"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>
+    /// With summary rows above, a collapsed group's "+" sits on the row before it for Excel and on the row after
+    /// it for LibreOffice, which ignores <c>summaryBelow</c> and reads the mark from the row after the group.
+    /// </summary>
+    [Fact]
+    public async Task CollapsedAboveAlsoMarksTheRowAfterTheGroup()
+    {
+        byte[] xlsx = await Write(Outline(SummaryRows.Above, 1, levels: 1), [0, 1, 1, 0]);
+
+        Assert.Equal([(2, "1"), (5, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Equal([1, 2, 3, 4, 5], RowAttributes(SheetLayoutTests.Entry(xlsx, Sheet1)).Keys.Order());
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>
+    /// A row after a hidden group that heads a shown group of its own is not marked: LibreOffice would read the
+    /// mark as its own group's state and collapse it, and Excel shows that group expanded.
+    /// </summary>
+    [Fact]
+    public async Task RowAfterAHiddenGroupHeadingAShownGroupIsNotMarked()
+    {
+        byte[] xlsx = await Write(Outline(SummaryRows.Above, 2, levels: 2), [0, 2, 0, 1]);
+
+        Assert.Equal([(2, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Equal([(3, "1")], Carrying(xlsx, "hidden"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>
+    /// A collapsed group that ends the sheet has no row after it for LibreOffice's mark; a cell-less row there would
+    /// read back as one more row, so nothing is written after it (docs/KNOWN-ISSUES.md).
+    /// </summary>
+    [Fact]
+    public async Task TrailingCollapsedGroupAboveWritesNothingAfter()
+    {
+        byte[] xlsx = await Write(Outline(SummaryRows.Above, 1, levels: 1), [0, 1]);
+        string sheet = SheetLayoutTests.Entry(xlsx, Sheet1);
+
+        Assert.Equal([(2, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Equal([1, 2, 3], RowAttributes(sheet).Keys.Order());
+        Assert.DoesNotContain("<row r=\"4\"", sheet, StringComparison.Ordinal);
         Assert.Empty(OoxmlValidation.Errors(xlsx));
     }
 
@@ -355,7 +400,10 @@ public sealed class XlsxOutlineTests
         Assert.Empty(OoxmlValidation.Errors(flushed));
     }
 
-    /// <summary>A batch begins its rows at level 0: its first row ends the groups, so the row held before it is not collapsed.</summary>
+    /// <summary>
+    /// A batch begins its rows at level 0: its first row ends the groups, so the row held before it is not
+    /// collapsed, and it is the row after the hidden group, which carries the mark for LibreOffice.
+    /// </summary>
     [Fact]
     public async Task BatchRowEndsGroups()
     {
@@ -378,7 +426,7 @@ public sealed class XlsxOutlineTests
             writer.WriteBatch(batch);
         });
 
-        Assert.Equal([(2, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Equal([(2, "1"), (4, "1")], Carrying(xlsx, "collapsed"));
         Assert.Equal([(3, "1")], Carrying(xlsx, "hidden"));
         Assert.Equal([(3, "1")], Carrying(xlsx, "outlineLevel"));
         Assert.Equal(5, SheetLayoutTests.Rows(xlsx).Count);
