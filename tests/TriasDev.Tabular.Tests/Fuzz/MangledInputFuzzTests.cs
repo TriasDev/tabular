@@ -41,6 +41,7 @@ public sealed class MangledInputFuzzTests
             }
 
             ReadsOrRefuses([.. file], "fuzz.csv", seed);
+            ReadsOrRefuses([.. file], "fuzz.csv", seed, new TabularOpenOptions { Csv = new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict } });
         }
     }
 
@@ -154,7 +155,7 @@ public sealed class MangledInputFuzzTests
         return TarArchive.Of(format, [.. files]);
     }
 
-    private static void ReadsOrRefuses(byte[] file, string name, int seed)
+    private static void ReadsOrRefuses(byte[] file, string name, int seed, TabularOpenOptions? options = null)
     {
         FuzzCases.Keep(seed, Path.GetExtension(name), file);
 
@@ -164,7 +165,7 @@ public sealed class MangledInputFuzzTests
 
         try
         {
-            using ITabularCursor cursor = TabularFile.Open(new MemoryStream(file), name, cancellationToken: deadline.Token);
+            using ITabularCursor cursor = TabularFile.Open(new MemoryStream(file), name, options, cancellationToken: deadline.Token);
 
             for (int s = 0; s < cursor.Sheets.Count && cursor.MoveToSheet(s, deadline.Token); s++)
             {

@@ -237,6 +237,12 @@ internal sealed class ArchiveCursor : ITabularCursor
             // Raised by a zip's decompressor: the entry's data is damaged, whatever the file inside is.
             throw Corrupt(e);
         }
+        catch (TabularFormatException e)
+        {
+            // The file inside refused a row — a csv read strictly, a damaged workbook part. Its own
+            // message names the row but not which of the archive's files it is in.
+            throw new TabularFormatException(e.Code, $"{_sources[_innerSource].Entry.Path}: {e.Message}", e);
+        }
     }
 
     /// <inheritdoc />

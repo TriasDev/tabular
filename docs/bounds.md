@@ -6,7 +6,7 @@ or do, each with a default and, where it is not the format's own, an option — 
 a structural ceiling is refused with `TabularLimitException`, whose `Limit` names the option — or, for a ceiling the format
 fixes, the nearest one (the reader's fixed tag and buffer ceilings report `MaxValueChars`); an xlsx
 cell past the format's 16,384 columns is a damaged file, `TabularFormatException`; past the
-quoted-field bound a csv quote is repaired and counted instead; past an analysis budget the profile
+quoted-field bound a csv quote is repaired and counted instead (unless `CsvCursorOptions.QuoteMode` is `Strict`, which has no such bound); past an analysis budget the profile
 reports a lower bound or keeps fewer values rather than failing; and past the error-row ceiling a run stops. **Writing** is
 held to the formats' own limits and to what the reader reads back; those are fixed, not options, and reaching one is the
 data's doing, so it is a located `TabularWriteException` — `TabularLimitException` is thrown only while reading.
@@ -31,8 +31,8 @@ data's doing, so it is a located `TabularWriteException` — `TabularLimitExcept
 | Columns per row | 16,384 | `MaxColumns` (csv, ods); fixed for xlsx | The workbook format's own width. A csv has none, and a file of nothing but delimiters is the cheapest attack there is |
 | Cells repeats hand out (ods) | 100,000,000 | `OdsCursorOptions.MaxRepeatedCells` | The row and column ceilings bound a sheet's shape, not the work: one cell repeated across every column of a row repeated a million times is under a kilobyte and seventeen billion cells. The copies count, across the file: each sheet once, at the most one pass over it hands out, so a sheet read again counts only what goes past its earlier pass |
 | Rows holding a value (ods) | 1,048,576 | `OdsCursorOptions.MaxRows` | OpenDocument repeats a row or cell with one attribute. An empty repeat only moves the position along; one that holds a value is expanded, so it is bounded here and by the column ceiling — twenty characters of markup could otherwise ask for a billion cells |
-| Field length (csv) | 16 M chars | `CsvCursorOptions.MaxFieldChars` | Held twice while a quoted field is open, once as the value and once as the text kept for a replay |
-| Quoted field length | 100 lines | `CsvCursorOptions.MaxQuotedFieldLines` | Beyond that an opening quote was never syntax. In a table of five columns or more a stray quote is caught sooner, by swallowing a record's worth of delimiters |
+| Field length (csv) | 16 M chars | `CsvCursorOptions.MaxFieldChars` | Held twice while a quoted field is open, once as the value and once as the text kept for a replay (once with `QuoteMode = Strict`, which never replays) |
+| Quoted field length | 100 lines | `CsvCursorOptions.MaxQuotedFieldLines` | Beyond that an opening quote was never syntax. In a table of five columns or more a stray quote is caught sooner, by swallowing a record's worth of delimiters. Not applied with `QuoteMode = Strict`, where only the field length bounds a quoted field |
 | Distinct tracking | 2,000,000 values | `AnalysisOptions.DistinctTrackingBudget` | Exact counting costs memory in proportion; the budget is per file, not per column |
 | Retained distinct values | 1,000 per column | `AnalysisOptions.RetainedDistinctValues` | Enough to judge a column of codes against a reference set; a column with more is not one |
 | Error rows | 1,000 | `ExtractionOptions.MaxErrorRows` | A wrong mapping fails every row, and the thousand-and-first error says nothing the first did not |

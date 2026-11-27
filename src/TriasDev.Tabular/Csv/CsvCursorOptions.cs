@@ -46,7 +46,8 @@ public sealed record CsvCursorOptions
     /// <remarks>
     /// It may not be a line ending, nor one of the delimiters the reader knows (<c>,</c> <c>;</c> tab
     /// <c>|</c>), since a detected delimiter could then be the quote too. Delimiter detection honours
-    /// it.
+    /// it. With <see cref="QuoteMode"/> <see cref="CsvQuoteMode.Strict"/> it may not be whitespace
+    /// either, since that mode drops whitespace around a quoted field.
     /// </remarks>
     public char? Quote { get; init; }
 
@@ -69,8 +70,23 @@ public sealed record CsvCursorOptions
     /// bound is what stands behind narrower tables, and every recovery by it is counted in
     /// <see cref="CursorDiagnostics.RecoveredUnterminatedQuotes"/>.
     /// </para>
+    /// <para>
+    /// Not applied when <see cref="QuoteMode"/> is <see cref="CsvQuoteMode.Strict"/>: nothing is
+    /// replayed there, and only <see cref="MaxFieldChars"/> bounds a quoted field.
+    /// </para>
     /// </remarks>
     public int MaxQuotedFieldLines { get; init; } = 100;
+
+    /// <summary>
+    /// Whether quoting RFC 4180 does not allow is repaired, and counted, or refused.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CsvQuoteMode.Repair"/> by default: one malformed address must not fail an import of
+    /// five million rows. <see cref="CsvQuoteMode.Strict"/> for a caller that would rather refuse a
+    /// file than misread a row of it — a repair can split a value that was quoted correctly, such as a
+    /// spreadsheet cell holding a line break and a few commas.
+    /// </remarks>
+    public CsvQuoteMode QuoteMode { get; init; } = CsvQuoteMode.Repair;
 
     /// <summary>
     /// The most characters one field may hold.
@@ -105,6 +121,9 @@ public sealed record CsvCursorOptions
     /// </remarks>
     public int MaxColumns { get; init; } = 16_384;
 
+    /// <summary>The parameter the options arrive through, as <see cref="OptionChecks"/> names it.</summary>
+    private const string OptionsParameter = "options";
+
     internal CsvCursorOptions Checked()
     {
         OptionChecks.AtLeast(MaxQuotedFieldLines, 0, nameof(CsvCursorOptions), nameof(MaxQuotedFieldLines));
@@ -112,11 +131,21 @@ public sealed record CsvCursorOptions
         OptionChecks.AtLeast(DialectProbeBytes, 1, nameof(CsvCursorOptions), nameof(DialectProbeBytes));
         OptionChecks.AtLeast(MaxColumns, 1, nameof(CsvCursorOptions), nameof(MaxColumns));
 
+        if (!Enum.IsDefined(QuoteMode))
+        {
+#pragma warning disable S3928 // Justification: the options arrive through a parameter named options, as OptionChecks names it
+            throw new ArgumentOutOfRangeException(
+                OptionsParameter,
+                QuoteMode,
+                $"{nameof(CsvCursorOptions)}.{nameof(QuoteMode)} is not a quote mode.");
+#pragma warning restore S3928
+        }
+
         if (Delimiter is { } delimiter && !CsvDialectDetector.IsDelimiter(delimiter))
         {
 #pragma warning disable S3928 // Justification: the options arrive through a parameter named options, as OptionChecks names it
             throw new ArgumentOutOfRangeException(
-                "options",
+                OptionsParameter,
                 delimiter,
                 $"{nameof(CsvCursorOptions)}.{nameof(Delimiter)} must be one of , ; tab | — the delimiters the reader detects.");
 #pragma warning restore S3928
@@ -126,9 +155,21 @@ public sealed record CsvCursorOptions
         {
 #pragma warning disable S3928 // Justification: the options arrive through a parameter named options, as OptionChecks names it
             throw new ArgumentOutOfRangeException(
-                "options",
+                OptionsParameter,
                 quote,
                 $"{nameof(CsvCursorOptions)}.{nameof(Quote)} may be neither a line ending nor one of , ; tab |, the delimiters the reader detects.");
+#pragma warning restore S3928
+        }
+
+        // Strict mode drops whitespace around a quoted field, so a quote that is whitespace would be
+        // both the field's syntax and what is dropped around it.
+        if (QuoteMode == CsvQuoteMode.Strict && Quote is { } blank && char.IsWhiteSpace(blank))
+        {
+#pragma warning disable S3928 // Justification: the options arrive through a parameter named options, as OptionChecks names it
+            throw new ArgumentOutOfRangeException(
+                OptionsParameter,
+                blank,
+                $"{nameof(CsvCursorOptions)}.{nameof(Quote)} may not be whitespace when {nameof(QuoteMode)} is {nameof(CsvQuoteMode.Strict)}, which drops whitespace around a quoted field.");
 #pragma warning restore S3928
         }
 

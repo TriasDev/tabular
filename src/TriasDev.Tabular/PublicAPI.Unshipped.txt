@@ -21,3 +21,8 @@ TriasDev.Tabular.SummaryRows
 TriasDev.Tabular.SummaryRows.Above = 0 -> TriasDev.Tabular.SummaryRows
 TriasDev.Tabular.SummaryRows.Below = 1 -> TriasDev.Tabular.SummaryRows
 TriasDev.Tabular.TabularWriter.BeginRow(int outlineLevel) -> void
+TriasDev.Tabular.CsvCursorOptions.QuoteMode.get -> TriasDev.Tabular.CsvQuoteMode
+TriasDev.Tabular.CsvCursorOptions.QuoteMode.init -> void
+TriasDev.Tabular.CsvQuoteMode
+TriasDev.Tabular.CsvQuoteMode.Repair = 0 -> TriasDev.Tabular.CsvQuoteMode
+TriasDev.Tabular.CsvQuoteMode.Strict = 1 -> TriasDev.Tabular.CsvQuoteMode
