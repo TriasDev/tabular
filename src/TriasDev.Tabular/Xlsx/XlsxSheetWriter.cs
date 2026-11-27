@@ -66,6 +66,18 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private int[]? _coverXf;
     private int _pendingColumns;
 
+    // The sheet's row outline, taken apart once per sheet: a sheet without one pays a single branch per row.
+    private bool _outlined;
+    private bool _summaryBelow;
+
+    // The shallowest level hidden when the file opens; int.MaxValue when every row shows.
+    private int _hiddenFrom;
+
+    // With summary rows below, a row is the summary of the group just written: it carries "collapsed"
+    // when the row before it was deeper and hidden.
+    private int _previousLevel;
+    private bool _previousHidden;
+
     public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options, StyleTable styles)
     {
         _styles = new XlsxStyles(styles);
@@ -108,9 +120,32 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _coverXf = null;
         _pendingColumns = 0;
         _filter = options.AutoFilter;
+        RowOutline? outline = options.Outline;
+        _outlined = outline is not null;
+        _summaryBelow = outline?.SummaryRows == SummaryRows.Below;
+        _hiddenFrom = outline?.ShownLevels ?? int.MaxValue;
+        _previousLevel = 0;
+        _previousHidden = false;
         _row.Clear();
         _row.Append(XlsxParts.WorksheetStart);
+
+        // The schema's order: sheetPr, sheetViews, sheetFormatPr, cols, sheetData.
+        if (outline is { SummaryRows: SummaryRows.Above })
+        {
+            _row.Append("<sheetPr><outlinePr summaryBelow=\"0\"/></sheetPr>");
+        }
+
         AppendFreeze(options.FreezeRows, options.FreezeColumns);
+
+        if (outline is not null)
+        {
+            // The deepest level sizes the outline gutter and its level buttons; 15 points is the
+            // height of the default font, Calibri 11, as XlsxStyles writes it.
+            _row.Append("<sheetFormatPr defaultRowHeight=\"15\" outlineLevelRow=\"");
+            _row.AppendFormatted(outline.Levels, default, CultureInfo.InvariantCulture);
+            _row.Append("\"/>");
+        }
+
         AppendWidths(columns);
         _row.Append("<sheetData>");
         Emit();
@@ -124,7 +159,51 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Clear();
         _row.Append("<row r=\"");
         _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
-        _row.Append("\">");
+
+        if (_outlined)
+        {
+            AppendOutline(level);
+        }
+        else
+        {
+            _row.Append("\">");
+        }
+    }
+
+    /// <summary>
+    /// Closes the row's start tag with its outline attributes, in the order Excel writes them: hidden
+    /// when its level is not shown, its level when it is in a group, and — with summary rows below —
+    /// collapsed when it is the summary of a hidden group, nested ones included, so that a group
+    /// expanded by hand still shows its own children's state.
+    /// </summary>
+    /// <remarks>
+    /// A hidden group that ends the sheet has no row below it to carry the mark: Excel writes a cell-less
+    /// row there, which the cursor would read back as one more row, so none is written.
+    /// </remarks>
+    private void AppendOutline(int level)
+    {
+        bool hidden = level >= _hiddenFrom;
+        _row.Append(hidden ? "\" hidden=\"1\"" : "\"");
+
+        if (level > 0)
+        {
+            _row.Append(" outlineLevel=\"");
+            _row.AppendFormatted(level, default, CultureInfo.InvariantCulture);
+            _row.Append('"');
+        }
+
+        if (_summaryBelow)
+        {
+            if (_previousHidden && _previousLevel > level)
+            {
+                _row.Append(" collapsed=\"1\"");
+            }
+
+            _previousLevel = level;
+            _previousHidden = hidden;
+        }
+
+        _row.Append('>');
     }
 
     public string? WriteHeader(string value, int style) => WriteInline(value, style == 0 ? 0 : _styles.Xf(style, ValueKind.Text));

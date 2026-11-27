@@ -212,6 +212,7 @@ TabularExport picks a column type by overload resolution, and some lambdas do no
 - `writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips the covered positions — the row's next write lands after the range, later rows skip it too — and writes them itself. The import reads a merged range as its value in the top-left cell and empty cells elsewhere; csv writes exactly that.
 - A merge must end inside the sheet: ending a sheet (or the file) while a range still has rows to cover is refused.
 - xlsx holds at most 65,536 merged ranges per sheet; the next is refused with `write.too-many-merges`.
+- xlsx with `SummaryRows.Below` and `ShownLevels`: a hidden group that ends the sheet has no row below it to carry its "+". Excel writes a cell-less row there, but the reader would hand that back as one more, empty row (and the import would count it as skipped), so the writer leaves it out: the group's rows open hidden, but its button shows "−" over them. End the sheet with a level-0 row, such as a grand total, and the button is right.
 
 ### Data by column
 
