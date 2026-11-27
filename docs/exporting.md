@@ -151,6 +151,53 @@ declared export takes it once, on the builder — `.Sheet(new SheetOptions { …
 above — and applies it to every sheet it writes; the freeze is checked against the export's columns
 when it is built.
 
+### Row grouping (outline levels)
+
+A report whose rows form a hierarchy — a parent row followed by its children — can be grouped, so that
+Excel and LibreOffice show outline controls and collapse and expand it. Set `Outline` on the sheet's
+`SheetOptions` and begin each row at its level; `BeginRow()` is level 0, and the header row is always
+level 0, never in a group.
+
+```csharp
+writer.BeginSheet(name, columns, new SheetOptions
+{
+    FreezeRows = 1,
+    AutoFilter = true,
+    Outline = new RowOutline { Levels = 1, ShownLevels = 1 },
+});
+
+writer.BeginRow();                 // a parent, level 0
+// ...
+writer.EndRow();
+
+writer.BeginRow(outlineLevel: 1);  // one of its children
+// ...
+writer.EndRow();
+```
+
+- `Levels` is the deepest level the sheet uses, 1 to 7. It sizes the outline gutter and its level
+  buttons, so declare the deepest level you write: a sheet declared deeper shows extra buttons.
+- `ShownLevels` is how many levels show when the file opens, counted as Excel's level buttons count
+  them: 1 shows the level-0 rows only, 2 shows levels 0 and 1. It ranges from 1 to `Levels`; null opens
+  every row. The rows below the shown levels are written hidden, and each group over them opens
+  collapsed, showing "+". They are still in the file: the import reads hidden rows as it reads any other.
+- `SummaryRows` says whether a group's summary row sits `Above` it (a parent written before its
+  children, the default) or `Below` it (a subtotal written after its rows). It matters in xlsx only. An
+  ods file has no such setting; LibreOffice draws a group's button on the group's first row whatever
+  is declared. In xlsx, a collapsed group that ends the sheet with `SummaryRows.Below` shows "−" over
+  its hidden rows; see [Known issues](KNOWN-ISSUES.md).
+- A level may rise by more than one from one row to the next (0 to 2), as Excel allows.
+- Csv and a zip of csv sheets ignore the outline, as they ignore the other layout options.
+
+`Levels` outside 1 to 7, `ShownLevels` outside 1 to `Levels` or an undefined `SummaryRows` is refused
+by `BeginSheet` with an `ArgumentOutOfRangeException`. A row level outside 0 to `Levels` — negative,
+deeper than declared, or above 0 on a sheet without an `Outline` — is refused by `BeginRow(int)` with a
+`TabularWriteException` coded `write.outline-level` (see [Error codes](error-codes.md)), as a level
+comes from your data.
+
+A declared export (`TabularExport<T>`) writes every row at level 0, so its builder refuses
+`SheetOptions` with an `Outline` with an `ArgumentException`; write a grouped sheet row by row.
+
 `writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips
 the covered positions — the next write in the row lands after the range, and later rows skip it
 too — and writes them itself.
