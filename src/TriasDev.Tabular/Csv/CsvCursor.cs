@@ -640,24 +640,31 @@ internal sealed class CsvCursor : ITabularCursor
     private bool IsBlank(int c) => c == ' ' || (c == '\t' && Dialect.Delimiter != '\t');
 
     /// <summary>Whether the field read so far is nothing but <see cref="IsBlank"/> whitespace.</summary>
-    /// <remarks>Asked only at a quote inside a field, in strict mode; it stops at the first character that is not blank.</remarks>
+    /// <remarks>
+    /// Asked at every quote inside a field, in strict mode, so it looks from the end and stops at the
+    /// first character that is not blank. Looking from the start cost the length of the field's leading
+    /// blanks per quote — quadratic in a field of blanks, a letter and a run of quotes, where from the
+    /// end each quote meets the one before it at once.
+    /// </remarks>
     private bool OnlyBlankSoFar()
     {
         if (_pendingStart >= 0)
         {
-            foreach (char c in _buffer.AsSpan(_pendingStart, _pendingLength))
+            // A pending run is the field's only content: nothing was added to the builder before it.
+            ReadOnlySpan<char> run = _buffer.AsSpan(_pendingStart, _pendingLength);
+
+            for (int i = run.Length - 1; i >= 0; i--)
             {
-                if (!IsBlank(c))
+                if (!IsBlank(run[i]))
                 {
                     return false;
                 }
             }
 
-            // A pending run is the field's only content: nothing was added to the builder before it.
             return true;
         }
 
-        for (int i = 0; i < _field.Length; i++)
+        for (int i = _field.Length - 1; i >= 0; i--)
         {
             if (!IsBlank(_field[i]))
             {

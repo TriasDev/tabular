@@ -171,6 +171,25 @@ public sealed class StrictQuoteTests
     }
 
     [Fact]
+    public void ReadsQuotesAfterLeadingBlanksInLinearTime()
+    {
+        // Each quote inside a field asks whether the field so far is only whitespace. Asked from the
+        // field's start, that cost the length of its leading blanks per quote: sixty thousand blanks
+        // and as many quotes took some fifteen seconds, eighty thousand thirty-seven, and cancellation,
+        // checked per character, could not reach it. Linear, it is milliseconds, so the ceiling sits a
+        // thousand times above it and far below the defect.
+        const int n = 60_000;
+        string text = "a,b\n" + new string(' ', n) + "x" + new string('"', n) + ",y\n";
+        System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+
+        (List<string[]> rows, _) = Read(text);
+
+        watch.Stop();
+        Assert.Equal("x" + new string('"', n), rows[1][0]);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(3), $"took {watch.Elapsed}");
+    }
+
+    [Fact]
     public void ReadsACsvInsideGzipStrictlyToo()
     {
         MemoryStream compressed = new();
