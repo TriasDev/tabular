@@ -7,13 +7,13 @@ still hold unless this document says otherwise.
 
 ## Why
 
-A report whose rows form a hierarchy — a contract framework with its documents beneath it, an IT asset
-with the processes that use it — is read by collapsing it: first the top level, then one branch. Excel
+A report whose rows form a hierarchy — a parent row followed by its children, each of which may have
+children of its own — is read by collapsing it: first the top level, then one branch. Excel
 and LibreOffice do that with row grouping (outline levels). The writer has styles, frozen panes,
 auto-filters and merged ranges, and no way to say that a row belongs under the row above it.
 
 A consumer that needs a nested sheet today flattens the hierarchy (the parent's values repeated on every
-child row) or writes that one report with another spreadsheet library. The first consumer writes its
+child row) or writes that one report with another spreadsheet library. A consumer writes such a
 report by hand through `TabularWriter` (`BeginSheet` with `SheetOptions … with { AutoFilter = true }`,
 then `BeginRow` / `Write` / `EndRow` per row) and draws a parent row followed by its children. The
 outline it replaces — written today with another library — puts each row's level on the row, places the
@@ -34,8 +34,8 @@ summary row **above** its group, and opens fully expanded.
 
 - Column grouping.
 - Reading outline levels, hidden rows or collapsed state on import.
-- A level in `TabularExport<T>` (a selector per item) or in `ColumnBatch` (a level column). The first
-  consumer writes by hand; each waits for a consumer that needs it. The API below leaves room for both.
+- A level in `TabularExport<T>` (a selector per item) or in `ColumnBatch` (a level column). The consumers
+  known so far write by hand; each waits for a consumer that needs it. The API below leaves room for both.
 - Collapsing one group and not another. A sheet opens collapsed to one level or fully expanded.
 - Choosing where LibreOffice draws its outline button (see "What the formats do").
 
@@ -93,8 +93,9 @@ and back.
    collapse natural, but puts open/close bookkeeping and its errors ("group not closed") on the caller,
    still needs the depth declared for xlsx, and fits a typed export poorly — an item has a depth, not a
    start and an end. Rejected.
-3. **A level on each row, nothing declared.** The xlsx writer streams: `BeginSheet` emits the sheet's
-   head and `<sheetData>` at once, so `outlineLevelRow` cannot wait for the deepest row. Writing it as 7
+3. **A level on each row, nothing declared.** The xlsx writer streams: `BeginSheet` writes the sheet's
+   head and `<sheetData>` before any row — encoded when the header row begins —, so `outlineLevelRow`
+   cannot wait for the deepest row. Writing it as 7
    always shows eight level buttons for a two-level sheet; leaving it out risks Excel not showing the
    outline symbols. Rejected.
 
@@ -131,7 +132,7 @@ public sealed class TabularWriter
 }
 ```
 
-The consumer's change:
+A consumer's sheet:
 
 ```csharp
 writer.BeginSheet(name, columns, new SheetOptions
@@ -141,11 +142,11 @@ writer.BeginSheet(name, columns, new SheetOptions
     Outline = new RowOutline { Levels = 1, ShownLevels = 1 },
 });
 
-writer.BeginRow();                 // the framework, level 0
+writer.BeginRow();                 // a parent, level 0
 …
 writer.EndRow();
 
-writer.BeginRow(outlineLevel: 1);  // one of its documents
+writer.BeginRow(outlineLevel: 1);  // one of its children
 …
 writer.EndRow();
 ```
@@ -156,7 +157,7 @@ Decisions inside the API, each a call made here:
   belong together, `Outline = null` is the plain "no outline" that keeps files unchanged, and a check of
   `ShownLevels` against `Levels` stays inside one value.
 - **`SummaryRows` defaults to `Above`**, unlike Excel's default. A writer streams a tree parent first;
-  both known consumers put the parent above. `Below` is there for a sheet of subtotals.
+  the consumers known so far put the parent above. `Below` is there for a sheet of subtotals.
 - **`ShownLevels` counts as Excel's buttons do** ("1" = level 0 only), so that what a caller sets is
   what they would click. It ranges from 1 to `Levels`; `Levels + 1` would show everything, which is
   `null`.
@@ -227,11 +228,19 @@ refuses, so code that runs against one runs against all:
 
   Nested summary rows inside a hidden group are marked the same way, so that a group expanded by hand
   shows its own children's state correctly.
-- **One row held back, only where needed.** With `Above` and `ShownLevels` set, whether a row is
-  `collapsed` depends on the next row, so its bytes wait in the writer until the next `BeginRow` or the
-  end of the sheet, then go out with the right start tag. Without `ShownLevels`, or with `Below`, no row
-  waits. A held row is emitted before anything that follows `</sheetData>` (merged ranges, the
-  auto-filter) and before the sheet closes.
+- **One row held back, only where needed — as built.** Every xlsx row's text, on every sheet, is
+  encoded into the sheet entry at the next `BeginRow` or when the sheet closes (`CloseSheet`), not at
+  `EndRow`; the head likewise waits for the header row's `BeginRow`. That costs a plain sheet nothing:
+  the encoding moves, it is not repeated, and the row path keeps the single `_outlined` branch. With
+  `Above` and `ShownLevels` set, whether a row is `collapsed` depends on the next row, so only the row's
+  **start tag** is held: its cells are written as on any other row, and at the next `BeginRow` (or at
+  `CloseSheet`, as if the next level were 0) the start tag is written with the right attributes, then the
+  cells after it. At most one row is held. Without `ShownLevels`, or with `Below`, nothing waits beyond
+  the ordinary next-`BeginRow` encoding. Why so: holding a whole row's text would cost a buffer copy or a
+  second code path for the cells; deferring every row's encoding instead lets the held row's cells go
+  into the same buffer as any row's, so the plain path adds one branch and no copy. A held row is
+  emitted before anything that follows `</sheetData>` (merged ranges, the auto-filter) and before the
+  sheet closes; `FlushAsync` drains only what is encoded, so a held row waits through it.
 - **The row after the last group, with `Below`.** A collapsed group that ends the sheet has no summary
   row below it. Left to the builder: write a cell-less `<row r="n+1" collapsed="1"/>` (what Excel
   writes) only if the xlsx cursor and the import then read the sheet back unchanged — no extra row — and

@@ -151,6 +151,18 @@ declared export takes it once, on the builder — `.Sheet(new SheetOptions { …
 above — and applies it to every sheet it writes; the freeze is checked against the export's columns
 when it is built.
 
+`writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips
+the covered positions — the next write in the row lands after the range, and later rows skip it
+too — and writes them itself.
+
+```csharp
+--8<-- "samples/TriasDev.Tabular.Samples.Export/RowByRow.cs:merge"
+```
+
+A merge must end inside the sheet: ending the sheet or the file while a range still has rows to cover
+is refused. The import reads a merged range as its value in the top-left cell and empty cells
+elsewhere, and csv writes exactly that. A batch writes plain rows, so end a range before it.
+
 ### Row grouping (outline levels)
 
 A report whose rows form a hierarchy — a parent row followed by its children — can be grouped, so that
@@ -159,20 +171,7 @@ Excel and LibreOffice show outline controls and collapse and expand it. Set `Out
 level 0, never in a group.
 
 ```csharp
-writer.BeginSheet(name, columns, new SheetOptions
-{
-    FreezeRows = 1,
-    AutoFilter = true,
-    Outline = new RowOutline { Levels = 1, ShownLevels = 1 },
-});
-
-writer.BeginRow();                 // a parent, level 0
-// ...
-writer.EndRow();
-
-writer.BeginRow(outlineLevel: 1);  // one of its children
-// ...
-writer.EndRow();
+--8<-- "samples/TriasDev.Tabular.Samples.Export/RowByRow.cs:outline"
 ```
 
 - `Levels` is the deepest level the sheet uses, 1 to 7. It sizes the outline gutter and its level
@@ -201,18 +200,6 @@ comes from your data.
 
 A declared export (`TabularExport<T>`) writes every row at level 0, so its builder refuses
 `SheetOptions` with an `Outline` with an `ArgumentException`; write a grouped sheet row by row.
-
-`writer.Merge(rows, columns)` makes the next cell the top-left of a merged range. The writer skips
-the covered positions — the next write in the row lands after the range, and later rows skip it
-too — and writes them itself.
-
-```csharp
---8<-- "samples/TriasDev.Tabular.Samples.Export/RowByRow.cs:merge"
-```
-
-A merge must end inside the sheet: ending the sheet or the file while a range still has rows to cover
-is refused. The import reads a merged range as its value in the top-left cell and empty cells
-elsewhere, and csv writes exactly that. A batch writes plain rows, so end a range before it.
 
 ## A zip of csv sheets
 

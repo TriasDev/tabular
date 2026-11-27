@@ -82,6 +82,47 @@ internal static class RowByRow
     }
     // --8<-- [end:merge]
 
+    // --8<-- [start:outline]
+    public static async Task WriteByCustomerAsync(Stream stream, IReadOnlyList<Order> orders)
+    {
+        await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx);
+
+        // One level of groups, opened collapsed: only the customers show, each with a "+".
+        writer.BeginSheet(
+            "By customer",
+            [new WriteColumn(CustomerHeader, 28), new WriteColumn("Id"), new WriteColumn("Amount", 12)],
+            new SheetOptions
+            {
+                HeaderStyle = HeaderStyle,
+                FreezeRows = 1,
+                Outline = new RowOutline { Levels = 1, ShownLevels = 1 },
+            });
+        StyleId money = writer.RegisterStyle(MoneyStyle);
+
+        foreach (IGrouping<string, Order> customer in orders.GroupBy(o => o.Customer))
+        {
+            // The parent, level 0, written before its children (SummaryRows.Above, the default).
+            writer.BeginRow();
+            writer.Write(customer.Key);
+            writer.WriteEmpty();
+            writer.Write(customer.Sum(o => o.Amount), money);
+            writer.EndRow();
+
+            foreach (Order order in customer)
+            {
+                // One of its children, level 1.
+                writer.BeginRow(outlineLevel: 1);
+                writer.WriteEmpty();
+                writer.Write(order.Id);
+                writer.Write(order.Amount, money);
+                writer.EndRow();
+            }
+        }
+
+        await writer.CompleteAsync();
+    }
+    // --8<-- [end:outline]
+
     // --8<-- [start:zip]
     public static async Task WriteZipAsync(Stream stream, IReadOnlyList<Order> orders, IReadOnlyList<Order> returns)
     {
