@@ -283,8 +283,9 @@ public sealed class XlsxOutlineTests
     }
 
     /// <summary>
-    /// A row after a hidden group that heads a shown group of its own is not marked: LibreOffice would read the
-    /// mark as its own group's state and collapse it, and Excel shows that group expanded.
+    /// A row after a hidden group that heads a shown group of its own is not marked: Excel, with summary rows
+    /// above, would read the mark as its own group's state and open that group collapsed. Excel wins; LibreOffice
+    /// then shows the hidden group before it with "−" (docs/KNOWN-ISSUES.md).
     /// </summary>
     [Fact]
     public async Task RowAfterAHiddenGroupHeadingAShownGroupIsNotMarked()
@@ -293,6 +294,21 @@ public sealed class XlsxOutlineTests
 
         Assert.Equal([(2, "1")], Carrying(xlsx, "collapsed"));
         Assert.Equal([(3, "1")], Carrying(xlsx, "hidden"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>
+    /// A tree of two parents, the first holding a child with a hidden grandchild, the second a shown child: only the
+    /// child heading the hidden group is marked (rule 1); the second parent follows the hidden group but heads a
+    /// shown group of its own, so it is not.
+    /// </summary>
+    [Fact]
+    public async Task TreeMarksOnlyTheParentOfTheHiddenGroup()
+    {
+        byte[] xlsx = await Write(Outline(SummaryRows.Above, 2, levels: 2), [0, 1, 2, 0, 1]);
+
+        Assert.Equal([(3, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Equal([(4, "1")], Carrying(xlsx, "hidden"));
         Assert.Empty(OoxmlValidation.Errors(xlsx));
     }
 

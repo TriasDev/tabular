@@ -204,12 +204,25 @@ refuses, so code that runs against one runs against all:
     1. (Excel) the next row's level is greater than r's and the next row is hidden; **or**
     2. (LibreOffice, which reads the mark from the row after a group) the previous row's level is
        greater than r's and the previous row is hidden — **unless** the next row's level is greater than
-       r's and the next row is shown: r heads a shown group of its own, which the mark would collapse in
-       LibreOffice, so Excel's reading wins and rule 2 is skipped for r.
+       r's and the next row is shown: r heads a shown group of its own, and Excel, with summary rows
+       above, reads `collapsed` on r as the state of that group and would open it collapsed. Excel wins
+       and rule 2 is skipped for r. The cost is LibreOffice's: it does not take the mark on r as r's own
+       group (checked by converting hand-made files), so without it LibreOffice opens the hidden group
+       before r with "−" over its hidden rows. This happens wherever a parent holding a hidden subgroup is
+       followed by a parent with shown children (levels 0,1,2,0,1 with `ShownLevels = 2`), and is in
+       `docs/KNOWN-ISSUES.md`.
 
     The header row has no previous row. A collapsed group that ends the sheet has no row after it:
     nothing is written there (a cell-less row reads back as one more row, as below), and LibreOffice
-    shows that group with "−" (`docs/KNOWN-ISSUES.md`);
+    shows that group with "−" (`docs/KNOWN-ISSUES.md`).
+
+    A jump of more than one level: LibreOffice builds a group per level, the two spanning the same rows,
+    and attaches the mark on the row after them to the **outer** one (with levels one step apart, 0,1,2,0,
+    it collapses the inner level-2 group, as intended). With levels 0,2,0 and `ShownLevels = 2`,
+    rule 2 marks the last row and LibreOffice collapses the level-1 group, which Excel shows expanded
+    ("−", holding only the hidden level-2 rows); the level-2 group itself carries no collapsed state in
+    LibreOffice. The same rows are hidden in both programs; only the buttons differ
+    (`docs/KNOWN-ISSUES.md`);
   - *below*: on row r when the previous row's level is greater than r's and the previous row is hidden.
 
   Nested summary rows inside a hidden group are marked the same way, so that a group expanded by hand

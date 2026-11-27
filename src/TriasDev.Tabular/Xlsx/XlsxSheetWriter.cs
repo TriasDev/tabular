@@ -82,7 +82,8 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
     // With summary rows below, a row is the summary of the group just written: it carries "collapsed"
     // when the row before it was deeper and hidden. With summary rows above, LibreOffice reads the same
-    // mark there, so a held row carries it too, unless its own group shows.
+    // mark there, so a held row carries it too — unless it heads a shown group, which Excel would read the
+    // mark as collapsing.
     private int _previousLevel;
     private bool _previousHidden;
 
@@ -230,8 +231,10 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     /// start tag, now that the level of the row after it is known. It is collapsed for Excel when that row
     /// is deeper and hidden: it heads a hidden group. Otherwise it is collapsed for LibreOffice, which
     /// ignores <c>summaryBelow</c> and reads a group's state from the row after it, when the row before it
-    /// was deeper and hidden — but not when it heads a shown group, which the mark would collapse in
-    /// LibreOffice. At the end of the sheet the next level is 0: the last row heads no group.
+    /// was deeper and hidden — but not when it heads a shown group: Excel, with summary rows above, reads
+    /// the mark on this row as the state of its own group and would open that group collapsed. Excel wins:
+    /// LibreOffice then opens the hidden group before this row with "−" (docs/KNOWN-ISSUES.md). At the end
+    /// of the sheet the next level is 0: the last row heads no group.
     /// </summary>
     private void WriteHeldRow(int nextLevel)
     {
