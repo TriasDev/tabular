@@ -39,10 +39,11 @@ public enum CsvQuoteMode
     /// <see cref="CursorDiagnostics.IsClean"/> stays true.
     /// </para>
     /// <para>
-    /// An opening quote that is never closed reads on to the end of the file and is refused there —
-    /// or, in a file larger than <see cref="CsvCursorOptions.MaxFieldChars"/>, reaches that limit first
-    /// and is refused as a <see cref="TabularLimitException"/> whose message names the row and the
-    /// open quote. In an archive the message also names the file the row is in.
+    /// An opening quote that is never closed reads on to the end of the file and is refused there, as
+    /// <see cref="TabularFormatException.Corrupt"/>; in an archive that message also names the file the
+    /// row is in. When more than <see cref="CsvCursorOptions.MaxFieldChars"/> characters follow the
+    /// quote, it reaches that limit first and is refused as a <see cref="TabularLimitException"/> whose
+    /// message names the row and the open quote.
     /// </para>
     /// </remarks>
     Strict = 1,

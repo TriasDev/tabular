@@ -224,7 +224,7 @@ public sealed class StrictQuoteTests
         // A no-break space is what a cell pasted from a spreadsheet or a web page often starts with,
         // and the value is trimmed of it anyway.
         (List<string[]> rows, _) = Read(
-            "a,b\n \"x,y\" ,z\n",
+            "a,b\n\u00A0\"x,y\"\u2003,z\n",
             new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Delimiter = ',' });
 
         Assert.Equal(["x,y", "z"], rows[1]);

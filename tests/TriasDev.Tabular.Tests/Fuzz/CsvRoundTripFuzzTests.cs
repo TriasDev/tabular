@@ -172,7 +172,7 @@ public sealed class CsvRoundTripFuzzTests
             ? string.Empty
             : new string([.. Enumerable.Range(0, random.Next(1, 4)).Select(_ => delimiter != '\t' && random.Chance(0.3)
                 ? '\t'
-                : random.Pick(' ', ' ', ' ', ' '))]);
+                : random.Pick(' ', ' ', '\u00A0', '\u2003'))]);
 
     private static string Field(string value, char delimiter, bool quote)
     {

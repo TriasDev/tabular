@@ -40,7 +40,7 @@ public sealed class OptionsValidationTests
         { new CsvCursorOptions { Delimiter = '|', Quote = '|' }, nameof(CsvCursorOptions.Quote) },
         { new CsvCursorOptions { QuoteMode = (CsvQuoteMode)7 }, nameof(CsvCursorOptions.QuoteMode) },
         { new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Quote = ' ' }, nameof(CsvCursorOptions.Quote) },
-        { new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Quote = ' ' }, nameof(CsvCursorOptions.Quote) },
+        { new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Quote = '\u00A0' }, nameof(CsvCursorOptions.Quote) },
     };
 
     public static TheoryData<XlsxCursorOptions, string> BadXlsxOptions => new()

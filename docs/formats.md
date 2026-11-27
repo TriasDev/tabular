@@ -169,8 +169,8 @@ TabularOpenOptions options = new() { Csv = new CsvCursorOptions { QuoteMode = Cs
 Strict mode reads quotes as RFC 4180 does. A quoted field holds any number of lines and delimiters,
 bounded only by `MaxFieldChars`; a quoted field the file ends inside, and text after a closing quote
 (`"C" Road`), are refused as `format.corrupt`, the message naming the row — and, in an archive, the
-file. A quote never closed in a file larger than `MaxFieldChars` reaches that limit first and is
-refused as `limit.exceeded`, the message naming the row and the open quote. Whitespace before an
+file. A quote never closed and followed by more than `MaxFieldChars` characters reaches that limit
+first and is refused as `limit.exceeded`, the message naming the row and the open quote. Whitespace before an
 opening quote and after a closing one — any whitespace a cell is trimmed of, a no-break space
 included — is not part of the field, so `1, "Payroll", "monthly, HR"` is three values; in the default
 mode the quotes after a space are text, and the last value is split at its comma. That whitespace
