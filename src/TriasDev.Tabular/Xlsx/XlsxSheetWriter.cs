@@ -47,8 +47,15 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     private readonly List<string> _sheetNames = [];
     private readonly List<(int Sheet, string Range)> _filters = [];
     private readonly List<string> _merges = [];
-    private readonly RowText _row = new();
     private readonly RowBytes _bytes = new();
+
+    // What is written but not yet encoded: the head, or the row last ended. It is encoded when the next
+    // row begins or the sheet closes, so that a row held back for its start tag costs the row path nothing.
+    private RowText _row = new();
+
+    // With summary rows above, the second buffer a held row's cells move into while its start tag is
+    // written; allocated on the first sheet that holds rows.
+    private RowText? _cells;
     private Stream? _sheet;
     private string[] _columnNames = [];
     private long _rowNumber;
@@ -77,6 +84,12 @@ internal sealed class XlsxSheetWriter : ISheetWriter
     // when the row before it was deeper and hidden.
     private int _previousLevel;
     private bool _previousHidden;
+
+    // With summary rows above and levels hidden, a row is collapsed when the row after it is deeper and
+    // hidden, so its start tag waits for the next row: _row then holds its cells without it.
+    private bool _holdRows;
+    private bool _rowHeld;
+    private int _heldLevel;
 
     public XlsxSheetWriter(SpillBuffer output, XlsxWriterOptions options, StyleTable styles)
     {
@@ -126,6 +139,14 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _hiddenFrom = outline?.ShownLevels ?? int.MaxValue;
         _previousLevel = 0;
         _previousHidden = false;
+        _holdRows = outline is { SummaryRows: SummaryRows.Above, ShownLevels: not null };
+        _rowHeld = false;
+
+        if (_holdRows)
+        {
+            _cells ??= new RowText();
+        }
+
         _row.Clear();
         _row.Append(XlsxParts.WorksheetStart);
 
@@ -148,42 +169,93 @@ internal sealed class XlsxSheetWriter : ISheetWriter
 
         AppendWidths(columns);
         _row.Append("<sheetData>");
-        Emit();
     }
 
     public void BeginRow(int level)
     {
+        if (_outlined)
+        {
+            BeginOutlinedRow(level);
+            return;
+        }
+
+        Emit();
         _rowNumber++;
         _column = 0;
         _nextUnreferenced = 0;
-        _row.Clear();
         _row.Append("<row r=\"");
         _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
+        _row.Append("\">");
+    }
 
-        if (_outlined)
+    private void BeginOutlinedRow(int level)
+    {
+        if (_rowHeld)
         {
-            AppendOutline(level);
+            WriteHeldRow(level);
         }
         else
         {
-            _row.Append("\">");
+            Emit();
         }
+
+        _rowNumber++;
+        _column = 0;
+        _nextUnreferenced = 0;
+
+        if (_holdRows)
+        {
+            _rowHeld = true;
+            _heldLevel = level;
+            return;
+        }
+
+        bool collapsed = false;
+
+        if (_summaryBelow)
+        {
+            collapsed = _previousHidden && _previousLevel > level;
+            _previousLevel = level;
+            _previousHidden = level >= _hiddenFrom;
+        }
+
+        _row.Append("<row r=\"");
+        _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
+        AppendOutline(level, collapsed);
+    }
+
+    /// <summary>
+    /// Encodes the held row — the row <see cref="_rowNumber"/>, its cells in <see cref="_row"/> — with its
+    /// start tag, now that the level of the row after it is known: collapsed when that row is deeper and
+    /// hidden. At the end of the sheet the next level is 0, which no row is collapsed over.
+    /// </summary>
+    private void WriteHeldRow(int nextLevel)
+    {
+        (_row, _cells) = (_cells!, _row);
+        _row.Append("<row r=\"");
+        _row.AppendFormatted(_rowNumber, default, CultureInfo.InvariantCulture);
+        AppendOutline(_heldLevel, nextLevel > _heldLevel && nextLevel >= _hiddenFrom);
+        Emit();
+        _cells.WriteUtf8To(_bytes);
+        _cells.Clear();
+        _rowHeld = false;
     }
 
     /// <summary>
     /// Closes the row's start tag with its outline attributes, in the order Excel writes them: hidden
-    /// when its level is not shown, its level when it is in a group, and — with summary rows below —
-    /// collapsed when it is the summary of a hidden group, nested ones included, so that a group
-    /// expanded by hand still shows its own children's state.
+    /// when its level is not shown, its level when it is in a group, and collapsed when it is the
+    /// summary of a hidden group — the row after the group with summary rows below, the row before it
+    /// with summary rows above —, nested ones included, so that a group expanded by hand still shows
+    /// its own children's state.
     /// </summary>
     /// <remarks>
-    /// A hidden group that ends the sheet has no row below it to carry the mark: Excel writes a cell-less
-    /// row there, which the cursor would read back as one more row, so none is written.
+    /// A hidden group that ends the sheet with summary rows below has no row below it to carry the mark:
+    /// Excel writes a cell-less row there, which the cursor would read back as one more row, so none is
+    /// written.
     /// </remarks>
-    private void AppendOutline(int level)
+    private void AppendOutline(int level, bool collapsed)
     {
-        bool hidden = level >= _hiddenFrom;
-        _row.Append(hidden ? "\" hidden=\"1\"" : "\"");
+        _row.Append(level >= _hiddenFrom ? "\" hidden=\"1\"" : "\"");
 
         if (level > 0)
         {
@@ -192,18 +264,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
             _row.Append('"');
         }
 
-        if (_summaryBelow)
-        {
-            if (_previousHidden && _previousLevel > level)
-            {
-                _row.Append(" collapsed=\"1\"");
-            }
-
-            _previousLevel = level;
-            _previousHidden = hidden;
-        }
-
-        _row.Append('>');
+        _row.Append(collapsed ? " collapsed=\"1\">" : ">");
     }
 
     public string? WriteHeader(string value, int style) => WriteInline(value, style == 0 ? 0 : _styles.Xf(style, ValueKind.Text));
@@ -303,11 +364,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _row.Append("/>");
     }
 
-    public void EndRow()
-    {
-        _row.Append("</row>");
-        Emit();
-    }
+    public void EndRow() => _row.Append("</row>");
 
     public void Complete()
     {
@@ -579,7 +636,11 @@ internal sealed class XlsxSheetWriter : ISheetWriter
             return;
         }
 
-        _row.Clear();
+        if (_rowHeld)
+        {
+            WriteHeldRow(0);
+        }
+
         _row.Append(XlsxParts.SheetDataEnd);
         AppendAutoFilter();
         AppendMerges();

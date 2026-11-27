@@ -250,4 +250,162 @@ public sealed class XlsxOutlineTests
         Assert.Equal(SheetLayoutTests.Entry(plain, "xl/workbook.xml"), SheetLayoutTests.Entry(outlined, "xl/workbook.xml"));
         Assert.Empty(OoxmlValidation.Errors(outlined));
     }
+
+    /// <summary>
+    /// With summary rows above, a collapsed group's "+" sits on the row before it — and on a nested
+    /// parent row inside a hidden group, so the group expanded by hand still shows its own child collapsed.
+    /// </summary>
+    [Theory]
+    [InlineData(1, new[] { 2, 3 })]
+    [InlineData(2, new[] { 3 })]
+    public async Task CollapsedAboveMarksTheParentRow(int shown, int[] collapsed)
+    {
+        byte[] xlsx = await Write(Outline(SummaryRows.Above, shown));
+
+        Assert.Equal(collapsed.Select(row => (row, "1")), Carrying(xlsx, "collapsed"));
+        Assert.Equal([(3, "1"), (4, "2"), (5, "1")], Carrying(xlsx, "outlineLevel"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>The row held back for its <c>collapsed</c> is written when the sheet ends, without the mark: no row follows it.</summary>
+    [Theory]
+    [InlineData(new[] { 0, 1 }, new[] { 2 })]
+    [InlineData(new[] { 0, 0 }, new int[0])]
+    public async Task LastHeldRowIsWritten(int[] levels, int[] collapsed)
+    {
+        byte[] xlsx = await Write(Outline(SummaryRows.Above, 1), levels);
+        string sheet = SheetLayoutTests.Entry(xlsx, Sheet1);
+
+        int last = sheet.IndexOf("<row r=\"3\"", StringComparison.Ordinal);
+        Assert.True(last > 0, sheet);
+        Assert.True(last < sheet.IndexOf("</sheetData>", StringComparison.Ordinal), sheet);
+        Assert.Equal([1, 2, 3], RowAttributes(sheet).Keys.Order());
+        Assert.Equal(collapsed.Select(row => (row, "1")), Carrying(xlsx, "collapsed"));
+        Assert.Equal(["name", "row 0", "row 1"], SheetLayoutTests.Rows(xlsx).Select(row => row[0].Text));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    [Fact]
+    public async Task HeldRowPrecedesFilterAndMerges()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            writer.BeginSheet("data", [new("name"), new("count")], new SheetOptions { AutoFilter = true, Outline = Outline(SummaryRows.Above, 1) });
+            writer.BeginRow(0);
+            writer.Merge(1, 2);
+            writer.Write("title");
+            writer.EndRow();
+            writer.BeginRow(1);
+            writer.Write("child");
+            writer.Write(1L);
+            writer.EndRow();
+        });
+        string sheet = SheetLayoutTests.Entry(xlsx, Sheet1);
+
+        int[] at =
+        [
+            sheet.IndexOf("<row r=\"3\" hidden=\"1\" outlineLevel=\"1\">", StringComparison.Ordinal),
+            sheet.IndexOf("</sheetData>", StringComparison.Ordinal),
+            sheet.IndexOf("<autoFilter ref=\"A1:B3\"/>", StringComparison.Ordinal),
+            sheet.IndexOf("<mergeCells count=\"1\"><mergeCell ref=\"A2:B2\"/></mergeCells>", StringComparison.Ordinal),
+        ];
+
+        Assert.True(at[0] > 0, sheet);
+        Assert.Equal(at.Order(), at);
+        Assert.Equal(at.Length, at.Distinct().Count());
+        Assert.Equal([(2, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary><c>FlushAsync</c> drains only what is already encoded: the held row waits on, and the sheet is the same as one written without the flush.</summary>
+    [Fact]
+    public async Task HeldRowSurvivesFlush()
+    {
+        int[] levels = [0, 1, 2, 1, 0, 1];
+        byte[] unflushed = await Write(Outline(SummaryRows.Above, 1), levels);
+
+        WriteTarget target = new();
+        await using (TabularWriter writer = TabularWriter.Create(target, TabularFormat.Xlsx))
+        {
+            writer.BeginSheet("data", [new("name"), new("count")], new SheetOptions { Outline = Outline(SummaryRows.Above, 1) });
+
+            for (int i = 0; i < levels.Length; i++)
+            {
+                if (i == 3)
+                {
+                    await writer.FlushAsync(Token);
+                }
+
+                writer.BeginRow(levels[i]);
+                writer.Write($"row {i}");
+                writer.Write((long)i);
+                writer.EndRow();
+            }
+
+            await writer.CompleteAsync(Token);
+        }
+
+        byte[] flushed = target.ToArray();
+        string sheet = SheetLayoutTests.Entry(flushed, Sheet1);
+
+        Assert.Equal(
+            [1, 2, 3, 4, 5, 6, 7],
+            System.Text.RegularExpressions.Regex.Matches(sheet, "<row r=\"([0-9]+)\"").Select(match => int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal(SheetLayoutTests.Entry(unflushed, Sheet1), sheet);
+        Assert.Empty(OoxmlValidation.Errors(flushed));
+    }
+
+    /// <summary>A batch begins its rows at level 0: its first row ends the groups, so the row held before it is not collapsed.</summary>
+    [Fact]
+    public async Task BatchRowEndsGroups()
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            writer.BeginSheet("data", [new("name"), new("count")], new SheetOptions { Outline = Outline(SummaryRows.Above, 1) });
+
+            for (int level = 0; level < 2; level++)
+            {
+                writer.BeginRow(level);
+                writer.Write($"row {level}");
+                writer.Write((long)level);
+                writer.EndRow();
+            }
+
+            ColumnBatch batch = new();
+            batch.Reset(2);
+            batch.Add(new List<string?> { "batch 0", "batch 1" });
+            batch.Add(new long[] { 10, 11 });
+            writer.WriteBatch(batch);
+        });
+
+        Assert.Equal([(2, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Equal([(3, "1")], Carrying(xlsx, "hidden"));
+        Assert.Equal([(3, "1")], Carrying(xlsx, "outlineLevel"));
+        Assert.Equal(5, SheetLayoutTests.Rows(xlsx).Count);
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>Without <c>ShownLevels</c> nothing is collapsed, so no row waits: the sheet is the one written before rows were held.</summary>
+    [Fact]
+    public async Task AboveWithoutShownLevelsHoldsNothing()
+    {
+        const string Expected =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">" +
+            "<sheetPr><outlinePr summaryBelow=\"0\"/></sheetPr>" +
+            "<sheetFormatPr defaultRowHeight=\"15\" outlineLevelRow=\"2\"/>" +
+            "<cols><col min=\"1\" max=\"1\" width=\"7\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"7\" customWidth=\"1\"/></cols>" +
+            "<sheetData>" +
+            "<row r=\"1\"><c t=\"inlineStr\"><is><t>name</t></is></c><c t=\"inlineStr\"><is><t>count</t></is></c></row>" +
+            "<row r=\"2\"><c t=\"inlineStr\"><is><t>row 0</t></is></c><c s=\"3\"><v>0</v></c></row>" +
+            "<row r=\"3\" outlineLevel=\"1\"><c t=\"inlineStr\"><is><t>row 1</t></is></c><c s=\"3\"><v>1</v></c></row>" +
+            "<row r=\"4\" outlineLevel=\"2\"><c t=\"inlineStr\"><is><t>row 2</t></is></c><c s=\"3\"><v>2</v></c></row>" +
+            "<row r=\"5\" outlineLevel=\"1\"><c t=\"inlineStr\"><is><t>row 3</t></is></c><c s=\"3\"><v>3</v></c></row>" +
+            "<row r=\"6\"><c t=\"inlineStr\"><is><t>row 4</t></is></c><c s=\"3\"><v>4</v></c></row>" +
+            "</sheetData></worksheet>";
+
+        byte[] xlsx = await Write(Outline(SummaryRows.Above));
+
+        Assert.Equal(Expected, SheetLayoutTests.Entry(xlsx, Sheet1));
+    }
 }
