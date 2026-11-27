@@ -1,1 +1,6 @@
 #nullable enable
+TriasDev.Tabular.CsvCursorOptions.QuoteMode.get -> TriasDev.Tabular.CsvQuoteMode
+TriasDev.Tabular.CsvCursorOptions.QuoteMode.init -> void
+TriasDev.Tabular.CsvQuoteMode
+TriasDev.Tabular.CsvQuoteMode.Repair = 0 -> TriasDev.Tabular.CsvQuoteMode
+TriasDev.Tabular.CsvQuoteMode.Strict = 1 -> TriasDev.Tabular.CsvQuoteMode

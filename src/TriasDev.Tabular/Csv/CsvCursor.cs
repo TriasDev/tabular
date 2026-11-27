@@ -17,7 +17,8 @@ namespace TriasDev.Tabular.Csv;
 /// The reader repairs input no specification allows, because such input arrives constantly: quotes
 /// standing inside fields that were never quoted, text after a closing quote, quotes that are never
 /// closed at all. Refusing the file would be defensible and useless — one malformed address must not
-/// fail an import of five million rows — so it recovers and counts what it repaired.
+/// fail an import of five million rows — so it recovers and counts what it repaired. Unless the
+/// caller asked for <see cref="CsvQuoteMode.Strict"/>: then it reads RFC 4180 and refuses the rest.
 /// </para>
 /// </remarks>
 internal sealed class CsvCursor : ITabularCursor
@@ -308,6 +309,10 @@ internal sealed class CsvCursor : ITabularCursor
         int quotedDelimiters = 0;
         bool strayFits = true;
 
+        // Read once per row: in strict mode nothing is ever replayed, so none of the raw text a replay
+        // needs is kept, and what the repair mode repairs is refused instead (#198).
+        bool strict = _options.QuoteMode == CsvQuoteMode.Strict;
+
         int sinceCheck = 0;
 
         while (true)
@@ -372,7 +377,11 @@ internal sealed class CsvCursor : ITabularCursor
                         run = ahead.Length;
                     }
 
-                    _quotedRaw.Append(ahead[..run]);
+                    if (!strict)
+                    {
+                        _quotedRaw.Append(ahead[..run]);
+                    }
+
                     AppendRunToField(ahead[..run]);
                     _bufferPosition += run;
                     sinceCheck += run;
@@ -386,6 +395,11 @@ internal sealed class CsvCursor : ITabularCursor
             {
                 if (inQuotes)
                 {
+                    if (strict)
+                    {
+                        throw Malformed("a quoted field is never closed, the file ends inside it");
+                    }
+
                     // The file ended inside a quoted field. Nothing to recover towards, so the text
                     // gathered so far is the value.
                     Diagnostics.RecoveredUnterminatedQuotes++;
@@ -417,7 +431,7 @@ internal sealed class CsvCursor : ITabularCursor
 
             char c = (char)next;
 
-            if (inQuotes)
+            if (inQuotes && !strict)
             {
                 // Kept before anything is decided about it, so that the character which trips the
                 // bound is part of what gets replayed. Keeping it afterwards loses the line ending
@@ -508,8 +522,36 @@ internal sealed class CsvCursor : ITabularCursor
                 continue;
             }
 
-            if (c == Dialect.Quote && atFieldStart && !suppressQuote)
+            if (inQuotes)
             {
+                // Strict: RFC 4180 and nothing else. However many lines and delimiters the field
+                // holds, only a quote can end it, and only where a field can end.
+                if (c != Dialect.Quote)
+                {
+                    AppendToField(c);
+                    continue;
+                }
+
+                if (PeekChar() == Dialect.Quote)
+                {
+                    ReadChar();
+                    AppendToField(Dialect.Quote);
+                    continue;
+                }
+
+                EndQuotedFieldStrictly();
+                inQuotes = false;
+                continue;
+            }
+
+            if (c == Dialect.Quote && !suppressQuote && (atFieldStart || (strict && OnlyBlankSoFar())))
+            {
+                // In strict mode a quote after nothing but whitespace opens the field too, as most
+                // readers take it, and the whitespace goes: `1, "monthly, HR"` is two values, not
+                // three. The text is trimmed when it becomes a cell anyway, so no value changes.
+                _field.Clear();
+                _pendingStart = -1;
+
                 inQuotes = true;
                 fieldWasQuoted = true;
                 atFieldStart = false;
@@ -593,6 +635,74 @@ internal sealed class CsvCursor : ITabularCursor
 
         _field.Append(c);
     }
+
+    /// <summary>Whitespace that strict mode drops around a quoted field: a space, and a tab that is not the delimiter.</summary>
+    private bool IsBlank(int c) => c == ' ' || (c == '\t' && Dialect.Delimiter != '\t');
+
+    /// <summary>Whether the field read so far is nothing but <see cref="IsBlank"/> whitespace.</summary>
+    /// <remarks>
+    /// Asked at every quote inside a field, in strict mode, so it looks from the end and stops at the
+    /// first character that is not blank. Looking from the start cost the length of the field's leading
+    /// blanks per quote — quadratic in a field of blanks, a letter and a run of quotes, where from the
+    /// end each quote meets the one before it at once.
+    /// </remarks>
+    private bool OnlyBlankSoFar()
+    {
+        if (_pendingStart >= 0)
+        {
+            // A pending run is the field's only content: nothing was added to the builder before it.
+            ReadOnlySpan<char> run = _buffer.AsSpan(_pendingStart, _pendingLength);
+
+            for (int i = run.Length - 1; i >= 0; i--)
+            {
+                if (!IsBlank(run[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        for (int i = _field.Length - 1; i >= 0; i--)
+        {
+            if (!IsBlank(_field[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// After a closing quote in strict mode: drops the whitespace that follows it, and refuses
+    /// anything else but the end of the field.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void EndQuotedFieldStrictly()
+    {
+        int next = PeekChar();
+
+        while (IsBlank(next))
+        {
+            ReadChar();
+            next = PeekChar();
+        }
+
+        if (next >= 0 && next != Dialect.Delimiter && next != '\r' && next != '\n')
+        {
+            throw Malformed("text follows the closing quote of a field");
+        }
+    }
+
+    /// <summary>The refusal of strict mode, naming the record being read.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private TabularFormatException Malformed(string what) => new(
+        TabularFormatException.Corrupt,
+        $"The csv file is not valid at row {(long)CurrentRowNumber + 1}: {what}. "
+        + $"It was read with {nameof(CsvQuoteMode)}.{nameof(CsvQuoteMode.Strict)}; "
+        + $"{nameof(CsvQuoteMode)}.{nameof(CsvQuoteMode.Repair)} would have repaired it.");
 
     /// <summary>
     /// Puts back everything a quoted field swallowed, its opening quote first, to be read again as

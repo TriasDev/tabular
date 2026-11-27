@@ -8,6 +8,8 @@ namespace TriasDev.Tabular;
 /// anyway. The reader recovers rather than refusing — a single malformed address must not fail an
 /// import of five million rows — but a recovery nobody is told about is indistinguishable from
 /// correct reading, and that is the actual defect. Hence the counts.
+/// A csv read with <see cref="CsvQuoteMode.Strict"/> repairs nothing and refuses instead, so its
+/// counts stay zero.
 /// </remarks>
 public sealed record CursorDiagnostics
 {

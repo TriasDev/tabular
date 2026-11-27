@@ -18,7 +18,9 @@ line ending is read as one field spanning lines, as RFC 4180 says — unless the
 swallowed a whole record's worth of delimiters, which marks it as a stray quote (#20, #10). A stray
 quote that happens to be closed at a field boundary before that point keeps the two lines joined:
 nothing in the text tells it from a genuine multi-line value. In tables narrower than five columns
-the delimiter test is off, and only the 100-line bound catches a stray quote.
+the delimiter test is off, and only the 100-line bound catches a stray quote. The reverse holds too:
+a genuine value that crosses a line and holds a record's worth of delimiters is split. A caller who
+cannot afford either reads with `CsvQuoteMode.Strict`, which never repairs and refuses instead (#198).
 
 **Matters when** a producer writes lone quotes into fields often enough for two of them to meet at a
 field boundary within one record. Neither the real-world nor the synthetic 5M-row fixture has such a
@@ -160,7 +162,8 @@ Decided, not deferred — listed so they are not mistaken for gaps.
 - **The header is the first row.** No heuristic looks elsewhere; `MappingPlan.HeaderRowIndex` is where
   a user says otherwise.
 - **`"C" Road` is repaired without a diagnostic.** The repair is lossy, and unlike an unterminated
-  quote it is not counted. Whether it should be is a judgement, not an oversight.
+  quote it is not counted. Whether it should be is a judgement, not an oversight. `CsvQuoteMode.Strict`
+  refuses it.
 
 ## Writing: what does not come back exactly as written
 

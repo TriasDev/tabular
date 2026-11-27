@@ -38,6 +38,7 @@ public sealed class OptionsValidationTests
         { new CsvCursorOptions { Quote = '\r' }, nameof(CsvCursorOptions.Quote) },
         { new CsvCursorOptions { Quote = ';' }, nameof(CsvCursorOptions.Quote) },
         { new CsvCursorOptions { Delimiter = '|', Quote = '|' }, nameof(CsvCursorOptions.Quote) },
+        { new CsvCursorOptions { QuoteMode = (CsvQuoteMode)7 }, nameof(CsvCursorOptions.QuoteMode) },
     };
 
     public static TheoryData<XlsxCursorOptions, string> BadXlsxOptions => new()
