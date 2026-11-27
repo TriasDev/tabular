@@ -25,10 +25,25 @@ public enum CsvQuoteMode
     /// only <see cref="CsvCursorOptions.MaxFieldChars"/> bounds it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Whitespace before an opening quote and after a closing one is not part of the field, so
-    /// <c>1, "Payroll", "monthly, HR"</c> reads as three values. A quote inside a field that does not
-    /// start with one (<c>21"st AVE</c>) is a character of the text, as it is in every spreadsheet
-    /// program. Nothing is repaired, so <see cref="CursorDiagnostics.IsClean"/> stays true.
+    /// <c>1, "Payroll", "monthly, HR"</c> reads as three values. That is any whitespace a cell is
+    /// trimmed of anyway — a no-break space included — except a tab that is the delimiter, so
+    /// <see cref="CsvCursorOptions.Quote"/> may not be whitespace in this mode. The whitespace before
+    /// a quote is held until the quote shows it is not content, so it counts towards
+    /// <see cref="CsvCursorOptions.MaxFieldChars"/>.
+    /// </para>
+    /// <para>
+    /// A quote inside a field that does not start with one (<c>21"st AVE</c>) is a character of the
+    /// text, as it is in every spreadsheet program. Nothing is repaired, so
+    /// <see cref="CursorDiagnostics.IsClean"/> stays true.
+    /// </para>
+    /// <para>
+    /// An opening quote that is never closed reads on to the end of the file and is refused there —
+    /// or, in a file larger than <see cref="CsvCursorOptions.MaxFieldChars"/>, reaches that limit first
+    /// and is refused as a <see cref="TabularLimitException"/> whose message names the row and the
+    /// open quote. In an archive the message also names the file the row is in.
+    /// </para>
     /// </remarks>
     Strict = 1,
 }
