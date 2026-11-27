@@ -73,6 +73,17 @@ public sealed record CsvCursorOptions
     public int MaxQuotedFieldLines { get; init; } = 100;
 
     /// <summary>
+    /// Whether quoting RFC 4180 does not allow is repaired, and counted, or refused.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CsvQuoteMode.Repair"/> by default: one malformed address must not fail an import of
+    /// five million rows. <see cref="CsvQuoteMode.Strict"/> for a caller that would rather refuse a
+    /// file than misread a row of it — a repair can split a value that was quoted correctly, such as a
+    /// spreadsheet cell holding a line break and a few commas.
+    /// </remarks>
+    public CsvQuoteMode QuoteMode { get; init; } = CsvQuoteMode.Repair;
+
+    /// <summary>
     /// The most characters one field may hold.
     /// </summary>
     /// <remarks>
@@ -111,6 +122,16 @@ public sealed record CsvCursorOptions
         OptionChecks.AtLeast(MaxFieldChars, 1, nameof(CsvCursorOptions), nameof(MaxFieldChars));
         OptionChecks.AtLeast(DialectProbeBytes, 1, nameof(CsvCursorOptions), nameof(DialectProbeBytes));
         OptionChecks.AtLeast(MaxColumns, 1, nameof(CsvCursorOptions), nameof(MaxColumns));
+
+        if (!Enum.IsDefined(QuoteMode))
+        {
+#pragma warning disable S3928 // Justification: the options arrive through a parameter named options, as OptionChecks names it
+            throw new ArgumentOutOfRangeException(
+                "options",
+                QuoteMode,
+                $"{nameof(CsvCursorOptions)}.{nameof(QuoteMode)} is not a quote mode.");
+#pragma warning restore S3928
+        }
 
         if (Delimiter is { } delimiter && !CsvDialectDetector.IsDelimiter(delimiter))
         {
