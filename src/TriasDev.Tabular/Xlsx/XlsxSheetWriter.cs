@@ -142,14 +142,13 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         _previousLevel = 0;
         _previousHidden = false;
         _holdRows = outline is { SummaryRows: SummaryRows.Above, ShownLevels: not null };
-        _rowHeld = false;
 
         if (_holdRows)
         {
             _cells ??= new RowText();
         }
 
-        _row.Clear();
+        // CloseSheet wrote the held row, if any, and emitted the rest: no row is held and _row is empty.
         _row.Append(XlsxParts.WorksheetStart);
 
         // The schema's order: sheetPr, sheetViews, sheetFormatPr, cols, sheetData.
@@ -163,7 +162,7 @@ internal sealed class XlsxSheetWriter : ISheetWriter
         if (outline is not null)
         {
             // The deepest level sizes the outline gutter and its level buttons; 15 points is the
-            // height of the default font, Calibri 11, as XlsxStyles writes it.
+            // default row height for the workbook's default font, Calibri 11, as XlsxStyles writes it.
             _row.Append("<sheetFormatPr defaultRowHeight=\"15\" outlineLevelRow=\"");
             _row.AppendFormatted(outline.Levels, default, CultureInfo.InvariantCulture);
             _row.Append("\"/>");

@@ -111,7 +111,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _rowNumber++;
         _row.Clear();
 
-        if (_depth != 0 || level != 0)
+        if ((_depth | level) != 0)
         {
             BeginOutlinedRow(level);
             return;

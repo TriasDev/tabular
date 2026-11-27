@@ -210,7 +210,7 @@ public sealed class TabularWriter : IAsyncDisposable
     /// <summary>Begins a sheet laid out by <paramref name="options"/> and writes its header row.</summary>
     /// <param name="name">The sheet's name. A workbook's names are 1 to 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not "History", unique ignoring case. A csv file has one sheet, whose name is not written.</param>
     /// <param name="columns">The columns: 1 to 16,384, each with a header that is not empty, neither starts nor ends with whitespace, and is unique in the sheet, ignoring case.</param>
-    /// <param name="options">The header style, frozen rows and columns, and filter; null for none.</param>
+    /// <param name="options">The header style, frozen rows and columns, filter and row outline; null for none.</param>
     /// <exception cref="ArgumentOutOfRangeException">A freeze outside the sheet: rows from 0 to the format's row limit less one, columns from 0 to the column count; or an <see cref="SheetOptions.Outline"/> of fewer than 1 or more than 7 <see cref="RowOutline.Levels"/>, <see cref="RowOutline.ShownLevels"/> outside 1 to Levels, or an undefined <see cref="RowOutline.SummaryRows"/>.</exception>
     /// <exception cref="ArgumentException">The <see cref="SheetOptions.HeaderStyle"/> has an alignment that is not a defined value, as <see cref="RegisterStyle"/> refuses.</exception>
     /// <exception cref="InvalidOperationException">The <see cref="SheetOptions.HeaderStyle"/> would be the file's 4097th distinct style, as <see cref="RegisterStyle"/> refuses; or a merged range of the previous sheet still covers rows the sheet did not write.</exception>
@@ -311,7 +311,10 @@ public sealed class TabularWriter : IAsyncDisposable
     private string? NameProblem(string name) =>
         _sheet.NamesSheets ? SheetNames.Problem(name, _sheetNames) ?? _sheet.NameProblem(name) : null;
 
-    /// <summary>Begins a row; its values follow, one per column, then <see cref="EndRow"/>.</summary>
+    /// <summary>
+    /// Begins a row at outline level 0, outside every group (see <see cref="BeginRow(int)"/>); its values
+    /// follow, one per column, then <see cref="EndRow"/>.
+    /// </summary>
     /// <exception cref="TabularWriteException">The sheet already holds as many rows as its format allows (<c>write.too-many-rows</c>, located at the last row it holds): 1,048,576 for xlsx and ods, <see cref="int.MaxValue"/> — the largest row number the reader gives — for csv and a zip of csv sheets. The writer is faulted.</exception>
     public void BeginRow() => BeginRow(0);
 
@@ -967,7 +970,8 @@ public sealed class TabularWriter : IAsyncDisposable
             throw Faulting(TooManyRows());
         }
 
-        if (level < 0 || level > _outlineLevels)
+        // One unsigned compare: a negative level wraps past every declared depth.
+        if ((uint)level > (uint)_outlineLevels)
         {
             throw Faulting(OutlineLevel(level));
         }

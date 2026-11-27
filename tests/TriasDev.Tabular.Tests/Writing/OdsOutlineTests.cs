@@ -117,6 +117,29 @@ public sealed partial class OdsOutlineTests
         Assert.Equal(2, lastContent.Split(Open).Length - 1);
     }
 
+    /// <summary>
+    /// The shown levels are the sheet's own: a second sheet without <c>ShownLevels</c> after one that collapsed
+    /// from level 1 opens every row, its groups expanded.
+    /// </summary>
+    [Fact]
+    public async Task NextSheetTakesItsOwnShownLevels()
+    {
+        byte[] ods = await SheetLayoutTests.Write(TabularFormat.Ods, writer =>
+        {
+            Sheet(writer, "first", Outline(shown: 1), [0, 1]);
+            Sheet(writer, "second", Outline(), [0, 1, 2, 1]);
+        });
+        string content = Content(ods);
+        int secondStart = content.IndexOf("table:name=\"second\"", StringComparison.Ordinal);
+        string first = content[..secondStart];
+        string second = content[secondStart..];
+
+        Assert.Contains(OpenCollapsed, first, StringComparison.Ordinal);
+        Assert.Equal(2, second.Split(Open).Length - 1);
+        Assert.DoesNotContain("table:display=\"false\"", second, StringComparison.Ordinal);
+        Assert.DoesNotContain("table:visibility=\"collapse\"", second, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task OutlineWithoutDeeperRowsWritesNoGroups()
     {

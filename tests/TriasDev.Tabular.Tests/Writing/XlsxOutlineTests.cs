@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 using TriasDev.Tabular.Tests.Fixtures;
@@ -68,15 +70,18 @@ public sealed class XlsxOutlineTests
                 attributes[reader.LocalName] = reader.Value;
             }
 
-            rows[int.Parse(attributes["r"], System.Globalization.CultureInfo.InvariantCulture)] = attributes;
+            rows[int.Parse(attributes["r"], CultureInfo.InvariantCulture)] = attributes;
         }
 
         return rows;
     }
 
-    /// <summary>The numbers of the rows that carry <paramref name="attribute"/>, with its value.</summary>
-    private static List<(int Row, string Value)> Carrying(byte[] xlsx, string attribute) =>
-        [.. RowAttributes(SheetLayoutTests.Entry(xlsx, Sheet1))
+    /// <summary>The numbers of the first sheet's rows that carry <paramref name="attribute"/>, with its value.</summary>
+    private static List<(int Row, string Value)> Carrying(byte[] xlsx, string attribute) => Carrying(xlsx, Sheet1, attribute);
+
+    /// <summary>The numbers of the rows of the sheet in <paramref name="entry"/> that carry <paramref name="attribute"/>, with its value.</summary>
+    private static List<(int Row, string Value)> Carrying(byte[] xlsx, string entry, string attribute) =>
+        [.. RowAttributes(SheetLayoutTests.Entry(xlsx, entry))
             .Where(row => row.Value.ContainsKey(attribute))
             .Select(row => (row.Key, row.Value[attribute]))
             .Order()];
@@ -226,6 +231,28 @@ public sealed class XlsxOutlineTests
         Assert.Empty(OoxmlValidation.Errors(both));
     }
 
+    /// <summary>
+    /// The first sheet ends inside a hidden group with summary rows below, so its last row leaves the previous
+    /// row hidden and deeper than level 0; an outlined second sheet that kept that state would mark its header
+    /// row as the summary of a hidden group. Only the second sheet's own groups are marked.
+    /// </summary>
+    [Theory]
+    [InlineData(SummaryRows.Below, null, new int[0])]
+    [InlineData(SummaryRows.Below, 1, new int[0])]
+    [InlineData(SummaryRows.Above, 1, new[] { 3 })]
+    public async Task NextOutlinedSheetStartsWithoutOutlineState(SummaryRows summary, int? shown, int[] collapsed)
+    {
+        byte[] xlsx = await SheetLayoutTests.Write(TabularFormat.Xlsx, writer =>
+        {
+            Sheet(writer, "first", Outline(SummaryRows.Below, 1, levels: 1), [0, 1]);
+            Sheet(writer, "second", Outline(summary, shown, levels: 1), [0, 0, 1]);
+        });
+
+        Assert.Equal([(3, "1")], Carrying(xlsx, Sheet1, "hidden"));
+        Assert.Equal(collapsed.Select(row => (row, "1")), Carrying(xlsx, "xl/worksheets/sheet2.xml", "collapsed"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
     public static TheoryData<SummaryRows, int?> Outlines() => new()
     {
         { SummaryRows.Above, null },
@@ -309,6 +336,21 @@ public sealed class XlsxOutlineTests
 
         Assert.Equal([(3, "1")], Carrying(xlsx, "collapsed"));
         Assert.Equal([(4, "1")], Carrying(xlsx, "hidden"));
+        Assert.Empty(OoxmlValidation.Errors(xlsx));
+    }
+
+    /// <summary>
+    /// With summary rows above, the header row is held like any other: when the first data row is hidden, the
+    /// header heads its group and carries the "+"; the level-0 row after the group carries it for LibreOffice.
+    /// </summary>
+    [Fact]
+    public async Task HeaderHeadsAHiddenFirstGroup()
+    {
+        byte[] xlsx = await Write(Outline(SummaryRows.Above, 1, levels: 1), [1, 0]);
+
+        Assert.Equal([(1, "1"), (3, "1")], Carrying(xlsx, "collapsed"));
+        Assert.Equal([(2, "1")], Carrying(xlsx, "hidden"));
+        Assert.Equal([(2, "1")], Carrying(xlsx, "outlineLevel"));
         Assert.Empty(OoxmlValidation.Errors(xlsx));
     }
 
@@ -411,7 +453,7 @@ public sealed class XlsxOutlineTests
 
         Assert.Equal(
             [1, 2, 3, 4, 5, 6, 7],
-            System.Text.RegularExpressions.Regex.Matches(sheet, "<row r=\"([0-9]+)\"").Select(match => int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)));
+            Regex.Matches(sheet, "<row r=\"([0-9]+)\"").Select(match => int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)));
         Assert.Equal(SheetLayoutTests.Entry(unflushed, Sheet1), sheet);
         Assert.Empty(OoxmlValidation.Errors(flushed));
     }

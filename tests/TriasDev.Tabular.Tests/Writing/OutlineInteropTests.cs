@@ -13,13 +13,13 @@ public sealed class OutlineInteropTests
 {
     private static readonly int[] Levels = [0, 1, 2, 1, 0];
 
-    private static Task<byte[]> Write(TabularFormat format) =>
+    private static Task<byte[]> Write(TabularFormat format, SummaryRows summary) =>
         SheetLayoutTests.Write(format, writer =>
         {
             writer.BeginSheet(
                 "data",
                 [new("name"), new("count")],
-                new SheetOptions { Outline = new RowOutline { Levels = 2, SummaryRows = SummaryRows.Above, ShownLevels = 1 } });
+                new SheetOptions { Outline = new RowOutline { Levels = 2, SummaryRows = summary, ShownLevels = 1 } });
 
             for (int i = 0; i < Levels.Length; i++)
             {
@@ -38,18 +38,19 @@ public sealed class OutlineInteropTests
     }
 
     [Theory]
-    [InlineData(TabularFormat.Xlsx, "xlsx")]
-    [InlineData(TabularFormat.Ods, "ods")]
-    public async Task LibreOfficeUnderstandsTheOutline(TabularFormat format, string extension)
+    [InlineData(TabularFormat.Xlsx, "xlsx", SummaryRows.Above)]
+    [InlineData(TabularFormat.Xlsx, "xlsx", SummaryRows.Below)]
+    [InlineData(TabularFormat.Ods, "ods", SummaryRows.Above)]
+    public async Task LibreOfficeUnderstandsTheOutline(TabularFormat format, string extension, SummaryRows summary)
     {
-        byte[] file = await Write(format);
+        byte[] file = await Write(format, summary);
 
         string content = Content(LibreOffice.Resave(file, extension));
 
         // A level-1 group holding a level-2 group, around rows 3 to 5 (rows 1 and 2 are the header and the level-0
         // parent): the outer group opens first, the inner closes before the outer, rows 3 to 5 are hidden, and both
         // groups are collapsed. From xlsx, LibreOffice sees a group collapsed only by the mark on the row after it,
-        // so the data ends on a level-0 row.
+        // whichever side the summary rows are declared on, so the data ends on a level-0 row.
         Assert.Matches(
             "<table:table-row-group[^>]*>(?:(?!</table:table-row-group>).)*<table:table-row-group[^>]*>(?:(?!</table:table-row-group>).)*</table:table-row-group>(?:(?!</table:table-row-group>).)*</table:table-row-group>",
             content);
@@ -59,11 +60,12 @@ public sealed class OutlineInteropTests
     }
 
     [Theory]
-    [InlineData(TabularFormat.Xlsx, "xlsx")]
-    [InlineData(TabularFormat.Ods, "ods")]
-    public async Task LibreOfficeShowsEveryValue(TabularFormat format, string extension)
+    [InlineData(TabularFormat.Xlsx, "xlsx", SummaryRows.Above)]
+    [InlineData(TabularFormat.Xlsx, "xlsx", SummaryRows.Below)]
+    [InlineData(TabularFormat.Ods, "ods", SummaryRows.Above)]
+    public async Task LibreOfficeShowsEveryValue(TabularFormat format, string extension, SummaryRows summary)
     {
-        byte[] file = await Write(format);
+        byte[] file = await Write(format, summary);
 
         string[] lines = LibreOffice.ConvertToCsv(file, extension);
 
