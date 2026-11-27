@@ -69,6 +69,10 @@ public sealed record CsvCursorOptions
     /// bound is what stands behind narrower tables, and every recovery by it is counted in
     /// <see cref="CursorDiagnostics.RecoveredUnterminatedQuotes"/>.
     /// </para>
+    /// <para>
+    /// Not applied when <see cref="QuoteMode"/> is <see cref="CsvQuoteMode.Strict"/>: nothing is
+    /// replayed there, and only <see cref="MaxFieldChars"/> bounds a quoted field.
+    /// </para>
     /// </remarks>
     public int MaxQuotedFieldLines { get; init; } = 100;
 

@@ -17,7 +17,8 @@ namespace TriasDev.Tabular.Csv;
 /// The reader repairs input no specification allows, because such input arrives constantly: quotes
 /// standing inside fields that were never quoted, text after a closing quote, quotes that are never
 /// closed at all. Refusing the file would be defensible and useless — one malformed address must not
-/// fail an import of five million rows — so it recovers and counts what it repaired.
+/// fail an import of five million rows — so it recovers and counts what it repaired. Unless the
+/// caller asked for <see cref="CsvQuoteMode.Strict"/>: then it reads RFC 4180 and refuses the rest.
 /// </para>
 /// </remarks>
 internal sealed class CsvCursor : ITabularCursor

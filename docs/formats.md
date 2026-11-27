@@ -157,6 +157,23 @@ one the file ends inside, is abandoned the same way (`RecoveredUnterminatedQuote
 what protects tables narrower than five columns, where the delimiter test is off. Genuine multi-line
 values — an address, a long note — hold a delimiter or two at most and are left alone.
 
+A repair is a guess, and a guess can be wrong: a spreadsheet's export of a cell holding a line break
+and four commas, in a table of five columns, looks exactly like a stray quote and is split. A caller
+for whom one misread row is worse than a refused file — a few rows typed by a person, each turned into
+work — reads with `CsvCursorOptions.QuoteMode = CsvQuoteMode.Strict` instead:
+
+```csharp
+TabularOpenOptions options = new() { Csv = new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict } };
+```
+
+Strict mode reads quotes as RFC 4180 does. A quoted field holds any number of lines and delimiters,
+bounded only by `MaxFieldChars`; a quoted field the file ends inside, and text after a closing quote
+(`"C" Road`), are refused as `format.corrupt`, the message naming the row. Whitespace before an
+opening quote and after a closing one is not part of the field, so `1, "Payroll", "monthly, HR"` is
+three values — in the default mode the quotes after a space are text, and the last value is split at
+its comma. A quote inside a field that does not start with one (`21"st AVE`) is text in both modes.
+Nothing is repaired, so `Diagnostics.IsClean` stays true.
+
 ## What each format holds when written
 
 A value a format cannot hold exactly is refused with a `TabularWriteException` that names the sheet,
