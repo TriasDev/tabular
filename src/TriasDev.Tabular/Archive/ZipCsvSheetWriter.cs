@@ -85,7 +85,7 @@ internal sealed class ZipCsvSheetWriter : ISheetWriter
         _csv.BeginSheet(name, columns, options);
     }
 
-    public void BeginRow() => _csv.BeginRow();
+    public void BeginRow(int level) => _csv.BeginRow(level);
 
     public string? WriteHeader(string value, int style) => _csv.WriteHeader(value, style);
 

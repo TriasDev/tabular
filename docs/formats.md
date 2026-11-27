@@ -190,6 +190,7 @@ they can be, so the same data fails the same way whichever format is chosen. See
 | Rows per sheet, header included | 2,147,483,647 (the largest row number the reader gives) | the same | 1,048,576 | 1,048,576 |
 | Columns per sheet | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 | 1 to 16,384 |
 | Styles, layout, widths | ignored | ignored | yes | yes |
+| Row outline (grouping) | ignored | ignored | `outlineLevel` on each row, with the summary position and the collapsed state | nested `table:table-row-group` elements; no summary position (LibreOffice draws the button on a group's first row) |
 | Distinct styles per file | | | 4,096 | 4,096 |
 | Merged ranges per sheet | written as the value and empty fields | the same | 65,536 | no limit |
 | Text per cell | 16 M chars (the reader's field limit) | 16 M chars | 32,767 chars | 16 M chars, and the escaped text within the reader's token limit |

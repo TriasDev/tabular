@@ -4,6 +4,8 @@ internal static class RowByRow
 {
     private const string CustomerHeader = "Customer";
 
+    private const string AmountHeader = "Amount";
+
     // --8<-- [start:styles]
     // Styles are declared once. A style compares by value, so the file holds each one once.
     private static readonly CellStyle HeaderStyle = new()
@@ -27,7 +29,7 @@ internal static class RowByRow
 
         writer.BeginSheet(
             "Orders",
-            [new WriteColumn("Id", 8), new WriteColumn("Customer", 28), new WriteColumn("Placed", 12), new WriteColumn("Amount", 12), new WriteColumn("Status", 10)],
+            [new WriteColumn("Id", 8), new WriteColumn("Customer", 28), new WriteColumn("Placed", 12), new WriteColumn(AmountHeader, 12), new WriteColumn("Status", 10)],
             new SheetOptions { HeaderStyle = HeaderStyle, FreezeRows = 1, AutoFilter = true });
 
         StyleId money = writer.RegisterStyle(MoneyStyle);
@@ -59,7 +61,7 @@ internal static class RowByRow
     public static async Task WriteWithTotalAsync(Stream stream, IReadOnlyList<Order> orders)
     {
         await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx);
-        writer.BeginSheet("Orders", [new WriteColumn("Id"), new WriteColumn(CustomerHeader), new WriteColumn("Amount")]);
+        writer.BeginSheet("Orders", [new WriteColumn("Id"), new WriteColumn(CustomerHeader), new WriteColumn(AmountHeader)]);
         StyleId money = writer.RegisterStyle(MoneyStyle);
 
         foreach (Order order in orders)
@@ -81,6 +83,47 @@ internal static class RowByRow
         await writer.CompleteAsync();
     }
     // --8<-- [end:merge]
+
+    // --8<-- [start:outline]
+    public static async Task WriteByCustomerAsync(Stream stream, IReadOnlyList<Order> orders)
+    {
+        await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx);
+
+        // One level of groups, opened collapsed: only the customers show, each with a "+".
+        writer.BeginSheet(
+            "By customer",
+            [new WriteColumn(CustomerHeader, 28), new WriteColumn("Id"), new WriteColumn(AmountHeader, 12)],
+            new SheetOptions
+            {
+                HeaderStyle = HeaderStyle,
+                FreezeRows = 1,
+                Outline = new RowOutline { Levels = 1, ShownLevels = 1 },
+            });
+        StyleId money = writer.RegisterStyle(MoneyStyle);
+
+        foreach (IGrouping<string, Order> customer in orders.GroupBy(o => o.Customer))
+        {
+            // The parent, level 0, written before its children (SummaryRows.Above, the default).
+            writer.BeginRow();
+            writer.Write(customer.Key);
+            writer.WriteEmpty();
+            writer.Write(customer.Sum(o => o.Amount), money);
+            writer.EndRow();
+
+            foreach (Order order in customer)
+            {
+                // One of its children, level 1.
+                writer.BeginRow(outlineLevel: 1);
+                writer.WriteEmpty();
+                writer.Write(order.Id);
+                writer.Write(order.Amount, money);
+                writer.EndRow();
+            }
+        }
+
+        await writer.CompleteAsync();
+    }
+    // --8<-- [end:outline]
 
     // --8<-- [start:zip]
     public static async Task WriteZipAsync(Stream stream, IReadOnlyList<Order> orders, IReadOnlyList<Order> returns)
@@ -109,7 +152,7 @@ internal static class RowByRow
     public static async Task WriteColumnsAsync(Stream stream, IAsyncEnumerable<OrderColumns> source, CancellationToken cancellationToken)
     {
         await using TabularWriter writer = TabularWriter.Create(stream, TabularFormat.Xlsx);
-        writer.BeginSheet("Orders", [new WriteColumn("Id"), new WriteColumn(CustomerHeader), new WriteColumn("Amount")]);
+        writer.BeginSheet("Orders", [new WriteColumn("Id"), new WriteColumn(CustomerHeader), new WriteColumn(AmountHeader)]);
         StyleId money = writer.RegisterStyle(MoneyStyle);
 
         // One batch for the whole sheet: Reset keeps its slots, and the lists are read where they are.

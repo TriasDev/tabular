@@ -34,6 +34,11 @@ await using (FileStream file = File.Create(Path.Combine(folder, "total.xlsx")))
     await RowByRow.WriteWithTotalAsync(file, orders);
 }
 
+await using (FileStream file = File.Create(Path.Combine(folder, "by-customer.xlsx")))
+{
+    await RowByRow.WriteByCustomerAsync(file, orders.Take(20).ToList());
+}
+
 await using (FileStream file = File.Create(Path.Combine(folder, "declared.xlsx")))
 {
     long rows = await Declared.WriteStreamAsync(file, Orders.Stream(chunks: 5, size: 1_000), CancellationToken.None);

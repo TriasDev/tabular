@@ -67,6 +67,13 @@ public sealed class TabularExportSheetOptionsTests
             .Build()).ParamName);
 
     [Fact]
+    public void BuildRefusesAnOutline() =>
+        Assert.Equal("Sheet", Assert.Throws<ArgumentException>(() => TabularExport.For<Item>()
+            .Column("Id", i => i.Id)
+            .Sheet(new SheetOptions { Outline = new RowOutline { Levels = 1 } })
+            .Build()).ParamName);
+
+    [Fact]
     public async Task OneExportWithALayoutServesConcurrentWriters()
     {
         Item[] items = [.. Enumerable.Range(1, 2_000).Select(i => new Item(i, $"n{i}"))];

@@ -74,7 +74,7 @@ internal sealed class CsvSheetWriter : ISheetWriter
         }
     }
 
-    public void BeginRow()
+    public void BeginRow(int level)
     {
         _row.Clear();
         _firstCell = true;

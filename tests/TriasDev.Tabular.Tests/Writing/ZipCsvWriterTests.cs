@@ -174,10 +174,10 @@ public sealed class ZipCsvWriterTests
         ZipCsvSheetWriter sheet = new(buffer, ZipWriterOptions.Default, CsvWriterOptions.Default.Resolve());
         sheet.BeginSheet("data", [new("v")], SheetOptions.Default);
 
-        sheet.BeginRow();
+        sheet.BeginRow(0);
         Assert.Null(sheet.WriteText(new string('x', 10_000_000), 0, 0));
         sheet.EndRow();
-        sheet.BeginRow();
+        sheet.BeginRow(0);
         Assert.Null(sheet.WriteText("small", 0, 0));
         sheet.EndRow();
 
