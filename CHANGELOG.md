@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0](https://github.com/TriasDev/tabular/compare/v0.8.3...v0.9.0) (2026-11-27)
+
+
+### Features
+
+* an option to read csv quotes strictly, refusing what the reader would otherwise repair ([#199](https://github.com/TriasDev/tabular/issues/199)) ([3ba2885](https://github.com/TriasDev/tabular/commit/3ba2885a4ee8393bfad9c60ad7565740c9972c27))
+* group rows into outline levels in the xlsx and ods writers ([#203](https://github.com/TriasDev/tabular/issues/203)) ([5b87928](https://github.com/TriasDev/tabular/commit/5b87928f16c656c1ef508bcea54d9b36759623b7)), closes [#197](https://github.com/TriasDev/tabular/issues/197)
+
+
+### Bug Fixes
+
+* strict csv quoting names where it refuses, stays cancellable and drops any whitespace around a quoted field ([#202](https://github.com/TriasDev/tabular/issues/202)) ([3d4f26b](https://github.com/TriasDev/tabular/commit/3d4f26b75c0533280dc525feb4567e06cf94954b))
+
 ## [0.8.3](https://github.com/TriasDev/tabular/compare/v0.8.2...v0.8.3) (2026-11-17)
 
 
