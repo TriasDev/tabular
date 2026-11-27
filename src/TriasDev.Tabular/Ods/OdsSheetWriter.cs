@@ -50,6 +50,8 @@ internal sealed class OdsSheetWriter : ISheetWriter
     private bool _filter;
     private string? _span;               // the pending span attributes for the next cell, or null
     private int _emptyRun;               // unstyled empty cells not yet written
+    private int _depth;                  // row groups open in the current sheet
+    private int _shown = int.MaxValue;   // levels from this one on are written collapsed
 
     public OdsSheetWriter(SpillBuffer output, OdsWriterOptions options, StyleTable styles)
     {
@@ -83,6 +85,8 @@ internal sealed class OdsSheetWriter : ISheetWriter
         _rowNumber = 0;
         _sheets++;
         _row.Clear();
+        CloseGroups();
+        _shown = options.Outline?.ShownLevels ?? int.MaxValue;
 
         if (_content is null)
         {
@@ -106,7 +110,41 @@ internal sealed class OdsSheetWriter : ISheetWriter
     {
         _rowNumber++;
         _row.Clear();
+
+        if (_depth != 0 || level != 0)
+        {
+            BeginOutlinedRow(level);
+            return;
+        }
+
         _row.Append("<table:table-row>");
+    }
+
+    /// <summary>Opens or closes the groups the row's level needs, then starts the row, collapsed from <c>ShownLevels</c> on.</summary>
+    private void BeginOutlinedRow(int level)
+    {
+        while (_depth > level)
+        {
+            _row.Append("</table:table-row-group>");
+            _depth--;
+        }
+
+        while (_depth < level)
+        {
+            _depth++;
+            _row.Append(_depth >= _shown ? "<table:table-row-group table:display=\"false\">" : "<table:table-row-group>");
+        }
+
+        _row.Append(level >= _shown ? "<table:table-row table:visibility=\"collapse\">" : "<table:table-row>");
+    }
+
+    /// <summary>Closes the groups a sheet's last rows left open; they must end before the table does.</summary>
+    private void CloseGroups()
+    {
+        for (; _depth > 0; _depth--)
+        {
+            _row.Append("</table:table-row-group>");
+        }
     }
 
     public string? WriteHeader(string value, int style) => WriteString(value, style);
@@ -215,6 +253,7 @@ internal sealed class OdsSheetWriter : ISheetWriter
         {
             _row.Clear();
             RecordFilter();
+            CloseGroups();
             _row.Append(OdsParts.TableEnd);
             _row.Append(OdsParts.DatabaseRanges(_filters));
             _row.Append(OdsParts.SpreadsheetEnd);
