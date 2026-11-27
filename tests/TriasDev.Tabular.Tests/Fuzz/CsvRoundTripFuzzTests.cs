@@ -38,6 +38,30 @@ public sealed class CsvRoundTripFuzzTests
     }
 
     [Fact]
+    public void ReadsBackEveryTableItWroteStrictlyWhateverItsFieldsHold()
+    {
+        // No value is taken out of the stray-quote rule here: strict mode has none, so a field may
+        // hold any number of delimiters and lines. Quoted fields get whitespace around them, which
+        // strict mode drops.
+        foreach ((int seed, Random random) in FuzzCases.Generate(300))
+        {
+            char delimiter = random.Pick(';', ',', '\t', '|');
+            string lineEnd = random.Pick("\n", "\r\n");
+            Encoding encoding = random.Pick<Encoding>(new UTF8Encoding(false), new UTF8Encoding(true), new UnicodeEncoding(false, true));
+            string[][] table = Table(random, Pieces);
+            byte[] file = Write(table, delimiter, lineEnd, encoding, random, quoteAlways: random.Chance(0.2), padQuoted: true);
+
+            FuzzCases.Keep(seed, ".strict.csv", file);
+            using CsvCursor cursor = new(
+                new MemoryStream(file),
+                "fuzz.csv",
+                new CsvCursorOptions { Encoding = encoding, Delimiter = delimiter, QuoteMode = CsvQuoteMode.Strict });
+            AssertReadsAs(table, cursor, seed);
+            Assert.True(cursor.Diagnostics.IsClean, $"seed {seed}: strict mode counted a repair");
+        }
+    }
+
+    [Fact]
     public void FindsTheDialectOfPlainTables()
     {
         foreach ((int seed, Random random) in FuzzCases.Generate(200))
@@ -121,13 +145,17 @@ public sealed class CsvRoundTripFuzzTests
         return value.ToString();
     }
 
-    private static byte[] Write(string[][] table, char delimiter, string lineEnd, Encoding encoding, Random random, bool quoteAlways)
+    private static byte[] Write(string[][] table, char delimiter, string lineEnd, Encoding encoding, Random random, bool quoteAlways, bool padQuoted = false)
     {
         StringBuilder csv = new();
 
         for (int r = 0; r < table.Length; r++)
         {
-            csv.Append(string.Join(delimiter, table[r].Select(v => Field(v, delimiter, quoteAlways || random.Chance(0.1)))));
+            csv.Append(string.Join(delimiter, table[r].Select(v =>
+            {
+                string field = Field(v, delimiter, quoteAlways || random.Chance(0.1));
+                return padQuoted && field.StartsWith('"') ? Blank(random, delimiter) + field + Blank(random, delimiter) : field;
+            })));
 
             if (r < table.Length - 1 || random.Chance(0.5))
             {
@@ -137,6 +165,12 @@ public sealed class CsvRoundTripFuzzTests
 
         return [.. encoding.GetPreamble(), .. encoding.GetBytes(csv.ToString())];
     }
+
+    /// <summary>Nothing, or a few spaces and — where tab is not the delimiter — tabs.</summary>
+    private static string Blank(Random random, char delimiter) =>
+        random.Chance(0.5)
+            ? string.Empty
+            : new string([.. Enumerable.Range(0, random.Next(1, 4)).Select(_ => delimiter != '\t' && random.Chance(0.3) ? '\t' : ' ')]);
 
     private static string Field(string value, char delimiter, bool quote)
     {
