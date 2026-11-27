@@ -1,6 +1,8 @@
+using System.Formats.Tar;
 using System.Text;
 
 using TriasDev.Tabular.Csv;
+using TriasDev.Tabular.Tests.Fixtures;
 
 using Xunit;
 
@@ -175,7 +177,7 @@ public sealed class StrictQuoteTests
     {
         // Each quote inside a field asks whether the field so far is only whitespace. Asked from the
         // field's start, that cost the length of its leading blanks per quote: sixty thousand blanks
-        // and as many quotes took some fifteen seconds, eighty thousand thirty-seven, and cancellation,
+        // and as many quotes took twenty-four seconds, eighty thousand thirty-seven, and cancellation,
         // checked per character, could not reach it. Linear, it is milliseconds, so the ceiling sits a
         // thousand times above it and far below the defect.
         const int n = 60_000;
@@ -187,6 +189,135 @@ public sealed class StrictQuoteTests
         watch.Stop();
         Assert.Equal("x" + new string('"', n), rows[1][0]);
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(3), $"took {watch.Elapsed}");
+    }
+
+    [Fact]
+    public void NamesTheRowAndTheOpenQuoteWhenAStrayQuoteReachesTheFieldLimit()
+    {
+        // A quote that is never closed reads on to the field limit. A small file ends first and is
+        // refused as quoting; a large one meets the limit, and the message has to say where and why.
+        CsvCursorOptions options = new() { QuoteMode = CsvQuoteMode.Strict, Delimiter = ',', MaxFieldChars = 100 };
+        string text = "a,b\n1,\"oops,3\n" + string.Concat(Enumerable.Repeat("x,y\n", 50));
+        using CsvCursor cursor = Open(text, options);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        TabularLimitException error = Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+
+        Assert.Contains("row 2", error.Message, StringComparison.Ordinal);
+        Assert.Contains("never closed", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CountsTheBlanksBeforeAQuoteTowardsTheFieldLimit()
+    {
+        // They are held until the quote shows they are not content, so they count — as documented.
+        CsvCursorOptions options = new() { QuoteMode = CsvQuoteMode.Strict, Delimiter = ',', MaxFieldChars = 8 };
+        using CsvCursor cursor = Open("a\n" + new string(' ', 10) + "\"x\"\n", options);
+
+        Assert.True(cursor.ReadRow(TestContext.Current.CancellationToken));
+        Assert.Throws<TabularLimitException>(() => cursor.ReadRow(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void DropsAnyWhitespaceAroundAQuotedFieldNotOnlySpaces()
+    {
+        // A no-break space is what a cell pasted from a spreadsheet or a web page often starts with,
+        // and the value is trimmed of it anyway.
+        (List<string[]> rows, _) = Read(
+            "a,b\n\u00A0\"x,y\"\u2003,z\n",
+            new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Delimiter = ',' });
+
+        Assert.Equal(["x,y", "z"], rows[1]);
+    }
+
+    [Fact]
+    public void CancellationReachesARunOfBlanksAfterAClosingQuote()
+    {
+        using CancellationTokenSource source = new();
+        byte[] text = Utf8NoBom.GetBytes("a\n\"x\"" + new string(' ', 3_000_000) + "\nb\n");
+        using CancellingStream stream = new(text, source);
+        using CsvCursor cursor = new(stream, "t.csv", new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Delimiter = ',' });
+
+        Assert.True(cursor.ReadRow(source.Token));
+        stream.CancelAfter(1);
+
+        Assert.ThrowsAny<OperationCanceledException>(() => cursor.ReadRow(source.Token));
+    }
+
+    [Theory]
+    [InlineData(65_531)]
+    [InlineData(65_532)]
+    [InlineData(65_533)]
+    public void RefusesTextAfterAClosingQuoteOnTheReadBufferEdge(int pad)
+    {
+        // "a\n" and the opening quote take three characters, so the closing quote lands on either side
+        // of the first 64 K buffer's last character.
+        TabularFormatException error = Refused(
+            "a\n\"" + new string('p', pad) + "\"Road\n",
+            new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Delimiter = ',' });
+
+        Assert.Contains("row 2", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(65_532)]
+    [InlineData(65_533)]
+    [InlineData(65_534)]
+    [InlineData(65_535)]
+    public void OpensAQuoteAfterBlanksThatCrossTheReadBufferEdge(int blanks)
+    {
+        (List<string[]> rows, _) = Read(
+            "a\n" + new string(' ', blanks) + "\"x,y\"  \n",
+            new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict, Delimiter = ',' });
+
+        Assert.Equal(["x,y"], rows[1]);
+    }
+
+    [Fact]
+    public void ReadsACsvInsideAZipStrictlyAndNamesTheEntryItRefuses()
+    {
+        byte[] zip = new ZipArchiveBuilder()
+            .With("ok.csv", ExcelExport)
+            .With("data/bad.csv", "a,b\n\"C\" Road,x\n")
+            .Build();
+
+        AssertReadsTheGoodEntryAndNamesTheBadOne(zip, "t.zip");
+    }
+
+    [Fact]
+    public void ReadsACsvInsideATarStrictlyAndNamesTheEntryItRefuses()
+    {
+        byte[] tar = TarArchive.Of(TarEntryFormat.Pax, ("ok.csv", ExcelExport), ("data/bad.csv", "a,b\n\"C\" Road,x\n"));
+
+        AssertReadsTheGoodEntryAndNamesTheBadOne(tar, "t.tar");
+    }
+
+    private static void AssertReadsTheGoodEntryAndNamesTheBadOne(byte[] archive, string name)
+    {
+        CancellationToken token = TestContext.Current.CancellationToken;
+        TabularOpenOptions options = new() { Csv = new CsvCursorOptions { QuoteMode = CsvQuoteMode.Strict } };
+        using ITabularCursor cursor = TabularFile.Open(new MemoryStream(archive, writable: false), name, options, token);
+        int good = cursor.Sheets.ToList().FindIndex(sheet => sheet.Source == "ok.csv");
+        int bad = cursor.Sheets.ToList().FindIndex(sheet => sheet.Source == "data/bad.csv");
+
+        Assert.True(cursor.MoveToSheet(good, token));
+        int rows = 0;
+
+        while (cursor.ReadRow(token))
+        {
+            rows++;
+        }
+
+        Assert.Equal(3, rows);
+        Assert.True(cursor.Diagnostics.IsClean);
+
+        Assert.True(cursor.MoveToSheet(bad, token));
+        Assert.True(cursor.ReadRow(token));
+        TabularFormatException error = Assert.Throws<TabularFormatException>(() => cursor.ReadRow(token));
+
+        Assert.Equal(TabularFormatException.Corrupt, error.Code);
+        Assert.Contains("data/bad.csv", error.Message, StringComparison.Ordinal);
+        Assert.Contains("row 2", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

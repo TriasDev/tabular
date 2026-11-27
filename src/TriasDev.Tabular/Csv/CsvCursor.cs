@@ -78,6 +78,9 @@ internal sealed class CsvCursor : ITabularCursor
 
     private int _pendingLength;
 
+    /// <summary>Whether a quoted field is open in strict mode, for the message of a field that grows past the limit.</summary>
+    private bool _inStrictQuote;
+
     private RawCell[] _cells = new RawCell[16];
     private int _cellCount;
     private int _bufferLength;
@@ -263,6 +266,7 @@ internal sealed class CsvCursor : ITabularCursor
         _cellCount = 0;
         _field.Clear();
         _pendingStart = -1;
+        _inStrictQuote = false;
 
         try
         {
@@ -368,7 +372,10 @@ internal sealed class CsvCursor : ITabularCursor
             if (inQuotes && _peeked < 0 && _pushbackPosition >= _pushback.Count && _bufferPosition < _bufferLength)
             {
                 ReadOnlySpan<char> ahead = _buffer.AsSpan(_bufferPosition, _bufferLength - _bufferPosition);
-                int run = ahead.IndexOfAny(_specials);
+
+                // Strict mode counts nothing inside quotes, so only a quote ends its run: a long note
+                // full of commas and line breaks is taken in one search, not stopped at each of them.
+                int run = strict ? ahead.IndexOf(Dialect.Quote) : ahead.IndexOfAny(_specials);
 
                 if (run != 0)
                 {
@@ -539,7 +546,7 @@ internal sealed class CsvCursor : ITabularCursor
                     continue;
                 }
 
-                EndQuotedFieldStrictly();
+                EndQuotedFieldStrictly(cancellationToken);
                 inQuotes = false;
                 continue;
             }
@@ -551,6 +558,7 @@ internal sealed class CsvCursor : ITabularCursor
                 // three. The text is trimmed when it becomes a cell anyway, so no value changes.
                 _field.Clear();
                 _pendingStart = -1;
+                _inStrictQuote = strict;
 
                 inQuotes = true;
                 fieldWasQuoted = true;
@@ -597,6 +605,19 @@ internal sealed class CsvCursor : ITabularCursor
         }
     }
 
+    /// <summary>Adds a run of ordinary text to the field being built, under the ceiling <see cref="AppendToField"/> keeps.</summary>
+    private void AppendRunToField(ReadOnlySpan<char> run)
+    {
+        FlushPending();
+
+        if (_field.Length + run.Length > _options.MaxFieldChars)
+        {
+            throw FieldTooLong();
+        }
+
+        _field.Append(run);
+    }
+
     /// <summary>
     /// Adds a character to the field being built, refusing one that grows past the ceiling.
     /// </summary>
@@ -606,20 +627,6 @@ internal sealed class CsvCursor : ITabularCursor
     /// held twice while a quoted field is open — once as the value and once as the raw text kept for
     /// a possible replay.
     /// </remarks>
-    /// <summary>Adds a run of ordinary text to the field being built, under the same ceiling.</summary>
-    private void AppendRunToField(ReadOnlySpan<char> run)
-    {
-        FlushPending();
-
-        if (_field.Length + run.Length > _options.MaxFieldChars)
-        {
-            throw new TabularLimitException(nameof(CsvCursorOptions.MaxFieldChars), _options.MaxFieldChars,
-                $"A field exceeds the {_options.MaxFieldChars} characters allowed.");
-        }
-
-        _field.Append(run);
-    }
-
     private void AppendToField(char c)
     {
         if (_pendingStart >= 0)
@@ -629,15 +636,35 @@ internal sealed class CsvCursor : ITabularCursor
 
         if (_field.Length >= _options.MaxFieldChars)
         {
-            throw new TabularLimitException(nameof(CsvCursorOptions.MaxFieldChars), _options.MaxFieldChars,
-                $"A field exceeds the {_options.MaxFieldChars} characters allowed.");
+            throw FieldTooLong();
         }
 
         _field.Append(c);
     }
 
-    /// <summary>Whitespace that strict mode drops around a quoted field: a space, and a tab that is not the delimiter.</summary>
-    private bool IsBlank(int c) => c == ' ' || (c == '\t' && Dialect.Delimiter != '\t');
+    /// <summary>The refusal of a field past <see cref="CsvCursorOptions.MaxFieldChars"/>, naming the row.</summary>
+    /// <remarks>
+    /// In strict mode a quote that is never closed reads on to this limit — a small file ends first
+    /// and is refused as quoting, a large one ends here — so the message says what it most likely is.
+    /// It stays a limit, not a format error: a quoted field this long that would have closed later
+    /// is indistinguishable, and a host answers a limit as an upload too large.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private TabularLimitException FieldTooLong() => new(
+        nameof(CsvCursorOptions.MaxFieldChars),
+        _options.MaxFieldChars,
+        $"A field exceeds the {_options.MaxFieldChars} characters allowed, at row {(long)CurrentRowNumber + 1}."
+        + (_inStrictQuote
+            ? $" It is a quoted field that was never closed within that many characters: read with {nameof(CsvQuoteMode)}.{nameof(CsvQuoteMode.Strict)}, "
+              + "a quote that is never closed reads on to this limit."
+            : string.Empty));
+
+    /// <summary>
+    /// Whitespace that strict mode drops around a quoted field: what <see cref="string.Trim()"/> trims
+    /// from a cell anyway — a no-break space included —, except the delimiter and line endings.
+    /// </summary>
+    private bool IsBlank(int c) =>
+        c >= 0 && c != Dialect.Delimiter && c != '\r' && c != '\n' && char.IsWhiteSpace((char)c);
 
     /// <summary>Whether the field read so far is nothing but <see cref="IsBlank"/> whitespace.</summary>
     /// <remarks>
@@ -679,13 +706,26 @@ internal sealed class CsvCursor : ITabularCursor
     /// After a closing quote in strict mode: drops the whitespace that follows it, and refuses
     /// anything else but the end of the field.
     /// </summary>
+    /// <remarks>
+    /// The run of whitespace has no bound of its own — nothing of it is kept — so it asks for
+    /// cancellation on the same stride the row loop does, or a file of a closing quote and a billion
+    /// spaces would hold the read beyond its token.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void EndQuotedFieldStrictly()
+    private void EndQuotedFieldStrictly(CancellationToken cancellationToken)
     {
+        _inStrictQuote = false;
         int next = PeekChar();
+        int skipped = 0;
 
         while (IsBlank(next))
         {
+            if (++skipped >= 64 * 1024)
+            {
+                skipped = 0;
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             ReadChar();
             next = PeekChar();
         }
@@ -697,6 +737,11 @@ internal sealed class CsvCursor : ITabularCursor
     }
 
     /// <summary>The refusal of strict mode, naming the record being read.</summary>
+    /// <remarks>
+    /// <see cref="TabularFormatException.Corrupt"/> also for a file that ends inside a quoted field,
+    /// not <see cref="TabularFormatException.Truncated"/>: that says the upload was cut off, and a quote
+    /// left open is far more often one a person forgot than the end of a clipped file.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private TabularFormatException Malformed(string what) => new(
         TabularFormatException.Corrupt,

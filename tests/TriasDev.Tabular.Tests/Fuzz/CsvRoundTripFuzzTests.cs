@@ -166,11 +166,13 @@ public sealed class CsvRoundTripFuzzTests
         return [.. encoding.GetPreamble(), .. encoding.GetBytes(csv.ToString())];
     }
 
-    /// <summary>Nothing, or a few spaces and — where tab is not the delimiter — tabs.</summary>
+    /// <summary>Nothing, or a few whitespace characters: spaces, no-break and em spaces, and — where tab is not the delimiter — tabs.</summary>
     private static string Blank(Random random, char delimiter) =>
         random.Chance(0.5)
             ? string.Empty
-            : new string([.. Enumerable.Range(0, random.Next(1, 4)).Select(_ => delimiter != '\t' && random.Chance(0.3) ? '\t' : ' ')]);
+            : new string([.. Enumerable.Range(0, random.Next(1, 4)).Select(_ => delimiter != '\t' && random.Chance(0.3)
+                ? '\t'
+                : random.Pick(' ', ' ', '\u00A0', '\u2003'))]);
 
     private static string Field(string value, char delimiter, bool quote)
     {
